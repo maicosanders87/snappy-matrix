@@ -2462,7 +2462,7 @@ window.addEventListener('load', () => {
     }
 
     // ----- Date helpers -----
-    function mgrToday() { return new Date(2026, 3, 13); } // April 13, 2026 as "today"
+    function mgrToday() { var d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
     function mgrFmtDate(d) {
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
