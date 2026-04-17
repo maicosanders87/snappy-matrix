@@ -3609,6 +3609,14 @@ window.addEventListener('load', () => {
               <option value="30min" ${existing.outline?.duration==='30min'?'selected':''}>30 min</option>
               <option value="45min" ${existing.outline?.duration==='45min'?'selected':''}>45 min</option>
               <option value="1hr" ${existing.outline?.duration==='1hr'?'selected':''}>1 hour</option>
+              <option value="1.5hr" ${existing.outline?.duration==='1.5hr'?'selected':''}>1.5 hours</option>
+              <option value="2hr" ${existing.outline?.duration==='2hr'?'selected':''}>2 hours</option>
+              <option value="3hr" ${existing.outline?.duration==='3hr'?'selected':''}>3 hours</option>
+              <option value="halfday" ${existing.outline?.duration==='halfday'?'selected':''}>Half day</option>
+              <option value="fullday" ${existing.outline?.duration==='fullday'?'selected':''}>Full day</option>
+              <option value="2days" ${existing.outline?.duration==='2days'?'selected':''}>2 days</option>
+              <option value="3days" ${existing.outline?.duration==='3days'?'selected':''}>3 days</option>
+              <option value="allweek" ${existing.outline?.duration==='allweek'?'selected':''}>All week</option>
             </select>
           </div>
           <div class="mgr-form-row">
