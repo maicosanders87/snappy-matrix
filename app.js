@@ -90,7 +90,8 @@ async function initCloudSync() {
     'techfiles': 'snappy_tech_files',
     'dispatch': 'snappy_dispatch_v1',
     'dailyduties': 'snappy_daily_duties',
-    'mgrstats': 'snappy_mgr_stats'
+    'mgrstats': 'snappy_mgr_stats',
+    'daynotes': 'snappy_day_notes'
   };
 
   let needsReload = false;
@@ -180,7 +181,8 @@ async function saveSyncUrl() {
       'techfiles': 'snappy_tech_files',
       'dispatch': 'snappy_dispatch_v1',
       'dailyduties': 'snappy_daily_duties',
-      'mgrstats': 'snappy_mgr_stats'
+      'mgrstats': 'snappy_mgr_stats',
+      'daynotes': 'snappy_day_notes'
     };
     var payload = {};
     for (var ck in keyMap) {
@@ -196,7 +198,7 @@ async function saveSyncUrl() {
     // Pull cloud data into localStorage for this device (JSONP)
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
-      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats' };
+      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats', 'daynotes': 'snappy_day_notes' };
       for (var pk in pullKeys) {
         if (pullData.result[pk]) {
           var cv = pullData.result[pk].data || pullData.result[pk].val || '';
@@ -2508,6 +2510,26 @@ window.addEventListener('load', () => {
       if (SyncEngine.isConfigured()) SyncEngine.write('dailyduties', duties);
     }
 
+    // ----- Day Notes persistence -----
+    const DAY_NOTES_KEY = 'snappy_day_notes';
+    function mgrLoadDayNotes() {
+      try { return JSON.parse(localStorage.getItem(DAY_NOTES_KEY)) || {}; } catch(e) { return {}; }
+    }
+    function mgrGetDayNote(dateStr) {
+      var notes = mgrLoadDayNotes();
+      return notes[dateStr] || '';
+    }
+    var _noteTimer = null;
+    function mgrSaveDayNote(dateStr, text) {
+      var notes = mgrLoadDayNotes();
+      if (text.trim()) { notes[dateStr] = text; } else { delete notes[dateStr]; }
+      localStorage.setItem(DAY_NOTES_KEY, JSON.stringify(notes));
+      clearTimeout(_noteTimer);
+      _noteTimer = setTimeout(function() {
+        if (SyncEngine.isConfigured()) SyncEngine.write('daynotes', notes);
+      }, 1500);
+    }
+
     // ----- Suggestion algorithms -----
     function mgrGetCategoryCoverage() {
       const techNames = Object.keys(skillsData.assignments);
@@ -2934,6 +2956,17 @@ window.addEventListener('load', () => {
           <div style="font-size:12px; color:var(--text-muted);">No coaching entries yet for this day. Use the buttons above to add one.</div>
         </div>`;
       }
+
+      // --- Notes section (bottom of day panel) ---
+      var dayNotes = mgrGetDayNote(dateStr);
+      html += `
+        <div class="mgr-form-section mgr-notes-block">
+          <div class="mgr-form-section-title" style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:16px;">&#128221;</span> Notes & Ideas
+          </div>
+          <textarea class="mgr-day-notes" id="mgrDayNotes" placeholder="Jot down ideas, reminders, or info for this day..." oninput="mgrSaveDayNote('${dateStr}',this.value)">${mgrEscape(dayNotes)}</textarea>
+        </div>
+      `;
 
       document.getElementById('mgrPanelBody').innerHTML = html;
     }

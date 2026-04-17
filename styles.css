@@ -3170,6 +3170,37 @@
       color: var(--text-muted);
     }
 
+    /* Day Notes */
+    .mgr-notes-block {
+      background: rgba(255,255,255,0.03);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .mgr-day-notes {
+      width: 100%;
+      min-height: 100px;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 10px 12px;
+      margin-top: 8px;
+      resize: vertical;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .mgr-day-notes:focus {
+      border-color: rgba(156, 106, 222, 0.4);
+    }
+    .mgr-day-notes::placeholder {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
     .mgr-warning {
       background: var(--accent-gold-light);
       border: 1px solid var(--accent-gold);
