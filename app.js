@@ -3656,6 +3656,7 @@ window.addEventListener('load', () => {
 
           <div class="mgr-panel-actions" style="margin-top:12px;">
             <button type="submit" class="mgr-btn">Save Training Plan</button>
+            <button type="button" class="mgr-btn secondary" onclick="mgrExportTrainingPDF()">Extract PDF</button>
           </div>
         </form>
       `;
@@ -3749,6 +3750,204 @@ window.addEventListener('load', () => {
       mgrSave();
       renderManagerTraining();
       return false;
+    }
+
+    function mgrExportTrainingPDF() {
+      var weekOf = document.getElementById('t_weekOf').value;
+      var topic = document.getElementById('t_topic').value || '(No topic)';
+      var rationale = document.getElementById('t_rationale').value || '';
+      var duration = document.getElementById('t_duration').value || '';
+      var keyPoints = Array.from(document.querySelectorAll('#t_keyPoints input')).map(function(i) { return i.value; }).filter(function(v) { return v.trim(); });
+      var materials = document.getElementById('t_materials').value || '';
+      var redBarn = document.getElementById('t_redBarn').checked;
+      var rbScenario = document.getElementById('t_rbScenario').value || '';
+      var hook = document.getElementById('t_hook').value || '';
+      var example = document.getElementById('t_example').value || '';
+      var takeaway = document.getElementById('t_takeaway').value || '';
+
+      var weekDate = mgrParseDate(weekOf);
+      var weekEnd = new Date(weekDate.getFullYear(), weekDate.getMonth(), weekDate.getDate() + 6);
+      var weekLabel = mgrFmtShort(weekDate) + ' - ' + mgrFmtShort(weekEnd) + ', ' + weekEnd.getFullYear();
+
+      var jsPDF = window.jspdf.jsPDF;
+      var doc = new jsPDF({ unit: 'pt', format: 'letter' });
+      var W = doc.internal.pageSize.getWidth();
+      var H = doc.internal.pageSize.getHeight();
+      var margin = 50;
+      var usable = W - margin * 2;
+      var y = margin;
+
+      function checkPage(need) {
+        if (y + need > H - 60) { doc.addPage(); y = margin; return true; }
+        return false;
+      }
+
+      // Header bar
+      doc.setFillColor(30, 36, 50);
+      doc.rect(0, 0, W, 70, 'F');
+      doc.setFillColor(76, 175, 80);
+      doc.rect(0, 68, W, 3, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('SNAPPY SERVICES', margin, 30);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Weekly Training Plan', margin, 48);
+      doc.setFontSize(10);
+      doc.text('Week of ' + weekLabel, W - margin, 30, { align: 'right' });
+      doc.text('Duration: ' + duration, W - margin, 48, { align: 'right' });
+
+      y = 90;
+      doc.setTextColor(30, 36, 50);
+
+      // Topic
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      var topicLines = doc.splitTextToSize(topic, usable);
+      doc.text(topicLines, margin, y);
+      y += topicLines.length * 18 + 8;
+
+      // Rationale
+      if (rationale) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(100, 100, 100);
+        doc.text('RATIONALE', margin, y);
+        y += 12;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(60, 60, 60);
+        var ratLines = doc.splitTextToSize(rationale, usable);
+        doc.text(ratLines, margin, y);
+        y += ratLines.length * 13 + 12;
+      }
+
+      // Key Points
+      if (keyPoints.length) {
+        checkPage(30);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 36, 50);
+        doc.setFillColor(76, 175, 80);
+        doc.rect(margin, y - 2, 3, 14, 'F');
+        doc.text('KEY POINTS', margin + 10, y + 10);
+        y += 22;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(50, 50, 50);
+        keyPoints.forEach(function(kp, i) {
+          checkPage(40);
+          var lines = doc.splitTextToSize((i + 1) + '.  ' + kp, usable - 15);
+          doc.text(lines, margin + 8, y);
+          y += lines.length * 13 + 6;
+        });
+        y += 6;
+      }
+
+      // Materials
+      if (materials) {
+        checkPage(40);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 36, 50);
+        doc.setFillColor(33, 150, 243);
+        doc.rect(margin, y - 2, 3, 14, 'F');
+        doc.text('MATERIALS', margin + 10, y + 10);
+        y += 22;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(50, 50, 50);
+        var matLines = doc.splitTextToSize(materials, usable - 10);
+        doc.text(matLines, margin + 8, y);
+        y += matLines.length * 13 + 12;
+      }
+
+      // Red Barn
+      if (redBarn && rbScenario) {
+        checkPage(50);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 36, 50);
+        doc.setFillColor(198, 40, 40);
+        doc.rect(margin, y - 2, 3, 14, 'F');
+        doc.text('RED BARN SCENARIO', margin + 10, y + 10);
+        y += 22;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(50, 50, 50);
+        var rbLines = doc.splitTextToSize(rbScenario, usable - 10);
+        doc.text(rbLines, margin + 8, y);
+        y += rbLines.length * 13 + 12;
+      }
+
+      // Impressionable Moment
+      if (hook || example || takeaway) {
+        checkPage(50);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 36, 50);
+        doc.setFillColor(156, 106, 222);
+        doc.rect(margin, y - 2, 3, 14, 'F');
+        doc.text('IMPRESSIONABLE MOMENT', margin + 10, y + 10);
+        y += 22;
+
+        if (hook) {
+          checkPage(30);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(100, 100, 100);
+          doc.text('HOOK / OPENER', margin + 8, y);
+          y += 12;
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(50, 50, 50);
+          var hookLines = doc.splitTextToSize(hook, usable - 15);
+          doc.text(hookLines, margin + 8, y);
+          y += hookLines.length * 13 + 10;
+        }
+        if (example) {
+          checkPage(30);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(100, 100, 100);
+          doc.text('REAL-WORLD EXAMPLE', margin + 8, y);
+          y += 12;
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(50, 50, 50);
+          var exLines = doc.splitTextToSize(example, usable - 15);
+          doc.text(exLines, margin + 8, y);
+          y += exLines.length * 13 + 10;
+        }
+        if (takeaway) {
+          checkPage(30);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(100, 100, 100);
+          doc.text('TAKEAWAY MESSAGE', margin + 8, y);
+          y += 12;
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(50, 50, 50);
+          var tkLines = doc.splitTextToSize(takeaway, usable - 15);
+          doc.text(tkLines, margin + 8, y);
+          y += tkLines.length * 13 + 10;
+        }
+      }
+
+      // Footer
+      var pages = doc.internal.getNumberOfPages();
+      for (var p = 1; p <= pages; p++) {
+        doc.setPage(p);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text('Snappy Services - Training Plan - ' + weekLabel, margin, H - 25);
+        doc.text('Page ' + p + ' of ' + pages, W - margin, H - 25, { align: 'right' });
+      }
+
+      doc.save('Snappy_Training_' + weekOf + '.pdf');
     }
 
     function mgrToggleAttendance(trainingId, tech, checked) {
