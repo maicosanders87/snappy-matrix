@@ -89,7 +89,8 @@ async function initCloudSync() {
     'manager': 'snappy_manager_entries',
     'techfiles': 'snappy_tech_files',
     'dispatch': 'snappy_dispatch_v1',
-    'dailyduties': 'snappy_daily_duties'
+    'dailyduties': 'snappy_daily_duties',
+    'mgrstats': 'snappy_mgr_stats'
   };
 
   let needsReload = false;
@@ -178,7 +179,8 @@ async function saveSyncUrl() {
       'manager': 'snappy_manager_entries',
       'techfiles': 'snappy_tech_files',
       'dispatch': 'snappy_dispatch_v1',
-      'dailyduties': 'snappy_daily_duties'
+      'dailyduties': 'snappy_daily_duties',
+      'mgrstats': 'snappy_mgr_stats'
     };
     var payload = {};
     for (var ck in keyMap) {
@@ -194,7 +196,7 @@ async function saveSyncUrl() {
     // Pull cloud data into localStorage for this device (JSONP)
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
-      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties' };
+      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats' };
       for (var pk in pullKeys) {
         if (pullData.result[pk]) {
           var cv = pullData.result[pk].data || pullData.result[pk].val || '';
@@ -2144,6 +2146,25 @@ window.addEventListener('load', () => {
     }
 
     // ========== ROOKIE TRADING CARDS ==========
+    // Manager rookie card stats — editable, persisted, synced
+    const MGR_STATS_KEY = 'snappy_mgr_stats';
+    function mgrLoadStats() {
+      try { return JSON.parse(localStorage.getItem(MGR_STATS_KEY)) || {}; } catch(e) { return {}; }
+    }
+    function mgrSaveStats(stats) {
+      localStorage.setItem(MGR_STATS_KEY, JSON.stringify(stats));
+      if (SyncEngine.isConfigured()) SyncEngine.write('mgrstats', stats);
+    }
+    function mgrEditStat(key, label, currentVal) {
+      var newVal = prompt('Update ' + label + ':', currentVal || '');
+      if (newVal !== null && newVal.trim() !== '') {
+        var stats = mgrLoadStats();
+        stats[key] = newVal.trim();
+        mgrSaveStats(stats);
+        renderRookieCards();
+      }
+    }
+
     function renderRookieCards() {
       let html = '';
 
@@ -2151,6 +2172,7 @@ window.addEventListener('load', () => {
       const mgrTierLower = 's';
       const mgrAvatarBg = 'linear-gradient(135deg, #2A1F0A, #1A0F20, #0A1A2A, #1A200A)';
       const mgrCompBarColor = 'linear-gradient(90deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF)';
+      const ms = mgrLoadStats();
       html += `
         <div class="rookie-card rookie-tier-s">
           <div class="rookie-card-border tier-s"></div>
@@ -2165,29 +2187,25 @@ window.addEventListener('load', () => {
           </div>
           <div class="rookie-info">
             <div class="rookie-stats">
-              <div class="rookie-stat">
-                <div class="rookie-stat-value" style="font-size:11px">MGR</div>
-                <div class="rookie-stat-label">Role</div>
+              <div class="rookie-stat mgr-stat-editable" onclick="mgrEditStat('equip_sales','Total Equipment Sales (90 days)','${ms.equip_sales||''}')"> 
+                <div class="rookie-stat-value">${ms.equip_sales || '—'}</div>
+                <div class="rookie-stat-label">Equip Sales</div>
+                <div class="rookie-stat-period">90 days</div>
               </div>
-              <div class="rookie-stat">
-                <div class="rookie-stat-value">5</div>
-                <div class="rookie-stat-label">Techs</div>
+              <div class="rookie-stat mgr-stat-editable" onclick="mgrEditStat('oneonone_rate','1-on-1 Completion Rate (per week)','${ms.oneonone_rate||''}')"> 
+                <div class="rookie-stat-value">${ms.oneonone_rate || '—'}</div>
+                <div class="rookie-stat-label">1-on-1 Rate</div>
+                <div class="rookie-stat-period">per week</div>
               </div>
-              <div class="rookie-stat">
-                <div class="rookie-stat-value">S</div>
-                <div class="rookie-stat-label">Tier</div>
+              <div class="rookie-stat mgr-stat-editable" onclick="mgrEditStat('ridealong_rate','Ride-Along Completion Rate (per week)','${ms.ridealong_rate||''}')"> 
+                <div class="rookie-stat-value">${ms.ridealong_rate || '—'}</div>
+                <div class="rookie-stat-label">Ride-Along Rate</div>
+                <div class="rookie-stat-period">per week</div>
               </div>
-              <div class="rookie-stat">
-                <div class="rookie-stat-value">2/wk</div>
-                <div class="rookie-stat-label">Coached</div>
-              </div>
-              <div class="rookie-stat">
-                <div class="rookie-stat-value">48</div>
-                <div class="rookie-stat-label">Skills</div>
-              </div>
-              <div class="rookie-stat">
-                <div class="rookie-stat-value">8</div>
-                <div class="rookie-stat-label">Categories</div>
+              <div class="rookie-stat mgr-stat-editable" onclick="mgrEditStat('callback_rate','Tech Callback Rate (0% = best)','${ms.callback_rate||''}')"> 
+                <div class="rookie-stat-value">${ms.callback_rate || '—'}</div>
+                <div class="rookie-stat-label">Callback Rate</div>
+                <div class="rookie-stat-period">0% = best</div>
               </div>
             </div>
             <div class="rookie-composite">

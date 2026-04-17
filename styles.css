@@ -837,6 +837,9 @@
       gap: 6px;
       margin-bottom: 12px;
     }
+    .rookie-tier-s .rookie-stats:has(.mgr-stat-editable) {
+      grid-template-columns: repeat(2, 1fr);
+    }
     .rookie-stat {
       text-align: center;
       background: rgba(255,255,255,0.06);
@@ -858,6 +861,23 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-top: 3px;
+    }
+    .rookie-stat-period {
+      font-size: 8px;
+      color: rgba(255,255,255,0.25);
+      margin-top: 1px;
+      font-style: italic;
+    }
+    .mgr-stat-editable {
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .mgr-stat-editable:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(156, 106, 222, 0.4);
+    }
+    .mgr-stat-editable:active {
+      background: rgba(156, 106, 222, 0.15);
     }
     .rookie-composite {
       display: flex;
