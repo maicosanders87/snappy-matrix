@@ -2263,6 +2263,7 @@
       font-weight: 700;
       line-height: 1.2;
     }
+    .mgr-cal-label.mon { color: #9C6ADE; }
     .mgr-cal-label.wed { color: var(--accent-gold); }
     .mgr-cal-label.tue { color: #D87A3A; }
     .mgr-cal-dots {
@@ -2281,6 +2282,7 @@
     .mgr-cal-dot.blue { background: #3A6BA8; }
     .mgr-cal-dot.gold { background: var(--accent-gold); }
     .mgr-cal-dot.orange { background: #D87A3A; }
+    .mgr-cal-dot.purple { background: #9C6ADE; }
     .mgr-cal-dot.hollow.green { background: transparent; border: 1.5px solid var(--accent-green); }
     .mgr-cal-dot.hollow.blue { background: transparent; border: 1.5px solid #3A6BA8; }
 
@@ -3080,6 +3082,73 @@
       transform: rotate(45deg);
     }
     .mgr-check-list { display: flex; flex-direction: column; gap: 2px; }
+
+    /* Daily duties & Monday planning checklist */
+    .mgr-daily-duties {
+      background: rgba(156, 106, 222, 0.06);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      border: 1px solid rgba(156, 106, 222, 0.15);
+    }
+    .mgr-monday-block {
+      background: rgba(156, 106, 222, 0.08);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      border: 1px solid rgba(156, 106, 222, 0.2);
+    }
+    .mgr-checklist {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .mgr-check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 6px;
+      transition: background 0.15s;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+    .mgr-check-item:hover {
+      background: rgba(255,255,255,0.04);
+    }
+    .mgr-check-item input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      border: 2px solid #555;
+      border-radius: 4px;
+      background: transparent;
+      cursor: pointer;
+      position: relative;
+      margin-top: 1px;
+    }
+    .mgr-check-item input[type="checkbox"]:checked {
+      background: #9C6ADE;
+      border-color: #9C6ADE;
+    }
+    .mgr-check-item input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 5px;
+      top: 1px;
+      width: 5px;
+      height: 10px;
+      border: solid #fff;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    .mgr-check-item input[type="checkbox"]:checked + span {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
 
     .mgr-warning {
       background: var(--accent-gold-light);

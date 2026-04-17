@@ -88,7 +88,8 @@ async function initCloudSync() {
     'skills': 'snappy_skills_assignments',
     'manager': 'snappy_manager_entries',
     'techfiles': 'snappy_tech_files',
-    'dispatch': 'snappy_dispatch_v1'
+    'dispatch': 'snappy_dispatch_v1',
+    'dailyduties': 'snappy_daily_duties'
   };
 
   let needsReload = false;
@@ -176,7 +177,8 @@ async function saveSyncUrl() {
       'skills': 'snappy_skills_assignments',
       'manager': 'snappy_manager_entries',
       'techfiles': 'snappy_tech_files',
-      'dispatch': 'snappy_dispatch_v1'
+      'dispatch': 'snappy_dispatch_v1',
+      'dailyduties': 'snappy_daily_duties'
     };
     var payload = {};
     for (var ck in keyMap) {
@@ -192,7 +194,7 @@ async function saveSyncUrl() {
     // Pull cloud data into localStorage for this device (JSONP)
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
-      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1' };
+      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties' };
       for (var pk in pullKeys) {
         if (pullData.result[pk]) {
           var cv = pullData.result[pk].data || pullData.result[pk].val || '';
@@ -2471,6 +2473,23 @@ window.addEventListener('load', () => {
     // ----- Calendar state -----
     let mgrCalDate = mgrToday();
 
+    // ----- Daily Duties persistence -----
+    const DAILY_DUTIES_KEY = 'snappy_daily_duties';
+    function mgrLoadDailyDuties() {
+      try { return JSON.parse(localStorage.getItem(DAILY_DUTIES_KEY)) || {}; } catch(e) { return {}; }
+    }
+    function mgrGetDailyDuty(dateStr, dutyKey) {
+      var duties = mgrLoadDailyDuties();
+      return duties[dateStr] && duties[dateStr][dutyKey];
+    }
+    function mgrToggleDailyDuty(dateStr, dutyKey, checked) {
+      var duties = mgrLoadDailyDuties();
+      if (!duties[dateStr]) duties[dateStr] = {};
+      duties[dateStr][dutyKey] = checked;
+      localStorage.setItem(DAILY_DUTIES_KEY, JSON.stringify(duties));
+      if (SyncEngine.isConfigured()) SyncEngine.write('dailyduties', duties);
+    }
+
     // ----- Suggestion algorithms -----
     function mgrGetCategoryCoverage() {
       const techNames = Object.keys(skillsData.assignments);
@@ -2656,14 +2675,16 @@ window.addEventListener('load', () => {
         const dayEntries = entriesByDate[dateStr] || [];
 
         let labelHtml = '';
-        if (dow === 3) labelHtml = `<div class="mgr-cal-label wed">Team Meeting</div>`;
+        if (dow === 1) labelHtml = `<div class="mgr-cal-label mon">Planning & Review</div>`;
         if (dow === 2) labelHtml = `<div class="mgr-cal-label tue">Training Prep</div>`;
+        if (dow === 3) labelHtml = `<div class="mgr-cal-label wed">Team Meeting</div>`;
 
         // Build dots
         let dots = '';
-        // Wednesday always gets gold indicator
-        if (dow === 3) dots += `<span class="mgr-cal-dot gold" title="Team meeting"></span>`;
+        // Recurring day indicators
+        if (dow === 1) dots += `<span class="mgr-cal-dot purple" title="Planning & Review"></span>`;
         if (dow === 2) dots += `<span class="mgr-cal-dot orange" title="Training prep"></span>`;
+        if (dow === 3) dots += `<span class="mgr-cal-dot gold" title="Team meeting"></span>`;
         dayEntries.forEach(e => {
           const isDone = e.status === 'completed';
           if (e.type === 'one-on-one') {
@@ -2766,8 +2787,9 @@ window.addEventListener('load', () => {
       document.getElementById('mgrPanelTitle').textContent = mgrFmtDisplay(d);
       const dow = d.getDay();
       let sub = '';
-      if (dow === 3) sub = 'Wednesday — Team Meeting day';
+      if (dow === 1) sub = 'Monday — Planning, Review & Leadership';
       else if (dow === 2) sub = 'Tuesday — Training Prep day';
+      else if (dow === 3) sub = 'Wednesday — Team Meeting day';
       document.getElementById('mgrPanelSub').textContent = sub;
       mgrRenderDayView(dateStr);
       mgrOpenPanel();
@@ -2784,6 +2806,39 @@ window.addEventListener('load', () => {
           <button class="mgr-btn" style="background:#3A6BA8" onclick="mgrStartForm('ride-along')">+ Ride-Along</button>
         </div>
       `;
+
+      // --- Daily Duties (every day) ---
+      html += `
+        <div class="mgr-form-section mgr-daily-duties">
+          <div class="mgr-form-section-title" style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:16px;">&#128203;</span> Daily Duties
+          </div>
+          <div class="mgr-checklist">
+            <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','review_calls',this.checked)" ${mgrGetDailyDuty(dateStr,'review_calls')?'checked':''}><span>Review prior day calls, service & installs (pics, invoices, summaries)</span></label>
+            <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','clear_cases',this.checked)" ${mgrGetDailyDuty(dateStr,'clear_cases')?'checked':''}><span>Task management on Service Titan (clear cases)</span></label>
+            <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','daily_huddle',this.checked)" ${mgrGetDailyDuty(dateStr,'daily_huddle')?'checked':''}><span>Daily huddle with HVAC through Slack app</span></label>
+          </div>
+        </div>
+      `;
+
+      // --- Monday: Planning, Review & Leadership ---
+      if (dow === 1) {
+        html += `
+          <div class="mgr-form-section mgr-monday-block">
+            <div class="mgr-form-section-title" style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:16px;">&#128197;</span> Monday — Planning, Review & Leadership
+            </div>
+            <div class="mgr-checklist">
+              <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','mon_employee_review',this.checked)" ${mgrGetDailyDuty(dateStr,'mon_employee_review')?'checked':''}><span>Employee Review #1 for the week</span></label>
+              <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','mon_leadership_mtg',this.checked)" ${mgrGetDailyDuty(dateStr,'mon_leadership_mtg')?'checked':''}><span>10:00 AM Leadership Meeting</span></label>
+              <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','mon_prior_week',this.checked)" ${mgrGetDailyDuty(dateStr,'mon_prior_week')?'checked':''}><span>Review prior week performance (callbacks, documentation, issues)</span></label>
+              <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','mon_weekend_calls',this.checked)" ${mgrGetDailyDuty(dateStr,'mon_weekend_calls')?'checked':''}><span>Review weekend service calls and identify action items</span></label>
+              <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','mon_training_plan',this.checked)" ${mgrGetDailyDuty(dateStr,'mon_training_plan')?'checked':''}><span>Build weekly training plan</span></label>
+              <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','mon_invoice_review',this.checked)" ${mgrGetDailyDuty(dateStr,'mon_invoice_review')?'checked':''}><span>Invoice review from previous day/weekend service and install</span></label>
+            </div>
+          </div>
+        `;
+      }
 
       if (dow === 2) {
         const weekOf = mgrFmtDate(mgrStartOfWeek(d));
