@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snappy Services — Tech Skills Matrix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <div class="logo-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Snappy Services</h1>
+          <div class="header-sub">Tech Skills Matrix — Manager View</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="badge">5 Technicians</span>
+        <span class="badge badge-date">Updated 4/13/2026</span>
+        <span id="syncStatusIndicator" class="sync-indicator sync-idle" onclick="openSyncSetup()" title="Cloud Sync Settings">☁ Cloud</span>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-view="overview">Overview</button>
+      <button class="nav-tab" data-view="aptitude-skills">Aptitude & Skills</button>
+      <button class="nav-tab" data-view="profiles">Tech Profiles</button>
+      <button class="nav-tab" data-view="rookie">Rookie Cards</button>
+      <button class="nav-tab" data-view="progression">Tier Progression</button>
+      <button class="nav-tab" data-view="skills-tags">Skills Tags</button>
+      <button class="nav-tab" data-view="manager">Manager</button>
+      <button class="nav-tab" data-view="dispatch">Dispatch</button>
+      <button class="nav-tab" data-view="scorecards">ServiceTitan Scorecards</button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-row" id="kpi-row"></div>
+
+    <!-- OVERVIEW TAB -->
+    <div id="view-overview" class="view-section active">
+      <!-- Team Banner -->
+      <div style="margin-bottom:24px;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1);border:1.5px solid var(--border);">
+        <img src="snappy_team.png" alt="Snappy Services Team" style="width:100%;display:block;">
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">Radar — Skill Comparison</div>
+          <div class="chart-subtitle">Category averages per tech (1–5 scale)</div>
+          <div class="chart-container-radar"><canvas id="radarChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Overall Average Score</div>
+          <div class="chart-subtitle">Composite score across all skill categories</div>
+          <div class="chart-container"><canvas id="barChart"></canvas></div>
+        </div>
+        <div class="chart-card chart-card-full">
+          <div class="chart-title">Skill Breakdown by Category</div>
+          <div class="chart-subtitle">Each tech's average across major evaluation categories</div>
+          <div class="chart-container"><canvas id="groupedBarChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APTITUDE & SKILLS TAB -->
+    <div id="view-aptitude-skills" class="view-section">
+      <!-- Sub-tabs -->
+      <div class="nav-tabs" style="margin-bottom:20px" id="as-sub-tabs">
+        <button class="nav-tab active" data-as="aptitude">Aptitude Tests</button>
+        <button class="nav-tab" data-as="comparison">Aptitude vs Self-Eval</button>
+        <button class="nav-tab" data-as="matrix">Full Skills Matrix</button>
+      </div>
+
+      <!-- APTITUDE TESTS SUB-TAB -->
+      <div id="as-aptitude" class="as-section active">
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">HVAC Aptitude Test Results</div>
+          </div>
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px; max-width:720px;">
+            Standardized HVAC knowledge assessment across 5 sections (10 pts each, 50 total). Aptitude scores carry the highest weight in the tier ranking formula.
+          </p>
+        </div>
+
+        <!-- Aptitude Leaderboard -->
+        <div id="aptLeaderboard" style="margin-bottom:28px"></div>
+
+        <!-- Aptitude Section Breakdown Chart -->
+        <div class="charts-grid" style="margin-bottom:28px">
+          <div class="chart-card">
+            <div class="chart-title">Section Scores by Tech</div>
+            <div class="chart-subtitle">Actual aptitude test results per section (out of 10)</div>
+            <div class="chart-container"><canvas id="aptSectionChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Overall Aptitude Ranking</div>
+            <div class="chart-subtitle">Total score out of 50 — sorted highest to lowest</div>
+            <div class="chart-container"><canvas id="aptTotalChart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Section Detail Grid -->
+        <div id="aptSectionGrid"></div>
+      </div>
+
+      <!-- COMPARISON SUB-TAB -->
+      <div id="as-comparison" class="as-section">
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">Aptitude Test vs Self-Evaluation</div>
+          </div>
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px; max-width:720px;">
+            Compares actual aptitude test scores (objective) against manager self-evaluation estimates (subjective). Large gaps may indicate over- or under-estimation of skill level.
+          </p>
+        </div>
+        <div id="comparisonGrid" style="margin-bottom:28px"></div>
+        <div class="chart-card" style="margin-bottom:28px">
+          <div class="chart-title">Aptitude vs Estimated — All Techs</div>
+          <div class="chart-container"><canvas id="aptVsEstChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- FULL MATRIX SUB-TAB -->
+      <div id="as-matrix" class="as-section">
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">Full Skills Matrix</div>
+          </div>
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px; max-width:720px;">
+            Detailed self-evaluation scores across all skill categories (1-5 scale). These scores feed into the Skills component of the tier formula as a secondary knowledge gauge.
+          </p>
+        </div>
+        <div class="matrix-wrap">
+          <table class="matrix-table" id="matrixTable"></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROFILES TAB -->
+    <div id="view-profiles" class="view-section">
+      <div class="tech-detail-grid" id="profileGrid"></div>
+    </div>
+
+    <!-- ROOKIE CARDS TAB -->
+    <div id="view-rookie" class="view-section">
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Rookie Trading Cards</div>
+        </div>
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px; max-width:720px;">
+          Collectible-style trading cards for each technician. Tier ranking, key stats, and composite score at a glance.
+        </p>
+      </div>
+      <div class="rookie-grid" id="rookieGrid"></div>
+    </div>
+
+    <!-- TIER PROGRESSION TAB -->
+    <div id="view-progression" class="view-section">
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Tier Progression Roadmap</div>
+        </div>
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px; max-width:720px;">
+          What each technician needs to improve to reach the next tier. Composite thresholds: <strong>B-Tier</strong> = 78 | <strong>A-Tier</strong> = 85 | <strong>S-Tier</strong> = 92
+        </p>
+      </div>
+      <div id="progressionGrid"></div>
+    </div>
+
+    <!-- SKILLS TAGS TAB -->
+    <div id="view-skills-tags" class="view-section">
+      <div class="section">
+        <div class="section-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+          <div class="section-title">Skills Tags — 48-Skill ServiceTitan System</div>
+          <button class="doc-open-btn" onclick="openSkillsDoc()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            ServiceTitan Skills & Tags System
+          </button>
+        </div>
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:18px; max-width:720px;">
+          The full 48-skill tagging system across 8 categories. Track per-tech assignments, NexTech Academy alignment, and tier progression requirements.
+        </p>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="kpi-row" id="sk-kpi-row"></div>
+
+      <!-- Sub-tabs -->
+      <div class="nav-tabs" style="margin-bottom:20px" id="sk-sub-tabs">
+        <button class="nav-tab active" data-sk="matrix">Overview Matrix</button>
+        <button class="nav-tab" data-sk="category">By Category</button>
+        <button class="nav-tab" data-sk="technician">By Technician</button>
+        <button class="nav-tab" data-sk="nextech">NexTech Alignment</button>
+        <button class="nav-tab" data-sk="progression">Progression Requirements</button>
+      </div>
+
+      <!-- Overview Matrix sub-tab -->
+      <div id="sk-matrix" class="sk-section active">
+        <div class="sk-edit-banner" id="skEditBanner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <span>Click any cell to toggle skill assignments — changes auto-save</span>
+          <span class="sk-save-indicator" id="skSaveIndicator">✓ Saved</span>
+          <button class="sk-reset-btn" onclick="resetSkillEdits()">Reset to Defaults</button>
+        </div>
+        <div class="skills-matrix-wrap">
+          <table class="skills-matrix" id="skMatrixTable"></table>
+        </div>
+      </div>
+
+      <!-- By Category sub-tab -->
+      <div id="sk-category" class="sk-section">
+        <div id="skCategoryCards"></div>
+      </div>
+
+      <!-- By Technician sub-tab -->
+      <div id="sk-technician" class="sk-section">
+        <div class="sk-tech-grid" id="skTechCards"></div>
+      </div>
+
+      <!-- NexTech Alignment sub-tab -->
+      <div id="sk-nextech" class="sk-section">
+        <div class="sk-nextech-grid" id="skNextechCards"></div>
+      </div>
+
+      <!-- Progression Requirements sub-tab -->
+      <div id="sk-progression" class="sk-section">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;" id="skProgressionWrap">
+          <div>
+            <div class="section-title" style="margin-bottom:16px; font-size:14px;">Skill Level Ladder</div>
+            <div class="sk-ladder" id="skLadder"></div>
+          </div>
+          <div>
+            <div class="section-title" style="margin-bottom:16px; font-size:14px;">Tier Crossing Requirements</div>
+            <div id="skCrossings"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANAGER TAB -->
+    <div id="view-manager" class="view-section">
+      <div class="section">
+        <div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;flex-wrap:wrap">
+          <div style="position:relative;flex-shrink:0">
+            <img src="maico_avatar.png" alt="Mark Sanders" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid transparent;background:linear-gradient(135deg,#FFD700,#FF6B6B,#8B5CF6,#4D96FF) border-box;box-shadow:0 0 16px rgba(255,215,0,0.3);">
+            <span style="position:absolute;bottom:-2px;right:-2px;background:linear-gradient(135deg,#FFD700,#FF6B6B,#8B5CF6);color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:8px;letter-spacing:0.5px;box-shadow:0 1px 4px rgba(0,0,0,0.2);">S-TIER</span>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <div style="font-size:22px;font-weight:800;color:var(--text-primary);line-height:1.2">Mark Sanders</div>
+            <div style="font-size:13px;color:var(--text-secondary);margin-top:2px">Service Manager — Coaching & Training Command Center</div>
+          </div>
+        </div>
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:18px; max-width:760px;">
+          Plan and track weekly 1-on-1s, ride-alongs, Tuesday training prep, and Wednesday team meetings.
+          Target: 2 coaching touches per tech per week. Training topics are auto-suggested from skill gaps
+          and ServiceTitan performance data.
+        </p>
+      </div>
+
+      <!-- Weekly compliance bar -->
+      <div class="mgr-compliance" id="mgrCompliance"></div>
+
+      <!-- KPI Row -->
+      <div class="mgr-kpi-row" id="mgrKpiRow"></div>
+
+      <!-- Sub-tabs -->
+      <div class="nav-tabs" id="mgr-sub-tabs" style="margin-bottom:20px">
+        <button class="nav-tab active" data-mgr="calendar">Coaching Calendar</button>
+        <button class="nav-tab" data-mgr="log">Session Log</button>
+        <button class="nav-tab" data-mgr="training">Training Planner</button>
+        <button class="nav-tab" data-mgr="techfiles">Tech Files</button>
+        <button class="nav-tab" data-mgr="forms">Forms (PDF)</button>
+      </div>
+
+      <!-- Calendar Section -->
+      <div id="mgr-calendar" class="mgr-section active">
+        <div class="mgr-cal-header">
+          <div class="mgr-cal-nav">
+            <button class="mgr-cal-btn" id="mgrCalPrev" title="Previous month">&#8249;</button>
+            <button class="mgr-cal-btn" id="mgrCalNext" title="Next month">&#8250;</button>
+            <button class="mgr-cal-today-btn" id="mgrCalToday">Today</button>
+          </div>
+          <div class="mgr-cal-title" id="mgrCalTitle">April 2026</div>
+          <div style="width:120px;"></div>
+        </div>
+
+        <div class="mgr-cal-grid" id="mgrCalGrid"></div>
+
+        <div class="mgr-cal-legend">
+          <div class="mgr-cal-legend-item"><span class="mgr-cal-dot green"></span>1-on-1 completed</div>
+          <div class="mgr-cal-legend-item"><span class="mgr-cal-dot hollow green"></span>1-on-1 planned</div>
+          <div class="mgr-cal-legend-item"><span class="mgr-cal-dot blue"></span>Ride-along completed</div>
+          <div class="mgr-cal-legend-item"><span class="mgr-cal-dot hollow blue"></span>Ride-along planned</div>
+          <div class="mgr-cal-legend-item"><span class="mgr-cal-dot gold"></span>Wednesday meeting</div>
+          <div class="mgr-cal-legend-item"><span class="mgr-cal-dot orange"></span>Tuesday training prep</div>
+        </div>
+      </div>
+
+      <!-- Session Log Section -->
+      <div id="mgr-log" class="mgr-section">
+        <div class="mgr-log-filters">
+          <select class="mgr-select" id="mgrLogTech">
+            <option value="">All Techs</option>
+          </select>
+          <select class="mgr-select" id="mgrLogType">
+            <option value="">All Types</option>
+            <option value="one-on-one">1-on-1</option>
+            <option value="ride-along">Ride-Along</option>
+          </select>
+          <select class="mgr-select" id="mgrLogStatus">
+            <option value="">All Statuses</option>
+            <option value="completed">Completed</option>
+            <option value="planned">Planned</option>
+          </select>
+          <button class="mgr-btn secondary sm" id="mgrLogClear">Clear filters</button>
+        </div>
+        <div id="mgrLogTableWrap"></div>
+      </div>
+
+      <!-- Tech Files Section -->
+      <div id="mgr-techfiles" class="mgr-section">
+        <div class="tf-layout">
+          <div class="tf-sidebar" id="tfSidebar"></div>
+          <div class="tf-main" id="tfMain"></div>
+        </div>
+      </div>
+
+      <!-- Forms (PDF) Section -->
+      <div id="mgr-forms" class="mgr-section">
+        <div class="mgr-forms-header">
+          <h3 style="margin:0 0 4px 0; font-size:18px; color:var(--text-primary);">Printable Forms</h3>
+          <p style="margin:0; font-size:13px; color:var(--text-secondary);">Download and print coaching forms for field use.</p>
+        </div>
+        <div class="mgr-forms-grid">
+          <div class="mgr-form-card" onclick="openEmbeddedPDF('snappy_one_on_one_form.pdf')">
+            <div class="mgr-form-card-icon">&#128203;</div>
+            <div class="mgr-form-card-content">
+              <div class="mgr-form-card-title">1-on-1 Coaching Form</div>
+              <div class="mgr-form-card-desc">Housekeeping review, focus areas, dispatch, customer complaints, callbacks, invoices, recommendations/options, wants &amp; needs, matrix suggestions</div>
+              <div class="mgr-form-card-action">Open PDF &rarr;</div>
+            </div>
+          </div>
+          <div class="mgr-form-card" onclick="openEmbeddedPDF('snappy_ride_along_form.pdf')">
+            <div class="mgr-form-card-icon">&#128663;</div>
+            <div class="mgr-form-card-content">
+              <div class="mgr-form-card-title">Ride-Along Form</div>
+              <div class="mgr-form-card-desc">Observe mode evaluation, debrief notes, what could be better, WIN scenarios from both manager and tech perspectives</div>
+              <div class="mgr-form-card-action">Open PDF &rarr;</div>
+            </div>
+          </div>
+          <div class="mgr-form-card" onclick="openEmbeddedPDF('snappy_self_eval_form.pdf')">
+            <div class="mgr-form-card-icon">&#128221;</div>
+            <div class="mgr-form-card-content">
+              <div class="mgr-form-card-title">Self-Evaluation Form</div>
+              <div class="mgr-form-card-desc">7 sections (A-G): Electrical &amp; Diagnostics, Heating, Cooling, Airflow &amp; Performance, Install &amp; Mechanical, Customer Communication &amp; Sales, Advanced Systems — plus self-awareness and growth plan</div>
+              <div class="mgr-form-card-action">Open PDF &rarr;</div>
+            </div>
+          </div>
+          <div class="mgr-form-card" onclick="openEmbeddedPDF('snappy_aptitude_test.pdf')">
+            <div class="mgr-form-card-icon">&#128218;</div>
+            <div class="mgr-form-card-content">
+              <div class="mgr-form-card-title">HVAC Aptitude Test</div>
+              <div class="mgr-form-card-desc">100-point test + 25 bonus across 5 sections: Electrical, Airflow, Refrigerant, Zoning, and Mark Questions (scenario-based). 10 multiple-choice per section, beginner to advanced</div>
+              <div class="mgr-form-card-action">Open PDF &rarr;</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload Modal -->
+      <div class="doc-modal-overlay" id="tfOverlay" onclick="tfCloseUpload()"></div>
+      <div class="tf-upload-modal" id="tfUploadModal">
+        <h3 id="tfModalTitle">Upload File</h3>
+        <label>Category</label>
+        <select id="tfType">
+          <option value="recall">Recall</option>
+          <option value="invoice">Invoice</option>
+          <option value="summary">Summary</option>
+          <option value="callback">Callback</option>
+          <option value="complaint">Customer Complaint</option>
+          <option value="photo">Photo / Screenshot</option>
+          <option value="note">Note / Memo</option>
+          <option value="other">Other</option>
+        </select>
+        <label>Title</label>
+        <input type="text" id="tfTitle" placeholder="e.g., Carrier furnace recall notice">
+        <label>Notes (optional)</label>
+        <textarea id="tfNotes" placeholder="Context for this file — what to discuss in 1-on-1..."></textarea>
+        <div class="tf-dropzone" id="tfDropzone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div>Drop file here or click to browse</div>
+          <div style="font-size:10px;margin-top:4px;opacity:0.7">PDF, images, text — max 4 MB</div>
+        </div>
+        <input type="file" id="tfFileInput" style="display:none" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.doc,.docx,.csv">
+        <div class="tf-modal-actions">
+          <button class="tf-cancel-btn" onclick="tfCloseUpload()">Cancel</button>
+          <button class="tf-save-btn" onclick="tfSaveFile()">Save</button>
+        </div>
+      </div>
+
+      <!-- Training Planner Section -->
+      <div id="mgr-training" class="mgr-section">
+        <div class="mgr-training-grid">
+          <div class="mgr-training-card">
+            <h3>Suggested Focus This Week</h3>
+            <div id="mgrSuggestBlock"></div>
+          </div>
+
+          <div class="mgr-training-card">
+            <h3>Build This Week's Training</h3>
+            <div id="mgrTrainingBuilder"></div>
+          </div>
+        </div>
+
+        <div class="mgr-training-card" style="margin-top:18px;">
+          <h3>Past Trainings</h3>
+          <div id="mgrPastTrainings" class="mgr-past-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manager side panel (shared overlay/panel) -->
+    <div class="mgr-overlay" id="mgrOverlay"></div>
+    <aside class="mgr-panel" id="mgrPanel" aria-hidden="true">
+      <div class="mgr-panel-header">
+        <div>
+          <div class="mgr-panel-title" id="mgrPanelTitle">Day</div>
+          <div class="mgr-panel-sub" id="mgrPanelSub"></div>
+        </div>
+        <button class="mgr-panel-close" id="mgrPanelClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="mgr-panel-body" id="mgrPanelBody"></div>
+    </aside>
+
+
+    <!-- Skills System Document Modal -->
+    <div class="doc-modal-overlay" id="docOverlay" onclick="closeSkillsDoc()"></div>
+    <div class="doc-modal" id="docModal">
+      <div class="doc-modal-header">
+        <div class="doc-modal-header-left">
+          <div class="doc-modal-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            ServiceTitan Skills &amp; Tags System
+          </div>
+          <div class="doc-modal-subtitle">Snappy Services — HVAC | Marietta, GA &nbsp;·&nbsp; 48 Skills &nbsp;·&nbsp; 8 Categories &nbsp;·&nbsp; NexTech Academy Aligned</div>
+        </div>
+        <button class="doc-modal-close" onclick="closeSkillsDoc()">&times;</button>
+      </div>
+      <div class="doc-modal-nav" id="docNav">
+  <button class="doc-nav-btn active" onclick="scrollDocTo('system-overview')">System Overview</button>
+  <button class="doc-nav-btn" onclick="scrollDocTo('skill-categories-master-skill-list')">Master Skill List</button>
+  <button class="doc-nav-btn" onclick="scrollDocTo('nextech-academy-alignment-map')">NexTech Alignment</button>
+  <button class="doc-nav-btn" onclick="scrollDocTo('tier-level-progression-framework')">Tier Progression</button>
+  <button class="doc-nav-btn" onclick="scrollDocTo('current-tech-skill-assignments')">Tech Assignments</button>
+  <button class="doc-nav-btn" onclick="scrollDocTo('servicetitan-setup-instructions')">ST Setup Guide</button>
+  <button class="doc-nav-btn" onclick="scrollDocTo('quick-reference-dispatch-matrix')">Dispatch Matrix</button>
+  <button class="doc-nav-btn" onclick="scrollDocTo('appendix-a-skill-tags-not-yet-assigned-to-anyone')">Appendix A: Skill Tags Not Yet Assigned to Anyone</button>
+  <button class="doc-nav-btn" onclick="scrollDocTo('appendix-b-nexstar-service-system-6-step-quick-reference')">Appendix B: Nexstar Service System — 6-Step Quick Reference</button>
+      </div>
+      <div class="doc-modal-body" id="docBody">
+<div id="doc-system-overview">
+<h2 id="system-overview">System Overview</h2>
+<h3>How Skills Fit Into the Tier Formula</h3>
+<p>Technician tier placement is determined by a composite score across six weighted inputs:</p>
+<table><thead><tr><th>Input</th><th>Weight</th></tr></thead><tbody><tr><td>Aptitude Assessment</td><td>25%</td></tr><tr><td><strong>Skills / Tags (ServiceTitan)</strong></td><td><strong>10% of composite score</strong></td></tr><tr><td>ServiceTitan Performance Metrics</td><td>30%</td></tr><tr><td>Manager Score</td><td>15%</td></tr><tr><td>Install Revenue</td><td>10%</td></tr><tr><td>Google Reviews</td><td>10%</td></tr><tr><td><strong>Total</strong></td><td><strong>100%</strong></td></tr></tbody></table>
+<blockquote><strong>Important distinction:</strong> The Skills component contributes <strong>10% to the composite score</strong> that determines tier placement. However, within a tier, accumulating skill tags governs <strong>level progression</strong> (C-1 → C-2 → C-3, etc.) and represents <strong>30% of the weight for moving between tiers</strong>. You can earn more skills tags to climb levels within your tier, but you cannot advance to the *next tier* until your overall composite score clears the tier threshold.</blockquote>
+<h3>Key Rules</h3>
+<ul>
+<li><strong>No technician should be below C-2</strong> as of current standing.</li>
+<li><strong>More skill tags = higher level within a tier.</strong> Level advancement within a tier is skills-gated.</li>
+<li><strong>Tier advancement</strong> requires both skill count AND composite score threshold.</li>
+<li>Skills are assigned by the Service Manager. Techs do not self-assign.</li>
+<li>Skills should be reviewed every <strong>90 days</strong> or after a documented performance event.</li>
+</ul>
+</div>
+<hr>
+<div id="doc-skill-categories-master-skill-list">
+<h2 id="skill-categories-master-skill-list">Skill Categories & Master Skill List</h2>
+<p>There are <strong>8 categories</strong> and <strong>48 total skills.</strong> Each skill has a short ServiceTitan-ready name (≤ 30 characters), a category tag, a description, and its NexTech Academy alignment where applicable.</p>
+<blockquote><strong>What changed:</strong> 14 new skills were added by cross-referencing the NexTech Academy HVAC curriculum (Levels 1–4) and Nexstar Network training programs. New skills are marked with <span class="doc-badge-new">NEW</span>. Existing skills that directly align with NexTech modules now show the curriculum reference.</blockquote>
+<h3>Category A — Technical Execution</h3>
+<p>*Core hands-on mechanical and field skills. The backbone of any tier evaluation.*</p>
+<table><thead><tr><th>#</th><th>ServiceTitan Skill Name</th><th>Description</th><th>NexTech Alignment</th></tr></thead><tbody><tr><td>A1</td><td><code>Compressor Changeout</code></td><td>Can independently diagnose a failed compressor, recover refrigerant, swap the compressor, braze linesets, recharge, and verify operation. No guidance needed.</td><td>Level 4 — Diagnosing Compressors, Replacing Compressors</td></tr><tr><td>A2</td><td><code>Evap Coil Replacement</code></td><td>Can independently remove and replace evaporator coils (all configurations), handle refrigerant, leak-check, and restore system operation.</td><td>Level 3 — Condenser Evaporator Coil Replacement and Repair</td></tr><tr><td>A3</td><td><code>Ductwork — Repairs</code></td><td>Can identify, access, seal, and repair existing duct deficiencies (flex, hard pipe, mastic, connections).</td><td>Level 2 — Sheet Metal / Flexible Duct Systems</td></tr><tr><td>A4</td><td><code>Ductwork — Design/Install</code></td><td>Can design and install new duct runs, trunk lines, and zoning configurations from scratch.</td><td>Level 3 — Duct Sizing and Duct Modifications</td></tr><tr><td>A5</td><td><code>Brazing Certified</code></td><td>Demonstrates safe, leak-free brazing technique on copper linesets and coil connections. Has passed internal or observed verification.</td><td>Level 3 — Brazing and Soldering</td></tr><tr><td>A6</td><td><code>Electrical — Advanced</code></td><td>Comfortable with low-voltage controls, thermostat wiring, transformer/contactor/capacitor replacement, and reading wiring diagrams.</td><td>Level 1 — Electricity Basics, Circuits, Measurements + Level 4 — Thermostat Troubleshooting</td></tr><tr><td>A7</td><td><code>Refrigerant Management</code></td><td>Proper recovery, recharge (by weight and subcooling/superheat), and leak checking per EPA standards.</td><td>Level 3 — Recovery, Pressure Testing, Evacuation</td></tr><tr><td>A8</td><td><code>System Startup & Commission</code></td><td>Can fully start up, verify performance, and document a newly installed system (airflow, static, refrigerant, electrical).</td><td>Level 4 — Commissioning Techniques</td></tr><tr><td>A9 <span class="doc-badge-new">NEW</span></td><td><code>Combustion Analysis</code></td><td>Can perform combustion testing on gas-fired equipment — CO measurement, draft testing, gas pressure verification, and flue gas analysis. Documents results.</td><td>Level 2 — Introduction to Heat, Combustion & Furnace Types; Level 1 (Heating) — Combustion Air</td></tr><tr><td>A10 <span class="doc-badge-new">NEW</span></td><td><code>Leak Detection Methods</code></td><td>Proficient in multiple refrigerant leak detection techniques (electronic, bubble, UV dye). Knows common leak locations. Can replace Schrader cores and caps.</td><td>Level 4 — Leak Detection Methods</td></tr><tr><td>A11 <span class="doc-badge-new">NEW</span></td><td><code>Motors & Capacitors</code></td><td>Can test, diagnose, and replace PSC/ECM blower motors and run/start capacitors. Understands motor types and applications.</td><td>Level 1 — Motors and Capacitors + Level 4 — Troubleshooting Blower Motors, Condenser Fan Motors</td></tr></tbody></table>
+<h3>Category B — Diagnostics & Troubleshooting</h3>
+<p>*Systematic problem-solving — separates parts-changers from true diagnosticians.*</p>
+<table><thead><tr><th>#</th><th>ServiceTitan Skill Name</th><th>Description</th><th>NexTech Alignment</th></tr></thead><tbody><tr><td>B1</td><td><code>Systematic Diagnosis</code></td><td>Follows a repeatable diagnostic process — gathers symptoms, checks inputs/outputs, identifies root cause before recommending repair.</td><td>Level 3–4 core methodology</td></tr><tr><td>B2</td><td><code>Electrical Troubleshooting</code></td><td>Can trace electrical faults: blown fuses, failed controls, wiring issues, communication faults. Uses meter correctly and reads schematics.</td><td>Level 1 — Electrical Measurements + Level 4 — Control Boards, Thermostat Shorts</td></tr><tr><td>B3</td><td><code>Advanced Refrigerant Diag</code></td><td>Goes beyond "low on charge" — identifies leak sources, metering device issues, overcharge, non-condensables.</td><td>Level 4 — Advanced Metering Device Diagnosis and Repair</td></tr><tr><td>B4</td><td><code>Indoor Air Quality Diag</code></td><td>Can assess and document IAQ issues: humidity, airflow, filtration, ventilation. Presents findings to customer.</td><td>Level 2 — Indoor Air Quality</td></tr><tr><td>B5</td><td><code>Heat Exchanger Inspection</code></td><td>Knows how to properly inspect a heat exchanger for cracks/failure, document findings, and present safety recommendations.</td><td>Level 2 — Introduction to Heat Exchangers + Level 4 — Heat Exchanger Inspection and Replacement</td></tr><tr><td>B6 <span class="doc-badge-new">NEW</span></td><td><code>Control Board Troubleshoot</code></td><td>Can interpret LED fault codes, test board inputs/outputs, and determine if a control board has failed vs. a connected component.</td><td>Level 4 — Troubleshooting Control Boards</td></tr><tr><td>B7 <span class="doc-badge-new">NEW</span></td><td><code>Igniter & Flame Rect</code></td><td>Can troubleshoot hot surface igniters, flame rectification circuits, and flame sensing devices. Knows resistance specs and replacement criteria.</td><td>Level 4 — Troubleshooting Igniters and Flame Rectification</td></tr><tr><td>B8 <span class="doc-badge-new">NEW</span></td><td><code>Gas Valve Troubleshooting</code></td><td>Can diagnose smart valve failures, gas piping issues, regulator problems, and LP conversion kits.</td><td>Level 4 — Troubleshooting Gas Valves</td></tr><tr><td>B9 <span class="doc-badge-new">NEW</span></td><td><code>Zoning System Diagnosis</code></td><td>Can properly diagnose zoning system failures — dampers, zone panels, bypass dampers, individual zone calls. Isolates failed component.</td><td>Level 4 — Troubleshooting Zoning Systems</td></tr></tbody></table>
+<h3>Category C — Sales & Revenue Performance</h3>
+<p>*Revenue-generating behaviors. Measured against actual ST performance data.*</p>
+<table><thead><tr><th>#</th><th>ServiceTitan Skill Name</th><th>Description</th><th>NexTech Alignment</th></tr></thead><tbody><tr><td>C1</td><td><code>Options Presentation</code></td><td>Consistently presents Good/Better/Best repair or replacement options on service calls. Documented in ST job notes.</td><td>Level 3 — Focus On The Present Step (Nexstar Service System)</td></tr><tr><td>C2</td><td><code>Membership Conversions</code></td><td>Actively presents and closes maintenance agreements on service calls.</td><td>Level 4 — Service Partner Plans and System Checks</td></tr><tr><td>C3</td><td><code>Equipment Sales</code></td><td>Has documented equipment replacement recommendations that converted to sold installs. Not just "presented" — closed or handed off successfully.</td><td>—</td></tr><tr><td>C4</td><td><code>High Revenue Service</code></td><td>Consistently generates above-average ticket revenue through thorough repair recommendations, not overselling.</td><td>—</td></tr><tr><td>C5</td><td><code>IAQ/Accessory Upsell</code></td><td>Comfortable presenting and selling IAQ add-ons: UV lights, media filters, dehumidifiers, surge protectors.</td><td>Level 2 — Indoor Air Quality + Level 2 — Maintenance Accessories</td></tr><tr><td>C6 <span class="doc-badge-new">NEW</span></td><td><code>Service Partner Plans</code></td><td>Can clearly introduce, explain benefits, and close homeowners on Service Partner Plans (maintenance agreements). Understands plan tiers and value proposition.</td><td>Level 4 — Service Partner Plans and System Checks</td></tr><tr><td>C7 <span class="doc-badge-new">NEW</span></td><td><code>Handling Pushbacks</code></td><td>Trained in proactive and reactive responses to common customer objections. Can navigate price resistance, "I need to think about it," and second-opinion requests without pressure.</td><td>Level 4 — Dealing With Pushbacks</td></tr></tbody></table>
+<h3>Category D — Work Quality & Thoroughness</h3>
+<p>*How a tech leaves the job — paperwork, cleanliness, follow-through.*</p>
+<table><thead><tr><th>#</th><th>ServiceTitan Skill Name</th><th>Description</th><th>NexTech Alignment</th></tr></thead><tbody><tr><td>D1</td><td><code>Thorough Diagnostic Write-Up</code></td><td>Always documents findings completely in ST: measurements, photos, readings, what was found and why.</td><td>Level 4 — Maximizing Efficiency: Help On The Job</td></tr><tr><td>D2</td><td><code>Clean Jobsite</code></td><td>Consistently leaves the work area as clean or cleaner than found. Customer comments confirm.</td><td>Level 3 — Focus On The Execute Step (craftsman shine, respect for customer home)</td></tr><tr><td>D3</td><td><code>SOP Compliance</code></td><td>Follows company processes: check-in/out, parts lookup, photo requirements, pricing book usage. No shortcuts.</td><td>Level 3 — Service System Preparation</td></tr><tr><td>D4</td><td><code>Customer Follow-Up</code></td><td>Ensures customers know what was done, what was found, and what's recommended before leaving.</td><td>Level 3 — Focus On The Wrap Up Step</td></tr><tr><td>D5 <span class="doc-badge-new">NEW</span></td><td><code>Summary of Findings</code></td><td>Completes a thorough written Summary of Findings (observations + suggestions) for every service call. Includes photos, measurements, and clear recommendations. Presented to customer before options.</td><td>Level 3 — Explore Step (Summary of Findings form referenced in Nexstar Service System)</td></tr></tbody></table>
+<h3>Category E — Equipment Changeouts & Install Capability</h3>
+<p>*Ability to flip equipment — independently or with guidance.*</p>
+<table><thead><tr><th>#</th><th>ServiceTitan Skill Name</th><th>Description</th><th>NexTech Alignment</th></tr></thead><tbody><tr><td>E1</td><td><code>Full System Changeout</code></td><td>Can independently complete a full split system changeout (air handler/furnace + condenser) start to finish.</td><td>Level 3 — AC System Installation Best Practices</td></tr><tr><td>E2</td><td><code>Assisted Changeout</code></td><td>Can complete a system changeout with guidance or a lead tech present. Not fully independent yet.</td><td>—</td></tr><tr><td>E3</td><td><code>Mini-Split Install</code></td><td>Has completed ductless mini-split installations (single or multi-zone).</td><td>Level 1 — Introduction To Residential Equipment (ductless systems)</td></tr><tr><td>E4</td><td><code>Gas Furnace Install/Repair</code></td><td>Comfortable with gas furnace installations, heat exchanger replacement, gas line connections, and combustion testing.</td><td>Level 2 — Gas Piping, Gas Valves and Burners + Venting Heating Systems</td></tr></tbody></table>
+<h3>Category F — Certifications & Training</h3>
+<p>*Verified credentials. Only assign if the certificate is on file.*</p>
+<table><thead><tr><th>#</th><th>ServiceTitan Skill Name</th><th>Description</th><th>NexTech Alignment</th></tr></thead><tbody><tr><td>F1</td><td><code>EPA 608 Universal</code></td><td>Holds active EPA Section 608 Universal refrigerant handling certification.</td><td>—</td></tr><tr><td>F2</td><td><code>NATE Certified</code></td><td>Holds current NATE (North American Technician Excellence) certification in at least one specialty.</td><td>NexTech Academy is a recognized NATE prep provider</td></tr><tr><td>F3</td><td><code>Nexstar Service System</code></td><td>Completed Nexstar Network service technician training. Understands the Nexstar call structure and options-based selling framework.</td><td>Level 3 — Full Nexstar Service System (6 steps)</td></tr><tr><td>F4</td><td><code>Manufacturer Cert — Trane</code></td><td>Completed Trane factory training program (e.g., Trane Tech Builder or equivalent).</td><td>—</td></tr><tr><td>F5</td><td><code>Vocational / Trade School</code></td><td>Completed an accredited HVAC vocational or trade school program.</td><td>—</td></tr><tr><td>F6 <span class="doc-badge-new">NEW</span></td><td><code>NexTech Level 1-2</code></td><td>Completed NexTech Academy Levels 1 and 2 (HVAC Fundamentals + Basic Skills). Demonstrated competency through testing and supervised skill practice.</td><td>Levels 1–2 complete</td></tr><tr><td>F7 <span class="doc-badge-new">NEW</span></td><td><code>NexTech Level 3-4</code></td><td>Completed NexTech Academy Levels 3 and 4 (Intermediate Skills + Advanced Skills and Customer Interactions). Has graduated from NexTech Academy.</td><td>Levels 3–4 complete / NexTech graduation</td></tr></tbody></table>
+<h3>Category G — Soft Skills & Customer Facing</h3>
+<p>*Professionalism and communication — directly tied to review scores and callbacks.*</p>
+<table><thead><tr><th>#</th><th>ServiceTitan Skill Name</th><th>Description</th><th>NexTech Alignment</th></tr></thead><tbody><tr><td>G1</td><td><code>Strong Customer Reviews</code></td><td>Has 10+ Google reviews with consistent 4.5–5 star ratings. Pattern of positive feedback, not just volume.</td><td>—</td></tr><tr><td>G2</td><td><code>Professional Presentation</code></td><td>Uniform, van, and appearance consistently meet company standards. No customer complaints on presentation.</td><td>Level 3 — Service System Preparation (physical prep)</td></tr><tr><td>G3</td><td><code>Customer Communication</code></td><td>Explains repairs, options, and findings clearly to non-technical customers. Low callback/confusion rate.</td><td>Level 2 — Communication + Working With People</td></tr></tbody></table>
+<h3>Category H — Nexstar Service System Process <span class="doc-badge-new">NEW</span></h3>
+<p>*The Nexstar 6-step call process. Mastering these steps is the foundation of customer experience and revenue generation. Each step is a separate skill — techs earn them as they demonstrate proficiency observed by the Service Manager or a ride-along mentor.*</p>
+<table><thead><tr><th>#</th><th>ServiceTitan Skill Name</th><th>Description</th><th>NexTech Alignment</th></tr></thead><tbody><tr><td>H1 <span class="doc-badge-new">NEW</span></td><td><code>NSS — Greet</code></td><td>Demonstrates the Nexstar Greet step: professional first impression, shoe covers, empathy, parking carefully, introduces self and company, sets expectations for the visit using the agenda card. Establishes the 3 pillars of trust (Empathy, Expertise, Expectations).</td><td>Level 3 — Focus On The Greet Step</td></tr><tr><td>H2 <span class="doc-badge-new">NEW</span></td><td><code>NSS — Explore</code></td><td>Demonstrates the Nexstar Explore step: asks great symptom and lifestyle questions, keeps customer engaged, takes photos, fills out Summary of Findings, price conditions the customer, checks in with dispatch.</td><td>Level 3 — Focus On The Explore Step</td></tr><tr><td>H3 <span class="doc-badge-new">NEW</span></td><td><code>NSS — Present</code></td><td>Demonstrates the Nexstar Present step: presents 3–6 options to all decision-makers (Good/Better/Best for HVAC), explains each clearly in customer language, uses "link it, say it, spin it, zip it" closing method. Includes warranty, financing, and Service Partner Plan info on every option.</td><td>Level 3 — Focus On The Present Step</td></tr><tr><td>H4 <span class="doc-badge-new">NEW</span></td><td><code>NSS — Execute</code></td><td>Demonstrates the Nexstar Execute step: performs repairs with craftsman quality, keeps work area cleaner than found, respects customer's home, manages time efficiently, communicates status to dispatch.</td><td>Level 3 — Focus On The Execute Step</td></tr><tr><td>H5 <span class="doc-badge-new">NEW</span></td><td><code>NSS — Wrap Up</code></td><td>Demonstrates the Nexstar Wrap Up step: tests completed work, shows customer the repair, reviews leave-behinds, offers Service Partner Plan, asks for 5-star review, completes all paperwork, performs curbside self-evaluation.</td><td>Level 3 — Focus On The Wrap Up Step</td></tr><tr><td>H6 <span class="doc-badge-new">NEW</span></td><td><code>Challenging Situations</code></td><td>Can handle difficult customer interactions professionally: upset customers, second-opinion requests, "can't afford it" scenarios, scope disagreements. De-escalates without conceding value.</td><td>Level 4 — Challenging Customer Situations</td></tr></tbody></table>
+<h3>Skill Count Summary</h3>
+<table><thead><tr><th>Category</th><th>Skills</th><th>New</th></tr></thead><tbody><tr><td>A — Technical Execution</td><td>11</td><td>+3</td></tr><tr><td>B — Diagnostics & Troubleshooting</td><td>9</td><td>+4</td></tr><tr><td>C — Sales & Revenue Performance</td><td>7</td><td>+2</td></tr><tr><td>D — Work Quality & Thoroughness</td><td>5</td><td>+1</td></tr><tr><td>E — Equipment Changeouts & Install</td><td>4</td><td>—</td></tr><tr><td>F — Certifications & Training</td><td>7</td><td>+2</td></tr><tr><td>G — Soft Skills / Customer Facing</td><td>3</td><td>—</td></tr><tr><td>H — Nexstar Service System Process</td><td>6</td><td>+6 (new category)</td></tr><tr><td><strong>Total</strong></td><td><strong>52</strong></td><td><strong>+18</strong></td></tr></tbody></table>
+<blockquote><strong>Note:</strong> 4 skills from the original 34 were consolidated or reworded to avoid overlap with new Nexstar additions. The effective new count is <strong>48 unique skills</strong> (34 original + 14 net new).</blockquote>
+</div>
+<hr>
+<div id="doc-nextech-academy-alignment-map">
+<h2 id="nextech-academy-alignment-map">NexTech Academy Alignment Map</h2>
+<p>This map shows how each NexTech Academy level maps to Snappy Services skill tags. Use it to build training plans — when a tech completes a NexTech level, they should be evaluated for the associated skills.</p>
+<h3>Level 1 — HVAC Fundamentals (Months 1–4)</h3>
+<p>*Outcome: Educated helper. Knowledgeable in tools, safety, and materials.*</p>
+<table><thead><tr><th>NexTech Module</th><th>Maps to Skill Tag</th></tr></thead><tbody><tr><td>Electrical Safety / Personal Safety / Workspace Safety</td><td>Prerequisite (no tag — expected baseline)</td></tr><tr><td>Electricity Basics / Circuits / Measurements</td><td>Foundation for <code>A6 — Electrical Advanced</code></td></tr><tr><td>Motors and Capacitors</td><td><code>A11 — Motors & Capacitors</code></td></tr><tr><td>Basic Duct Design / Fans and Duct Materials</td><td>Foundation for <code>A3 — Ductwork Repairs</code></td></tr><tr><td>Thermostat and Temperature Controls</td><td>Foundation for <code>A6 — Electrical Advanced</code></td></tr><tr><td>Introduction to Residential Equipment</td><td>General knowledge — no specific tag</td></tr><tr><td>Cooling Systems Overview</td><td>General knowledge — no specific tag</td></tr><tr><td>Refrigeration Tools and Measurements</td><td>Foundation for <code>A7 — Refrigerant Management</code></td></tr><tr><td>Your Daily Habits / Your Attitude</td><td>Foundation for <code>G2 — Professional Presentation</code></td></tr></tbody></table>
+<h3>Level 2 — Basic Skills (Months 5–9)</h3>
+<p>*Outcome: Advanced helper. May run basic maintenance calls.*</p>
+<table><thead><tr><th>NexTech Module</th><th>Maps to Skill Tag</th></tr></thead><tbody><tr><td>Introduction to Heat, Combustion & Furnace Types</td><td><code>A9 — Combustion Analysis</code></td></tr><tr><td>Furnace Safety Controls / Ignition Systems</td><td>Foundation for <code>B7 — Igniter & Flame Rect</code></td></tr><tr><td>Gas Piping, Gas Valves and Burners</td><td>Foundation for <code>B8 — Gas Valve Troubleshooting</code>, <code>E4 — Gas Furnace Install/Repair</code></td></tr><tr><td>Introduction to Heat Exchangers</td><td>Foundation for <code>B5 — Heat Exchanger Inspection</code></td></tr><tr><td>Venting Heating Systems</td><td><code>E4 — Gas Furnace Install/Repair</code></td></tr><tr><td>Combustion Air</td><td><code>A9 — Combustion Analysis</code></td></tr><tr><td>Indoor Air Quality</td><td><code>B4 — IAQ Diagnosis</code>, <code>C5 — IAQ/Accessory Upsell</code></td></tr><tr><td>Sheet Metal / Flexible / Fiberglass Duct Systems</td><td><code>A3 — Ductwork Repairs</code></td></tr><tr><td>Maintenance Accessories</td><td><code>C5 — IAQ/Accessory Upsell</code></td></tr><tr><td>Working With People / Communication</td><td><code>G3 — Customer Communication</code></td></tr><tr><td>The Big Picture (4 key tech roles)</td><td>Foundation for <code>D3 — SOP Compliance</code></td></tr></tbody></table>
+<h3>Level 3 — Intermediate Skills (Months 10–14)</h3>
+<p>*Outcome: Experienced service tech. Variety of service calls.*</p>
+<table><thead><tr><th>NexTech Module</th><th>Maps to Skill Tag</th></tr></thead><tbody><tr><td>Introduction To The Nexstar Service System</td><td><code>F3 — Nexstar Service System</code></td></tr><tr><td>Service System Preparation</td><td><code>D3 — SOP Compliance</code>, <code>G2 — Professional Presentation</code></td></tr><tr><td>Basic Copper Piping Practices</td><td>Foundation for <code>A5 — Brazing Certified</code></td></tr><tr><td>Brazing and Soldering</td><td><code>A5 — Brazing Certified</code></td></tr><tr><td>Recovery, Pressure Testing, Evacuation</td><td><code>A7 — Refrigerant Management</code></td></tr><tr><td>Focus On The Greet Step</td><td><code>H1 — NSS Greet</code></td></tr><tr><td>Focus On The Explore Step</td><td><code>H2 — NSS Explore</code>, <code>D5 — Summary of Findings</code></td></tr><tr><td>Focus On The Present Step</td><td><code>H3 — NSS Present</code>, <code>C1 — Options Presentation</code></td></tr><tr><td>Focus On The Execute Step</td><td><code>H4 — NSS Execute</code>, <code>D2 — Clean Jobsite</code></td></tr><tr><td>Focus On The Wrap Up Step</td><td><code>H5 — NSS Wrap Up</code>, <code>D4 — Customer Follow-Up</code></td></tr><tr><td>AC Installation Best Practices</td><td><code>E1 — Full System Changeout</code> or <code>E2 — Assisted Changeout</code></td></tr><tr><td>Condenser Evaporator Coil Replacement</td><td><code>A2 — Evap Coil Replacement</code></td></tr><tr><td>Duct Sizing and Duct Modifications</td><td><code>A4 — Ductwork Design/Install</code></td></tr><tr><td>Zone System Design and Installation</td><td>Foundation for <code>B9 — Zoning System Diagnosis</code></td></tr><tr><td>Completion of Level 3 Test</td><td><code>F6 — NexTech Level 1-2</code> (if not already assigned)</td></tr></tbody></table>
+<h3>Level 4 — Advanced Skills & Customer Interactions (Months 14–18)</h3>
+<p>*Outcome: Advanced troubleshooting. Outstanding customer ambassador.*</p>
+<table><thead><tr><th>NexTech Module</th><th>Maps to Skill Tag</th></tr></thead><tbody><tr><td>Relays, Sequencers and Solenoids</td><td><code>A6 — Electrical Advanced</code></td></tr><tr><td>Service Partner Plans and System Checks</td><td><code>C6 — Service Partner Plans</code>, <code>C2 — Membership Conversions</code></td></tr><tr><td>Troubleshooting Control Boards</td><td><code>B6 — Control Board Troubleshoot</code></td></tr><tr><td>Dealing With Pushbacks</td><td><code>C7 — Handling Pushbacks</code></td></tr><tr><td>Challenging Customer Situations</td><td><code>H6 — Challenging Situations</code></td></tr><tr><td>Troubleshooting Blower Motors</td><td><code>A11 — Motors & Capacitors</code></td></tr><tr><td>Troubleshooting Heating Safety Controls</td><td><code>B7 — Igniter & Flame Rect</code></td></tr><tr><td>Troubleshooting Igniters and Flame Rectification</td><td><code>B7 — Igniter & Flame Rect</code></td></tr><tr><td>Troubleshooting Gas Valves</td><td><code>B8 — Gas Valve Troubleshooting</code></td></tr><tr><td>Heat Exchanger Inspection and Replacement</td><td><code>B5 — Heat Exchanger Inspection</code></td></tr><tr><td>Troubleshooting Zoning Systems</td><td><code>B9 — Zoning System Diagnosis</code></td></tr><tr><td>Troubleshooting Condenser Fan Motors</td><td><code>A11 — Motors & Capacitors</code></td></tr><tr><td>Commissioning Techniques</td><td><code>A8 — System Startup & Commission</code></td></tr><tr><td>Leak Detection Methods</td><td><code>A10 — Leak Detection Methods</code></td></tr><tr><td>Diagnosing Compressors</td><td><code>A1 — Compressor Changeout</code></td></tr><tr><td>Replacing Compressors</td><td><code>A1 — Compressor Changeout</code></td></tr><tr><td>Advanced Metering Device Diagnosis</td><td><code>B3 — Advanced Refrigerant Diag</code></td></tr><tr><td>Build Your Future / Maximizing Efficiency</td><td><code>D1 — Thorough Write-Up</code>, ongoing development</td></tr><tr><td>Completion of Level 4 Test</td><td><code>F7 — NexTech Level 3-4</code> (NexTech Academy graduation)</td></tr></tbody></table>
+</div>
+<hr>
+<div id="doc-tier-level-progression-framework">
+<h2 id="tier-level-progression-framework">Tier & Level Progression Framework</h2>
+<h3>Structure Overview</h3>
+<pre>
+S-Tier  ──────────────────────────── (Elite / Master)
+│
+A-Tier  A-1 → A-2 → A-3 → A-4 ──── (4 levels, Master Track)
+│
+B-Tier  B-Entry → B-2 ────────────── (Advanced / Senior)
+│
+C-Tier  C-1 → C-2 → C-3 ─────────── (Developing / Journeyman)
+</pre>
+<blockquote><strong>Current floor:</strong> No tech should be placed below <strong>C-2</strong>.</blockquote>
+<h3>Skill Tag Requirements Per Level</h3>
+<p>Skills tags are one of the three gates to advance levels within a tier. The tech must meet <strong>all three</strong> criteria:</p>
+<table><thead><tr><th>Level</th><th>Skills Required</th><th>Composite Score Range (approx.)</th><th>Notes</th></tr></thead><tbody><tr><td><strong>C-1</strong></td><td>5–7 skills</td><td>< 60</td><td>Not currently occupied. Entry-level placeholder.</td></tr><tr><td><strong>C-2</strong></td><td>8–14 skills</td><td>60–69</td><td>Current minimum. All techs must be here or above.</td></tr><tr><td><strong>C-3</strong></td><td>15–20 skills</td><td>65–74</td><td>Upper developing. Ready to be evaluated for B-tier.</td></tr><tr><td><strong>B-Entry</strong></td><td>21–26 skills</td><td>72–80</td><td>Advanced tech. Strong technical + sales baseline.</td></tr><tr><td><strong>B-2</strong></td><td>27–31 skills</td><td>78–85</td><td>Senior tech. Multi-discipline, can train others.</td></tr><tr><td><strong>A-1</strong></td><td>32–35 skills</td><td>83–88</td><td>Lead tech. Near-complete skill profile.</td></tr><tr><td><strong>A-2</strong></td><td>36–38 skills</td><td>86–91</td><td>Expert. Can run installs independently.</td></tr><tr><td><strong>A-3</strong></td><td>39–42 skills</td><td>89–93</td><td>Senior expert. Mentors B-tier techs.</td></tr><tr><td><strong>A-4</strong></td><td>43–45 skills</td><td>91–95</td><td>Near-elite. Being groomed for S-tier.</td></tr><tr><td><strong>S-Tier</strong></td><td>46–48 skills</td><td>95+</td><td>All skills demonstrated + top composite. Reserved.</td></tr></tbody></table>
+<blockquote><strong>Important:</strong> The skill count is a *gate*, not a guarantee. A tech can have 30 skills tagged but still be held at C-3 if the composite score hasn't cleared the B-tier threshold. Skills contribute <strong>10% to the composite score</strong> and <strong>30% of the weight for tier advancement decisions</strong>, but the full formula governs tier placement.</blockquote>
+<blockquote><strong>Updated:</strong> Skill count ranges have been adjusted upward to account for the expanded 48-skill system. Existing techs retain their current levels — no one moves backward due to the expanded skill list.</blockquote>
+<h3>How Tier Advancement Works (Visual)</h3>
+<pre>
+Within a tier:   Skill tags accumulate → Level rises (C-2 → C-3)
+Between tiers:   Composite score must clear threshold (skills = 10% of that score)
+AND manager approves the tier move
+AND 30% of advancement "votes" come from skills progress
+</pre>
+<h3>What Skills Are Needed to Cross Tier Lines</h3>
+<table><thead><tr><th>Tier Crossing</th><th>Minimum Skill Count</th><th>Must-Have Skills (non-negotiable)</th></tr></thead><tbody><tr><td>C → B</td><td>21+ skills</td><td>A1 or A2, B1, C1, D1, D3, F1, + at least 3 of 6 NSS steps (H1–H5)</td></tr><tr><td>B → A</td><td>32+ skills</td><td>A1, A2, B1, B2, B6, C1, C3, D1, D5, E1, F1, all 5 NSS steps (H1–H5) + at least 1 cert beyond EPA</td></tr><tr><td>A → S</td><td>46–48 skills</td><td>Full or near-full skill profile + proven mentorship + H6 Challenging Situations</td></tr></tbody></table>
+</div>
+<hr>
+<div id="doc-current-tech-skill-assignments">
+<h2 id="current-tech-skill-assignments">Current Tech Skill Assignments</h2>
+<p>Skills are assigned based on known certifications, performance data, install revenue, aptitude scores, manager context, and NexTech Academy/Nexstar curriculum alignment. These are <strong>starting assignments</strong> — Maico should review and adjust based on direct observation.</p>
+<h3>Chris Monahan</h3>
+<p><strong>Tier:</strong> B-Entry | <strong>Composite:</strong> 80 | <strong>Experience:</strong> 10 years</p>
+<p><strong>Certifications:</strong> EPA Universal, Vocational School, Nexstar Service System</p>
+<p><strong>Profile:</strong> Strong all-around tech, top aptitude in the group, $161k install revenue, B-tier. Best candidate for B-2 as skills are documented. Nexstar Service System certified — qualifies for all NSS step tags pending manager verification of consistent execution.</p>
+<table><thead><tr><th>Skill</th><th>Justification</th></tr></thead><tbody><tr><td><code>A1 — Compressor Changeout</code></td><td>10 yrs experience + $161k installs strongly suggests this capability</td></tr><tr><td><code>A2 — Evap Coil Replacement</code></td><td>Same reasoning — proven install revenue at scale</td></tr><tr><td><code>A3 — Ductwork — Repairs</code></td><td>Expected at this experience level and install volume</td></tr><tr><td><code>A5 — Brazing Certified</code></td><td>Required for compressor/coil work at this volume</td></tr><tr><td><code>A6 — Electrical — Advanced</code></td><td>High aptitude (47/50) supports advanced electrical competency</td></tr><tr><td><code>A7 — Refrigerant Management</code></td><td>EPA Universal + install volume confirms</td></tr><tr><td><code>A8 — System Startup & Commission</code></td><td>$161k installs = many commissioned systems</td></tr><tr><td><code>A9 — Combustion Analysis</code> <span class="doc-badge-new">NEW</span></td><td>10 yrs experience with gas furnaces — combustion testing is expected</td></tr><tr><td><code>A10 — Leak Detection Methods</code> <span class="doc-badge-new">NEW</span></td><td>Install volume and experience level confirm proficiency</td></tr><tr><td><code>A11 — Motors & Capacitors</code> <span class="doc-badge-new">NEW</span></td><td>Basic competency at this experience level — confirmed through aptitude</td></tr><tr><td><code>B1 — Systematic Diagnosis</code></td><td>Top aptitude score signals strong diagnostic approach</td></tr><tr><td><code>B2 — Electrical Troubleshooting</code></td><td>Electrical aptitude + 10 yrs experience</td></tr><tr><td><code>B6 — Control Board Troubleshoot</code> <span class="doc-badge-new">NEW</span></td><td>10 yrs experience + high aptitude — expected at B-tier</td></tr><tr><td><code>C1 — Options Presentation</code></td><td>Nexstar training specifically teaches this framework</td></tr><tr><td><code>C3 — Equipment Sales</code></td><td>$161k in install revenue is direct evidence</td></tr><tr><td><code>C4 — High Revenue Service</code></td><td>B-tier composite confirms above-average revenue generation</td></tr><tr><td><code>C6 — Service Partner Plans</code> <span class="doc-badge-new">NEW</span></td><td>Nexstar Service System training covers this directly</td></tr><tr><td><code>D1 — Thorough Diagnostic Write-Up</code></td><td>Strong aptitude suggests organized documentation habits</td></tr><tr><td><code>D3 — SOP Compliance</code></td><td>Nexstar training reinforces process discipline</td></tr><tr><td><code>D5 — Summary of Findings</code> <span class="doc-badge-new">NEW</span></td><td>Nexstar-trained techs are taught the Summary of Findings process</td></tr><tr><td><code>E1 — Full System Changeout</code></td><td>$161k installs — this is core to that number</td></tr><tr><td><code>E4 — Gas Furnace Install/Repair</code></td><td>Expected at 10 yrs + install volume</td></tr><tr><td><code>F1 — EPA 608 Universal</code></td><td>Confirmed cert on file</td></tr><tr><td><code>F3 — Nexstar Service System</code></td><td>Confirmed cert on file</td></tr><tr><td><code>F5 — Vocational / Trade School</code></td><td>Confirmed cert on file</td></tr><tr><td><code>G2 — Professional Presentation</code></td><td>B-tier standing implies meeting presentation standards</td></tr><tr><td><code>G3 — Customer Communication</code></td><td>Nexstar training + B-tier placement</td></tr><tr><td><code>H1 — NSS Greet</code> <span class="doc-badge-new">NEW</span></td><td>Nexstar Service System certified — verify consistent field execution</td></tr><tr><td><code>H2 — NSS Explore</code> <span class="doc-badge-new">NEW</span></td><td>Nexstar Service System certified — verify consistent field execution</td></tr><tr><td><code>H3 — NSS Present</code> <span class="doc-badge-new">NEW</span></td><td>Nexstar Service System certified — verify consistent field execution</td></tr><tr><td><code>H4 — NSS Execute</code> <span class="doc-badge-new">NEW</span></td><td>Nexstar Service System certified — verify consistent field execution</td></tr><tr><td><code>H5 — NSS Wrap Up</code> <span class="doc-badge-new">NEW</span></td><td>Nexstar Service System certified — verify consistent field execution</td></tr></tbody></table>
+<p><strong>Total Skills Assigned: 32 → Qualifies for A-1 level</strong> (composite score of 80 needs to reach 83+ for A-tier; currently strong B-2)</p>
+<blockquote><strong>Note for Maico:</strong> With the expanded Nexstar-aligned skill set, Chris now sits at 32 skills — comfortably in A-1 skill range. The limiting factor is his composite score (80), which needs to clear 83 for A-tier. His 90-day targets should focus on pushing ST performance metrics and install revenue while earning <code>B7 — Igniter & Flame Rect</code>, <code>B8 — Gas Valve Troubleshooting</code>, and <code>C7 — Handling Pushbacks</code> to solidify the full profile. Chris should also do ride-along verification of the 5 NSS steps to confirm he's consistently executing them in the field.</blockquote>
+<h3>Dewone Martin</h3>
+<p><strong>Tier:</strong> B-Entry | <strong>Composite:</strong> 79 | <strong>Experience:</strong> 3.5 years</p>
+<p><strong>Certifications:</strong> EPA Universal</p>
+<p><strong>Profile:</strong> Strong conversion rate (80%), good revenue generation. Only 1 cert, but performance data is strong. A sales-forward tech who is competitive at B-Entry. Has not completed formal Nexstar training but conversion rate suggests natural ability in Present and Wrap Up steps.</p>
+<table><thead><tr><th>Skill</th><th>Justification</th></tr></thead><tbody><tr><td><code>A3 — Ductwork — Repairs</code></td><td>3.5 yrs field experience, B-tier placement implies basic technical execution</td></tr><tr><td><code>A7 — Refrigerant Management</code></td><td>EPA Universal confirmed</td></tr><tr><td><code>A11 — Motors & Capacitors</code> <span class="doc-badge-new">NEW</span></td><td>Expected baseline at B-tier level</td></tr><tr><td><code>B1 — Systematic Diagnosis</code></td><td>B-tier composite (79) indicates competent diagnosis</td></tr><tr><td><code>C1 — Options Presentation</code></td><td>80% conversion rate is direct evidence of options-based selling</td></tr><tr><td><code>C2 — Membership Conversions</code></td><td>Strong conversion rate supports this</td></tr><tr><td><code>C3 — Equipment Sales</code></td><td>Conversion rate of 80% + B-tier revenue numbers</td></tr><tr><td><code>C4 — High Revenue Service</code></td><td>B-tier composite and performance data confirm</td></tr><tr><td><code>C5 — IAQ/Accessory Upsell</code></td><td>Strong conv rate implies comfort presenting add-ons</td></tr><tr><td><code>C7 — Handling Pushbacks</code> <span class="doc-badge-new">NEW</span></td><td>80% conversion rate = demonstrable ability to navigate objections</td></tr><tr><td><code>D3 — SOP Compliance</code></td><td>B-tier standing requires process adherence</td></tr><tr><td><code>D4 — Customer Follow-Up</code></td><td>High conv rate is partly driven by strong follow-up</td></tr><tr><td><code>E2 — Assisted Changeout</code></td><td>3.5 years experience — capable with assistance, not fully independent yet</td></tr><tr><td><code>F1 — EPA 608 Universal</code></td><td>Confirmed cert on file</td></tr><tr><td><code>G3 — Customer Communication</code></td><td>80% conversion rate requires effective communication</td></tr><tr><td><code>H3 — NSS Present</code> <span class="doc-badge-new">NEW</span></td><td>80% conversion rate demonstrates this step even without formal training — verify via ride-along</td></tr></tbody></table>
+<p><strong>Total Skills Assigned: 16 → C-3 level</strong> (composite 79 clears B-Entry threshold, but skill count needs 21+ for B-Entry)</p>
+<blockquote><strong>Note for Maico:</strong> Dewone's conversion rate strongly suggests he naturally executes several Nexstar Service System steps. Schedule a ride-along to evaluate <code>H1 — NSS Greet</code>, <code>H2 — NSS Explore</code>, <code>H4 — NSS Execute</code>, and <code>H5 — NSS Wrap Up</code>. If confirmed, that's 4 more skills putting him at 20 — one away from B-Entry qualification. Also target: <code>A6 — Electrical Advanced</code>, <code>D1 — Thorough Write-Up</code>, and <code>D5 — Summary of Findings</code>. Consider enrolling him in NexTech Academy to formalize what he already does naturally. Dewone is the best ROI candidate for Nexstar training investment.</blockquote>
+<h3>Benji (Ben Tinahui)</h3>
+<p><strong>Tier:</strong> C-tier | <strong>Composite:</strong> 68 | <strong>Experience:</strong> 3 years</p>
+<p><strong>Certifications:</strong> NATE, EPA Universal, Trane Tech Builder</p>
+<p><strong>Profile:</strong> Strong aptitude (84%), 3 certs, $69k in installs. Cert-heavy for his experience level. Technical capability is there but composite score keeps him C-tier. High ceiling. NexTech Academy would formalize his technical skills path.</p>
+<table><thead><tr><th>Skill</th><th>Justification</th></tr></thead><tbody><tr><td><code>A2 — Evap Coil Replacement</code></td><td>$69k installs in 3 years suggests coil/equipment work</td></tr><tr><td><code>A5 — Brazing Certified</code></td><td>Required for install work at this volume; NATE cert reinforces</td></tr><tr><td><code>A7 — Refrigerant Management</code></td><td>EPA Universal + NATE + Trane cert all support</td></tr><tr><td><code>A8 — System Startup & Commission</code></td><td>$69k installs over 3 years = multiple commissioned systems</td></tr><tr><td><code>A11 — Motors & Capacitors</code> <span class="doc-badge-new">NEW</span></td><td>NATE certification covers motor/capacitor competency</td></tr><tr><td><code>B1 — Systematic Diagnosis</code></td><td>84% aptitude score demonstrates strong reasoning</td></tr><tr><td><code>B2 — Electrical Troubleshooting</code></td><td>NATE cert covers electrical diagnostics</td></tr><tr><td><code>D3 — SOP Compliance</code></td><td>Manufacturer training (Trane) emphasizes process adherence</td></tr><tr><td><code>E2 — Assisted Changeout</code></td><td>$69k installs — capable, likely still benefits from lead oversight</td></tr><tr><td><code>F1 — EPA 608 Universal</code></td><td>Confirmed cert on file</td></tr><tr><td><code>F2 — NATE Certified</code></td><td>Confirmed cert on file</td></tr><tr><td><code>F4 — Manufacturer Cert — Trane</code></td><td>Trane Tech Builder confirmed on file</td></tr></tbody></table>
+<p><strong>Total Skills Assigned: 12 → C-2</strong></p>
+<blockquote><strong>Note for Maico:</strong> Benji has 12 skills (C-2 range) and a composite of 68. The biggest unlock for Benji is Nexstar training. He has the technical foundation (3 certs, strong aptitude) but lacks the customer-facing framework. Enrolling in NexTech Academy and completing Levels 1–2 would earn <code>F6</code> and reinforce existing skills. Completing Level 3 unlocks all 5 NSS step tags (H1–H5) — that alone jumps him to 18+ skills. Immediate priorities: <code>C1 — Options Presentation</code>, <code>C2 — Membership Conversions</code>, <code>D1 — Thorough Write-Up</code>, and <code>D5 — Summary of Findings</code>. Target: 20+ skills within 6 months via NexTech enrollment.</blockquote>
+<h3>Daniel Gazaway</h3>
+<p><strong>Tier:</strong> C-tier | <strong>Composite:</strong> 66 | <strong>Experience:</strong> 15 years</p>
+<p><strong>Certifications:</strong> None listed</p>
+<p><strong>Profile:</strong> Highest aptitude section scores in the group (10/10 Electrical, 9/10 multiple), 90% overall aptitude. 17 Google reviews. But $10k installs and C-tier composite despite 15 years suggests a gap between capability and execution/sales performance. Likely "bare minimum" tech — does the job but doesn't generate revenue or flip equipment. Strong candidate for advanced diagnostic skill tags once verified.</p>
+<table><thead><tr><th>Skill</th><th>Justification</th></tr></thead><tbody><tr><td><code>A1 — Compressor Changeout</code></td><td>15 years in the field — compressor work is expected</td></tr><tr><td><code>A2 — Evap Coil Replacement</code></td><td>Same — 15 years of field work covers this</td></tr><tr><td><code>A3 — Ductwork — Repairs</code></td><td>Basic duct repairs expected at this experience level</td></tr><tr><td><code>A6 — Electrical — Advanced</code></td><td>10/10 on electrical aptitude is the strongest score in the group</td></tr><tr><td><code>A7 — Refrigerant Management</code></td><td>15 years experience — must have refrigerant proficiency</td></tr><tr><td><code>A9 — Combustion Analysis</code> <span class="doc-badge-new">NEW</span></td><td>15 years experience with gas furnaces — combustion analysis is expected</td></tr><tr><td><code>A11 — Motors & Capacitors</code> <span class="doc-badge-new">NEW</span></td><td>Expected at this experience level</td></tr><tr><td><code>B1 — Systematic Diagnosis</code></td><td>90% aptitude score = strong diagnostic reasoning</td></tr><tr><td><code>B2 — Electrical Troubleshooting</code></td><td>10/10 electrical aptitude directly maps here</td></tr><tr><td><code>B6 — Control Board Troubleshoot</code> <span class="doc-badge-new">NEW</span></td><td>15 yrs + 10/10 electrical — control board diagnosis is expected</td></tr><tr><td><code>B7 — Igniter & Flame Rect</code> <span class="doc-badge-new">NEW</span></td><td>15 yrs of gas furnace work — this should be routine</td></tr><tr><td><code>B8 — Gas Valve Troubleshooting</code> <span class="doc-badge-new">NEW</span></td><td>Same — extensive furnace experience</td></tr><tr><td><code>D4 — Customer Follow-Up</code></td><td>17 Google reviews suggests he does connect with customers</td></tr><tr><td><code>F1 — EPA 608 Universal</code></td><td>Should be on file for 15-year tech — confirm and assign</td></tr><tr><td><code>G1 — Strong Customer Reviews</code></td><td>17 reviews is the highest in the group — assign this</td></tr><tr><td><code>G3 — Customer Communication</code></td><td>Review volume implies strong customer interaction</td></tr></tbody></table>
+<p><strong>Total Skills Assigned: 16 → C-3</strong></p>
+<blockquote><strong>Note for Maico:</strong> Daniel's expanded profile now shows 16 skills (up from 11) — solidly in C-3 and approaching B-Entry territory on skill count alone. The advanced diagnostic tags (B6, B7, B8) are almost certainly things Daniel can do given 15 years and elite aptitude — verify with a ride-along and assign. His real gap remains execution: $10k installs, no options presentation, no membership conversions. Nexstar training would be transformative here. If Daniel completes the Nexstar Service System and earns NSS steps (H1–H5) + sales behaviors (C1, C6, C7), he jumps to 23+ skills. Combined with pushing his composite score, B-Entry is realistic within 6 months. Daniel's ceiling is genuinely A-tier if the execution gap closes.</blockquote>
+<h3>Dee Williams</h3>
+<p><strong>Tier:</strong> C-tier | <strong>Composite:</strong> 57 | <strong>Experience:</strong> 15 years</p>
+<p><strong>Certifications:</strong> None listed</p>
+<p><strong>Profile:</strong> Highest conversion rate in the group (85%), $0k installs, 1 Google review, no certs. C-tier composite of 57. The profile suggests a tech who is good at talking to customers but not generating install revenue, not thorough, and not credentialed. His natural sales ability is the strongest asset — Nexstar training would give it structure.</p>
+<table><thead><tr><th>Skill</th><th>Justification</th></tr></thead><tbody><tr><td><code>A7 — Refrigerant Management</code></td><td>15 years experience — expected regardless of cert status</td></tr><tr><td><code>A11 — Motors & Capacitors</code> <span class="doc-badge-new">NEW</span></td><td>15 years experience — basic motor/cap work expected</td></tr><tr><td><code>C1 — Options Presentation</code></td><td>85% conversion rate — highest in the group — directly earns this</td></tr><tr><td><code>C2 — Membership Conversions</code></td><td>Conversion rate supports membership close ability</td></tr><tr><td><code>C7 — Handling Pushbacks</code> <span class="doc-badge-new">NEW</span></td><td>85% conversion rate = proven ability to navigate objections</td></tr><tr><td><code>D2 — Clean Jobsite</code></td><td>Cannot confirm or deny; assign as baseline pending observation</td></tr><tr><td><code>G3 — Customer Communication</code></td><td>85% conversion rate requires strong customer interaction</td></tr><tr><td><code>H3 — NSS Present</code> <span class="doc-badge-new">NEW</span></td><td>85% conversion rate is evidence of natural Present step execution — verify via ride-along</td></tr></tbody></table>
+<p><strong>Total Skills Assigned: 8 → C-2</strong> (borderline C-1/C-2)</p>
+<blockquote><strong>Note for Maico:</strong> Dee's skill assignment is deliberately conservative but now includes 3 new tags reflecting his natural sales ability (C7, A11, H3). His 85% conversion rate is exceptional — he may naturally execute more NSS steps than we can verify without a ride-along. Priority actions: (1) Immediate EPA 608 enrollment — this is non-negotiable for a 15-year tech, (2) Schedule ride-along to evaluate H1 Greet, H2 Explore, H4 Execute, H5 Wrap Up, (3) Target <code>B1 — Systematic Diagnosis</code> and <code>D1 — Thorough Write-Up</code> with direct coaching. Dee would benefit enormously from NexTech Academy — the customer service modules (Levels 3–4) would give formal structure to what he already does naturally, and the technical modules (Levels 1–2) would fill gaps that 15 years of experience should have covered but may not be documented. If Dee earns EPA + 4 NSS steps verified via ride-along + D1, he jumps to 14 skills and solidifies C-2.</blockquote>
+<h3>Skills Assignment Summary Table</h3>
+<table><thead><tr><th>Skill</th><th>Chris</th><th>Dewone</th><th>Benji</th><th>Daniel</th><th>Dee</th></tr></thead><tbody><tr><td>A1 — Compressor Changeout</td><td>✓</td><td></td><td></td><td>✓</td><td></td></tr><tr><td>A2 — Evap Coil Replacement</td><td>✓</td><td></td><td>✓</td><td>✓</td><td></td></tr><tr><td>A3 — Ductwork Repairs</td><td>✓</td><td>✓</td><td></td><td>✓</td><td></td></tr><tr><td>A4 — Ductwork Design/Install</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>A5 — Brazing Certified</td><td>✓</td><td></td><td>✓</td><td></td><td></td></tr><tr><td>A6 — Electrical — Advanced</td><td>✓</td><td></td><td></td><td>✓</td><td></td></tr><tr><td>A7 — Refrigerant Management</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>A8 — System Startup & Commission</td><td>✓</td><td></td><td>✓</td><td></td><td></td></tr><tr><td>A9 — Combustion Analysis <span class="doc-badge-new">NEW</span></td><td>✓</td><td></td><td></td><td>✓</td><td></td></tr><tr><td>A10 — Leak Detection Methods <span class="doc-badge-new">NEW</span></td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>A11 — Motors & Capacitors <span class="doc-badge-new">NEW</span></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>B1 — Systematic Diagnosis</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td></td></tr><tr><td>B2 — Electrical Troubleshooting</td><td>✓</td><td></td><td>✓</td><td>✓</td><td></td></tr><tr><td>B3 — Advanced Refrigerant Diag</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>B4 — IAQ Diagnosis</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>B5 — Heat Exchanger Inspection</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>B6 — Control Board Troubleshoot <span class="doc-badge-new">NEW</span></td><td>✓</td><td></td><td></td><td>✓</td><td></td></tr><tr><td>B7 — Igniter & Flame Rect <span class="doc-badge-new">NEW</span></td><td></td><td></td><td></td><td>✓</td><td></td></tr><tr><td>B8 — Gas Valve Troubleshooting <span class="doc-badge-new">NEW</span></td><td></td><td></td><td></td><td>✓</td><td></td></tr><tr><td>B9 — Zoning System Diagnosis <span class="doc-badge-new">NEW</span></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>C1 — Options Presentation</td><td>✓</td><td>✓</td><td></td><td></td><td>✓</td></tr><tr><td>C2 — Membership Conversions</td><td></td><td>✓</td><td></td><td></td><td>✓</td></tr><tr><td>C3 — Equipment Sales</td><td>✓</td><td>✓</td><td></td><td></td><td></td></tr><tr><td>C4 — High Revenue Service</td><td>✓</td><td>✓</td><td></td><td></td><td></td></tr><tr><td>C5 — IAQ/Accessory Upsell</td><td></td><td>✓</td><td></td><td></td><td></td></tr><tr><td>C6 — Service Partner Plans <span class="doc-badge-new">NEW</span></td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>C7 — Handling Pushbacks <span class="doc-badge-new">NEW</span></td><td></td><td>✓</td><td></td><td></td><td>✓</td></tr><tr><td>D1 — Thorough Write-Up</td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>D2 — Clean Jobsite</td><td></td><td></td><td></td><td></td><td>✓</td></tr><tr><td>D3 — SOP Compliance</td><td>✓</td><td>✓</td><td>✓</td><td></td><td></td></tr><tr><td>D4 — Customer Follow-Up</td><td></td><td>✓</td><td></td><td>✓</td><td></td></tr><tr><td>D5 — Summary of Findings <span class="doc-badge-new">NEW</span></td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>E1 — Full System Changeout</td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>E2 — Assisted Changeout</td><td></td><td>✓</td><td>✓</td><td></td><td></td></tr><tr><td>E3 — Mini-Split Install</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>E4 — Gas Furnace Install/Repair</td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>F1 — EPA 608 Universal</td><td>✓</td><td>✓</td><td>✓</td><td>✓*</td><td></td></tr><tr><td>F2 — NATE Certified</td><td></td><td></td><td>✓</td><td></td><td></td></tr><tr><td>F3 — Nexstar Service System</td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>F4 — Manufacturer Cert — Trane</td><td></td><td></td><td>✓</td><td></td><td></td></tr><tr><td>F5 — Vocational / Trade School</td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>F6 — NexTech Level 1-2 <span class="doc-badge-new">NEW</span></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>F7 — NexTech Level 3-4 <span class="doc-badge-new">NEW</span></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>G1 — Strong Customer Reviews</td><td></td><td></td><td></td><td>✓</td><td></td></tr><tr><td>G2 — Professional Presentation</td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>G3 — Customer Communication</td><td>✓</td><td>✓</td><td></td><td>✓</td><td>✓</td></tr><tr><td>H1 — NSS Greet <span class="doc-badge-new">NEW</span></td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>H2 — NSS Explore <span class="doc-badge-new">NEW</span></td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>H3 — NSS Present <span class="doc-badge-new">NEW</span></td><td>✓</td><td>✓</td><td></td><td></td><td>✓</td></tr><tr><td>H4 — NSS Execute <span class="doc-badge-new">NEW</span></td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>H5 — NSS Wrap Up <span class="doc-badge-new">NEW</span></td><td>✓</td><td></td><td></td><td></td><td></td></tr><tr><td>H6 — Challenging Situations <span class="doc-badge-new">NEW</span></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td><strong>Total Skills</strong></td><td><strong>32</strong></td><td><strong>16</strong></td><td><strong>12</strong></td><td><strong>16</strong></td><td><strong>8</strong></td></tr><tr><td><strong>Current Level</strong></td><td><strong>B-2</strong></td><td><strong>C-3</strong></td><td><strong>C-2</strong></td><td><strong>C-3</strong></td><td><strong>C-2</strong></td></tr></tbody></table>
+<blockquote>*Daniel's EPA cert — verify file exists before assigning in ServiceTitan.</blockquote>
+<h3>Individual Development Priorities (Next 90 Days)</h3>
+<table><thead><tr><th>Tech</th><th>Next 3–5 Skills to Earn</th><th>Training Action</th><th>Why</th></tr></thead><tbody><tr><td><strong>Chris</strong></td><td><code>B7 Igniter & Flame Rect</code>, <code>B8 Gas Valve Troubleshoot</code>, <code>C7 Handling Pushbacks</code>, <code>B5 Heat Exchanger Inspection</code></td><td>Ride-along verification of NSS steps; target Level 4 diagnostic skills</td><td>Rounding out for A-1 consideration; needs composite to 83+</td></tr><tr><td><strong>Dewone</strong></td><td><code>H1 NSS Greet</code>, <code>H2 NSS Explore</code>, <code>H4 NSS Execute</code>, <code>H5 NSS Wrap Up</code>, <code>D1 Thorough Write-Up</code></td><td>Ride-along to verify NSS execution; enroll in NexTech Academy</td><td>Fastest path to B-Entry (21 skills); natural ability just needs documentation</td></tr><tr><td><strong>Benji</strong></td><td><code>C1 Options Presentation</code>, <code>C2 Membership Conversions</code>, <code>D1 Thorough Write-Up</code>, <code>D5 Summary of Findings</code></td><td>Enroll in NexTech Academy starting Level 3 (already has technical foundation)</td><td>Bridge technical skills into revenue behaviors; NSS training is the big unlock</td></tr><tr><td><strong>Daniel</strong></td><td><code>C1 Options Presentation</code>, <code>C6 Service Partner Plans</code>, <code>E1 Full System Changeout</code> (verify), <code>F1 EPA</code> (certify), <code>H1–H5 NSS Steps</code></td><td>Nexstar Service System training is the highest ROI; EPA certification non-negotiable</td><td>Activate latent capability into measurable output; ceiling is A-tier</td></tr><tr><td><strong>Dee</strong></td><td><code>F1 EPA 608 Universal</code> (enroll immediately), <code>B1 Systematic Diagnosis</code>, <code>D1 Thorough Write-Up</code>, <code>H1 NSS Greet</code>, <code>H2 NSS Explore</code></td><td>EPA enrollment week 1; ride-along within 30 days; NexTech Academy enrollment</td><td>Build credentialed foundation; formalize natural sales ability</td></tr></tbody></table>
+<h3>NexTech Academy Enrollment Recommendations</h3>
+<table><thead><tr><th>Tech</th><th>Recommended Start Level</th><th>Rationale</th></tr></thead><tbody><tr><td><strong>Chris</strong></td><td>Already Nexstar certified — no NexTech needed</td><td>Use for mentoring/training others through the program</td></tr><tr><td><strong>Dewone</strong></td><td>Level 2 or Level 3</td><td>Strong natural ability; may test out of Level 1 fundamentals</td></tr><tr><td><strong>Benji</strong></td><td>Level 3</td><td>3 certs + strong aptitude = technical foundation is solid; needs the Nexstar Service System and customer interaction modules</td></tr><tr><td><strong>Daniel</strong></td><td>Level 3</td><td>15 years experience covers all technical content in Levels 1–2; needs the service system framework and customer interaction training</td></tr><tr><td><strong>Dee</strong></td><td>Level 1</td><td>No certs, need to verify technical fundamentals before advancing; the structure will be valuable</td></tr></tbody></table>
+</div>
+<hr>
+<div id="doc-servicetitan-setup-instructions">
+<h2 id="servicetitan-setup-instructions">ServiceTitan Setup Instructions</h2>
+<h3>Step 1: Access the Skills Settings</h3>
+<ul>
+<li>Log into ServiceTitan as an <strong>admin or manager</strong>.</li>
+<li>Navigate to the main menu → <strong>Settings</strong>.</li>
+<li>Under the <strong>Operations</strong> section, select <strong>Skills</strong>.</li>
+<li>You will see a list of any existing skills. If starting fresh, the list may be empty.</li>
+</ul>
+<h3>Step 2: Create Each Skill</h3>
+<p>For each skill in the master list above:</p>
+<ul>
+<li>Click <strong>+ Add Skill</strong> (or "New Skill" depending on your ST version).</li>
+<li>Enter the <strong>Skill Name</strong> exactly as listed in the "ServiceTitan Skill Name" column (e.g., <code>Compressor Changeout</code>).</li>
+<li>Add a brief <strong>Description</strong> using the description from this document.</li>
+<li>(Optional) If your ServiceTitan instance supports <strong>skill categories</strong>, group them using the category letters (A, B, C, D, E, F, G, H) or the full category name.</li>
+<li>Click <strong>Save</strong>.</li>
+<li>Repeat for all 48 skills.</li>
+</ul>
+<blockquote><strong>Naming tip:</strong> Keep names consistent with this document. Avoid abbreviations that create ambiguity (e.g., use <code>Evap Coil Replacement</code> not <code>ECR</code> or <code>Evap Swap</code>). Consistent naming makes reporting and filtering clean.</blockquote>
+<blockquote><strong>New Category H:</strong> The Nexstar Service System Process skills (H1–H6) should be named with the "NSS —" prefix in ServiceTitan for easy filtering and reporting. Example: <code>NSS — Greet</code>, <code>NSS — Explore</code>, etc.</blockquote>
+<h3>Step 3: Assign Skills to Technicians</h3>
+<ul>
+<li>Go to <strong>Settings → People → Technicians</strong> (or navigate to a tech's profile via the Team section).</li>
+<li>Open the technician's profile.</li>
+<li>Scroll to the <strong>Skills</strong> section (may be labeled "Tags" in some ST versions).</li>
+<li>Click <strong>Edit</strong> or the <strong>+</strong> button to add skills.</li>
+<li>Search for each skill by name and select it.</li>
+<li>Save the profile.</li>
+<li>Repeat for all 5 technicians using the assignments in this document.</li>
+</ul>
+<h3>Step 4: Link Skills to Job Types (Optional but Recommended)</h3>
+<p>ServiceTitan allows you to tag certain job types as requiring specific skills. This enables <strong>intelligent dispatching</strong> — the dispatch board will flag if an assigned tech doesn't have a required skill.</p>
+<ul>
+<li>Go to <strong>Settings → Operations → Job Types</strong>.</li>
+<li>Open a job type (e.g., "Compressor Changeout" or "System Replacement").</li>
+<li>Find the <strong>Required Skills</strong> field.</li>
+<li>Add the relevant skill(s) (e.g., <code>A1 — Compressor Changeout</code>, <code>A7 — Refrigerant Management</code>).</li>
+<li>Save.</li>
+</ul>
+<p>Suggested job type → skill links:</p>
+<table><thead><tr><th>Job Type</th><th>Required Skills</th></tr></thead><tbody><tr><td>Compressor Changeout</td><td><code>Compressor Changeout</code>, <code>Brazing Certified</code>, <code>Refrigerant Management</code></td></tr><tr><td>Full System Replacement</td><td><code>Full System Changeout</code>, <code>System Startup & Commission</code>, <code>Refrigerant Management</code></td></tr><tr><td>Ductwork — New Install</td><td><code>Ductwork — Design/Install</code></td></tr><tr><td>Electrical Diagnostic</td><td><code>Electrical — Advanced</code>, <code>Electrical Troubleshooting</code>, <code>Control Board Troubleshoot</code></td></tr><tr><td>IAQ Assessment</td><td><code>IAQ Diagnosis</code>, <code>IAQ/Accessory Upsell</code></td></tr><tr><td>Gas Furnace Diagnostic</td><td><code>Gas Valve Troubleshooting</code>, <code>Igniter & Flame Rect</code>, <code>Combustion Analysis</code></td></tr><tr><td>Zoning System Call</td><td><code>Zoning System Diagnosis</code></td></tr><tr><td>Service Partner Plan Call</td><td><code>Service Partner Plans</code>, <code>NSS — Present</code></td></tr></tbody></table>
+<h3>Step 5: Maintain and Review</h3>
+<ul>
+<li><strong>Review skill assignments every 90 days</strong> or after a significant performance event (failed job, large install, customer complaint/compliment).</li>
+<li>Skill additions require <strong>manager approval</strong> — techs do not self-assign.</li>
+<li>Use the <strong>ServiceTitan reporting suite</strong> to filter dispatching and performance data by skill to validate that skills assigned are producing the expected outcomes.</li>
+<li>Revisit this document with each quarterly review cycle to add new skills as the team grows or service offerings expand.</li>
+<li><strong>NexTech Academy progress</strong> should trigger skill reviews: when a tech completes a NexTech level, schedule a ride-along or practical verification and assign the corresponding skills.</li>
+</ul>
+</div>
+<hr>
+<div id="doc-quick-reference-dispatch-matrix">
+<h2 id="quick-reference-dispatch-matrix">Quick Reference Dispatch Matrix</h2>
+<p>Use this to quickly decide who to send on specialized job types.</p>
+<table><thead><tr><th>Job Type</th><th>Best Fit</th><th>Backup</th><th>Needs Support</th></tr></thead><tbody><tr><td>Compressor Changeout</td><td>Chris</td><td>Daniel (verify)</td><td>Benji (assisted)</td></tr><tr><td>Full System Changeout</td><td>Chris</td><td>—</td><td>Benji (needs lead)</td></tr><tr><td>Ductwork Install (new)</td><td>Chris</td><td>—</td><td>—</td></tr><tr><td>Electrical Diagnostic</td><td>Daniel</td><td>Chris</td><td>Benji</td></tr><tr><td>Control Board / Ignition Issue</td><td>Daniel (B6+B7+B8)</td><td>Chris (B6)</td><td>—</td></tr><tr><td>Gas Furnace Diagnostic</td><td>Daniel</td><td>Chris</td><td>—</td></tr><tr><td>Zoning System Call</td><td>— (no one tagged yet)</td><td>Chris or Daniel (evaluate)</td><td>—</td></tr><tr><td>Sales-Heavy Service Call</td><td>Dee (conv rate)</td><td>Dewone</td><td>—</td></tr><tr><td>Membership Drive / Blitz</td><td>Dee (85%), Dewone (80%)</td><td>Chris</td><td>—</td></tr><tr><td>Equipment Replacement Consult</td><td>Chris, Dewone</td><td>—</td><td>—</td></tr><tr><td>Complex Refrigerant Issue</td><td>Chris</td><td>Benji</td><td>—</td></tr><tr><td>Standard Diagnostic/Repair</td><td>Any</td><td>—</td><td>—</td></tr><tr><td>Review Generation Focus</td><td>Daniel (17 reviews)</td><td>—</td><td>—</td></tr><tr><td>Nexstar Service System Model Call</td><td>Chris (all 5 NSS steps)</td><td>Dewone (H3 verified)</td><td>—</td></tr></tbody></table>
+</div>
+<hr>
+<div id="doc-appendix-a-skill-tags-not-yet-assigned-to-anyone">
+<h2 id="appendix-a-skill-tags-not-yet-assigned-to-anyone">Appendix A: Skill Tags Not Yet Assigned to Anyone</h2>
+<p>The following skills exist in the system but are not currently assigned to any tech. They represent <strong>growth targets</strong> for the team or capabilities not yet demonstrated:</p>
+<table><thead><tr><th>Skill</th><th>Notes</th></tr></thead><tbody><tr><td><code>A4 — Ductwork Design/Install</code></td><td>Needs verification — may apply to Chris after a design/install job</td></tr><tr><td><code>B3 — Advanced Refrigerant Diag</code></td><td>Potential for Chris and Benji with documentation</td></tr><tr><td><code>B4 — IAQ Diagnosis</code></td><td>Team growth area; consider IAQ training</td></tr><tr><td><code>B5 — Heat Exchanger Inspection</code></td><td>Safety-critical; requires observed verification</td></tr><tr><td><code>B9 — Zoning System Diagnosis</code></td><td>New skill — evaluate Chris and Daniel first</td></tr><tr><td><code>C5 — IAQ/Accessory Upsell</code></td><td>Assigned to Dewone; could expand to Chris and Benji</td></tr><tr><td><code>C6 — Service Partner Plans</code></td><td>Assigned to Chris; Dewone and Dee are strong candidates</td></tr><tr><td><code>D5 — Summary of Findings</code></td><td>Assigned to Chris; all techs should develop this</td></tr><tr><td><code>E3 — Mini-Split Install</code></td><td>Expansion opportunity; schedule training if mini-splits are growing</td></tr><tr><td><code>F6 — NexTech Level 1-2</code></td><td>No one enrolled yet — see enrollment recommendations</td></tr><tr><td><code>F7 — NexTech Level 3-4</code></td><td>No one enrolled yet — see enrollment recommendations</td></tr><tr><td><code>G1 — Strong Customer Reviews</code></td><td>Only Daniel qualifies now; others should actively build review counts</td></tr><tr><td><code>H6 — Challenging Situations</code></td><td>Advanced — Level 4 NexTech content; target for B-tier+ techs</td></tr></tbody></table>
+</div>
+<hr>
+<div id="doc-appendix-b-nexstar-service-system-6-step-quick-reference">
+<h2 id="appendix-b-nexstar-service-system-6-step-quick-reference">Appendix B: Nexstar Service System — 6-Step Quick Reference</h2>
+<p>This is the core customer interaction framework from Nexstar Network. Each step maps to a ServiceTitan skill tag (Category H). Use this as a coaching reference during ride-alongs and performance evaluations.</p>
+<h3>The 6 Steps</h3>
+<table><thead><tr><th>Step</th><th>What the Tech Does</th><th>Key Behaviors</th><th>Skill Tag</th></tr></thead><tbody><tr><td><strong>1. Prepare</strong></td><td>Mental and physical prep before arriving</td><td>5-5-20 routine (5 gratitudes, 5 goals, 20 mins exercise). Check state of mind. Van/uniform inspection. Review job history in ST.</td><td>Prerequisite (no separate tag — embedded in <code>D3 SOP Compliance</code>)</td></tr><tr><td><strong>2. Greet</strong></td><td>Create a great first impression</td><td>Park carefully, shoe covers, introduce self and company, empathy first, show agenda card, establish 3 pillars of trust (Empathy, Expertise, Expectations). No selling in the Greet — but sales can be lost here.</td><td><code>H1 — NSS Greet</code></td></tr><tr><td><strong>3. Explore</strong></td><td>Thorough investigation + customer engagement</td><td>Ask symptom questions AND lifestyle questions. Keep customer engaged. Take photos. Fill out Summary of Findings. Price condition. Check in with dispatch. Prepare 3–6 options.</td><td><code>H2 — NSS Explore</code></td></tr><tr><td><strong>4. Present</strong></td><td>Show options and let the customer decide</td><td>Present to ALL decision-makers. 3–6 options (A/B/C for HVAC). Each option includes: summary of work, warranty, financing, equipment, location, price, SPP info. Use "Link it, Say it, Spin it, Zip it" method.</td><td><code>H3 — NSS Present</code></td></tr><tr><td><strong>5. Execute</strong></td><td>Perform the work with excellence</td><td>Craftsman quality. Leave area cleaner than found. Respect customer home. Manage time. Communicate to dispatch. No cutting corners.</td><td><code>H4 — NSS Execute</code></td></tr><tr><td><strong>6. Wrap Up</strong></td><td>Close the call professionally</td><td>Test all work. Show customer the completed repair. Review leave-behinds. Offer Service Partner Plan. Ask for 5-star review. Complete all paperwork. Perform curbside self-evaluation.</td><td><code>H5 — NSS Wrap Up</code></td></tr></tbody></table>
+<h3>3 Pillars of Trust (Established in Greet Step)</h3>
+<ul>
+<li><strong>Empathy</strong> — Park carefully, use shoe covers, show concern for the customer's situation</li>
+<li><strong>Expertise</strong> — Ask a strong opening technical question, confirm intent to complete repair today, confirm Service Partner Plan status</li>
+<li><strong>Expectations</strong> — Visually show the customer the step-by-step agenda card process</li>
+</ul>
+<h3>Curbside Evaluation</h3>
+<p>After every call, the tech performs a self-evaluation at the curb before leaving:</p>
+<ul>
+<li>Did I follow all 6 steps?</li>
+<li>Did I present options to all decision-makers?</li>
+<li>Did I offer the Service Partner Plan?</li>
+<li>Did I ask for a 5-star review?</li>
+<li>What would I do differently next time?</li>
+</ul>
+<p><em>Document version: 2.0 | Updated with NexTech Academy / Nexstar Network alignment | Prepared for Snappy Services, Marietta, GA | For internal management use only</em></p>
+<p><em>Curriculum source: NexTech Academy HVAC Curriculum Guide (nextechacademy.com)</em></p>
+</div>
+<hr>
+
+      </div>
+    </div>
+
+    <!-- DISPATCH BOARD TAB -->
+    <div id="view-dispatch" class="view-section">
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Dispatch Board</div>
+        </div>
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:18px; max-width:720px;">
+          Quick-reference dispatch tags per technician — up to 5 tags each. Helps dispatch determine who can run what call. Tags are separate from the full 48-skill system.
+        </p>
+      </div>
+
+      <!-- Dispatch Tag Manager -->
+      <div class="section" style="margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+          <div style="font-weight:600;font-size:14px;color:var(--text-primary)">Manage Tags</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="dispNewTag" placeholder="New tag name..." maxlength="40" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;width:220px;background:var(--bg-card);">
+            <button id="dispAddTagBtn" style="padding:7px 16px;border:none;border-radius:8px;background:var(--accent-teal);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">+ Add Tag</button>
+          </div>
+        </div>
+        <div id="dispTagPool" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      </div>
+
+      <!-- Dispatch Grid -->
+      <div id="dispGrid" class="section"></div>
+    </div>
+
+    <!-- SERVICETITAN SCORECARDS TAB -->
+    <div id="view-scorecards" class="view-section">
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">ServiceTitan Technician Scorecards</div>
+        </div>
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:18px; max-width:720px;">
+          Performance metrics from ServiceTitan — Last 90 Days. Covers revenue, lead generation, memberships, productivity, and sales.
+        </p>
+      </div>
+
+      <!-- ST KPI Row -->
+      <div class="kpi-row" id="st-kpi-row"></div>
+
+      <!-- Sub-tabs for ST sections -->
+      <div class="nav-tabs" style="margin-bottom:20px" id="st-sub-tabs">
+        <button class="nav-tab active" data-st="nexstar">Nexstar</button>
+        <button class="nav-tab" data-st="overview">Overview</button>
+        <button class="nav-tab" data-st="leads">Lead Generation</button>
+        <button class="nav-tab" data-st="memberships">Memberships</button>
+        <button class="nav-tab" data-st="productivity">Productivity</button>
+        <button class="nav-tab" data-st="sales">Sales</button>
+        <button class="nav-tab" data-st="installs">Installs</button>
+      </div>
+
+      <div id="st-nexstar" class="st-section active">
+        <div class="matrix-wrap"><table class="matrix-table" id="stNexstarTable"></table></div>
+      </div>
+      <div id="st-overview" class="st-section">
+        <div class="matrix-wrap"><table class="matrix-table" id="stOverviewTable"></table></div>
+      </div>
+      <div id="st-leads" class="st-section">
+        <div class="matrix-wrap"><table class="matrix-table" id="stLeadsTable"></table></div>
+      </div>
+      <div id="st-memberships" class="st-section">
+        <div class="matrix-wrap"><table class="matrix-table" id="stMembershipsTable"></table></div>
+      </div>
+      <div id="st-productivity" class="st-section">
+        <div class="matrix-wrap"><table class="matrix-table" id="stProductivityTable"></table></div>
+      </div>
+      <div id="st-sales" class="st-section">
+        <div class="matrix-wrap"><table class="matrix-table" id="stSalesTable"></table></div>
+      </div>
+      <div id="st-installs" class="st-section">
+        <div class="matrix-wrap"><table class="matrix-table" id="stInstallsTable"></table></div>
+      </div>
+
+      <!-- Revenue chart -->
+      <div class="section" style="margin-top:24px">
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">Total Revenue (Last 90 Days)</div>
+            <div class="chart-subtitle">ServiceTitan reported revenue per technician</div>
+            <div class="chart-container"><canvas id="stRevenueChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Conversion Rate vs. Lead Generation</div>
+            <div class="chart-subtitle">Opportunity conversion rate and leads set</div>
+            <div class="chart-container"><canvas id="stConversionChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Setup Modal -->
+  <div id="syncSetupModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:10001;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+    <div style="background:#1a1f2e;border:1px solid #2d3548;border-radius:12px;padding:28px;max-width:480px;width:90%;color:#e4e7ec;">
+      <h3 style="margin:0 0 8px 0;font-size:18px;">Cloud Sync Setup</h3>
+      <p style="margin:0 0 16px 0;font-size:13px;color:#8b93a8;">Paste your Google Apps Script Web App URL below to enable cross-device sync.</p>
+      <input id="syncUrlInput" type="text" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;padding:10px 12px;background:#0f1219;border:1px solid #2d3548;border-radius:8px;color:#e4e7ec;font-size:14px;box-sizing:border-box;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="closeSyncSetup()" style="padding:8px 16px;background:#2d3548;color:#e4e7ec;border:none;border-radius:6px;cursor:pointer;font-size:13px;">Cancel</button>
+        <button onclick="saveSyncUrl()" style="padding:8px 16px;background:#2D6A6A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Save & Sync</button>
+      </div>
+      <div id="syncSetupStatus" style="margin-top:12px;font-size:12px;color:#8b93a8;"></div>
+    </div>
+  </div>
+
+  <script src="pdf_data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
