@@ -3179,6 +3179,13 @@
       padding: 12px 14px;
       border: 1px solid rgba(38, 166, 154, 0.25);
     }
+    .mgr-nexstar-block .mgr-check-item input[type="checkbox"]:checked {
+      background: #26A69A;
+      border-color: #26A69A;
+    }
+    .mgr-nexstar-notes:focus {
+      border-color: rgba(38, 166, 154, 0.5);
+    }
 
     /* Day Notes */
     .mgr-notes-block {

@@ -91,7 +91,8 @@ async function initCloudSync() {
     'dispatch': 'snappy_dispatch_v1',
     'dailyduties': 'snappy_daily_duties',
     'mgrstats': 'snappy_mgr_stats',
-    'daynotes': 'snappy_day_notes'
+    'daynotes': 'snappy_day_notes',
+    'nexstar': 'snappy_nexstar'
   };
 
   let needsReload = false;
@@ -182,7 +183,8 @@ async function saveSyncUrl() {
       'dispatch': 'snappy_dispatch_v1',
       'dailyduties': 'snappy_daily_duties',
       'mgrstats': 'snappy_mgr_stats',
-      'daynotes': 'snappy_day_notes'
+      'daynotes': 'snappy_day_notes',
+      'nexstar': 'snappy_nexstar'
     };
     var payload = {};
     for (var ck in keyMap) {
@@ -198,7 +200,7 @@ async function saveSyncUrl() {
     // Pull cloud data into localStorage for this device (JSONP)
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
-      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats', 'daynotes': 'snappy_day_notes' };
+      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar' };
       for (var pk in pullKeys) {
         if (pullData.result[pk]) {
           var cv = pullData.result[pk].data || pullData.result[pk].val || '';
@@ -2538,6 +2540,32 @@ window.addEventListener('load', () => {
       var diff = Math.round((d.getTime() - NEXSTAR_ANCHOR.getTime()) / (1000 * 60 * 60 * 24));
       return diff % 14 === 0;
     }
+    const NEXSTAR_KEY = 'snappy_nexstar';
+    function mgrLoadNexstar() {
+      try { return JSON.parse(localStorage.getItem(NEXSTAR_KEY)) || {}; } catch(e) { return {}; }
+    }
+    function mgrGetNexstarData(dateStr) {
+      var all = mgrLoadNexstar();
+      return all[dateStr] || {};
+    }
+    function mgrToggleNexstar(dateStr, key, checked) {
+      var all = mgrLoadNexstar();
+      if (!all[dateStr]) all[dateStr] = {};
+      all[dateStr][key] = checked;
+      localStorage.setItem(NEXSTAR_KEY, JSON.stringify(all));
+      if (SyncEngine.isConfigured()) SyncEngine.write('nexstar', all);
+    }
+    var _nexNoteTimer = null;
+    function mgrSaveNexstarNote(dateStr, text) {
+      var all = mgrLoadNexstar();
+      if (!all[dateStr]) all[dateStr] = {};
+      all[dateStr].notes = text;
+      localStorage.setItem(NEXSTAR_KEY, JSON.stringify(all));
+      clearTimeout(_nexNoteTimer);
+      _nexNoteTimer = setTimeout(function() {
+        if (SyncEngine.isConfigured()) SyncEngine.write('nexstar', all);
+      }, 1500);
+    }
 
     // ----- Suggestion algorithms -----
     function mgrGetCategoryCoverage() {
@@ -2875,14 +2903,24 @@ window.addEventListener('load', () => {
 
       // --- Nexstar Zoom Meeting (biweekly Mondays) ---
       if (dow === 1 && isNexstarMonday(d)) {
+        var nx = mgrGetNexstarData(dateStr);
         html += `
           <div class="mgr-form-section mgr-nexstar-block">
             <div class="mgr-form-section-title" style="display:flex;align-items:center;gap:8px;">
               <span style="font-size:16px;">&#127909;</span> Nexstar Zoom Meeting — 8:00 AM
             </div>
-            <div style="font-size:13px; color:var(--text-secondary); margin-top:6px; line-height:1.5;">
-              <div style="margin-bottom:4px;"><strong style="color:var(--text-primary);">Coaches:</strong> Jay & Greg</div>
-              <div><strong style="color:var(--text-primary);">Frequency:</strong> Every other Monday</div>
+            <div style="font-size:13px; color:var(--text-secondary); margin-top:4px; margin-bottom:10px; line-height:1.5;">
+              <strong style="color:var(--text-primary);">Coaches:</strong> Jay & Greg &nbsp;&bull;&nbsp; Every other Monday
+            </div>
+            <div class="mgr-checklist">
+              <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleNexstar('${dateStr}','joined_call',this.checked)" ${nx.joined_call?'checked':''}><span>Joined Zoom call</span></label>
+              <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleNexstar('${dateStr}','reviewed_action_items',this.checked)" ${nx.reviewed_action_items?'checked':''}><span>Reviewed action items from last session</span></label>
+              <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleNexstar('${dateStr}','shared_updates',this.checked)" ${nx.shared_updates?'checked':''}><span>Shared team updates with coaches</span></label>
+              <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleNexstar('${dateStr}','new_action_items',this.checked)" ${nx.new_action_items?'checked':''}><span>Captured new action items / takeaways</span></label>
+            </div>
+            <div style="margin-top:12px;">
+              <div style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">Meeting Notes</div>
+              <textarea class="mgr-day-notes mgr-nexstar-notes" placeholder="Key discussion points, coaching feedback, action items..." oninput="mgrSaveNexstarNote('${dateStr}',this.value)">${mgrEscape(nx.notes||'')}</textarea>
             </div>
           </div>
         `;
