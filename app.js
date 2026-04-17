@@ -4085,7 +4085,7 @@ window.addEventListener('load', () => {
       { bg: '#E0F7FA', text: '#00838F' },
       { bg: '#FBE9E7', text: '#D84315' }
     ];
-    const DISP_MAX_TAGS = 5;
+    const DISP_MAX_TAGS = 10;
     const DISP_DEFAULT_TAGS = [
       'Diagnostics',
       'Install / Changeout',
