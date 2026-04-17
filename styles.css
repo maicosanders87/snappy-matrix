@@ -2284,6 +2284,7 @@
       line-height: 1.2;
     }
     .mgr-cal-label.mon { color: #9C6ADE; }
+    .mgr-cal-label.nexstar { color: #26A69A; font-weight: 800; }
     .mgr-cal-label.wed { color: var(--accent-gold); }
     .mgr-cal-label.tue { color: #D87A3A; }
     .mgr-cal-dots {
@@ -2302,6 +2303,7 @@
     .mgr-cal-dot.blue { background: #3A6BA8; }
     .mgr-cal-dot.gold { background: var(--accent-gold); }
     .mgr-cal-dot.orange { background: #D87A3A; }
+    .mgr-cal-dot.teal { background: #26A69A; }
     .mgr-cal-dot.purple { background: #9C6ADE; }
     .mgr-cal-dot.hollow.green { background: transparent; border: 1.5px solid var(--accent-green); }
     .mgr-cal-dot.hollow.blue { background: transparent; border: 1.5px solid #3A6BA8; }
@@ -3168,6 +3170,14 @@
     .mgr-check-item input[type="checkbox"]:checked + span {
       text-decoration: line-through;
       color: var(--text-muted);
+    }
+
+    /* Nexstar meeting block */
+    .mgr-nexstar-block {
+      background: rgba(38, 166, 154, 0.08);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      border: 1px solid rgba(38, 166, 154, 0.25);
     }
 
     /* Day Notes */

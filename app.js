@@ -2530,6 +2530,15 @@ window.addEventListener('load', () => {
       }, 1500);
     }
 
+    // ----- Nexstar biweekly meeting check -----
+    // Every other Monday starting 4/20/2026, 8:00 AM — coaches Jay & Greg
+    var NEXSTAR_ANCHOR = new Date(2026, 3, 20); // April 20, 2026
+    function isNexstarMonday(d) {
+      if (d.getDay() !== 1) return false;
+      var diff = Math.round((d.getTime() - NEXSTAR_ANCHOR.getTime()) / (1000 * 60 * 60 * 24));
+      return diff % 14 === 0;
+    }
+
     // ----- Suggestion algorithms -----
     function mgrGetCategoryCoverage() {
       const techNames = Object.keys(skillsData.assignments);
@@ -2715,13 +2724,15 @@ window.addEventListener('load', () => {
         const dayEntries = entriesByDate[dateStr] || [];
 
         let labelHtml = '';
-        if (dow === 1) labelHtml = `<div class="mgr-cal-label mon">Planning & Review</div>`;
+        if (dow === 1 && isNexstarMonday(cellDate)) labelHtml = `<div class="mgr-cal-label nexstar">Nexstar 8AM</div>`;
+        else if (dow === 1) labelHtml = `<div class="mgr-cal-label mon">Planning & Review</div>`;
         if (dow === 2) labelHtml = `<div class="mgr-cal-label tue">Training Prep</div>`;
         if (dow === 3) labelHtml = `<div class="mgr-cal-label wed">Team Meeting</div>`;
 
         // Build dots
         let dots = '';
         // Recurring day indicators
+        if (dow === 1 && isNexstarMonday(cellDate)) dots += `<span class="mgr-cal-dot teal" title="Nexstar Zoom"></span>`;
         if (dow === 1) dots += `<span class="mgr-cal-dot purple" title="Planning & Review"></span>`;
         if (dow === 2) dots += `<span class="mgr-cal-dot orange" title="Training prep"></span>`;
         if (dow === 3) dots += `<span class="mgr-cal-dot gold" title="Team meeting"></span>`;
@@ -2827,7 +2838,8 @@ window.addEventListener('load', () => {
       document.getElementById('mgrPanelTitle').textContent = mgrFmtDisplay(d);
       const dow = d.getDay();
       let sub = '';
-      if (dow === 1) sub = 'Monday — Planning, Review & Leadership';
+      if (dow === 1 && isNexstarMonday(d)) sub = 'Monday — Nexstar Zoom + Planning & Review';
+      else if (dow === 1) sub = 'Monday — Planning, Review & Leadership';
       else if (dow === 2) sub = 'Tuesday — Training Prep day';
       else if (dow === 3) sub = 'Wednesday — Team Meeting day';
       document.getElementById('mgrPanelSub').textContent = sub;
@@ -2860,6 +2872,21 @@ window.addEventListener('load', () => {
           </div>
         </div>
       `;
+
+      // --- Nexstar Zoom Meeting (biweekly Mondays) ---
+      if (dow === 1 && isNexstarMonday(d)) {
+        html += `
+          <div class="mgr-form-section mgr-nexstar-block">
+            <div class="mgr-form-section-title" style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:16px;">&#127909;</span> Nexstar Zoom Meeting — 8:00 AM
+            </div>
+            <div style="font-size:13px; color:var(--text-secondary); margin-top:6px; line-height:1.5;">
+              <div style="margin-bottom:4px;"><strong style="color:var(--text-primary);">Coaches:</strong> Jay & Greg</div>
+              <div><strong style="color:var(--text-primary);">Frequency:</strong> Every other Monday</div>
+            </div>
+          </div>
+        `;
+      }
 
       // --- Monday: Planning, Review & Leadership ---
       if (dow === 1) {
