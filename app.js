@@ -27,38 +27,31 @@ const SyncEngine = {
   // Flush all pending writes to the cloud
   async _flush() {
     if (!this.isConfigured() || Object.keys(this._pendingWrites).length === 0) return;
-    const payload = { ...this._pendingWrites };
+    var payload = {};
+    for (var k in this._pendingWrites) payload[k] = this._pendingWrites[k];
     this._pendingWrites = {};
     this._updateIndicator('syncing');
     try {
-      const resp = await fetch(SYNC_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' }, // Apps Script needs this
-        body: JSON.stringify(payload)
-      });
-      if (resp.ok) {
-        this._updateIndicator('saved');
-      } else {
-        this._updateIndicator('error');
-      }
+      await _syncPost(SYNC_URL, payload);
+      // no-cors means we can't read the response, but the write still goes through
+      this._updateIndicator('saved');
     } catch (e) {
       console.warn('Sync write failed:', e);
       this._updateIndicator('error');
     }
   },
 
-  // Pull all data from cloud
+  // Pull all data from cloud (uses JSONP for cross-origin reliability)
   async pull() {
     if (!this.isConfigured()) return null;
     this._updateIndicator('syncing');
     try {
-      const resp = await fetch(SYNC_URL + '?t=' + Date.now());
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const json = await resp.json();
-      if (json.status === 'ok') {
+      var json = await _syncJsonpGet(SYNC_URL);
+      if (json && json.status === 'ok') {
         this._updateIndicator('saved');
         return json.result;
       }
+      throw new Error('Bad response');
     } catch (e) {
       console.warn('Sync pull failed:', e);
       this._updateIndicator('error');
@@ -128,51 +121,90 @@ function openSyncSetup() {
 function closeSyncSetup() {
   document.getElementById('syncSetupModal').style.display = 'none';
 }
+// Helper: cross-origin GET via JSONP (reliable for Apps Script)
+function _syncJsonpGet(url) {
+  return new Promise(function(resolve, reject) {
+    var cbName = '_syncCb' + Date.now();
+    window[cbName] = function(data) {
+      resolve(data);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+    var script = document.createElement('script');
+    script.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + cbName + '&t=' + Date.now();
+    script.onerror = function() {
+      reject(new Error('JSONP failed'));
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+    document.head.appendChild(script);
+    setTimeout(function() {
+      if (window[cbName]) {
+        reject(new Error('JSONP timeout'));
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+    }, 15000);
+  });
+}
+
+// Helper: cross-origin POST via no-cors (fire-and-forget)
+function _syncPost(url, payload) {
+  return fetch(url, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  });
+}
+
 async function saveSyncUrl() {
-  const url = document.getElementById('syncUrlInput').value.trim();
-  const statusEl = document.getElementById('syncSetupStatus');
+  var url = document.getElementById('syncUrlInput').value.trim();
+  var statusEl = document.getElementById('syncSetupStatus');
   if (!url) { statusEl.textContent = 'Please enter a URL.'; statusEl.style.color = '#e57373'; return; }
   statusEl.textContent = 'Testing connection...'; statusEl.style.color = '#8b93a8';
   SyncEngine.setUrl(url);
   try {
-    const resp = await fetch(url + '?t=' + Date.now());
-    if (resp.ok) {
-      statusEl.textContent = 'Connected! Syncing all data now...'; statusEl.style.color = '#81c784';
-      // Push all current localStorage data to cloud
-      const keys = {
-        'skills': 'snappy_skills_assignments',
-        'manager': 'snappy_manager_entries',
-        'techfiles': 'snappy_tech_files',
-        'dispatch': 'snappy_dispatch_v1'
-      };
-      const payload = {};
-      for (const [cloudKey, localKey] of Object.entries(keys)) {
-        const val = localStorage.getItem(localKey);
-        if (val) payload[cloudKey] = val;
-      }
-      if (Object.keys(payload).length > 0) {
-        await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
-      }
-      // Also pull cloud data into localStorage for this device
-      var pullResp = await fetch(url + '?t=' + Date.now());
-      if (pullResp.ok) {
-        var pullJson = await pullResp.json();
-        if (pullJson.status === 'ok' && pullJson.result) {
-          var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1' };
-          for (var pk in pullKeys) {
-            if (pullJson.result[pk]) {
-              var cv = pullJson.result[pk].data || pullJson.result[pk].val || '';
-              if (cv) localStorage.setItem(pullKeys[pk], cv);
-            }
-          }
+    // Test connection with JSONP (works cross-origin)
+    var testData = await _syncJsonpGet(url);
+    if (!testData || testData.status !== 'ok') throw new Error('Bad response');
+
+    statusEl.textContent = 'Connected! Syncing all data now...'; statusEl.style.color = '#81c784';
+
+    // Push all current localStorage data to cloud (no-cors POST)
+    var keyMap = {
+      'skills': 'snappy_skills_assignments',
+      'manager': 'snappy_manager_entries',
+      'techfiles': 'snappy_tech_files',
+      'dispatch': 'snappy_dispatch_v1'
+    };
+    var payload = {};
+    for (var ck in keyMap) {
+      var val = localStorage.getItem(keyMap[ck]);
+      if (val) payload[ck] = val;
+    }
+    if (Object.keys(payload).length > 0) {
+      await _syncPost(url, payload);
+      // Small delay so the write lands before we read back
+      await new Promise(function(r) { setTimeout(r, 2000); });
+    }
+
+    // Pull cloud data into localStorage for this device (JSONP)
+    var pullData = await _syncJsonpGet(url);
+    if (pullData && pullData.status === 'ok' && pullData.result) {
+      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1' };
+      for (var pk in pullKeys) {
+        if (pullData.result[pk]) {
+          var cv = pullData.result[pk].data || pullData.result[pk].val || '';
+          if (cv) localStorage.setItem(pullKeys[pk], cv);
         }
       }
-      statusEl.textContent = 'All data synced!'; statusEl.style.color = '#81c784';
-      setTimeout(function() { closeSyncSetup(); location.reload(); }, 1500);
-    } else {
-      statusEl.textContent = 'Connection failed (HTTP ' + resp.status + '). Check the URL.'; statusEl.style.color = '#e57373';
     }
+
+    statusEl.textContent = 'All data synced!'; statusEl.style.color = '#81c784';
+    setTimeout(function() { closeSyncSetup(); location.reload(); }, 1500);
   } catch (e) {
+    console.warn('saveSyncUrl error:', e);
     statusEl.textContent = 'Connection error. Make sure the script is deployed as a web app.'; statusEl.style.color = '#e57373';
   }
 }
