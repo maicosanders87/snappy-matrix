@@ -1006,6 +1006,24 @@ window.addEventListener('load', () => {
       return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
     }
 
+    // Seed bulletin board updates on first load
+    (function bbSeedUpdates() {
+      var bb = bbLoad();
+      var seededIds = {
+        'st_update_20260418': { date: '2026-04-18', text: 'ServiceTitan scorecard data refreshed (4/18/26 4:30 PM). Key changes: Dewone revenue up to $25,675 (+$1,838), conversion 79%. Benji revenue $18,238 (+$1,420), conversion improved to 56%. Daniel revenue $19,162 (+$2,364), conversion 64%. Chris revenue $15,359 (+$552), conversion 55%. Chris install count 12 ($151K). Memberships: Benji up to 2 sold (8%), Chris 6 sold (32%). Team total MTD revenue $84,850.' }
+      };
+      var changed = false;
+      Object.keys(seededIds).forEach(function(sid) {
+        var exists = (bb.matrixUpdates || []).some(function(u) { return u.id === sid; });
+        if (!exists) {
+          bb.matrixUpdates = bb.matrixUpdates || [];
+          bb.matrixUpdates.push({ id: sid, date: seededIds[sid].date, text: seededIds[sid].text, createdAt: Date.now() });
+          changed = true;
+        }
+      });
+      if (changed) bbSave(bb);
+    })();
+
     function bbGetWeekRange() {
       var now = new Date();
       var day = now.getDay();
@@ -2387,55 +2405,55 @@ window.addEventListener('load', () => {
       {
         name: "Dewone",
         color: "#E07B3A",
-        nexstar: { total_revenue: 23837, avg_sale: 428, conversion_rate: 80, spps_sold: 8, tech_gen_leads: 31, sold_hours: 135.85, tech_sold_hr_eff: 0, flat_rate_tasks: 1.83 },
-        overview: { revenue: 23837, total_job_avg: 144, opp_job_avg: 349, opp_conversion: 80, opps: 66, converted_jobs: 53 },
-        leads: { opps: 46, leads_set: 31, conv_rate: 67, avg_sale: 1284 },
+        nexstar: { total_revenue: 25675, avg_sale: 440, conversion_rate: 79, spps_sold: 8, tech_gen_leads: 34, sold_hours: 138.55, tech_sold_hr_eff: 0, flat_rate_tasks: 1.84 },
+        overview: { revenue: 25675, total_job_avg: 153, opp_job_avg: 351, opp_conversion: 79, opps: 71, converted_jobs: 56 },
+        leads: { opps: 71, leads_set: 34, conv_rate: 48, avg_sale: 440 },
         memberships: { total_mem_sold: 8, total_mem_opps: 17, total_mem_pct: 47 },
-        productivity: { rev_hr: 92, billable_hours: 135.85, sold_hrs_on_job_pct: 52, tasks_per_opp: 1.79, options_per_opp: 2.97, recalls: 0 },
-        sales: { total_sales: 32627, avg_sale_s: 589, close_rate: 82, sales_opps: 65, options_per_opp_s: 2.97 },
-        installs: { count: 4, total_revenue: 33099, avg_sale: 8275, leads_generated: 4, self_sourced: 4 }
+        productivity: { rev_hr: 97, billable_hours: 138.55, sold_hrs_on_job_pct: 52, tasks_per_opp: 1.79, options_per_opp: 2.81, recalls: 0 },
+        sales: { total_sales: 31760, avg_sale_s: 565, close_rate: 79, sales_opps: 68, options_per_opp_s: 2.81 },
+        installs: { count: 3, total_revenue: 28781, avg_sale: 9594, leads_generated: 3, self_sourced: 3 }
       },
       {
         name: "Benji",
         color: "#5B4A8A",
-        nexstar: { total_revenue: 16818, avg_sale: 476, conversion_rate: 50, spps_sold: 1, tech_gen_leads: 10, sold_hours: 124.65, tech_sold_hr_eff: 0.27, flat_rate_tasks: 2.26 },
-        overview: { revenue: 16818, total_job_avg: 104, opp_job_avg: 249, opp_conversion: 50, opps: 64, converted_jobs: 32 },
-        leads: { opps: 43, leads_set: 10, conv_rate: 23, avg_sale: 2648 },
-        memberships: { total_mem_sold: 1, total_mem_opps: 23, total_mem_pct: 4 },
-        productivity: { rev_hr: 69, billable_hours: 124.65, sold_hrs_on_job_pct: 51, tasks_per_opp: 1.47, options_per_opp: 1.15, recalls: 1 },
-        sales: { total_sales: 37480, avg_sale_s: 1416, close_rate: 43, sales_opps: 61, options_per_opp_s: 1.15 },
+        nexstar: { total_revenue: 18238, avg_sale: 445, conversion_rate: 56, spps_sold: 2, tech_gen_leads: 9, sold_hours: 130.65, tech_sold_hr_eff: 0.28, flat_rate_tasks: 2.17 },
+        overview: { revenue: 18238, total_job_avg: 108, opp_job_avg: 260, opp_conversion: 56, opps: 66, converted_jobs: 37 },
+        leads: { opps: 66, leads_set: 9, conv_rate: 14, avg_sale: 445 },
+        memberships: { total_mem_sold: 2, total_mem_opps: 24, total_mem_pct: 8 },
+        productivity: { rev_hr: 72, billable_hours: 130.65, sold_hrs_on_job_pct: 52, tasks_per_opp: 1.51, options_per_opp: 1.15, recalls: 1 },
+        sales: { total_sales: 38776, avg_sale_s: 1362, close_rate: 45, sales_opps: 62, options_per_opp_s: 1.15 },
         installs: { count: 7, total_revenue: 68998, avg_sale: 9857, leads_generated: 2, self_sourced: 7 }
       },
       {
         name: "Daniel",
         color: "#C47F17",
-        nexstar: { total_revenue: 16798, avg_sale: 542, conversion_rate: 63, spps_sold: 4, tech_gen_leads: 5, sold_hours: 115, tech_sold_hr_eff: 0, flat_rate_tasks: 2 },
-        overview: { revenue: 16798, total_job_avg: 110, opp_job_avg: 341, opp_conversion: 63, opps: 48, converted_jobs: 30 },
-        leads: { opps: 30, leads_set: 5, conv_rate: 17, avg_sale: 1721 },
-        memberships: { total_mem_sold: 4, total_mem_opps: 14, total_mem_pct: 29 },
-        productivity: { rev_hr: 40, billable_hours: 115, sold_hrs_on_job_pct: 27, tasks_per_opp: 1.5, options_per_opp: 0.51, recalls: 2 },
-        sales: { total_sales: 7395, avg_sale_s: 924, close_rate: 22, sales_opps: 37, options_per_opp_s: 0.51 },
+        nexstar: { total_revenue: 19162, avg_sale: 547, conversion_rate: 64, spps_sold: 4, tech_gen_leads: 5, sold_hours: 120.75, tech_sold_hr_eff: 0, flat_rate_tasks: 2.03 },
+        overview: { revenue: 19162, total_job_avg: 121, opp_job_avg: 355, opp_conversion: 64, opps: 53, converted_jobs: 34 },
+        leads: { opps: 53, leads_set: 5, conv_rate: 9, avg_sale: 547 },
+        memberships: { total_mem_sold: 4, total_mem_opps: 15, total_mem_pct: 27 },
+        productivity: { rev_hr: 43, billable_hours: 120.75, sold_hrs_on_job_pct: 27, tasks_per_opp: 1.57, options_per_opp: 0.56, recalls: 2 },
+        sales: { total_sales: 8761, avg_sale_s: 876, close_rate: 24, sales_opps: 41, options_per_opp_s: 0.56 },
         installs: { count: 1, total_revenue: 9926, avg_sale: 9926, leads_generated: 1, self_sourced: 1 }
       },
       {
         name: "Chris",
         color: "#8B3A3A",
-        nexstar: { total_revenue: 14807, avg_sale: 371, conversion_rate: 51, spps_sold: 6, tech_gen_leads: 26, sold_hours: 119.92, tech_sold_hr_eff: 0, flat_rate_tasks: 1.99 },
-        overview: { revenue: 14807, total_job_avg: 85, opp_job_avg: 198, opp_conversion: 51, opps: 72, converted_jobs: 37 },
-        leads: { opps: 66, leads_set: 26, conv_rate: 39, avg_sale: 4225 },
-        memberships: { total_mem_sold: 6, total_mem_opps: 20, total_mem_pct: 30 },
-        productivity: { rev_hr: 50, billable_hours: 119.92, sold_hrs_on_job_pct: 41, tasks_per_opp: 1.38, options_per_opp: 1.82, recalls: 1 },
-        sales: { total_sales: 35124, avg_sale_s: 933, close_rate: 46, sales_opps: 76, options_per_opp_s: 1.82 },
-        installs: { count: 13, total_revenue: 161275, avg_sale: 12406, leads_generated: 11, self_sourced: 13 }
+        nexstar: { total_revenue: 15359, avg_sale: 360, conversion_rate: 55, spps_sold: 6, tech_gen_leads: 26, sold_hours: 127.67, tech_sold_hr_eff: 0, flat_rate_tasks: 1.91 },
+        overview: { revenue: 15359, total_job_avg: 86, opp_job_avg: 203, opp_conversion: 55, opps: 73, converted_jobs: 40 },
+        leads: { opps: 73, leads_set: 26, conv_rate: 36, avg_sale: 360 },
+        memberships: { total_mem_sold: 6, total_mem_opps: 19, total_mem_pct: 32 },
+        productivity: { rev_hr: 51, billable_hours: 127.67, sold_hrs_on_job_pct: 42, tasks_per_opp: 1.45, options_per_opp: 1.9, recalls: 1 },
+        sales: { total_sales: 38480, avg_sale_s: 924, close_rate: 50, sales_opps: 78, options_per_opp_s: 1.9 },
+        installs: { count: 12, total_revenue: 151465, avg_sale: 12622, leads_generated: 12, self_sourced: 12 }
       },
       {
         name: "Dee",
         color: "#2D6A6A",
-        nexstar: { total_revenue: 6416, avg_sale: 562, conversion_rate: 85, spps_sold: 0, tech_gen_leads: 3, sold_hours: 88.35, tech_sold_hr_eff: 0, flat_rate_tasks: 2.65 },
-        overview: { revenue: 6416, total_job_avg: 55, opp_job_avg: 475, opp_conversion: 85, opps: 13, converted_jobs: 11 },
-        leads: { opps: 7, leads_set: 3, conv_rate: 43, avg_sale: 107 },
-        memberships: { total_mem_sold: 0, total_mem_opps: 9, total_mem_pct: 0 },
-        productivity: { rev_hr: 24, billable_hours: 88.35, sold_hrs_on_job_pct: 32, tasks_per_opp: 2.63, options_per_opp: 0.75, recalls: 1 },
+        nexstar: { total_revenue: 6416, avg_sale: 562, conversion_rate: 85, spps_sold: 0, tech_gen_leads: 3, sold_hours: 87.35, tech_sold_hr_eff: 0, flat_rate_tasks: 2.65 },
+        overview: { revenue: 6416, total_job_avg: 57, opp_job_avg: 475, opp_conversion: 85, opps: 13, converted_jobs: 11 },
+        leads: { opps: 13, leads_set: 3, conv_rate: 23, avg_sale: 562 },
+        memberships: { total_mem_sold: 0, total_mem_opps: 8, total_mem_pct: 0 },
+        productivity: { rev_hr: 24, billable_hours: 87.35, sold_hrs_on_job_pct: 32, tasks_per_opp: 2.63, options_per_opp: 0.75, recalls: 1 },
         sales: { total_sales: 1233, avg_sale_s: 411, close_rate: 38, sales_opps: 8, options_per_opp_s: 0.75 },
         installs: { count: 0, total_revenue: 0, avg_sale: 0, leads_generated: 0, self_sourced: 0 }
       }
