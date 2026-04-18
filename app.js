@@ -1,5 +1,5 @@
 // ========== ACCESS CONTROL (Manager vs Viewer) ==========
-const MGR_PIN = '0218';
+const MGR_PIN = '3433';
 let isManagerMode = localStorage.getItem('snappy_mgr_mode') === 'true';
 
 function applyViewMode() {
