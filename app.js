@@ -1355,30 +1355,44 @@ window.addEventListener('load', () => {
 
     function bbAddOneOnOne() {
       var bb = bbLoad();
-      bb.oneOnOnes.push({
-        id: bbUID(),
-        tech: document.getElementById('bbOOTech').value,
-        date: document.getElementById('bbOODate').value,
-        time: document.getElementById('bbOOTime').value.trim(),
-        status: document.getElementById('bbOOStatus').value,
-        notes: document.getElementById('bbOONotes').value.trim()
-      });
+      var newId = bbUID();
+      var tech = document.getElementById('bbOOTech').value;
+      var date = document.getElementById('bbOODate').value;
+      var time = document.getElementById('bbOOTime').value.trim();
+      var status = document.getElementById('bbOOStatus').value;
+      var notes = document.getElementById('bbOONotes').value.trim();
+      bb.oneOnOnes.push({ id: newId, tech: tech, date: date, time: time, status: status, notes: notes });
       bbSave(bb);
+      // Sync to manager calendar
+      mgrState.entries.push({
+        id: newId, type: 'one-on-one', tech: tech, date: date, status: status,
+        data: { housekeeping: {}, housekeepingNotes: '', customFocus: notes, redBarn: { include: false, scenario: '', outcome: '' }, coveredSummary: '', actionItems: '', followUp: '' },
+        createdAt: Date.now(), updatedAt: Date.now(), source: 'bulletin'
+      });
+      mgrSave();
       renderBulletinBoard();
+      renderManagerTab();
     }
 
     function bbAddRideAlong() {
       var bb = bbLoad();
-      bb.rideAlongs.push({
-        id: bbUID(),
-        tech: document.getElementById('bbRATech').value,
-        date: document.getElementById('bbRADate').value,
-        time: document.getElementById('bbRATime').value.trim(),
-        status: document.getElementById('bbRAStatus').value,
-        notes: document.getElementById('bbRANotes').value.trim()
-      });
+      var newId = bbUID();
+      var tech = document.getElementById('bbRATech').value;
+      var date = document.getElementById('bbRADate').value;
+      var time = document.getElementById('bbRATime').value.trim();
+      var status = document.getElementById('bbRAStatus').value;
+      var notes = document.getElementById('bbRANotes').value.trim();
+      bb.rideAlongs.push({ id: newId, tech: tech, date: date, time: time, status: status, notes: notes });
       bbSave(bb);
+      // Sync to manager calendar
+      mgrState.entries.push({
+        id: newId, type: 'ride-along', tech: tech, date: date, status: status,
+        data: { ackObservation: false, calls: [], custIssue: '', actualDiagnosis: '', repairPerformed: '', callOutcome: '', debriefManagerBetter: '', debriefTechBetter: '', debriefManagerWin: '', debriefTechWin: '', observations: {}, observationNotes: notes, nextSteps: '' },
+        createdAt: Date.now(), updatedAt: Date.now(), source: 'bulletin'
+      });
+      mgrSave();
       renderBulletinBoard();
+      renderManagerTab();
     }
 
     function bbRemove(category, id) {
@@ -1387,6 +1401,15 @@ window.addEventListener('load', () => {
         bb[category] = bb[category].filter(function(item) { return item.id !== id; });
       }
       bbSave(bb);
+      // Also remove from manager calendar if synced
+      if (category === 'oneOnOnes' || category === 'rideAlongs') {
+        var idx = mgrState.entries.findIndex(function(e) { return e.id === id; });
+        if (idx >= 0) {
+          mgrState.entries.splice(idx, 1);
+          mgrSave();
+          renderManagerTab();
+        }
+      }
       renderBulletinBoard();
     }
 
@@ -3749,15 +3772,32 @@ window.addEventListener('load', () => {
           mgrState.entries[idx] = { ...mgrState.entries[idx], tech, status, data, updatedAt: Date.now() };
         }
       } else {
+        var newOOId = mgrUID();
         mgrState.entries.push({
-          id: mgrUID(),
+          id: newOOId,
           type: 'one-on-one',
           tech, date: dateStr, status, data,
           createdAt: Date.now(), updatedAt: Date.now()
         });
+        // Sync to bulletin board
+        var bbOO = bbLoad();
+        bbOO.oneOnOnes.push({ id: newOOId, tech: tech, date: dateStr, time: '', status: status, notes: data.customFocus || '', source: 'mgr' });
+        bbSave(bbOO);
+      }
+      // Update bulletin board entry if editing
+      if (existingId) {
+        var bbOOEdit = bbLoad();
+        var ooIdx = bbOOEdit.oneOnOnes.findIndex(function(o) { return o.id === existingId; });
+        if (ooIdx >= 0) {
+          bbOOEdit.oneOnOnes[ooIdx].tech = tech;
+          bbOOEdit.oneOnOnes[ooIdx].status = status;
+          bbOOEdit.oneOnOnes[ooIdx].notes = data.customFocus || '';
+          bbSave(bbOOEdit);
+        }
       }
       mgrSave();
       renderManagerTab();
+      renderBulletinBoard();
       mgrOpenDayPanel(dateStr);
       return false;
     }
@@ -3957,15 +3997,32 @@ window.addEventListener('load', () => {
           mgrState.entries[idx] = { ...mgrState.entries[idx], tech, status, data, updatedAt: Date.now() };
         }
       } else {
+        var newRAId = mgrUID();
         mgrState.entries.push({
-          id: mgrUID(),
+          id: newRAId,
           type: 'ride-along',
           tech, date: dateStr, status, data,
           createdAt: Date.now(), updatedAt: Date.now()
         });
+        // Sync to bulletin board
+        var bbRA = bbLoad();
+        bbRA.rideAlongs.push({ id: newRAId, tech: tech, date: dateStr, time: '', status: status, notes: data.observationNotes || '', source: 'mgr' });
+        bbSave(bbRA);
+      }
+      // Update bulletin board entry if editing
+      if (existingId) {
+        var bbRAEdit = bbLoad();
+        var raIdx = bbRAEdit.rideAlongs.findIndex(function(r) { return r.id === existingId; });
+        if (raIdx >= 0) {
+          bbRAEdit.rideAlongs[raIdx].tech = tech;
+          bbRAEdit.rideAlongs[raIdx].status = status;
+          bbRAEdit.rideAlongs[raIdx].notes = data.observationNotes || '';
+          bbSave(bbRAEdit);
+        }
       }
       mgrSave();
       renderManagerTab();
+      renderBulletinBoard();
       mgrOpenDayPanel(dateStr);
       return false;
     }
@@ -3983,6 +4040,19 @@ window.addEventListener('load', () => {
       const dateStr = e ? e.date : mgrActiveDate;
       mgrState.entries = mgrState.entries.filter(x => x.id !== id);
       mgrSave();
+      // Also remove from bulletin board if synced
+      var bb = bbLoad();
+      var changed = false;
+      if (e && e.type === 'one-on-one') {
+        var before = bb.oneOnOnes.length;
+        bb.oneOnOnes = bb.oneOnOnes.filter(function(o) { return o.id !== id; });
+        if (bb.oneOnOnes.length < before) changed = true;
+      } else if (e && e.type === 'ride-along') {
+        var before2 = bb.rideAlongs.length;
+        bb.rideAlongs = bb.rideAlongs.filter(function(r) { return r.id !== id; });
+        if (bb.rideAlongs.length < before2) changed = true;
+      }
+      if (changed) { bbSave(bb); renderBulletinBoard(); }
       renderManagerTab();
       if (dateStr) mgrOpenDayPanel(dateStr);
     }
