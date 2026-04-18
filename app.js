@@ -1171,11 +1171,7 @@ window.addEventListener('load', () => {
     }
 
     function renderBulletinBoard() {
-      var week = bbGetWeekRange();
-      var weekLabel = bbFmtWeek(week.start) + ' \u2013 ' + bbFmtWeek(week.end);
-      var startStr = bbFmtDate(week.start);
-      var endStr = bbFmtDate(week.end);
-      // 9-day range for 1-on-1s and ride-alongs (4 days back, today, 4 days forward)
+      // 9-day rolling window (4 days back, today, 4 days forward)
       var now9 = new Date();
       var nineStart = new Date(now9.getFullYear(), now9.getMonth(), now9.getDate() - 4);
       var nineEnd = new Date(now9.getFullYear(), now9.getMonth(), now9.getDate() + 4);
@@ -1184,8 +1180,8 @@ window.addEventListener('load', () => {
       var bb = bbLoad();
       var techNames = techs.map(function(t) { return t.short; });
 
-      // Filter meetings to this week, but 1-on-1s and ride-alongs use 9-day range
-      var weekMeetings = bb.meetings.filter(function(m) { return m.date >= startStr && m.date <= endStr; });
+      // All three columns use the 9-day range
+      var weekMeetings = bb.meetings.filter(function(m) { return m.date >= nineStartStr && m.date <= nineEndStr; });
       var weekOneOnOnes = bb.oneOnOnes.filter(function(o) { return o.date >= nineStartStr && o.date <= nineEndStr; });
       var weekRideAlongs = bb.rideAlongs.filter(function(r) { return r.date >= nineStartStr && r.date <= nineEndStr; });
 
