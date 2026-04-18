@@ -1294,11 +1294,11 @@ window.addEventListener('load', () => {
         note: "Dee\'s warranty and cross-department role limits his customer-facing service calls, which explains the lower review count. His one mention was in a multi-tech job highlighting teamwork."
       },
       "Daniel": {
-        count: 17,
-        fiveStar: 16,
-        threeStar: 1,
+        count: 23,
+        fiveStar: 21,
+        threeStar: 2,
         highlight: '"Daniel is awesome. He is very reliable and an excellent worker. Give him a raise." — Cecile H',
-        note: "Second-most reviewed tech. Customers consistently praise his friendliness and knowledge. One 3-star review noted cost concerns but acknowledged Daniel fixed the issue. Keywords: professional, thorough, friendly, knowledgeable, persistent."
+        note: "Second-most reviewed tech. 6 new reviews since last check (5 five-star, 1 three-star). Customers praise friendliness, professionalism, and quality coil cleaning. One 3-star noted cost concerns. Recent highlight: above-and-beyond coil cleaning and hard start kit recommendations. Keywords: professional, thorough, friendly, knowledgeable, reliable."
       },
       "Chris": {
         count: 2,
@@ -1308,18 +1308,18 @@ window.addEventListener('load', () => {
         note: "Low review count despite high opportunity volume (72 opps in ST). His reserved, introverted style may mean fewer customers are prompted to leave reviews. Both mentions are positive — quality over quantity."
       },
       "Benji": {
-        count: 4,
-        fiveStar: 4,
+        count: 6,
+        fiveStar: 6,
         threeStar: 0,
-        highlight: '"Very fast, efficient and professional work done by Braydon Bond and Ben Johnson." — Marianne Medina',
-        note: "All 4 non-electrical reviews are 5-star (electrical job mentions excluded). Customers consistently praise efficiency and professionalism. Strong team-player reputation working alongside other techs."
+        highlight: '"Thank you so much to Ben T. for coming out to tuneup my AC unit. He broke things down for me so I understood everything, showed me areas of concern, gave improvement suggestions and real actionable solutions." — Ren F',
+        note: "2 new HVAC reviews since last check — both 5-star (electrical mentions excluded per rule). Customers highlight his ability to break things down and explain clearly. Strong team-player reputation."
       },
       "Dewone": {
-        count: 26,
-        fiveStar: 26,
+        count: 46,
+        fiveStar: 46,
         threeStar: 0,
-        highlight: '"Dewone Martin has been a joy. He explained everything in detail." — B Samone',
-        note: "Most-reviewed tech by a wide margin with a perfect 5-star record. Recurring themes: punctual, thorough, detailed explanations, friendly personality, great customer service. Multiple customers request him by name."
+        highlight: '"Dewone was excellent and satisfied all my A.C needs. Will make sure to request him next time." — Janice Zivitz',
+        note: "20 new 5-star reviews since last check — all perfect scores. Most-reviewed tech by a massive margin with a flawless record. Customers consistently request him by name. Recurring themes: punctual, thorough, detailed explanations, friendly, efficient, knowledgeable. Multiple reviews call him \"the man\" and \"awesome.\""
       }
     };
 
