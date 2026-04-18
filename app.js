@@ -1175,13 +1175,19 @@ window.addEventListener('load', () => {
       var weekLabel = bbFmtWeek(week.start) + ' \u2013 ' + bbFmtWeek(week.end);
       var startStr = bbFmtDate(week.start);
       var endStr = bbFmtDate(week.end);
+      // 9-day range for 1-on-1s and ride-alongs (4 days back, today, 4 days forward)
+      var now9 = new Date();
+      var nineStart = new Date(now9.getFullYear(), now9.getMonth(), now9.getDate() - 4);
+      var nineEnd = new Date(now9.getFullYear(), now9.getMonth(), now9.getDate() + 4);
+      var nineStartStr = bbFmtDate(nineStart);
+      var nineEndStr = bbFmtDate(nineEnd);
       var bb = bbLoad();
       var techNames = techs.map(function(t) { return t.short; });
 
-      // Filter to this week
+      // Filter meetings to this week, but 1-on-1s and ride-alongs use 9-day range
       var weekMeetings = bb.meetings.filter(function(m) { return m.date >= startStr && m.date <= endStr; });
-      var weekOneOnOnes = bb.oneOnOnes.filter(function(o) { return o.date >= startStr && o.date <= endStr; });
-      var weekRideAlongs = bb.rideAlongs.filter(function(r) { return r.date >= startStr && r.date <= endStr; });
+      var weekOneOnOnes = bb.oneOnOnes.filter(function(o) { return o.date >= nineStartStr && o.date <= nineEndStr; });
+      var weekRideAlongs = bb.rideAlongs.filter(function(r) { return r.date >= nineStartStr && r.date <= nineEndStr; });
 
       // Also merge manager entries
       if (mgrState && mgrState.entries) {
@@ -1190,12 +1196,11 @@ window.addEventListener('load', () => {
         var raIds = {};
         weekRideAlongs.forEach(function(r) { raIds[r.id] = true; });
         mgrState.entries.forEach(function(e) {
-          if (e.date >= startStr && e.date <= endStr) {
-            if (e.type === 'one-on-one' && !ooIds[e.id]) {
-              weekOneOnOnes.push({ id: e.id, tech: e.tech, date: e.date, status: e.status || 'planned', source: 'mgr' });
-            } else if (e.type === 'ride-along' && !raIds[e.id]) {
-              weekRideAlongs.push({ id: e.id, tech: e.tech, date: e.date, status: e.status || 'planned', source: 'mgr' });
-            }
+          // 1-on-1s and ride-alongs use 9-day range
+          if (e.type === 'one-on-one' && e.date >= nineStartStr && e.date <= nineEndStr && !ooIds[e.id]) {
+            weekOneOnOnes.push({ id: e.id, tech: e.tech, date: e.date, status: e.status || 'planned', source: 'mgr' });
+          } else if (e.type === 'ride-along' && e.date >= nineStartStr && e.date <= nineEndStr && !raIds[e.id]) {
+            weekRideAlongs.push({ id: e.id, tech: e.tech, date: e.date, status: e.status || 'planned', source: 'mgr' });
           }
         });
       }
@@ -1205,7 +1210,8 @@ window.addEventListener('load', () => {
       weekOneOnOnes.sort(function(a,b) { return a.date < b.date ? -1 : 1; });
       weekRideAlongs.sort(function(a,b) { return a.date < b.date ? -1 : 1; });
 
-      var html = '<div class="bb-week-label">Week of ' + weekLabel + '</div>';
+      var nineLabel = bbFmtWeek(nineStart) + ' \u2013 ' + bbFmtWeek(nineEnd);
+      var html = '<div class="bb-week-label">' + nineLabel + '</div>';
       html += '<div class="bb-columns">';
 
       // ---- COLUMN 1: Wed Tech Meetings ----
