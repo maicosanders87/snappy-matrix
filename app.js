@@ -4677,7 +4677,98 @@ window.addEventListener('load', () => {
       }
       mgrSave();
       renderManagerTraining();
+
+      // Show calendar save modal
+      var weekDate = mgrParseDate(weekOf);
+      var wedDate = new Date(weekDate.getFullYear(), weekDate.getMonth(), weekDate.getDate() + 3); // Wednesday
+      var wedStr = mgrFmtDate(wedDate);
+      _showTrainingCalendarModal(topic, wedStr, outline.duration);
       return false;
+    }
+
+    function _showTrainingCalendarModal(topic, defaultDate, duration) {
+      // Remove existing modal if present
+      var old = document.getElementById('trainingCalendarModal');
+      if (old) old.remove();
+
+      var modal = document.createElement('div');
+      modal.id = 'trainingCalendarModal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
+      modal.innerHTML = `
+        <div style="background:#1C2E52;border-radius:16px;padding:28px 32px;max-width:420px;width:90%;color:#fff;font-family:var(--font);box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+          <div style="font-size:18px;font-weight:700;margin-bottom:6px;">\ud83d\udcc5 Save to Calendar</div>
+          <div style="font-size:13px;color:#8b93a8;margin-bottom:18px;">Training plan saved. Add this to the manager calendar?</div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;font-weight:600;color:#FFD700;display:block;margin-bottom:4px;">Topic</label>
+            <div style="font-size:14px;color:#e0e6f0;background:rgba(255,255,255,0.08);padding:8px 12px;border-radius:8px;">${topic || '(No topic)'}</div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;font-weight:600;color:#FFD700;display:block;margin-bottom:4px;">Meeting Date</label>
+            <input type="date" id="tcm_date" value="${defaultDate}" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:14px;">
+          </div>
+          <div style="margin-bottom:18px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="tcm_addBulletin" checked style="width:16px;height:16px;accent-color:#FFD700;">
+              <span style="font-size:13px;color:#e0e6f0;">Also add to Bulletin Board</span>
+            </label>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button onclick="_confirmTrainingCalendar()" style="flex:1;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#0F1B2E;font-weight:700;font-size:14px;cursor:pointer;">Save to Calendar</button>
+            <button onclick="document.getElementById('trainingCalendarModal').remove()" style="flex:1;padding:10px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;background:transparent;color:#8b93a8;font-weight:600;font-size:14px;cursor:pointer;">Skip</button>
+          </div>
+        </div>
+      `;
+      modal.dataset.topic = topic;
+      modal.dataset.duration = duration || '';
+      document.body.appendChild(modal);
+    }
+
+    function _confirmTrainingCalendar() {
+      var modal = document.getElementById('trainingCalendarModal');
+      var dateStr = document.getElementById('tcm_date').value;
+      var addBulletin = document.getElementById('tcm_addBulletin').checked;
+      var topic = modal.dataset.topic;
+      var duration = modal.dataset.duration;
+
+      if (!dateStr) { alert('Please select a date.'); return; }
+
+      // Add to manager calendar as a training entry
+      var entryId = mgrUID();
+      mgrState.entries.push({
+        id: entryId,
+        type: 'one-on-one',
+        tech: 'Team',
+        date: dateStr,
+        status: 'planned',
+        data: {
+          housekeeping: {},
+          housekeepingNotes: '',
+          customFocus: 'Wed HVAC Meeting: ' + (topic || 'Team Training') + (duration ? ' (' + duration + ')' : ''),
+          redBarn: { include: false, scenario: '', outcome: '' },
+          coveredSummary: '', actionItems: '', followUp: ''
+        },
+        createdAt: Date.now(), updatedAt: Date.now()
+      });
+      mgrSave();
+
+      // Add to bulletin board if checked
+      if (addBulletin) {
+        var bb = bbLoad();
+        bb.meetings.push({
+          id: entryId,
+          subject: topic || 'Team Training',
+          date: dateStr,
+          time: '',
+          location: '',
+          notes: duration ? 'Duration: ' + duration : '',
+          source: 'mgr'
+        });
+        bbSave(bb);
+        renderBulletinBoard();
+      }
+
+      renderManagerTab();
+      modal.remove();
     }
 
     function mgrExportTrainingPDF() {
