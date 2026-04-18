@@ -3103,8 +3103,8 @@ window.addEventListener('load', () => {
                   <div class="rookie-stat-label">Aptitude</div>
                 </div>
                 <div class="rookie-stat">
-                  <div class="rookie-stat-value">${st ? st.nexstar.conversion_rate + '%' : '—'}</div>
-                  <div class="rookie-stat-label">Conv Rate</div>
+                  <div class="rookie-stat-value">${st ? st.memberships.total_mem_sold : '—'}</div>
+                  <div class="rookie-stat-label">Mem Sold</div>
                 </div>
                 <div class="rookie-stat">
                   <div class="rookie-stat-value">${st ? '$' + (st.nexstar.total_revenue / 1000).toFixed(0) + 'k' : '—'}</div>
