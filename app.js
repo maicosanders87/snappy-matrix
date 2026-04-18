@@ -1174,10 +1174,10 @@ window.addEventListener('load', () => {
     }
 
     function renderBulletinBoard() {
-      // Rolling window: 4 days back, today, 6 days forward (11-day span to cover full week ahead)
+      // 9-day rolling window: yesterday, today, +7 days forward
       var now9 = new Date();
-      var nineStart = new Date(now9.getFullYear(), now9.getMonth(), now9.getDate() - 4);
-      var nineEnd = new Date(now9.getFullYear(), now9.getMonth(), now9.getDate() + 6);
+      var nineStart = new Date(now9.getFullYear(), now9.getMonth(), now9.getDate() - 1);
+      var nineEnd = new Date(now9.getFullYear(), now9.getMonth(), now9.getDate() + 7);
       var nineStartStr = bbFmtDate(nineStart);
       var nineEndStr = bbFmtDate(nineEnd);
       var bb = bbLoad();
