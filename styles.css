@@ -159,41 +159,60 @@
     /* KPI Cards Row */
     .kpi-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 14px;
-      margin-bottom: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
     }
     .kpi-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius);
-      padding: 16px 18px;
-      box-shadow: var(--shadow-md);
-      transition: transform 0.15s, box-shadow 0.15s;
-      border-top: 3px solid var(--snappy-yellow);
+      background: linear-gradient(145deg, #0F1B2E 0%, #162544 60%, #1C2E52 100%);
+      border: 1px solid rgba(255,215,0,0.15);
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #FFD700, transparent);
+      opacity: 0.6;
+    }
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      top: -30px; right: -30px;
+      width: 80px; height: 80px;
+      background: radial-gradient(circle, rgba(255,215,0,0.08) 0%, transparent 70%);
+      border-radius: 50%;
     }
     .kpi-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-lg);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+      border-color: rgba(255,215,0,0.3);
     }
     .kpi-label {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,215,0,0.7);
       text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 6px;
+      letter-spacing: 1.2px;
+      margin-bottom: 8px;
     }
     .kpi-value {
-      font-size: 28px;
+      font-size: 26px;
       font-weight: 700;
       letter-spacing: -0.02em;
       line-height: 1.1;
+      color: #FFFFFF;
     }
     .kpi-sub {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-top: 4px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+      margin-top: 5px;
     }
 
     /* Section */
@@ -3796,35 +3815,46 @@
 .ov-kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 14px;
+  gap: 12px;
   margin-bottom: 24px;
 }
 .ov-kpi-card {
-  background: linear-gradient(135deg, #1A3F7A 0%, #2B5EA7 100%);
-  border-radius: 14px;
-  padding: 18px 16px;
+  background: linear-gradient(145deg, #0F1B2E 0%, #162544 60%, #1C2E52 100%);
+  border: 1px solid rgba(255,215,0,0.12);
+  border-radius: 16px;
+  padding: 20px 16px;
   text-align: center;
   color: #fff;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(26,63,122,0.25);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 .ov-kpi-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 28px rgba(26,63,122,0.35);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  border-color: rgba(255,215,0,0.25);
 }
 .ov-kpi-card::before {
   content: '';
   position: absolute;
-  top: -20px; right: -20px;
-  width: 60px; height: 60px;
-  background: rgba(255,215,0,0.12);
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255,215,0,0.5), transparent);
+}
+.ov-kpi-card::after {
+  content: '';
+  position: absolute;
+  bottom: -40px; left: 50%;
+  transform: translateX(-50%);
+  width: 120px; height: 120px;
+  background: radial-gradient(circle, rgba(255,215,0,0.06) 0%, transparent 70%);
   border-radius: 50%;
 }
 .ov-kpi-icon {
-  font-size: 24px;
-  margin-bottom: 6px;
+  font-size: 22px;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
 }
 .ov-kpi-value {
   font-family: 'JetBrains Mono', monospace;
@@ -3832,20 +3862,22 @@
   font-weight: 700;
   color: #FFD700;
   line-height: 1.1;
+  text-shadow: 0 0 20px rgba(255,215,0,0.2);
 }
 .ov-kpi-label {
   font-family: 'DM Sans', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: rgba(255,255,255,0.75);
-  margin-top: 6px;
+  letter-spacing: 1.2px;
+  color: rgba(255,255,255,0.6);
+  margin-top: 8px;
 }
 .ov-kpi-sub {
-  font-size: 11px;
-  color: rgba(255,255,255,0.5);
-  margin-top: 2px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  margin-top: 3px;
+  letter-spacing: 0.3px;
 }
 
 /* Section containers */
