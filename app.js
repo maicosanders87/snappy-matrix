@@ -676,19 +676,32 @@ window.addEventListener('load', () => {
       let stScore = 50; // default if no ST data
       let installScore = 0;
       if (st) {
-        const convNorm = Math.min(st.nexstar.conversion_rate / 85, 1) * 100;
-        const revNorm = Math.min(st.nexstar.total_revenue / 25000, 1) * 100;
-        const leadsNorm = Math.min(st.nexstar.tech_gen_leads / 30, 1) * 100;
-        const closeNorm = Math.min(st.sales.close_rate / 80, 1) * 100;
-        const optsNorm = Math.min(st.productivity.options_per_opp / 3, 1) * 100;
-        const memNorm = Math.min(st.memberships.total_mem_pct / 50, 1) * 100;
-        stScore = (convNorm * 0.25 + revNorm * 0.25 + leadsNorm * 0.15 + closeNorm * 0.15 + optsNorm * 0.10 + memNorm * 0.10);
+        if (st.isWarrantyTech) {
+          // Warranty tech scoring: volume & efficiency over revenue & leads
+          const jobsNorm = Math.min((st.completedJobs || 0) / 120, 1) * 100;  // 120 jobs/90d = 100%
+          const convNorm = Math.min(st.nexstar.conversion_rate / 85, 1) * 100;
+          const flatRateNorm = Math.min(st.nexstar.flat_rate_tasks / 3, 1) * 100;
+          const callbackNorm = Math.max(0, 100 - (st.productivity.recalls * 25)); // 0 recalls=100, each costs 25pts
+          const billableNorm = Math.min(st.productivity.billable_hours / 140, 1) * 100;
+          const tasksNorm = Math.min(st.productivity.tasks_per_opp / 3, 1) * 100;
+          stScore = (jobsNorm * 0.30 + convNorm * 0.25 + flatRateNorm * 0.15 + callbackNorm * 0.10 + billableNorm * 0.10 + tasksNorm * 0.10);
+          // Warranty techs don't get penalized on installs — give baseline
+          installScore = 40;
+        } else {
+          const convNorm = Math.min(st.nexstar.conversion_rate / 85, 1) * 100;
+          const revNorm = Math.min(st.nexstar.total_revenue / 25000, 1) * 100;
+          const leadsNorm = Math.min(st.nexstar.tech_gen_leads / 30, 1) * 100;
+          const closeNorm = Math.min(st.sales.close_rate / 80, 1) * 100;
+          const optsNorm = Math.min(st.productivity.options_per_opp / 3, 1) * 100;
+          const memNorm = Math.min(st.memberships.total_mem_pct / 50, 1) * 100;
+          stScore = (convNorm * 0.25 + revNorm * 0.25 + leadsNorm * 0.15 + closeNorm * 0.15 + optsNorm * 0.10 + memNorm * 0.10);
 
-        // 5. Install revenue score (0–100)
-        const instCountNorm = Math.min(st.installs.count / 10, 1) * 100;
-        const instRevNorm = Math.min(st.installs.total_revenue / 150000, 1) * 100;
-        const instAvgNorm = Math.min(st.installs.avg_sale / 15000, 1) * 100;
-        installScore = (instRevNorm * 0.45 + instCountNorm * 0.35 + instAvgNorm * 0.20);
+          // 5. Install revenue score (0–100)
+          const instCountNorm = Math.min(st.installs.count / 10, 1) * 100;
+          const instRevNorm = Math.min(st.installs.total_revenue / 150000, 1) * 100;
+          const instAvgNorm = Math.min(st.installs.avg_sale / 15000, 1) * 100;
+          installScore = (instRevNorm * 0.45 + instCountNorm * 0.35 + instAvgNorm * 0.20);
+        }
       }
 
       // 6. Google reviews score (0–100)
@@ -2465,6 +2478,8 @@ window.addEventListener('load', () => {
       {
         name: "Dee",
         color: "#2D6A6A",
+        isWarrantyTech: true,
+        completedJobs: 113,
         nexstar: { total_revenue: 6416, avg_sale: 562, conversion_rate: 85, spps_sold: 0, tech_gen_leads: 3, sold_hours: 87.35, tech_sold_hr_eff: 0, flat_rate_tasks: 2.65 },
         overview: { revenue: 6416, total_job_avg: 57, opp_job_avg: 475, opp_conversion: 85, opps: 13, converted_jobs: 11 },
         leads: { opps: 13, leads_set: 3, conv_rate: 23, avg_sale: 562 },
@@ -3127,8 +3142,8 @@ window.addEventListener('load', () => {
                   <div class="rookie-stat-label">Revenue</div>
                 </div>
                 <div class="rookie-stat">
-                  <div class="rookie-stat-value">${st ? st.nexstar.tech_gen_leads : '—'}</div>
-                  <div class="rookie-stat-label">Leads</div>
+                  <div class="rookie-stat-value">${st ? (st.isWarrantyTech ? st.completedJobs : st.nexstar.tech_gen_leads) : '—'}</div>
+                  <div class="rookie-stat-label">${st && st.isWarrantyTech ? 'Jobs' : 'Leads'}</div>
                 </div>
                 <div class="rookie-stat">
                   <div class="rookie-stat-value">${gr ? gr.count : '—'}</div>
