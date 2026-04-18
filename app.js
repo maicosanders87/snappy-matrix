@@ -4084,10 +4084,20 @@ window.addEventListener('load', () => {
       const status = document.querySelector('#mgrOneOnOneForm input[name="f_status"]:checked').value;
       const tech = document.getElementById('f_tech').value;
 
+      var isNew = !existingId;
       if (existingId) {
         const idx = mgrState.entries.findIndex(e => e.id === existingId);
         if (idx >= 0) {
           mgrState.entries[idx] = { ...mgrState.entries[idx], tech, status, data, updatedAt: Date.now() };
+        }
+        // Update bulletin board entry if editing
+        var bbOOEdit = bbLoad();
+        var ooIdx = bbOOEdit.oneOnOnes.findIndex(function(o) { return o.id === existingId; });
+        if (ooIdx >= 0) {
+          bbOOEdit.oneOnOnes[ooIdx].tech = tech;
+          bbOOEdit.oneOnOnes[ooIdx].status = status;
+          bbOOEdit.oneOnOnes[ooIdx].notes = data.customFocus || '';
+          bbSave(bbOOEdit);
         }
       } else {
         var newOOId = mgrUID();
@@ -4097,26 +4107,16 @@ window.addEventListener('load', () => {
           tech, date: dateStr, status, data,
           createdAt: Date.now(), updatedAt: Date.now()
         });
-        // Sync to bulletin board
-        var bbOO = bbLoad();
-        bbOO.oneOnOnes.push({ id: newOOId, tech: tech, date: dateStr, time: '', status: status, notes: data.customFocus || '', source: 'mgr' });
-        bbSave(bbOO);
-      }
-      // Update bulletin board entry if editing
-      if (existingId) {
-        var bbOOEdit = bbLoad();
-        var ooIdx = bbOOEdit.oneOnOnes.findIndex(function(o) { return o.id === existingId; });
-        if (ooIdx >= 0) {
-          bbOOEdit.oneOnOnes[ooIdx].tech = tech;
-          bbOOEdit.oneOnOnes[ooIdx].status = status;
-          bbOOEdit.oneOnOnes[ooIdx].notes = data.customFocus || '';
-          bbSave(bbOOEdit);
-        }
       }
       mgrSave();
       renderManagerTab();
       renderBulletinBoard();
       mgrOpenDayPanel(dateStr);
+
+      // Show bulletin board prompt for new entries
+      if (isNew) {
+        _showBBPromptModal('one-on-one', tech, dateStr, status, data.customFocus || '', newOOId);
+      }
       return false;
     }
 
@@ -4309,10 +4309,20 @@ window.addEventListener('load', () => {
       const status = document.querySelector('#mgrRideAlongForm input[name="r_status"]:checked').value;
       const tech = document.getElementById('r_tech').value;
 
+      var isNew = !existingId;
       if (existingId) {
         const idx = mgrState.entries.findIndex(e => e.id === existingId);
         if (idx >= 0) {
           mgrState.entries[idx] = { ...mgrState.entries[idx], tech, status, data, updatedAt: Date.now() };
+        }
+        // Update bulletin board entry if editing
+        var bbRAEdit = bbLoad();
+        var raIdx = bbRAEdit.rideAlongs.findIndex(function(r) { return r.id === existingId; });
+        if (raIdx >= 0) {
+          bbRAEdit.rideAlongs[raIdx].tech = tech;
+          bbRAEdit.rideAlongs[raIdx].status = status;
+          bbRAEdit.rideAlongs[raIdx].notes = data.observationNotes || '';
+          bbSave(bbRAEdit);
         }
       } else {
         var newRAId = mgrUID();
@@ -4322,26 +4332,16 @@ window.addEventListener('load', () => {
           tech, date: dateStr, status, data,
           createdAt: Date.now(), updatedAt: Date.now()
         });
-        // Sync to bulletin board
-        var bbRA = bbLoad();
-        bbRA.rideAlongs.push({ id: newRAId, tech: tech, date: dateStr, time: '', status: status, notes: data.observationNotes || '', source: 'mgr' });
-        bbSave(bbRA);
-      }
-      // Update bulletin board entry if editing
-      if (existingId) {
-        var bbRAEdit = bbLoad();
-        var raIdx = bbRAEdit.rideAlongs.findIndex(function(r) { return r.id === existingId; });
-        if (raIdx >= 0) {
-          bbRAEdit.rideAlongs[raIdx].tech = tech;
-          bbRAEdit.rideAlongs[raIdx].status = status;
-          bbRAEdit.rideAlongs[raIdx].notes = data.observationNotes || '';
-          bbSave(bbRAEdit);
-        }
       }
       mgrSave();
       renderManagerTab();
       renderBulletinBoard();
       mgrOpenDayPanel(dateStr);
+
+      // Show bulletin board prompt for new entries
+      if (isNew) {
+        _showBBPromptModal('ride-along', tech, dateStr, status, data.observationNotes || '', newRAId);
+      }
       return false;
     }
 
@@ -4767,6 +4767,74 @@ window.addEventListener('load', () => {
         renderBulletinBoard();
       }
 
+      renderManagerTab();
+      modal.remove();
+    }
+
+    function _showBBPromptModal(type, tech, dateStr, status, notes, entryId) {
+      var old = document.getElementById('bbPromptModal');
+      if (old) old.remove();
+
+      var typeLabel = type === 'one-on-one' ? '1-on-1' : 'Ride-Along';
+      var icon = type === 'one-on-one' ? '\ud83e\udd1d' : '\ud83d\ude90';
+      var dateDisplay = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+      var modal = document.createElement('div');
+      modal.id = 'bbPromptModal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
+      modal.innerHTML = `
+        <div style="background:#1C2E52;border-radius:16px;padding:28px 32px;max-width:420px;width:90%;color:#fff;font-family:var(--font);box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+          <div style="font-size:18px;font-weight:700;margin-bottom:6px;">${icon} ${typeLabel} Saved</div>
+          <div style="font-size:13px;color:#8b93a8;margin-bottom:18px;">Saved to manager calendar. Add to Bulletin Board?</div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;font-weight:600;color:#FFD700;display:block;margin-bottom:4px;">Tech</label>
+            <div style="font-size:14px;color:#e0e6f0;background:rgba(255,255,255,0.08);padding:8px 12px;border-radius:8px;">${tech}</div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;font-weight:600;color:#FFD700;display:block;margin-bottom:4px;">Date</label>
+            <input type="date" id="bbp_date" value="${dateStr}" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:14px;">
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button onclick="_confirmBBPrompt()" style="flex:1;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#0F1B2E;font-weight:700;font-size:14px;cursor:pointer;">Add to Bulletin Board</button>
+            <button onclick="document.getElementById('bbPromptModal').remove()" style="flex:1;padding:10px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;background:transparent;color:#8b93a8;font-weight:600;font-size:14px;cursor:pointer;">Skip</button>
+          </div>
+        </div>
+      `;
+      modal.dataset.type = type;
+      modal.dataset.tech = tech;
+      modal.dataset.status = status;
+      modal.dataset.notes = notes;
+      modal.dataset.entryId = entryId;
+      document.body.appendChild(modal);
+    }
+
+    function _confirmBBPrompt() {
+      var modal = document.getElementById('bbPromptModal');
+      var dateStr = document.getElementById('bbp_date').value;
+      var type = modal.dataset.type;
+      var tech = modal.dataset.tech;
+      var status = modal.dataset.status;
+      var notes = modal.dataset.notes;
+      var entryId = modal.dataset.entryId;
+
+      if (!dateStr) { alert('Please select a date.'); return; }
+
+      // Update the manager entry date if changed
+      var entry = mgrState.entries.find(function(e) { return e.id === entryId; });
+      if (entry && entry.date !== dateStr) {
+        entry.date = dateStr;
+        entry.updatedAt = Date.now();
+        mgrSave();
+      }
+
+      var bb = bbLoad();
+      if (type === 'one-on-one') {
+        bb.oneOnOnes.push({ id: entryId, tech: tech, date: dateStr, time: '', status: status, notes: notes, source: 'mgr' });
+      } else if (type === 'ride-along') {
+        bb.rideAlongs.push({ id: entryId, tech: tech, date: dateStr, time: '', status: status, notes: notes, source: 'mgr' });
+      }
+      bbSave(bb);
+      renderBulletinBoard();
       renderManagerTab();
       modal.remove();
     }
