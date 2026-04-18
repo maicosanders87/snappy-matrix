@@ -934,9 +934,12 @@ window.addEventListener('load', () => {
         if (v === 'skills-tags' || v === 'aptitude-skills' || v === 'overview') {
           _markNewSkillsSeen();
         }
-        // Re-render 3D radar when switching to Overview (needs visible container)
-        if (v === 'overview' && !radar3dRendered) {
-          setTimeout(renderRadar, 200);
+        // Re-render Overview tab content when switching back
+        if (v === 'overview') {
+          renderBulletinBoard();
+          if (!radar3dRendered) {
+            setTimeout(renderRadar, 200);
+          }
         }
       });
     });
