@@ -990,6 +990,237 @@ window.addEventListener('load', () => {
       `;
     }
 
+    // ========== OVERVIEW TAB ==========
+    const OV_SCHED_KEY = 'snappy_overview_schedule';
+
+    function ovLoadSchedule() {
+      try { return JSON.parse(localStorage.getItem(OV_SCHED_KEY)) || []; } catch(e) { return []; }
+    }
+    function ovSaveSchedule(items) {
+      localStorage.setItem(OV_SCHED_KEY, JSON.stringify(items));
+    }
+
+    function ovGetWeekRange() {
+      var now = new Date();
+      var day = now.getDay(); // 0=Sun
+      var sun = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+      var sat = new Date(sun.getFullYear(), sun.getMonth(), sun.getDate() + 6);
+      return { start: sun, end: sat };
+    }
+
+    function ovFmtDate(d) {
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+    function ovFmtDisplay(d) {
+      var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return days[d.getDay()] + ', ' + months[d.getMonth()] + ' ' + d.getDate();
+    }
+
+    function renderOverviewTab() {
+      // ---- 1. KPI COUNTERS ----
+      var totalCallbacks = 0;
+      var totalComplaints = 0; // from recalls in stData productivity
+      var totalRevenue = 0;
+      var totalReviews = 0;
+      var totalInstallRev = 0;
+
+      stData.forEach(function(st) {
+        totalCallbacks += st.productivity.recalls || 0;
+        totalRevenue += st.overview.revenue || 0;
+        totalInstallRev += st.installs.total_revenue || 0;
+      });
+
+      // Count complaints from tech files (type=complaint)
+      try {
+        var tfRaw = localStorage.getItem('snappy_tech_files');
+        if (tfRaw) {
+          var tfData = JSON.parse(tfRaw);
+          Object.keys(tfData).forEach(function(techName) {
+            if (Array.isArray(tfData[techName])) {
+              tfData[techName].forEach(function(f) {
+                if (f.type === 'complaint') totalComplaints++;
+              });
+            }
+          });
+        }
+      } catch(e) {}
+
+      // Google reviews total (90 days)
+      Object.keys(googleReviews).forEach(function(name) {
+        totalReviews += googleReviews[name].count || 0;
+      });
+
+      var kpiHTML = '';
+      var kpis = [
+        { icon: '\ud83d\udd04', value: totalCallbacks, label: 'Callbacks', sub: 'Team total (ST recalls)' },
+        { icon: '\u26a0\ufe0f', value: totalComplaints, label: 'Complaints', sub: 'Open filed complaints' },
+        { icon: '\ud83d\udcb0', value: '$' + totalRevenue.toLocaleString(), label: 'MTD Revenue', sub: 'Month-to-date service' },
+        { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'Last 90 days' },
+        { icon: '\ud83c\udfe0', value: '$' + totalInstallRev.toLocaleString(), label: 'Install Revenue', sub: 'Equipment installs' }
+      ];
+
+      kpis.forEach(function(k) {
+        kpiHTML += '<div class="ov-kpi-card">' +
+          '<div class="ov-kpi-icon">' + k.icon + '</div>' +
+          '<div class="ov-kpi-value">' + k.value + '</div>' +
+          '<div class="ov-kpi-label">' + k.label + '</div>' +
+          '<div class="ov-kpi-sub">' + k.sub + '</div>' +
+        '</div>';
+      });
+      document.getElementById('ov-kpi-grid').innerHTML = kpiHTML;
+
+      // ---- 2. TEAM SNAPSHOT ----
+      var snapHTML = '';
+      var sortedTechs = techs.slice().sort(function(a,b) { return getTechTier(b).composite - getTechTier(a).composite; });
+
+      sortedTechs.forEach(function(t) {
+        var tierInfo = getTechTier(t);
+        var tierLower = tierInfo.tier.toLowerCase();
+        var st = stData.find(function(s) { return s.name === t.short; });
+        var gr = googleReviews[t.short];
+        var avatarEl = techAvatars[t.short]
+          ? '<img class="ov-snap-avatar" src="' + techAvatars[t.short] + '" alt="' + t.name + '">'
+          : '<div class="ov-snap-initials" style="background:' + t.color + '">' + t.initials + '</div>';
+
+        // Build tag HTML from managerTags
+        var tagsHTML = '';
+        if (t.managerTags && t.managerTags.length) {
+          t.managerTags.slice(0, 4).forEach(function(tag) {
+            tagsHTML += '<span class="ov-snap-tag ' + tag.type + '">' + tag.label + '</span>';
+          });
+        }
+
+        // Key stats line
+        var statsLine = '';
+        if (st) {
+          statsLine += '<strong>$' + st.overview.revenue.toLocaleString() + '</strong> rev';
+          statsLine += ' &bull; <strong>' + st.nexstar.conversion_rate + '%</strong> conv';
+          statsLine += ' &bull; <strong>' + st.productivity.options_per_opp + '</strong> opts/opp';
+        }
+        if (gr) {
+          statsLine += ' &bull; <strong>' + gr.count + '</strong> reviews';
+          if (gr.fiveStar === gr.count && gr.count > 0) statsLine += ' (all 5\u2605)';
+        }
+
+        snapHTML += '<div class="ov-snap-card">' +
+          avatarEl +
+          '<div class="ov-snap-body">' +
+            '<div class="ov-snap-name">' + t.short + ' <span class="ov-snap-tier tier-' + tierLower + '">' + tierInfo.tier + '-' + tierInfo.tierLabel + '</span></div>' +
+            '<div class="ov-snap-highlights">' + tagsHTML + '</div>' +
+            (statsLine ? '<div class="ov-snap-stat">' + statsLine + '</div>' : '') +
+          '</div>' +
+        '</div>';
+      });
+      document.getElementById('ov-snapshot-grid').innerHTML = snapHTML;
+
+      // ---- 3. WEEKLY 1-ON-1 & RIDE-ALONG SCHEDULE ----
+      renderOverviewSchedule();
+    }
+
+    function renderOverviewSchedule() {
+      var week = ovGetWeekRange();
+      var weekLabel = ovFmtDisplay(week.start) + ' \u2013 ' + ovFmtDisplay(week.end);
+      var items = ovLoadSchedule();
+      var startStr = ovFmtDate(week.start);
+      var endStr = ovFmtDate(week.end);
+
+      // Also pull from manager entries for this week
+      var mgrWeekEntries = [];
+      if (mgrState && mgrState.entries) {
+        mgrState.entries.forEach(function(e) {
+          if ((e.type === 'one-on-one' || e.type === 'ride-along') && e.date >= startStr && e.date <= endStr) {
+            mgrWeekEntries.push(e);
+          }
+        });
+      }
+
+      // Filter overview items to this week
+      var weekItems = items.filter(function(it) { return it.date >= startStr && it.date <= endStr; });
+
+      // Merge: overview items + manager entries (avoid dupes by id)
+      var allIds = {};
+      var merged = [];
+      weekItems.forEach(function(it) { allIds[it.id] = true; merged.push(it); });
+      mgrWeekEntries.forEach(function(e) {
+        if (!allIds[e.id]) {
+          merged.push({ id: e.id, type: e.type === 'one-on-one' ? '1-on-1' : 'Ride-Along', tech: e.tech, date: e.date, status: e.status || 'planned', source: 'mgr' });
+        }
+      });
+      // Sort by date
+      merged.sort(function(a,b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+
+      var techNames = techs.map(function(t) { return t.short; });
+      var html = '<div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Week of ' + weekLabel + '</div>';
+
+      if (merged.length > 0) {
+        html += '<table class="ov-sched-table"><thead><tr>' +
+          '<th>Day</th><th>Type</th><th>Tech</th><th>Status</th><th class="mgr-only">Actions</th>' +
+        '</tr></thead><tbody>';
+        merged.forEach(function(it) {
+          var d = new Date(it.date + 'T12:00:00');
+          var dayStr = ovFmtDisplay(d);
+          var typeClass = (it.type === '1-on-1' || it.type === 'one-on-one') ? 'type-1on1' : 'type-ride';
+          var typeLabel = (it.type === '1-on-1' || it.type === 'one-on-one') ? '1-on-1' : 'Ride-Along';
+          var statusClass = (it.status || 'planned').replace(/\s/g, '_');
+          var statusLabel = it.status ? it.status.charAt(0).toUpperCase() + it.status.slice(1) : 'Planned';
+          var deleteBtn = it.source === 'mgr' ? '' : '<button class="ov-sched-btn danger" onclick="ovRemoveScheduleItem(\'' + it.id + '\')">Remove</button>';
+          html += '<tr>' +
+            '<td>' + dayStr + '</td>' +
+            '<td><span class="ov-sched-type ' + typeClass + '">' + typeLabel + '</span></td>' +
+            '<td><strong>' + it.tech + '</strong></td>' +
+            '<td><span class="ov-sched-status ' + statusClass + '">' + statusLabel + '</span></td>' +
+            '<td class="mgr-only">' + deleteBtn + '</td>' +
+          '</tr>';
+        });
+        html += '</tbody></table>';
+      } else {
+        html += '<div class="ov-sched-empty">' +
+          '<div class="ov-sched-empty-icon">\ud83d\udcc5</div>' +
+          'No 1-on-1s or ride-alongs scheduled this week.<br>Use the form below or add them in the Manager tab.' +
+        '</div>';
+      }
+
+      // Add form (manager only)
+      html += '<div class="ov-sched-add-row mgr-only">' +
+        '<select id="ovSchedType">' +
+          '<option value="1-on-1">1-on-1</option>' +
+          '<option value="Ride-Along">Ride-Along</option>' +
+        '</select>' +
+        '<select id="ovSchedTech">';
+      techNames.forEach(function(n) {
+        html += '<option value="' + n + '">' + n + '</option>';
+      });
+      html += '</select>' +
+        '<input type="date" id="ovSchedDate" value="' + ovFmtDate(new Date()) + '">' +
+        '<select id="ovSchedStatus">' +
+          '<option value="planned">Planned</option>' +
+          '<option value="completed">Completed</option>' +
+        '</select>' +
+        '<button class="ov-sched-btn" onclick="ovAddScheduleItem()">+ Add</button>' +
+      '</div>';
+
+      document.getElementById('ov-weekly-schedule').innerHTML = html;
+    }
+
+    function ovAddScheduleItem() {
+      var type = document.getElementById('ovSchedType').value;
+      var tech = document.getElementById('ovSchedTech').value;
+      var date = document.getElementById('ovSchedDate').value;
+      var status = document.getElementById('ovSchedStatus').value;
+      if (!date) return;
+      var items = ovLoadSchedule();
+      items.push({ id: Date.now().toString(36) + Math.random().toString(36).substr(2,6), type: type, tech: tech, date: date, status: status });
+      ovSaveSchedule(items);
+      renderOverviewSchedule();
+    }
+
+    function ovRemoveScheduleItem(id) {
+      var items = ovLoadSchedule().filter(function(it) { return it.id !== id; });
+      ovSaveSchedule(items);
+      renderOverviewSchedule();
+    }
+
     // ========== CHARTS ==========
     function renderRadar() {
       const catKeys = Object.keys(categories);
@@ -4726,6 +4957,7 @@ window.addEventListener('load', () => {
     });
 
     // ========== INIT ==========
+    renderOverviewTab();
     renderKPIs();
     renderRadar();
     renderBar();

@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="styles.css?v=20260418i">
+  <link rel="stylesheet" href="styles.css?v=20260418j">
 </head>
 <body>
   <div class="container">
@@ -54,25 +54,61 @@
 
     <!-- OVERVIEW TAB -->
     <div id="view-overview" class="view-section active">
-      <!-- Team Banner -->
-      <div style="margin-bottom:24px;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1);border:1.5px solid var(--border);">
-        <img src="snappy_team.png" alt="Snappy Services Team" style="width:100%;display:block;">
+
+      <!-- TEAM KPI COUNTERS -->
+      <div class="ov-kpi-grid" id="ov-kpi-grid"></div>
+
+      <!-- TEAM SNAPSHOT — Important Tech Info -->
+      <div class="ov-section">
+        <div class="ov-section-header">
+          <span class="ov-section-icon">📋</span>
+          <span>Team Snapshot</span>
+        </div>
+        <div class="ov-snapshot-grid" id="ov-snapshot-grid"></div>
       </div>
-      <div class="charts-grid">
-        <div class="chart-card">
-          <div class="chart-title">Radar — Skill Comparison</div>
-          <div class="chart-subtitle">Category averages per tech (1–5 scale)</div>
-          <div class="chart-container-radar"><canvas id="radarChart"></canvas></div>
+
+      <!-- THIS WEEK'S 1-ON-1s & RIDE-ALONGS -->
+      <div class="ov-section">
+        <div class="ov-section-header">
+          <span class="ov-section-icon">📅</span>
+          <span>This Week's 1-on-1s & Ride-Alongs</span>
         </div>
-        <div class="chart-card">
-          <div class="chart-title">Overall Average Score</div>
-          <div class="chart-subtitle">Composite score across all skill categories</div>
-          <div class="chart-container"><canvas id="barChart"></canvas></div>
+        <div id="ov-weekly-schedule"></div>
+      </div>
+
+      <!-- Team Banner -->
+      <div class="ov-section" style="margin-top:8px;">
+        <div class="ov-section-header">
+          <span class="ov-section-icon">👥</span>
+          <span>The Team</span>
         </div>
-        <div class="chart-card chart-card-full">
-          <div class="chart-title">Skill Breakdown by Category</div>
-          <div class="chart-subtitle">Each tech's average across major evaluation categories</div>
-          <div class="chart-container"><canvas id="groupedBarChart"></canvas></div>
+        <div style="border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1);border:1.5px solid var(--border);">
+          <img src="snappy_team.png" alt="Snappy Services Team" style="width:100%;display:block;">
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="ov-section">
+        <div class="ov-section-header">
+          <span class="ov-section-icon">📊</span>
+          <span>Performance Charts</span>
+        </div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">Radar — Skill Comparison</div>
+            <div class="chart-subtitle">Category averages per tech (1–5 scale)</div>
+            <div class="chart-container-radar"><canvas id="radarChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Overall Average Score</div>
+            <div class="chart-subtitle">Composite score across all skill categories</div>
+            <div class="chart-container"><canvas id="barChart"></canvas></div>
+          </div>
+          <div class="chart-card chart-card-full">
+            <div class="chart-title">Skill Breakdown by Category</div>
+            <div class="chart-subtitle">Each tech's average across major evaluation categories</div>
+            <div class="chart-container"><canvas id="groupedBarChart"></canvas></div>
+          </div>
         </div>
       </div>
     </div>
@@ -832,7 +868,7 @@ AND 30% of advancement "votes" come from skills progress
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="pdf_data.js?v=20260418i"></script>
-  <script src="app.js?v=20260418i"></script>
+  <script src="pdf_data.js?v=20260418j"></script>
+  <script src="app.js?v=20260418j"></script>
 </body>
 </html>
