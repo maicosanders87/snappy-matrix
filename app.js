@@ -4626,9 +4626,11 @@ window.addEventListener('load', () => {
             </div>
           </div>
 
-          <div class="mgr-panel-actions" style="margin-top:12px;">
+          <div class="mgr-panel-actions" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
             <button type="submit" class="mgr-btn">Save Training Plan</button>
             <button type="button" class="mgr-btn secondary" onclick="mgrExportTrainingPDF()">Extract PDF</button>
+            <button type="button" class="mgr-btn secondary" onclick="mgrTrainingAddToCalendar()" style="border-color:rgba(100,180,255,0.4);color:#64b4ff;">\ud83d\udcc5 Add to Calendar</button>
+            <button type="button" class="mgr-btn secondary" onclick="mgrTrainingAddToBB()" style="border-color:rgba(255,215,0,0.4);color:#FFD700;">\ud83d\udccc Add to Bulletin Board</button>
           </div>
         </form>
       `;
@@ -4728,6 +4730,56 @@ window.addEventListener('load', () => {
       var wedStr = mgrFmtDate(wedDate);
       _showTrainingCalendarModal(topic, wedStr, outline.duration);
       return false;
+    }
+
+    // Standalone "Add to Calendar" for training plan (reads current form values)
+    function mgrTrainingAddToCalendar() {
+      var weekOf = document.getElementById('t_weekOf').value;
+      var topic = document.getElementById('t_topic').value || '(No topic)';
+      var duration = document.getElementById('t_duration').value || '';
+      if (!weekOf) { alert('Please select a Week Of date first.'); return; }
+      var weekDate = mgrParseDate(weekOf);
+      var wedDate = new Date(weekDate.getFullYear(), weekDate.getMonth(), weekDate.getDate() + 3);
+      var wedStr = mgrFmtDate(wedDate);
+
+      var entryId = mgrUID();
+      mgrState.entries.push({
+        id: entryId, type: 'one-on-one', tech: 'Team', date: wedStr, status: 'planned',
+        data: { housekeeping: {}, housekeepingNotes: '', customFocus: 'Wed HVAC Meeting: ' + topic + (duration ? ' (' + duration + ')' : ''), redBarn: { include: false, scenario: '', outcome: '' }, coveredSummary: '', actionItems: '', followUp: '' },
+        createdAt: Date.now(), updatedAt: Date.now()
+      });
+      mgrSave();
+      renderManagerCalendar();
+      // Toast
+      var toast = document.createElement('div');
+      toast.textContent = '\u2705 Added to Calendar (' + wedStr + ')';
+      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1565C0;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 400); }, 2000);
+    }
+
+    // Standalone "Add to Bulletin Board" for training plan
+    function mgrTrainingAddToBB() {
+      var weekOf = document.getElementById('t_weekOf').value;
+      var topic = document.getElementById('t_topic').value || '(No topic)';
+      var duration = document.getElementById('t_duration').value || '';
+      if (!weekOf) { alert('Please select a Week Of date first.'); return; }
+      var weekDate = mgrParseDate(weekOf);
+      var wedDate = new Date(weekDate.getFullYear(), weekDate.getMonth(), weekDate.getDate() + 3);
+      var wedStr = mgrFmtDate(wedDate);
+
+      var bb = bbLoad();
+      bb.meetings.push({
+        id: bbUID(), subject: topic, date: wedStr, time: '', location: '', notes: duration ? 'Duration: ' + duration : '', source: 'mgr'
+      });
+      bbSave(bb);
+      renderBulletinBoard();
+      // Toast
+      var toast = document.createElement('div');
+      toast.textContent = '\u2705 Added to Bulletin Board';
+      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1B5E20;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 400); }, 2000);
     }
 
     function _showTrainingCalendarModal(topic, defaultDate, duration) {
