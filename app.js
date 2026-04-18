@@ -3009,6 +3009,9 @@ window.addEventListener('load', () => {
       const mgrAvatarBg = 'linear-gradient(135deg, #2A1F0A, #1A0F20, #0A1A2A, #1A200A)';
       const mgrCompBarColor = 'linear-gradient(90deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF)';
       const ms = mgrLoadStats();
+      // Manager install data (excluded from stData per instructions)
+      const mgrInstalls = { count: 5, total_revenue: 69610, avg_sale: 13922 };
+      const mgrNexstar = { total_revenue: 7083, avg_sale: 403, conversion_rate: 36, spps_sold: 5, tech_gen_leads: 2, sold_hours: 13.45 };
       html += `
         <div class="rookie-card rookie-tier-s">
           <div class="rookie-card-border tier-s"></div>
@@ -3023,10 +3026,15 @@ window.addEventListener('load', () => {
           </div>
           <div class="rookie-info">
             <div class="rookie-stats">
-              <div class="rookie-stat mgr-stat-editable" onclick="mgrEditStat('equip_sales','Total Equipment Sales (90 days)','${ms.equip_sales||''}')"> 
-                <div class="rookie-stat-value">${ms.equip_sales || '—'}</div>
+              <div class="rookie-stat">
+                <div class="rookie-stat-value">$${mgrInstalls.total_revenue.toLocaleString()}</div>
                 <div class="rookie-stat-label">Equip Sales</div>
-                <div class="rookie-stat-period">90 days</div>
+                <div class="rookie-stat-period">${mgrInstalls.count} installs &bull; 90 days</div>
+              </div>
+              <div class="rookie-stat">
+                <div class="rookie-stat-value">$${mgrInstalls.avg_sale.toLocaleString()}</div>
+                <div class="rookie-stat-label">Avg Install</div>
+                <div class="rookie-stat-period">per job</div>
               </div>
               <div class="rookie-stat mgr-stat-editable" onclick="mgrEditStat('oneonone_rate','1-on-1 Completion Rate (per week)','${ms.oneonone_rate||''}')"> 
                 <div class="rookie-stat-value">${ms.oneonone_rate || '—'}</div>
@@ -3037,11 +3045,6 @@ window.addEventListener('load', () => {
                 <div class="rookie-stat-value">${ms.ridealong_rate || '—'}</div>
                 <div class="rookie-stat-label">Ride-Along Rate</div>
                 <div class="rookie-stat-period">per week</div>
-              </div>
-              <div class="rookie-stat mgr-stat-editable" onclick="mgrEditStat('callback_rate','Tech Callback Rate (0% = best)','${ms.callback_rate||''}')"> 
-                <div class="rookie-stat-value">${ms.callback_rate || '—'}</div>
-                <div class="rookie-stat-label">Callback Rate</div>
-                <div class="rookie-stat-period">0% = best</div>
               </div>
             </div>
             <div class="rookie-composite">
