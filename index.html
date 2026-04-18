@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="styles.css?v=20260418c">
+  <link rel="stylesheet" href="styles.css?v=20260418d">
 </head>
 <body>
   <div class="container">
@@ -25,13 +25,16 @@
         </div>
         <div>
           <h1>Snappy Services</h1>
-          <div class="header-sub">Tech Skills Matrix — Manager View</div>
+          <div class="header-sub" id="headerSubtitle">Tech Skills Matrix</div>
         </div>
       </div>
       <div class="header-right">
         <span class="badge">5 Technicians</span>
         <span class="badge badge-date">Updated 4/13/2026</span>
-        <span id="syncStatusIndicator" class="sync-indicator sync-idle" onclick="openSyncSetup()" title="Cloud Sync Settings">☁ Cloud</span>
+        <span id="syncStatusIndicator" class="sync-indicator sync-idle mgr-only" onclick="openSyncSetup()" title="Cloud Sync Settings">☁ Cloud</span>
+        <span class="access-lock-btn" onclick="promptManagerPIN()" title="Manager Access">
+          <svg id="lockIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
       </div>
     </div>
 
@@ -43,7 +46,7 @@
       <button class="nav-tab" data-view="rookie">Rookie Cards</button>
       <button class="nav-tab" data-view="progression">Tier Progression</button>
       <button class="nav-tab" data-view="skills-tags">Skills Tags</button>
-      <button class="nav-tab" data-view="manager">Manager</button>
+      <button class="nav-tab mgr-only" data-view="manager">Manager</button>
       <button class="nav-tab" data-view="dispatch">Dispatch</button>
       <button class="nav-tab" data-view="scorecards">ServiceTitan Scorecards</button>
     </div>
@@ -831,7 +834,7 @@ AND 30% of advancement "votes" come from skills progress
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="pdf_data.js?v=20260418c"></script>
-  <script src="app.js?v=20260418c"></script>
+  <script src="pdf_data.js?v=20260418d"></script>
+  <script src="app.js?v=20260418d"></script>
 </body>
 </html>

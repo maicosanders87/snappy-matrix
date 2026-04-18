@@ -1,3 +1,69 @@
+// ========== ACCESS CONTROL (Manager vs Viewer) ==========
+const MGR_PIN = '0218';
+let isManagerMode = localStorage.getItem('snappy_mgr_mode') === 'true';
+
+function applyViewMode() {
+  if (isManagerMode) {
+    document.body.classList.remove('viewer-mode');
+    document.body.classList.add('manager-mode');
+  } else {
+    document.body.classList.add('viewer-mode');
+    document.body.classList.remove('manager-mode');
+  }
+  // Update header subtitle
+  var sub = document.getElementById('headerSubtitle');
+  if (sub) sub.textContent = isManagerMode ? 'Tech Skills Matrix \u2014 Manager View' : 'Tech Skills Matrix \u2014 Viewer Mode';
+  // Update lock icon (open vs closed)
+  var lockSvg = document.getElementById('lockIcon');
+  if (lockSvg) {
+    lockSvg.innerHTML = isManagerMode
+      ? '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5"/>'
+      : '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
+  }
+  // If switching to viewer while on Manager tab, redirect to Overview
+  if (!isManagerMode) {
+    var activeTab = document.querySelector('.nav-tabs:not(#st-sub-tabs):not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs) .nav-tab.active');
+    if (activeTab && activeTab.dataset.view === 'manager') {
+      activeTab.classList.remove('active');
+      document.querySelectorAll('.view-section').forEach(function(s) { s.classList.remove('active'); });
+      var overviewTab = document.querySelector('.nav-tab[data-view="overview"]');
+      if (overviewTab) overviewTab.classList.add('active');
+      var overviewView = document.getElementById('view-overview');
+      if (overviewView) overviewView.classList.add('active');
+    }
+  }
+}
+
+function promptManagerPIN() {
+  if (isManagerMode) {
+    // Already manager — offer to lock
+    if (confirm('Lock manager mode?')) {
+      isManagerMode = false;
+      localStorage.removeItem('snappy_mgr_mode');
+      applyViewMode();
+    }
+    return;
+  }
+  var pin = prompt('Enter manager PIN:');
+  if (pin === MGR_PIN) {
+    isManagerMode = true;
+    localStorage.setItem('snappy_mgr_mode', 'true');
+    applyViewMode();
+  } else if (pin !== null) {
+    alert('Incorrect PIN.');
+  }
+}
+
+// Guard for edit actions — call before any write/edit operation
+function requireManager() {
+  if (isManagerMode) return true;
+  alert('Viewing mode — editing is disabled.');
+  return false;
+}
+
+// Apply mode immediately
+applyViewMode();
+
 // ========== CLOUD SYNC ENGINE ==========
 // Google Apps Script Web App URL — set after deploying the script
 let SYNC_URL = localStorage.getItem('snappy_sync_url') || '';
@@ -117,6 +183,7 @@ async function initCloudSync() {
 
 // Sync setup modal functions
 function openSyncSetup() {
+  if (!requireManager()) return;
   const modal = document.getElementById('syncSetupModal');
   modal.style.display = 'flex';
   document.getElementById('syncUrlInput').value = SyncEngine.getUrl();
@@ -796,6 +863,7 @@ window.addEventListener('load', () => {
     }
 
     function toggleSkill(tech, skillId) {
+      if (!requireManager()) return;
       const arr = skillsData.assignments[tech];
       const idx = arr.indexOf(skillId);
       if (idx >= 0) {
@@ -2160,6 +2228,7 @@ window.addEventListener('load', () => {
       if (SyncEngine.isConfigured()) SyncEngine.write('mgrstats', stats);
     }
     function mgrEditStat(key, label, currentVal) {
+      if (!requireManager()) return;
       var newVal = prompt('Update ' + label + ':', currentVal || '');
       if (newVal !== null && newVal.trim() !== '') {
         var stats = mgrLoadStats();
@@ -4474,6 +4543,7 @@ window.addEventListener('load', () => {
       pool.querySelectorAll('.disp-tag-x').forEach(el => {
         el.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (!requireManager()) return;
           const tag = el.dataset.del;
           if (!confirm('Remove "' + tag + '" tag from all techs?')) return;
           data.tags = data.tags.filter(t => t !== tag);
@@ -4549,6 +4619,7 @@ window.addEventListener('load', () => {
         zone.addEventListener('drop', (e) => {
           e.preventDefault();
           zone.classList.remove('drag-over');
+          if (!isManagerMode) return;
           const tag = e.dataTransfer.getData('text/plain');
           const tech = zone.dataset.tech;
           const d = dispLoad();
@@ -4586,6 +4657,7 @@ window.addEventListener('load', () => {
       grid.querySelectorAll('.disp-remove-tag').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (!requireManager()) return;
           const tech = btn.dataset.tech;
           const tag = btn.dataset.rtag;
           const d = dispLoad();
@@ -4598,6 +4670,7 @@ window.addEventListener('load', () => {
 
     // Add tag button
     document.getElementById('dispAddTagBtn').addEventListener('click', () => {
+      if (!requireManager()) return;
       const input = document.getElementById('dispNewTag');
       const name = input.value.trim();
       if (!name) return;

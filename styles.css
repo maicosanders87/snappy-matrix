@@ -2133,6 +2133,40 @@
       .container { padding: 16px 12px 36px; }
     }
 
+    /* ========== ACCESS CONTROL (Viewer Mode) ========== */
+    /* Hide manager-only elements */
+    .viewer-mode .mgr-only { display: none !important; }
+    /* Hide the Manager tab content section too */
+    .viewer-mode #view-manager { display: none !important; }
+    /* Disable skill toggling */
+    .viewer-mode .sm-check-yes,
+    .viewer-mode .sm-check-no { pointer-events: none; cursor: default; }
+    /* Disable dispatch editing */
+    .viewer-mode .disp-pool-tag { pointer-events: none; cursor: default; }
+    .viewer-mode .disp-tag-x { display: none; }
+    .viewer-mode .disp-remove-tag { display: none; }
+    .viewer-mode .disp-tech-tags { pointer-events: none; }
+    .viewer-mode #dispAddTagBtn { display: none; }
+    .viewer-mode #dispNewTag { display: none; }
+    /* Disable rookie card stat editing */
+    .viewer-mode .mgr-stat-editable { pointer-events: none; cursor: default; }
+    /* Lock icon styling */
+    .access-lock-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: transparent;
+    }
+    .access-lock-btn:hover { background: rgba(255,255,255,0.1); }
+    .access-lock-btn svg { width: 18px; height: 18px; stroke: #8b93a8; }
+    .manager-mode .access-lock-btn svg { stroke: #4adede; }
+    .viewer-mode .access-lock-btn svg { stroke: #f59e0b; }
+
     /* ========== MANAGER TAB ========== */
     .mgr-section { display: none; }
     .mgr-section.active { display: block; }
