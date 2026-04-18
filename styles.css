@@ -279,8 +279,44 @@
     .chart-container-radar {
       position: relative;
       width: 100%;
-      max-height: 380px;
-      padding: 0 30px;
+      height: 420px;
+      border-radius: 12px;
+      overflow: hidden;
+      background: radial-gradient(ellipse at center, #0a1628 0%, #060e1a 100%);
+      cursor: grab;
+    }
+    .chart-container-radar:active { cursor: grabbing; }
+    .chart-container-radar canvas { display: block; }
+    .radar3d-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      padding: 10px 16px 4px;
+    }
+    .radar3d-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font: 500 12px/1 'DM Sans', sans-serif;
+      color: #4A4A4A;
+      cursor: pointer;
+      padding: 4px 10px;
+      border-radius: 20px;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .radar3d-legend-item:hover { background: #f0ede8; }
+    .radar3d-legend-item.dimmed { opacity: 0.35; }
+    .radar3d-legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .radar3d-hint {
+      text-align: center;
+      font: 400 11px/1 'DM Sans', sans-serif;
+      color: #9E9E9E;
+      padding: 6px 0 2px;
     }
 
     /* Tab content sections */
