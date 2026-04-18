@@ -994,7 +994,10 @@ window.addEventListener('load', () => {
     const BB_KEY = 'snappy_bulletin_board';
 
     function bbLoad() {
-      try { return JSON.parse(localStorage.getItem(BB_KEY)) || { meetings: [], oneOnOnes: [], rideAlongs: [] }; } catch(e) { return { meetings: [], oneOnOnes: [], rideAlongs: [] }; }
+      try {
+        var d = JSON.parse(localStorage.getItem(BB_KEY)) || {};
+        return { meetings: d.meetings || [], oneOnOnes: d.oneOnOnes || [], rideAlongs: d.rideAlongs || [], matrixUpdates: d.matrixUpdates || [] };
+      } catch(e) { return { meetings: [], oneOnOnes: [], rideAlongs: [], matrixUpdates: [] }; }
     }
     function bbSave(data) {
       localStorage.setItem(BB_KEY, JSON.stringify(data));
@@ -1285,6 +1288,51 @@ window.addEventListener('load', () => {
       html += '</div></div>';
 
       html += '</div>'; // close bb-columns
+
+      // ---- BOTTOM ROW: Quick Links + Matrix Updates ----
+      html += '<div class="bb-bottom-row">';
+
+      // Skills & Tagging System link
+      html += '<div class="bb-link-card" onclick="bbGoToSkillsTags()">' +
+        '<div class="bb-link-icon">\ud83c\udff7\ufe0f</div>' +
+        '<div class="bb-link-body">' +
+          '<div class="bb-link-title">Skills & Tagging System</div>' +
+          '<div class="bb-link-desc">View skill categories, assigned tags, and progression requirements</div>' +
+        '</div>' +
+        '<div class="bb-link-arrow">\u2192</div>' +
+      '</div>';
+
+      // Matrix Updates log
+      html += '<div class="bb-updates-card">' +
+        '<div class="bb-updates-header"><span>\ud83d\udcdd</span> Matrix Updates</div>' +
+        '<div class="bb-updates-body">';
+      var updates = bb.matrixUpdates || [];
+      // Show most recent first
+      var sortedUpdates = updates.slice().sort(function(a,b) { return b.date < a.date ? -1 : b.date > a.date ? 1 : (b.createdAt || 0) - (a.createdAt || 0); });
+      if (sortedUpdates.length > 0) {
+        sortedUpdates.forEach(function(u) {
+          html += '<div class="bb-update-item">' +
+            '<button class="bb-remove mgr-only" onclick="bbRemoveUpdate(\'' + u.id + '\')">&times;</button>' +
+            '<div class="bb-update-date">' + bbFmtDay(u.date) + '</div>' +
+            '<div class="bb-update-text">' + u.text + '</div>' +
+          '</div>';
+        });
+      } else {
+        html += '<div class="bb-empty" style="padding:14px 8px;"><div class="bb-empty-icon">\ud83d\udcdd</div>No updates yet</div>';
+      }
+      html += '</div>';
+      // Add update form (manager only)
+      html += '<div class="bb-add-form mgr-only" style="border-radius:0 0 10px 10px;border-top:1px solid var(--border);margin-top:0;">' +
+        '<label>Date</label>' +
+        '<input type="date" id="bbUpdateDate" value="' + bbFmtDate(new Date()) + '">' +
+        '<label>Update</label>' +
+        '<textarea id="bbUpdateText" placeholder="e.g. Added new skill tags for Daniel, updated Dewone composite..."></textarea>' +
+        '<button class="bb-add-btn meeting" onclick="bbAddUpdate()">+ Post Update</button>' +
+      '</div>';
+      html += '</div>'; // close bb-updates-card
+
+      html += '</div>'; // close bb-bottom-row
+
       document.getElementById('ov-bulletin-board').innerHTML = html;
     }
 
@@ -1338,6 +1386,32 @@ window.addEventListener('load', () => {
       if (bb[category]) {
         bb[category] = bb[category].filter(function(item) { return item.id !== id; });
       }
+      bbSave(bb);
+      renderBulletinBoard();
+    }
+
+    function bbGoToSkillsTags() {
+      var tab = document.querySelector('.nav-tab[data-view="skills-tags"]');
+      if (tab) tab.click();
+    }
+
+    function bbAddUpdate() {
+      var bb = bbLoad();
+      var text = document.getElementById('bbUpdateText').value.trim();
+      if (!text) { alert('Please enter an update.'); return; }
+      bb.matrixUpdates.push({
+        id: bbUID(),
+        date: document.getElementById('bbUpdateDate').value,
+        text: text,
+        createdAt: Date.now()
+      });
+      bbSave(bb);
+      renderBulletinBoard();
+    }
+
+    function bbRemoveUpdate(id) {
+      var bb = bbLoad();
+      bb.matrixUpdates = bb.matrixUpdates.filter(function(u) { return u.id !== id; });
       bbSave(bb);
       renderBulletinBoard();
     }
