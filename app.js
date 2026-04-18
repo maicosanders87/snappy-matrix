@@ -991,36 +991,52 @@ window.addEventListener('load', () => {
     }
 
     // ========== OVERVIEW TAB ==========
-    const OV_SCHED_KEY = 'snappy_overview_schedule';
+    const BB_KEY = 'snappy_bulletin_board';
 
-    function ovLoadSchedule() {
-      try { return JSON.parse(localStorage.getItem(OV_SCHED_KEY)) || []; } catch(e) { return []; }
+    function bbLoad() {
+      try { return JSON.parse(localStorage.getItem(BB_KEY)) || { meetings: [], oneOnOnes: [], rideAlongs: [] }; } catch(e) { return { meetings: [], oneOnOnes: [], rideAlongs: [] }; }
     }
-    function ovSaveSchedule(items) {
-      localStorage.setItem(OV_SCHED_KEY, JSON.stringify(items));
+    function bbSave(data) {
+      localStorage.setItem(BB_KEY, JSON.stringify(data));
+    }
+    function bbUID() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
     }
 
-    function ovGetWeekRange() {
+    function bbGetWeekRange() {
       var now = new Date();
-      var day = now.getDay(); // 0=Sun
+      var day = now.getDay();
       var sun = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
       var sat = new Date(sun.getFullYear(), sun.getMonth(), sun.getDate() + 6);
       return { start: sun, end: sat };
     }
-
-    function ovFmtDate(d) {
+    function bbFmtDate(d) {
       return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     }
-    function ovFmtDisplay(d) {
+    function bbFmtDay(dateStr) {
+      var d = new Date(dateStr + 'T12:00:00');
+      var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return days[d.getDay()] + ', ' + months[d.getMonth()] + ' ' + d.getDate();
+    }
+    function bbFmtWeek(d) {
       var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
       var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       return days[d.getDay()] + ', ' + months[d.getMonth()] + ' ' + d.getDate();
     }
 
+    // Get this week's Wednesday date
+    function bbGetWednesday() {
+      var week = bbGetWeekRange();
+      var wed = new Date(week.start);
+      wed.setDate(wed.getDate() + 3);
+      return bbFmtDate(wed);
+    }
+
     function renderOverviewTab() {
       // ---- 1. KPI COUNTERS ----
       var totalCallbacks = 0;
-      var totalComplaints = 0; // from recalls in stData productivity
+      var totalComplaints = 0;
       var totalRevenue = 0;
       var totalReviews = 0;
       var totalInstallRev = 0;
@@ -1031,7 +1047,6 @@ window.addEventListener('load', () => {
         totalInstallRev += st.installs.total_revenue || 0;
       });
 
-      // Count complaints from tech files (type=complaint)
       try {
         var tfRaw = localStorage.getItem('snappy_tech_files');
         if (tfRaw) {
@@ -1046,7 +1061,6 @@ window.addEventListener('load', () => {
         }
       } catch(e) {}
 
-      // Google reviews total (90 days)
       Object.keys(googleReviews).forEach(function(name) {
         totalReviews += googleReviews[name].count || 0;
       });
@@ -1083,7 +1097,6 @@ window.addEventListener('load', () => {
           ? '<img class="ov-snap-avatar" src="' + techAvatars[t.short] + '" alt="' + t.name + '">'
           : '<div class="ov-snap-initials" style="background:' + t.color + '">' + t.initials + '</div>';
 
-        // Build tag HTML from managerTags
         var tagsHTML = '';
         if (t.managerTags && t.managerTags.length) {
           t.managerTags.slice(0, 4).forEach(function(tag) {
@@ -1091,7 +1104,6 @@ window.addEventListener('load', () => {
           });
         }
 
-        // Key stats line
         var statsLine = '';
         if (st) {
           statsLine += '<strong>$' + st.overview.revenue.toLocaleString() + '</strong> rev';
@@ -1114,111 +1126,220 @@ window.addEventListener('load', () => {
       });
       document.getElementById('ov-snapshot-grid').innerHTML = snapHTML;
 
-      // ---- 3. WEEKLY 1-ON-1 & RIDE-ALONG SCHEDULE ----
-      renderOverviewSchedule();
+      // ---- 3. BULLETIN BOARD ----
+      renderBulletinBoard();
     }
 
-    function renderOverviewSchedule() {
-      var week = ovGetWeekRange();
-      var weekLabel = ovFmtDisplay(week.start) + ' \u2013 ' + ovFmtDisplay(week.end);
-      var items = ovLoadSchedule();
-      var startStr = ovFmtDate(week.start);
-      var endStr = ovFmtDate(week.end);
+    function renderBulletinBoard() {
+      var week = bbGetWeekRange();
+      var weekLabel = bbFmtWeek(week.start) + ' \u2013 ' + bbFmtWeek(week.end);
+      var startStr = bbFmtDate(week.start);
+      var endStr = bbFmtDate(week.end);
+      var bb = bbLoad();
+      var techNames = techs.map(function(t) { return t.short; });
 
-      // Also pull from manager entries for this week
-      var mgrWeekEntries = [];
+      // Filter to this week
+      var weekMeetings = bb.meetings.filter(function(m) { return m.date >= startStr && m.date <= endStr; });
+      var weekOneOnOnes = bb.oneOnOnes.filter(function(o) { return o.date >= startStr && o.date <= endStr; });
+      var weekRideAlongs = bb.rideAlongs.filter(function(r) { return r.date >= startStr && r.date <= endStr; });
+
+      // Also merge manager entries
       if (mgrState && mgrState.entries) {
+        var ooIds = {};
+        weekOneOnOnes.forEach(function(o) { ooIds[o.id] = true; });
+        var raIds = {};
+        weekRideAlongs.forEach(function(r) { raIds[r.id] = true; });
         mgrState.entries.forEach(function(e) {
-          if ((e.type === 'one-on-one' || e.type === 'ride-along') && e.date >= startStr && e.date <= endStr) {
-            mgrWeekEntries.push(e);
+          if (e.date >= startStr && e.date <= endStr) {
+            if (e.type === 'one-on-one' && !ooIds[e.id]) {
+              weekOneOnOnes.push({ id: e.id, tech: e.tech, date: e.date, status: e.status || 'planned', source: 'mgr' });
+            } else if (e.type === 'ride-along' && !raIds[e.id]) {
+              weekRideAlongs.push({ id: e.id, tech: e.tech, date: e.date, status: e.status || 'planned', source: 'mgr' });
+            }
           }
         });
       }
 
-      // Filter overview items to this week
-      var weekItems = items.filter(function(it) { return it.date >= startStr && it.date <= endStr; });
+      // Sort each by date
+      weekMeetings.sort(function(a,b) { return a.date < b.date ? -1 : 1; });
+      weekOneOnOnes.sort(function(a,b) { return a.date < b.date ? -1 : 1; });
+      weekRideAlongs.sort(function(a,b) { return a.date < b.date ? -1 : 1; });
 
-      // Merge: overview items + manager entries (avoid dupes by id)
-      var allIds = {};
-      var merged = [];
-      weekItems.forEach(function(it) { allIds[it.id] = true; merged.push(it); });
-      mgrWeekEntries.forEach(function(e) {
-        if (!allIds[e.id]) {
-          merged.push({ id: e.id, type: e.type === 'one-on-one' ? '1-on-1' : 'Ride-Along', tech: e.tech, date: e.date, status: e.status || 'planned', source: 'mgr' });
-        }
-      });
-      // Sort by date
-      merged.sort(function(a,b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+      var html = '<div class="bb-week-label">Week of ' + weekLabel + '</div>';
+      html += '<div class="bb-columns">';
 
-      var techNames = techs.map(function(t) { return t.short; });
-      var html = '<div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Week of ' + weekLabel + '</div>';
-
-      if (merged.length > 0) {
-        html += '<table class="ov-sched-table"><thead><tr>' +
-          '<th>Day</th><th>Type</th><th>Tech</th><th>Status</th><th class="mgr-only">Actions</th>' +
-        '</tr></thead><tbody>';
-        merged.forEach(function(it) {
-          var d = new Date(it.date + 'T12:00:00');
-          var dayStr = ovFmtDisplay(d);
-          var typeClass = (it.type === '1-on-1' || it.type === 'one-on-one') ? 'type-1on1' : 'type-ride';
-          var typeLabel = (it.type === '1-on-1' || it.type === 'one-on-one') ? '1-on-1' : 'Ride-Along';
-          var statusClass = (it.status || 'planned').replace(/\s/g, '_');
-          var statusLabel = it.status ? it.status.charAt(0).toUpperCase() + it.status.slice(1) : 'Planned';
-          var deleteBtn = it.source === 'mgr' ? '' : '<button class="ov-sched-btn danger" onclick="ovRemoveScheduleItem(\'' + it.id + '\')">Remove</button>';
-          html += '<tr>' +
-            '<td>' + dayStr + '</td>' +
-            '<td><span class="ov-sched-type ' + typeClass + '">' + typeLabel + '</span></td>' +
-            '<td><strong>' + it.tech + '</strong></td>' +
-            '<td><span class="ov-sched-status ' + statusClass + '">' + statusLabel + '</span></td>' +
-            '<td class="mgr-only">' + deleteBtn + '</td>' +
-          '</tr>';
+      // ---- COLUMN 1: Wed Tech Meetings ----
+      html += '<div class="bb-column">';
+      html += '<div class="bb-col-header meeting"><span class="bb-col-icon">\ud83d\udce3</span> Wed HVAC Meeting</div>';
+      html += '<div class="bb-col-body">';
+      if (weekMeetings.length > 0) {
+        weekMeetings.forEach(function(m) {
+          html += '<div class="bb-card">' +
+            '<button class="bb-remove mgr-only" onclick="bbRemove(\'meetings\',\'' + m.id + '\')">&times;</button>' +
+            '<div class="bb-card-day">' + bbFmtDay(m.date) + '</div>' +
+            '<div class="bb-card-title">' + (m.subject || 'Team Meeting') + '</div>' +
+            '<div class="bb-card-meta">' +
+              (m.time ? '\u23f0 <strong>' + m.time + '</strong>' : '') +
+              (m.location ? ' &bull; \ud83d\udccd ' + m.location : '') +
+            '</div>' +
+            (m.notes ? '<div class="bb-card-notes">' + m.notes + '</div>' : '') +
+          '</div>';
         });
-        html += '</tbody></table>';
       } else {
-        html += '<div class="ov-sched-empty">' +
-          '<div class="ov-sched-empty-icon">\ud83d\udcc5</div>' +
-          'No 1-on-1s or ride-alongs scheduled this week.<br>Use the form below or add them in the Manager tab.' +
-        '</div>';
+        html += '<div class="bb-empty"><div class="bb-empty-icon">\ud83d\udce3</div>No meeting posted yet</div>';
       }
-
-      // Add form (manager only)
-      html += '<div class="ov-sched-add-row mgr-only">' +
-        '<select id="ovSchedType">' +
-          '<option value="1-on-1">1-on-1</option>' +
-          '<option value="Ride-Along">Ride-Along</option>' +
-        '</select>' +
-        '<select id="ovSchedTech">';
-      techNames.forEach(function(n) {
-        html += '<option value="' + n + '">' + n + '</option>';
-      });
-      html += '</select>' +
-        '<input type="date" id="ovSchedDate" value="' + ovFmtDate(new Date()) + '">' +
-        '<select id="ovSchedStatus">' +
-          '<option value="planned">Planned</option>' +
-          '<option value="completed">Completed</option>' +
-        '</select>' +
-        '<button class="ov-sched-btn" onclick="ovAddScheduleItem()">+ Add</button>' +
+      // Add meeting form (manager only)
+      html += '<div class="bb-add-form mgr-only">' +
+        '<label>Date</label>' +
+        '<input type="date" id="bbMeetDate" value="' + bbGetWednesday() + '">' +
+        '<label>Subject / Theme</label>' +
+        '<input type="text" id="bbMeetSubject" placeholder="e.g. Superheat & Subcool Review">' +
+        '<label>Time</label>' +
+        '<input type="text" id="bbMeetTime" placeholder="e.g. 8:00 AM">' +
+        '<label>Location</label>' +
+        '<input type="text" id="bbMeetLocation" placeholder="e.g. Shop / Zoom">' +
+        '<label>Notes</label>' +
+        '<textarea id="bbMeetNotes" placeholder="Agenda, materials to bring, etc."></textarea>' +
+        '<button class="bb-add-btn meeting" onclick="bbAddMeeting()">+ Post Meeting</button>' +
       '</div>';
+      html += '</div></div>';
 
-      document.getElementById('ov-weekly-schedule').innerHTML = html;
+      // ---- COLUMN 2: 1-on-1s ----
+      html += '<div class="bb-column">';
+      html += '<div class="bb-col-header oneonone"><span class="bb-col-icon">\ud83e\udd1d</span> 1-on-1s</div>';
+      html += '<div class="bb-col-body">';
+      if (weekOneOnOnes.length > 0) {
+        weekOneOnOnes.forEach(function(o) {
+          var statusCls = (o.status || 'planned').replace(/\s/g, '_');
+          var statusLbl = o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Planned';
+          var removeBtn = o.source === 'mgr' ? '' : '<button class="bb-remove mgr-only" onclick="bbRemove(\'oneOnOnes\',\'' + o.id + '\')">&times;</button>';
+          html += '<div class="bb-card">' +
+            removeBtn +
+            '<div class="bb-card-day">' + bbFmtDay(o.date) + '</div>' +
+            '<div class="bb-card-title">' + o.tech + '</div>' +
+            '<div class="bb-card-meta">' +
+              '<span class="bb-status ' + statusCls + '">' + statusLbl + '</span>' +
+              (o.time ? ' &bull; \u23f0 ' + o.time : '') +
+            '</div>' +
+            (o.notes ? '<div class="bb-card-notes">' + o.notes + '</div>' : '') +
+          '</div>';
+        });
+      } else {
+        html += '<div class="bb-empty"><div class="bb-empty-icon">\ud83e\udd1d</div>No 1-on-1s this week</div>';
+      }
+      html += '<div class="bb-add-form mgr-only">' +
+        '<label>Tech</label>' +
+        '<select id="bbOOTech">';
+      techNames.forEach(function(n) { html += '<option value="' + n + '">' + n + '</option>'; });
+      html += '</select>' +
+        '<label>Date</label>' +
+        '<input type="date" id="bbOODate" value="' + bbFmtDate(new Date()) + '">' +
+        '<label>Time</label>' +
+        '<input type="text" id="bbOOTime" placeholder="e.g. 2:00 PM">' +
+        '<label>Status</label>' +
+        '<select id="bbOOStatus"><option value="planned">Planned</option><option value="completed">Completed</option></select>' +
+        '<label>Notes</label>' +
+        '<textarea id="bbOONotes" placeholder="Focus areas, follow-ups, etc."></textarea>' +
+        '<button class="bb-add-btn oneonone" onclick="bbAddOneOnOne()">+ Add 1-on-1</button>' +
+      '</div>';
+      html += '</div></div>';
+
+      // ---- COLUMN 3: Ride-Alongs ----
+      html += '<div class="bb-column">';
+      html += '<div class="bb-col-header ridealong"><span class="bb-col-icon">\ud83d\ude90</span> Ride-Alongs</div>';
+      html += '<div class="bb-col-body">';
+      if (weekRideAlongs.length > 0) {
+        weekRideAlongs.forEach(function(r) {
+          var statusCls = (r.status || 'planned').replace(/\s/g, '_');
+          var statusLbl = r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : 'Planned';
+          var removeBtn = r.source === 'mgr' ? '' : '<button class="bb-remove mgr-only" onclick="bbRemove(\'rideAlongs\',\'' + r.id + '\')">&times;</button>';
+          html += '<div class="bb-card">' +
+            removeBtn +
+            '<div class="bb-card-day">' + bbFmtDay(r.date) + '</div>' +
+            '<div class="bb-card-title">' + r.tech + '</div>' +
+            '<div class="bb-card-meta">' +
+              '<span class="bb-status ' + statusCls + '">' + statusLbl + '</span>' +
+              (r.time ? ' &bull; \u23f0 ' + r.time : '') +
+            '</div>' +
+            (r.notes ? '<div class="bb-card-notes">' + r.notes + '</div>' : '') +
+          '</div>';
+        });
+      } else {
+        html += '<div class="bb-empty"><div class="bb-empty-icon">\ud83d\ude90</div>No ride-alongs this week</div>';
+      }
+      html += '<div class="bb-add-form mgr-only">' +
+        '<label>Tech</label>' +
+        '<select id="bbRATech">';
+      techNames.forEach(function(n) { html += '<option value="' + n + '">' + n + '</option>'; });
+      html += '</select>' +
+        '<label>Date</label>' +
+        '<input type="date" id="bbRADate" value="' + bbFmtDate(new Date()) + '">' +
+        '<label>Time</label>' +
+        '<input type="text" id="bbRATime" placeholder="e.g. 9:00 AM">' +
+        '<label>Status</label>' +
+        '<select id="bbRAStatus"><option value="planned">Planned</option><option value="completed">Completed</option></select>' +
+        '<label>Notes</label>' +
+        '<textarea id="bbRANotes" placeholder="Observe mode focus, goals, etc."></textarea>' +
+        '<button class="bb-add-btn ridealong" onclick="bbAddRideAlong()">+ Add Ride-Along</button>' +
+      '</div>';
+      html += '</div></div>';
+
+      html += '</div>'; // close bb-columns
+      document.getElementById('ov-bulletin-board').innerHTML = html;
     }
 
-    function ovAddScheduleItem() {
-      var type = document.getElementById('ovSchedType').value;
-      var tech = document.getElementById('ovSchedTech').value;
-      var date = document.getElementById('ovSchedDate').value;
-      var status = document.getElementById('ovSchedStatus').value;
-      if (!date) return;
-      var items = ovLoadSchedule();
-      items.push({ id: Date.now().toString(36) + Math.random().toString(36).substr(2,6), type: type, tech: tech, date: date, status: status });
-      ovSaveSchedule(items);
-      renderOverviewSchedule();
+    // Bulletin board add/remove functions
+    function bbAddMeeting() {
+      var bb = bbLoad();
+      var subject = document.getElementById('bbMeetSubject').value.trim();
+      if (!subject) { alert('Please enter a subject/theme.'); return; }
+      bb.meetings.push({
+        id: bbUID(),
+        date: document.getElementById('bbMeetDate').value,
+        subject: subject,
+        time: document.getElementById('bbMeetTime').value.trim(),
+        location: document.getElementById('bbMeetLocation').value.trim(),
+        notes: document.getElementById('bbMeetNotes').value.trim()
+      });
+      bbSave(bb);
+      renderBulletinBoard();
     }
 
-    function ovRemoveScheduleItem(id) {
-      var items = ovLoadSchedule().filter(function(it) { return it.id !== id; });
-      ovSaveSchedule(items);
-      renderOverviewSchedule();
+    function bbAddOneOnOne() {
+      var bb = bbLoad();
+      bb.oneOnOnes.push({
+        id: bbUID(),
+        tech: document.getElementById('bbOOTech').value,
+        date: document.getElementById('bbOODate').value,
+        time: document.getElementById('bbOOTime').value.trim(),
+        status: document.getElementById('bbOOStatus').value,
+        notes: document.getElementById('bbOONotes').value.trim()
+      });
+      bbSave(bb);
+      renderBulletinBoard();
+    }
+
+    function bbAddRideAlong() {
+      var bb = bbLoad();
+      bb.rideAlongs.push({
+        id: bbUID(),
+        tech: document.getElementById('bbRATech').value,
+        date: document.getElementById('bbRADate').value,
+        time: document.getElementById('bbRATime').value.trim(),
+        status: document.getElementById('bbRAStatus').value,
+        notes: document.getElementById('bbRANotes').value.trim()
+      });
+      bbSave(bb);
+      renderBulletinBoard();
+    }
+
+    function bbRemove(category, id) {
+      var bb = bbLoad();
+      if (bb[category]) {
+        bb[category] = bb[category].filter(function(item) { return item.id !== id; });
+      }
+      bbSave(bb);
+      renderBulletinBoard();
     }
 
     // ========== CHARTS ==========
