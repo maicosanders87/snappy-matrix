@@ -717,6 +717,22 @@ window.addEventListener('load', () => {
       return `<span class="${cls} tier-${tier.toLowerCase()}">${tier}</span>`;
     }
 
+    // ========== SEEN SKILLS TRACKER ==========
+    const SEEN_SKILLS_KEY = 'snappy_seen_skills';
+    function getSeenSkills() {
+      try { return JSON.parse(localStorage.getItem(SEEN_SKILLS_KEY)) || []; } catch(e) { return []; }
+    }
+    function markSkillsSeen(ids) {
+      var seen = getSeenSkills();
+      var changed = false;
+      ids.forEach(function(id) { if (seen.indexOf(id) === -1) { seen.push(id); changed = true; } });
+      if (changed) localStorage.setItem(SEEN_SKILLS_KEY, JSON.stringify(seen));
+    }
+    function isSkillNew(skill) {
+      if (!skill.isNew) return false;
+      return getSeenSkills().indexOf(skill.id) === -1;
+    }
+
     // ========== SKILLS DATA ==========
     const skillsData = {
       categories: {
@@ -899,8 +915,29 @@ window.addEventListener('load', () => {
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById('view-' + tab.dataset.view).classList.add('active');
+        // Auto-mark NEW skills as seen when visiting skills-related tabs
+        var v = tab.dataset.view;
+        if (v === 'skills-tags' || v === 'aptitude-skills' || v === 'overview') {
+          _markNewSkillsSeen();
+        }
       });
     });
+
+    function _markNewSkillsSeen() {
+      setTimeout(function() {
+        var newIds = [];
+        Object.keys(skillsData.categories).forEach(function(k) {
+          skillsData.categories[k].skills.forEach(function(s) {
+            if (s.isNew) newIds.push(s.id);
+          });
+        });
+        if (newIds.length) {
+          markSkillsSeen(newIds);
+          // Re-render to remove badges
+          renderSkillsTags();
+        }
+      }, 2000);
+    }
 
     // Aptitude & Skills sub-tabs
     document.querySelectorAll('#as-sub-tabs .nav-tab').forEach(tab => {
@@ -1766,7 +1803,7 @@ window.addEventListener('load', () => {
         const cat = skillsData.categories[catKey];
         matHtml += `<tr class="sm-cat-row"><td style="border-left:3px solid ${cat.color};padding-left:10px">${catKey} — ${cat.name}</td>${techs.map(() => `<td></td>`).join('')}</tr>`;
         cat.skills.forEach(skill => {
-          matHtml += `<tr><td><div class="sm-skill-name"><span class="sm-id">${skill.id}</span><span>${skill.name}</span>${skill.isNew ? '<span class="sk-new-badge">NEW</span>' : ''}</div></td>`;
+          matHtml += `<tr><td><div class="sm-skill-name"><span class="sm-id">${skill.id}</span><span>${skill.name}</span>${isSkillNew(skill) ? '<span class="sk-new-badge">NEW</span>' : ''}</div></td>`;
           techs.forEach(tech => {
             const has = skillsData.assignments[tech].includes(skill.id);
             matHtml += `<td><span class="${has ? 'sm-check-yes' : 'sm-check-no'}" data-skill-toggle="${tech}-${skill.id}" onclick="toggleSkill('${tech}','${skill.id}')" title="${has ? 'Remove' : 'Add'} ${skill.id} — ${skill.name} ${has ? 'from' : 'to'} ${tech}">${has ? '✓' : '·'}</span></td>`;
@@ -1806,7 +1843,7 @@ window.addEventListener('load', () => {
                   <div class="sk-skill-name-row">
                     <span class="sk-skill-id">${skill.id}</span>
                     <span class="sk-skill-label">${skill.name}</span>
-                    ${skill.isNew ? '<span class="sk-new-badge">NEW</span>' : ''}
+                    ${isSkillNew(skill) ? '<span class="sk-new-badge">NEW</span>' : ''}
                     ${skill.nextech ? `<span class="sk-nextech-tag">${skill.nextech}</span>` : ''}
                   </div>
                   <div class="sk-skill-desc">${skill.desc}</div>
@@ -4702,6 +4739,8 @@ window.addEventListener('load', () => {
     renderSTTables();
     renderSTCharts();
     renderSkillsTags();
+    // Auto-mark NEW badges as seen after 3s on initial load
+    setTimeout(function() { _markNewSkillsSeen(); }, 3000);
     renderManagerTab();
     renderDispatchBoard();
 // PDF data loaded from pdf_data.js
