@@ -1188,6 +1188,10 @@ window.addEventListener('load', () => {
       var weekOneOnOnes = bb.oneOnOnes.filter(function(o) { return o.date >= nineStartStr && o.date <= nineEndStr; });
       var weekRideAlongs = bb.rideAlongs.filter(function(r) { return r.date >= nineStartStr && r.date <= nineEndStr; });
 
+      console.log('[BB Render] 9-day range:', nineStartStr, 'to', nineEndStr);
+      console.log('[BB Render] BB oneOnOnes:', bb.oneOnOnes.length, 'rideAlongs:', bb.rideAlongs.length);
+      console.log('[BB Render] Filtered weekOneOnOnes:', weekOneOnOnes.length, 'weekRideAlongs:', weekRideAlongs.length);
+
       // Also merge manager entries
       if (mgrState && mgrState.entries) {
         var ooIds = {};
@@ -1203,6 +1207,8 @@ window.addEventListener('load', () => {
           }
         });
       }
+
+      console.log('[BB Render] After merge: weekOneOnOnes:', weekOneOnOnes.length, 'weekRideAlongs:', weekRideAlongs.length, 'mgrEntries total:', mgrState.entries.length);
 
       // Sort each by date
       weekMeetings.sort(function(a,b) { return a.date < b.date ? -1 : 1; });
@@ -4858,16 +4864,19 @@ window.addEventListener('load', () => {
         bb.rideAlongs.push({ id: entryId, tech: tech, date: dateStr, time: '', status: status, notes: notes, source: 'mgr' });
       }
       bbSave(bb);
+      console.log('[BB] Saved entry', entryId, 'type:', type, 'date:', dateStr);
+      console.log('[BB] bb.oneOnOnes count:', bb.oneOnOnes.length, 'bb.rideAlongs count:', bb.rideAlongs.length);
       modal.remove();
-      // Instant re-renders so + BB switches to checkmark and BB updates
-      try { renderBulletinBoard(); } catch(e) { console.warn('BB render error:', e); }
-      try { renderManagerLog(); } catch(e) { console.warn('Log render error:', e); }
-      try { renderManagerCalendar(); } catch(e) { console.warn('Cal render error:', e); }
-      // Deferred safety re-render
-      setTimeout(function() {
-        try { renderBulletinBoard(); } catch(e) {}
-        try { renderManagerLog(); } catch(e) {}
-      }, 150);
+      // Instant re-renders
+      renderBulletinBoard();
+      renderManagerLog();
+      renderManagerCalendar();
+      // Toast confirmation
+      var toast = document.createElement('div');
+      toast.textContent = '\u2705 Added to Bulletin Board';
+      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1B5E20;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 400); }, 2000);
     }
 
     function mgrExportTrainingPDF() {
