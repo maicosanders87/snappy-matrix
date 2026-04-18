@@ -1287,39 +1287,39 @@ window.addEventListener('load', () => {
     // Google Reviews data (Last 90 days)
     const googleReviews = {
       "Dee": {
-        count: 1,
-        fiveStar: 1,
-        threeStar: 0,
-        highlight: '"I am truly thankful to meet Braybon, Ben, Adam, Jason, and Dee." — Bro B',
-        note: "Dee\'s warranty and cross-department role limits his customer-facing service calls, which explains the lower review count. His one mention was in a multi-tech job highlighting teamwork."
-      },
-      "Daniel": {
-        count: 23,
-        fiveStar: 21,
-        threeStar: 2,
-        highlight: '"Daniel is awesome. He is very reliable and an excellent worker. Give him a raise." — Cecile H',
-        note: "Second-most reviewed tech. 6 new reviews since last check (5 five-star, 1 three-star). Customers praise friendliness, professionalism, and quality coil cleaning. One 3-star noted cost concerns. Recent highlight: above-and-beyond coil cleaning and hard start kit recommendations. Keywords: professional, thorough, friendly, knowledgeable, reliable."
-      },
-      "Chris": {
         count: 2,
         fiveStar: 2,
         threeStar: 0,
+        highlight: '"I am truly thankful to meet Braybon, Ben, Adam, Jason, and Dee." — Bro B',
+        note: "2 reviews in 90 days — both 5-star. Dee\'s warranty and cross-department role limits his customer-facing service calls, which explains the lower review count. Second review from Laura IV specifically mentions him as HVAC technician."
+      },
+      "Daniel": {
+        count: 57,
+        fiveStar: 55,
+        threeStar: 2,
+        highlight: '"Daniel is awesome. He is very reliable and an excellent worker. Give him a raise." — Cecile H',
+        note: "Most-reviewed tech in the last 90 days with 57 total. 55 five-star, 2 three-star. Customers consistently praise friendliness, professionalism, and quality work. One 3-star noted cost concerns, another praised courtesy but had service reservations. Keywords: professional, thorough, friendly, knowledgeable, reliable, courteous."
+      },
+      "Chris": {
+        count: 3,
+        fiveStar: 3,
+        threeStar: 0,
         highlight: '"Technician Chris Monahan was knowledgeable and professional and did a great job on our yearly inspection." — Penny Tapia',
-        note: "Low review count despite high opportunity volume (72 opps in ST). His reserved, introverted style may mean fewer customers are prompted to leave reviews. Both mentions are positive — quality over quantity."
+        note: "3 reviews in 90 days — all 5-star. Low review count despite high opportunity volume. His reserved, introverted style may mean fewer customers are prompted to leave reviews. Recent mentions from Penny Tapia, Michael Sapinski, and Sean Allen — all praise professionalism and knowledge."
       },
       "Benji": {
-        count: 6,
-        fiveStar: 6,
+        count: 3,
+        fiveStar: 3,
         threeStar: 0,
         highlight: '"Thank you so much to Ben T. for coming out to tuneup my AC unit. He broke things down for me so I understood everything, showed me areas of concern, gave improvement suggestions and real actionable solutions." — Ren F',
-        note: "2 new HVAC reviews since last check — both 5-star (electrical mentions excluded per rule). Customers highlight his ability to break things down and explain clearly. Strong team-player reputation."
+        note: "3 HVAC reviews in 90 days — all 5-star (electrical mentions excluded per rule). Confirmed HVAC reviews from Ren F (Ben T.), Rana Drake (Ben Tinahui), and Chuck Cain (Benji HVAC). Customers highlight his ability to break things down and explain clearly."
       },
       "Dewone": {
         count: 46,
         fiveStar: 46,
         threeStar: 0,
         highlight: '"Dewone was excellent and satisfied all my A.C needs. Will make sure to request him next time." — Janice Zivitz',
-        note: "20 new 5-star reviews since last check — all perfect scores. Most-reviewed tech by a massive margin with a flawless record. Customers consistently request him by name. Recurring themes: punctual, thorough, detailed explanations, friendly, efficient, knowledgeable. Multiple reviews call him \"the man\" and \"awesome.\""
+        note: "46 reviews in 90 days — all perfect 5-star. Second-most reviewed tech but holds a flawless record. Customers consistently request him by name. Recurring themes: punctual, thorough, detailed explanations, friendly, efficient, knowledgeable. Multiple reviews call him \"the man\" and \"awesome.\""
       }
     };
 
