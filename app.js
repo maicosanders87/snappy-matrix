@@ -1389,25 +1389,14 @@ window.addEventListener('load', () => {
 
       html += '</div>'; // close bb-columns
 
-      // ---- BOTTOM ROW: Quick Links + Matrix Updates ----
+      // ---- BOTTOM ROW: Matrix Updates + Skills Link ----
       html += '<div class="bb-bottom-row">';
 
-      // Skills & Tagging System link
-      html += '<div class="bb-link-card" onclick="bbGoToSkillsTags()">' +
-        '<div class="bb-link-icon">\ud83c\udff7\ufe0f</div>' +
-        '<div class="bb-link-body">' +
-          '<div class="bb-link-title">Skills & Tagging System</div>' +
-          '<div class="bb-link-desc">View skill categories, assigned tags, and progression requirements</div>' +
-        '</div>' +
-        '<div class="bb-link-arrow">\u2192</div>' +
-      '</div>';
-
-      // Matrix Updates log
+      // Matrix Updates log (moved above Skills link)
       html += '<div class="bb-updates-card">' +
         '<div class="bb-updates-header"><span>\ud83d\udcdd</span> Matrix Updates</div>' +
         '<div class="bb-updates-body">';
       var updates = bb.matrixUpdates || [];
-      // Show most recent first
       var sortedUpdates = updates.slice().sort(function(a,b) { return b.date < a.date ? -1 : b.date > a.date ? 1 : (b.createdAt || 0) - (a.createdAt || 0); });
       if (sortedUpdates.length > 0) {
         sortedUpdates.forEach(function(u) {
@@ -1429,7 +1418,26 @@ window.addEventListener('load', () => {
         '<textarea id="bbUpdateText" placeholder="e.g. Added new skill tags for Daniel, updated Dewone composite..."></textarea>' +
         '<button class="bb-add-btn meeting" onclick="bbAddUpdate()">+ Post Update</button>' +
       '</div>';
+      // Skills & Tagging System button inside updates card
+      html += '<div onclick="bbGoToSkillsTags()" style="display:flex;align-items:center;gap:10px;padding:12px 16px;margin-top:8px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.05)\'">' +
+        '<span style="font-size:18px;">\ud83c\udff7\ufe0f</span>' +
+        '<div style="flex:1;">' +
+          '<div style="font-size:13px;font-weight:700;color:var(--snappy-yellow);">Skills & Tagging System</div>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">View skill categories, assigned tags, and progression requirements</div>' +
+        '</div>' +
+        '<span style="color:var(--snappy-yellow);font-size:18px;">\u2192</span>' +
+      '</div>';
       html += '</div>'; // close bb-updates-card
+
+      // Skills & Tagging System link card
+      html += '<div class="bb-link-card" onclick="bbGoToSkillsTags()">' +
+        '<div class="bb-link-icon">\ud83c\udff7\ufe0f</div>' +
+        '<div class="bb-link-body">' +
+          '<div class="bb-link-title">Skills & Tagging System</div>' +
+          '<div class="bb-link-desc">View skill categories, assigned tags, and progression requirements</div>' +
+        '</div>' +
+        '<div class="bb-link-arrow">\u2192</div>' +
+      '</div>';
 
       html += '</div>'; // close bb-bottom-row
 
