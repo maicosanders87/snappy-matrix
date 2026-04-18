@@ -920,6 +920,10 @@ window.addEventListener('load', () => {
         if (v === 'skills-tags' || v === 'aptitude-skills' || v === 'overview') {
           _markNewSkillsSeen();
         }
+        // Re-render 3D radar when switching to Overview (needs visible container)
+        if (v === 'overview' && !radar3dRendered) {
+          setTimeout(renderRadar, 200);
+        }
       });
     });
 
@@ -1458,12 +1462,24 @@ window.addEventListener('load', () => {
     }
 
     // ========== CHARTS ==========
+    var radar3dRendered = false;
     function renderRadar() {
       var container = document.getElementById('radar3dContainer');
-      if (!container || typeof THREE === 'undefined') return;
+      if (!container) return;
+      if (typeof THREE === 'undefined') {
+        // THREE.js hasn't loaded yet — retry
+        setTimeout(renderRadar, 500);
+        return;
+      }
+      // If container has no dimensions yet (hidden/not painted), retry
+      if (container.clientWidth < 10) {
+        setTimeout(renderRadar, 500);
+        return;
+      }
       container.innerHTML = '';
+      radar3dRendered = true;
 
-      var W = container.clientWidth || 500;
+      var W = container.clientWidth;
       var H = container.clientHeight || 420;
       var catKeys = Object.keys(categories);
       var numAxes = catKeys.length;
@@ -5504,7 +5520,8 @@ window.addEventListener('load', () => {
     // ========== INIT ==========
     renderOverviewTab();
     renderKPIs();
-    renderRadar();
+    // Delay radar render to ensure container has dimensions and THREE is loaded
+    setTimeout(function() { renderRadar(); }, 300);
     renderBar();
     renderGroupedBar();
     renderMatrix();
