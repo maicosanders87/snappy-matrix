@@ -1174,10 +1174,10 @@ window.addEventListener('load', () => {
     }
 
     function renderBulletinBoard() {
-      // 9-day rolling window (4 days back, today, 4 days forward)
+      // Rolling window: 4 days back, today, 6 days forward (11-day span to cover full week ahead)
       var now9 = new Date();
       var nineStart = new Date(now9.getFullYear(), now9.getMonth(), now9.getDate() - 4);
-      var nineEnd = new Date(now9.getFullYear(), now9.getMonth(), now9.getDate() + 4);
+      var nineEnd = new Date(now9.getFullYear(), now9.getMonth(), now9.getDate() + 6);
       var nineStartStr = bbFmtDate(nineStart);
       var nineEndStr = bbFmtDate(nineEnd);
       var bb = bbLoad();
@@ -1187,10 +1187,6 @@ window.addEventListener('load', () => {
       var weekMeetings = bb.meetings.filter(function(m) { return m.date >= nineStartStr && m.date <= nineEndStr; });
       var weekOneOnOnes = bb.oneOnOnes.filter(function(o) { return o.date >= nineStartStr && o.date <= nineEndStr; });
       var weekRideAlongs = bb.rideAlongs.filter(function(r) { return r.date >= nineStartStr && r.date <= nineEndStr; });
-
-      console.log('[BB Render] 9-day range:', nineStartStr, 'to', nineEndStr);
-      console.log('[BB Render] BB oneOnOnes:', bb.oneOnOnes.length, 'rideAlongs:', bb.rideAlongs.length);
-      console.log('[BB Render] Filtered weekOneOnOnes:', weekOneOnOnes.length, 'weekRideAlongs:', weekRideAlongs.length);
 
       // Also merge manager entries
       if (mgrState && mgrState.entries) {
@@ -1207,8 +1203,6 @@ window.addEventListener('load', () => {
           }
         });
       }
-
-      console.log('[BB Render] After merge: weekOneOnOnes:', weekOneOnOnes.length, 'weekRideAlongs:', weekRideAlongs.length, 'mgrEntries total:', mgrState.entries.length);
 
       // Sort each by date
       weekMeetings.sort(function(a,b) { return a.date < b.date ? -1 : 1; });
@@ -1389,14 +1383,15 @@ window.addEventListener('load', () => {
       var bb = bbLoad();
       var subject = document.getElementById('bbMeetSubject').value.trim();
       if (!subject) { alert('Please enter a subject/theme.'); return; }
-      bb.meetings.push({
+      var newMeeting = {
         id: bbUID(),
         date: document.getElementById('bbMeetDate').value,
         subject: subject,
         time: document.getElementById('bbMeetTime').value.trim(),
         location: document.getElementById('bbMeetLocation').value.trim(),
         notes: document.getElementById('bbMeetNotes').value.trim()
-      });
+      };
+      bb.meetings.push(newMeeting);
       bbSave(bb);
       renderBulletinBoard();
     }
@@ -1518,11 +1513,30 @@ window.addEventListener('load', () => {
       camera.position.set(0, 4.5, 7.5);
       camera.lookAt(0, 0, 0);
 
-      var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      var renderer;
+      try {
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      } catch(e) {
+        console.warn('WebGL failed:', e);
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#8b93a8;font-size:14px;">3D radar unavailable — WebGL not supported on this device</div>';
+        return;
+      }
+      if (!renderer.getContext()) {
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#8b93a8;font-size:14px;">3D radar unavailable — WebGL context failed</div>';
+        return;
+      }
       renderer.setSize(W, H);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setClearColor(0x000000, 0);
       container.appendChild(renderer.domElement);
+      // Handle WebGL context lost
+      renderer.domElement.addEventListener('webglcontextlost', function(e) {
+        e.preventDefault();
+        console.warn('WebGL context lost');
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#8b93a8;font-size:14px;">WebGL context lost — tap to retry</div>';
+        container.style.cursor = 'pointer';
+        container.onclick = function() { container.onclick = null; container.style.cursor = ''; radar3dRendered = false; renderRadar(); };
+      });
 
       // Lighting
       var ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -4864,8 +4878,6 @@ window.addEventListener('load', () => {
         bb.rideAlongs.push({ id: entryId, tech: tech, date: dateStr, time: '', status: status, notes: notes, source: 'mgr' });
       }
       bbSave(bb);
-      console.log('[BB] Saved entry', entryId, 'type:', type, 'date:', dateStr);
-      console.log('[BB] bb.oneOnOnes count:', bb.oneOnOnes.length, 'bb.rideAlongs count:', bb.rideAlongs.length);
       modal.remove();
       // Instant re-renders
       renderBulletinBoard();
