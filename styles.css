@@ -3784,7 +3784,37 @@
   font-size: 14px;
 }
 
-    /* ========== Cloud Sync Indicator ========== */
+    /* ========== Cloud Sync Button & Indicator ========== */
+    .sync-now-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.7);
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      padding: 0;
+      line-height: 1;
+    }
+    .sync-now-btn:hover {
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+      border-color: rgba(255,255,255,0.35);
+    }
+    .sync-now-btn.syncing {
+      animation: spin-sync 1s linear infinite;
+      color: #64b5f6;
+      border-color: rgba(100,181,246,0.4);
+    }
+    @keyframes spin-sync {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
     .sync-indicator {
       display: inline-flex;
       align-items: center;

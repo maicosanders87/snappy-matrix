@@ -182,6 +182,64 @@ async function initCloudSync() {
   }
 }
 
+// Manual sync button
+async function manualSync() {
+  var btn = document.getElementById('syncNowBtn');
+  if (!SyncEngine.isConfigured()) {
+    openSyncSetup();
+    return;
+  }
+  btn.classList.add('syncing');
+  try {
+    // Push all local data to cloud
+    SyncEngine.write('skills', skillsData.assignments);
+    SyncEngine.write('manager', mgrState);
+    SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
+    await SyncEngine._flush();
+    // Pull cloud data
+    var cloudData = await SyncEngine.pull();
+    if (cloudData) {
+      var keyMap = {
+        'skills': 'snappy_skills_assignments',
+        'manager': 'snappy_manager_entries',
+        'techfiles': 'snappy_tech_files',
+        'dispatch': 'snappy_dispatch_v1',
+        'dailyduties': 'snappy_daily_duties',
+        'mgrstats': 'snappy_mgr_stats',
+        'daynotes': 'snappy_day_notes',
+        'nexstar': 'snappy_nexstar',
+        'bulletin': 'snappy_bulletin_board'
+      };
+      var updated = false;
+      for (var ck in keyMap) {
+        if (cloudData[ck]) {
+          var cv = cloudData[ck].data || cloudData[ck].val || '';
+          if (cv && cv !== localStorage.getItem(keyMap[ck])) {
+            localStorage.setItem(keyMap[ck], cv);
+            updated = true;
+          }
+        }
+      }
+      if (updated) {
+        mgrLoad();
+        renderBulletinBoard();
+        try { renderManagerTab(); } catch(e) {}
+      }
+    }
+    btn.classList.remove('syncing');
+    // Success flash
+    btn.style.color = '#4CAF50';
+    btn.style.borderColor = 'rgba(76,175,80,0.5)';
+    setTimeout(function() { btn.style.color = ''; btn.style.borderColor = ''; }, 1500);
+  } catch(e) {
+    console.warn('Manual sync error:', e);
+    btn.classList.remove('syncing');
+    btn.style.color = '#e57373';
+    btn.style.borderColor = 'rgba(229,115,115,0.5)';
+    setTimeout(function() { btn.style.color = ''; btn.style.borderColor = ''; }, 1500);
+  }
+}
+
 // Sync setup modal functions
 function openSyncSetup() {
   if (!requireManager()) return;
