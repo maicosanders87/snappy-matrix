@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="styles.css?v=20260418b">
+  <link rel="stylesheet" href="styles.css?v=20260418c">
 </head>
 <body>
   <div class="container">
@@ -314,6 +314,10 @@
 
       <!-- Session Log Section -->
       <div id="mgr-log" class="mgr-section">
+        <button class="mgr-back-btn" onclick="mgrSwitchSubTab('calendar')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          Back to Calendar
+        </button>
         <div class="mgr-log-filters">
           <select class="mgr-select" id="mgrLogTech">
             <option value="">All Techs</option>
@@ -335,6 +339,10 @@
 
       <!-- Tech Files Section -->
       <div id="mgr-techfiles" class="mgr-section">
+        <button class="mgr-back-btn" onclick="mgrSwitchSubTab('calendar')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          Back to Calendar
+        </button>
         <div class="tf-layout">
           <div class="tf-sidebar" id="tfSidebar"></div>
           <div class="tf-main" id="tfMain"></div>
@@ -343,6 +351,10 @@
 
       <!-- Forms (PDF) Section -->
       <div id="mgr-forms" class="mgr-section">
+        <button class="mgr-back-btn" onclick="mgrSwitchSubTab('calendar')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          Back to Calendar
+        </button>
         <div class="mgr-forms-header">
           <h3 style="margin:0 0 4px 0; font-size:18px; color:var(--text-primary);">Printable Forms</h3>
           <p style="margin:0; font-size:13px; color:var(--text-secondary);">Download and print coaching forms for field use.</p>
@@ -416,6 +428,10 @@
 
       <!-- Training Planner Section -->
       <div id="mgr-training" class="mgr-section">
+        <button class="mgr-back-btn" onclick="mgrSwitchSubTab('calendar')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          Back to Calendar
+        </button>
         <div class="mgr-training-grid">
           <div class="mgr-training-card">
             <h3>Suggested Focus This Week</h3>
@@ -815,7 +831,7 @@ AND 30% of advancement "votes" come from skills progress
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="pdf_data.js?v=20260418b"></script>
-  <script src="app.js?v=20260418b"></script>
+  <script src="pdf_data.js?v=20260418c"></script>
+  <script src="app.js?v=20260418c"></script>
 </body>
 </html>

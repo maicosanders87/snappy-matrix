@@ -4038,6 +4038,18 @@ window.addEventListener('load', () => {
       });
     })();
 
+    // ========== BACK NAVIGATION (global) ==========
+    function mgrSwitchSubTab(tabName) {
+      document.querySelectorAll('#mgr-sub-tabs .nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.mgr-section').forEach(s => s.classList.remove('active'));
+      var btn = document.querySelector('#mgr-sub-tabs [data-mgr="' + tabName + '"]');
+      if (btn) btn.classList.add('active');
+      var sec = document.getElementById('mgr-' + tabName);
+      if (sec) sec.classList.add('active');
+      // Scroll to top of manager tab
+      sec && sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     // ========== TECH FILES ==========
     const TF_STORAGE_KEY = 'snappy_tech_files';
     let tfFiles = {}; // { tech: [ { id, type, title, notes, fileName, fileSize, fileData, date } ] }
