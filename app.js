@@ -4398,22 +4398,34 @@ window.addEventListener('load', () => {
         return;
       }
 
+      // Check which entries are already on the bulletin board
+      var bb = bbLoad();
+      var bbOOIds = {};
+      bb.oneOnOnes.forEach(function(o) { bbOOIds[o.id] = true; });
+      var bbRAIds = {};
+      bb.rideAlongs.forEach(function(r) { bbRAIds[r.id] = true; });
+
       let html = `<table class="mgr-log-table">
         <thead><tr>
-          <th>Date</th><th>Type</th><th>Tech</th><th>Status</th><th>Summary</th>
+          <th>Date</th><th>Type</th><th>Tech</th><th>Status</th><th>Summary</th><th class="mgr-only" style="width:40px;"></th>
         </tr></thead><tbody>`;
       filtered.forEach(e => {
         const d = mgrParseDate(e.date);
         const typeLabel = e.type === 'one-on-one' ? '1-on-1' : 'Ride-Along';
         const summary = e.data.coveredSummary || e.data.actualDiagnosis || e.data.debriefManagerBetter || e.data.customFocus || e.data.nextSteps || '—';
+        const isOnBB = (e.type === 'one-on-one' && bbOOIds[e.id]) || (e.type === 'ride-along' && bbRAIds[e.id]);
+        const bbBtn = isOnBB
+          ? `<span title="On Bulletin Board" style="color:#4CAF50;font-size:16px;cursor:default;">\u2705</span>`
+          : `<button class="mgr-bb-add-btn mgr-only" title="Add to Bulletin Board" onclick="event.stopPropagation(); _logAddToBB('${e.id}')" style="background:none;border:1px solid rgba(255,215,0,0.4);border-radius:6px;padding:3px 8px;font-size:11px;color:#FFD700;cursor:pointer;white-space:nowrap;">+ BB</button>`;
         html += `<tr class="mgr-log-row" data-id="${e.id}">
           <td>${mgrFmtShort(d)} ${d.getFullYear()}</td>
           <td><span class="mgr-entry-type ${e.type}">${typeLabel}</span></td>
           <td><span class="mgr-log-tech-dot" style="background:${MGR_TECH_COLORS[e.tech]||'#888'}"></span>${e.tech}</td>
           <td><span class="mgr-entry-status ${e.status}">${e.status}</span></td>
           <td style="max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${mgrEscape(summary.slice(0,140))}</td>
+          <td class="mgr-only" style="text-align:center;">${bbBtn}</td>
         </tr>
-        <tr class="mgr-log-detail" data-detail="${e.id}" style="display:none;"><td colspan="5" class="mgr-log-expanded">${mgrFormatEntryDetail(e)}</td></tr>`;
+        <tr class="mgr-log-detail" data-detail="${e.id}" style="display:none;"><td colspan="6" class="mgr-log-expanded">${mgrFormatEntryDetail(e)}</td></tr>`;
       });
       html += `</tbody></table>`;
       document.getElementById('mgrLogTableWrap').innerHTML = html;
@@ -4425,6 +4437,18 @@ window.addEventListener('load', () => {
           if (detail) detail.style.display = detail.style.display === 'none' ? 'table-row' : 'none';
         });
       });
+    }
+
+    function _logAddToBB(entryId) {
+      var entry = mgrState.entries.find(function(e) { return e.id === entryId; });
+      if (!entry) { alert('Entry not found.'); return; }
+      var notes = '';
+      if (entry.type === 'one-on-one') {
+        notes = entry.data.customFocus || entry.data.coveredSummary || '';
+      } else {
+        notes = entry.data.observationNotes || entry.data.debriefManagerBetter || '';
+      }
+      _showBBPromptModal(entry.type, entry.tech, entry.date, entry.status, notes, entry.id);
     }
 
     function mgrFormatEntryDetail(e) {
