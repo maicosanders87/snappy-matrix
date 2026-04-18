@@ -158,7 +158,8 @@ async function initCloudSync() {
     'dailyduties': 'snappy_daily_duties',
     'mgrstats': 'snappy_mgr_stats',
     'daynotes': 'snappy_day_notes',
-    'nexstar': 'snappy_nexstar'
+    'nexstar': 'snappy_nexstar',
+    'bulletin': 'snappy_bulletin_board'
   };
 
   let needsReload = false;
@@ -1018,6 +1019,7 @@ window.addEventListener('load', () => {
     }
     function bbSave(data) {
       localStorage.setItem(BB_KEY, JSON.stringify(data));
+      SyncEngine.write('bulletin', data);
     }
     function bbUID() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
