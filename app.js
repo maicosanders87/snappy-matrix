@@ -4858,9 +4858,16 @@ window.addEventListener('load', () => {
         bb.rideAlongs.push({ id: entryId, tech: tech, date: dateStr, time: '', status: status, notes: notes, source: 'mgr' });
       }
       bbSave(bb);
-      renderBulletinBoard();
-      renderManagerTab();
       modal.remove();
+      // Instant re-renders so + BB switches to checkmark and BB updates
+      try { renderBulletinBoard(); } catch(e) { console.warn('BB render error:', e); }
+      try { renderManagerLog(); } catch(e) { console.warn('Log render error:', e); }
+      try { renderManagerCalendar(); } catch(e) { console.warn('Cal render error:', e); }
+      // Deferred safety re-render
+      setTimeout(function() {
+        try { renderBulletinBoard(); } catch(e) {}
+        try { renderManagerLog(); } catch(e) {}
+      }, 150);
     }
 
     function mgrExportTrainingPDF() {
