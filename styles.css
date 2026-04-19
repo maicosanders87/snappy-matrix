@@ -3992,6 +3992,71 @@
   font-size: 14px;
 }
 
+    /* ========== VIEW SWITCHER DROPDOWN (Manager-only) ========== */
+    .view-switcher-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 6px;
+      width: 240px;
+      background: #1a1f2e;
+      border: 1.5px solid #2d3548;
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+      z-index: 9999;
+      overflow: hidden;
+      animation: vsFadeIn 0.15s ease;
+    }
+    @keyframes vsFadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .vs-header {
+      padding: 12px 16px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #6b7280;
+    }
+    .vs-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.12s;
+      position: relative;
+    }
+    .vs-option:hover {
+      background: rgba(255,255,255,0.06);
+    }
+    .vs-option.vs-active {
+      background: rgba(45,106,106,0.18);
+    }
+    .vs-option-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e4e7ec;
+      flex: 1;
+    }
+    .vs-option.vs-active .vs-option-label {
+      color: #5ee6c8;
+    }
+    .vs-option-desc {
+      font-size: 11px;
+      color: #6b7280;
+      display: none;
+    }
+    .vs-check {
+      color: #5ee6c8;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .vs-option:last-child {
+      margin-bottom: 6px;
+    }
+
     /* ========== EDITOR INSTRUCTIONS BANNER ========== */
     .editor-instructions-banner {
       background: linear-gradient(135deg, rgba(255,152,0,0.08), rgba(255,193,7,0.06));

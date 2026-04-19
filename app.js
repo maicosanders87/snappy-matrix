@@ -56,9 +56,93 @@ function applyViewMode() {
   }
 }
 
+// ---- View Switcher (Manager-only dropdown) ----
+function switchToView(mode, name) {
+  isManagerMode = false; isCoachMode = false; isEditorMode = false;
+  coachName = ''; editorName = '';
+  localStorage.removeItem('snappy_mgr_mode'); localStorage.removeItem('snappy_coach_mode');
+  localStorage.removeItem('snappy_coach_name'); localStorage.removeItem('snappy_editor_mode');
+  localStorage.removeItem('snappy_editor_name');
+  if (mode === 'manager') {
+    isManagerMode = true; localStorage.setItem('snappy_mgr_mode', 'true');
+  } else if (mode === 'editor') {
+    isEditorMode = true; editorName = name || 'Judah';
+    localStorage.setItem('snappy_editor_mode', 'true'); localStorage.setItem('snappy_editor_name', editorName);
+  } else if (mode === 'coach') {
+    isCoachMode = true; coachName = name || '';
+    localStorage.setItem('snappy_coach_mode', 'true'); localStorage.setItem('snappy_coach_name', coachName);
+  }
+  // mode === 'viewer' leaves everything false
+  closeViewSwitcher();
+  applyViewMode();
+}
+
+function openViewSwitcher() {
+  var dd = document.getElementById('viewSwitcherDropdown');
+  if (!dd) return;
+  var currentView = isManagerMode ? 'manager' : isEditorMode ? 'editor' : isCoachMode ? 'coach' : 'viewer';
+  var views = [
+    { id: 'manager', label: 'Manager', icon: '\u1F6E1', desc: 'Full edit access' },
+    { id: 'editor', label: 'Editor (Judah)', icon: '\u270F', desc: 'Dispatch edit access', name: 'Judah' },
+    { id: 'coach-jg', label: 'Coach (Jay / Greg)', icon: '\uD83D\uDC53', desc: 'View-only', name: 'Jay / Greg' },
+    { id: 'coach-adam', label: 'Coach (Adam)', icon: '\uD83D\uDC53', desc: 'View-only', name: 'Adam' },
+    { id: 'viewer', label: 'Viewer', icon: '\uD83D\uDD12', desc: 'Locked / public view' }
+  ];
+  var html = '<div class="vs-header">Switch View</div>';
+  views.forEach(function(v) {
+    var active = '';
+    if (v.id === 'manager' && currentView === 'manager') active = ' vs-active';
+    else if (v.id === 'editor' && currentView === 'editor') active = ' vs-active';
+    else if (v.id === 'coach-jg' && currentView === 'coach' && coachName === 'Jay / Greg') active = ' vs-active';
+    else if (v.id === 'coach-adam' && currentView === 'coach' && coachName === 'Adam') active = ' vs-active';
+    else if (v.id === 'viewer' && currentView === 'viewer') active = ' vs-active';
+    var mode = v.id.startsWith('coach') ? 'coach' : v.id;
+    var nameAttr = v.name ? v.name : '';
+    html += '<div class="vs-option' + active + '" data-mode="' + mode + '" data-name="' + nameAttr + '">';
+    html += '<div class="vs-option-label">' + v.label + '</div>';
+    html += '<div class="vs-option-desc">' + v.desc + '</div>';
+    if (active) html += '<span class="vs-check">&#10003;</span>';
+    html += '</div>';
+  });
+  dd.innerHTML = html;
+  dd.style.display = 'block';
+  // Wire clicks
+  dd.querySelectorAll('.vs-option').forEach(function(opt) {
+    opt.addEventListener('click', function() {
+      switchToView(opt.dataset.mode, opt.dataset.name);
+    });
+  });
+  // Close on outside click
+  setTimeout(function() {
+    document.addEventListener('click', _closeViewSwitcherOutside, { once: true, capture: true });
+  }, 50);
+}
+function closeViewSwitcher() {
+  var dd = document.getElementById('viewSwitcherDropdown');
+  if (dd) dd.style.display = 'none';
+}
+function _closeViewSwitcherOutside(e) {
+  var wrap = document.querySelector('.access-lock-wrap');
+  if (wrap && wrap.contains(e.target)) {
+    // Re-listen if click was inside wrapper
+    setTimeout(function() {
+      document.addEventListener('click', _closeViewSwitcherOutside, { once: true, capture: true });
+    }, 50);
+    return;
+  }
+  closeViewSwitcher();
+}
+
 function promptManagerPIN() {
-  if (isManagerMode || isCoachMode || isEditorMode) {
-    // Already unlocked — offer to lock
+  // If already in Manager mode — show the view switcher dropdown
+  if (isManagerMode) {
+    var dd = document.getElementById('viewSwitcherDropdown');
+    if (dd && dd.style.display === 'block') { closeViewSwitcher(); return; }
+    openViewSwitcher();
+    return;
+  }
+  // If in coach/editor mode — offer to lock
+  if (isCoachMode || isEditorMode) {
     if (confirm('Lock access?')) {
       isManagerMode = false;
       isCoachMode = false;
