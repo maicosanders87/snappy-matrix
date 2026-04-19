@@ -1418,15 +1418,6 @@ window.addEventListener('load', () => {
         '<textarea id="bbUpdateText" placeholder="e.g. Added new skill tags for Daniel, updated Dewone composite..."></textarea>' +
         '<button class="bb-add-btn meeting" onclick="bbAddUpdate()">+ Post Update</button>' +
       '</div>';
-      // Skills & Tagging System button inside updates card
-      html += '<div onclick="bbGoToSkillsTags()" style="display:flex;align-items:center;gap:10px;padding:12px 16px;margin-top:8px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.05)\'">' +
-        '<span style="font-size:18px;">\ud83c\udff7\ufe0f</span>' +
-        '<div style="flex:1;">' +
-          '<div style="font-size:13px;font-weight:700;color:var(--snappy-yellow);">Skills & Tagging System</div>' +
-          '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">View skill categories, assigned tags, and progression requirements</div>' +
-        '</div>' +
-        '<span style="color:var(--snappy-yellow);font-size:18px;">\u2192</span>' +
-      '</div>';
       html += '</div>'; // close bb-updates-card
 
       // Skills & Tagging System link card
@@ -1437,6 +1428,13 @@ window.addEventListener('load', () => {
           '<div class="bb-link-desc">View skill categories, assigned tags, and progression requirements</div>' +
         '</div>' +
         '<div class="bb-link-arrow">\u2192</div>' +
+      '</div>';
+
+      // Breakdown of Skills button (under Skills link card)
+      html += '<div onclick="bbGoToSkillsTags()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,#1C2E52,#243b6a);border:1px solid rgba(255,215,0,0.3);border-radius:10px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor=\'rgba(255,215,0,0.6)\';this.style.background=\'linear-gradient(135deg,#243b6a,#2d4a82)\'" onmouseout="this.style.borderColor=\'rgba(255,215,0,0.3)\';this.style.background=\'linear-gradient(135deg,#1C2E52,#243b6a)\'">' +
+        '<span style="font-size:15px;">\ud83d\udcca</span>' +
+        '<span style="font-size:13px;font-weight:700;color:var(--snappy-yellow);">Breakdown of Skills</span>' +
+        '<span style="color:var(--snappy-yellow);font-size:14px;">\u2192</span>' +
       '</div>';
 
       html += '</div>'; // close bb-bottom-row
