@@ -3112,7 +3112,8 @@ window.addEventListener('load', () => {
       { key: 'invoices', label: 'Invoices — accuracy, completeness, timely submission' },
       { key: 'recsOptions', label: 'Recommendations / Options — presenting full options?' },
       { key: 'wantsNeeds', label: 'Wants & Needs — tech\'s personal development goals' },
-      { key: 'matrixSuggestions', label: 'Matrix suggestions — skill gaps & development focus' }
+      { key: 'matrixSuggestions', label: 'Matrix suggestions — skill gaps & development focus' },
+      { key: 'scoreBreakdown', label: 'Matrix score breakdown — review composite score & weighted areas' }
     ];
     const MGR_OBSERVATION_ITEMS = [
       { key: 'prepare', label: '1. PREPARE — Reviewed call, truck stocked, mentally ready', group: 'Prepare' },
