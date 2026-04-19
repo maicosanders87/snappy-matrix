@@ -1430,8 +1430,8 @@ window.addEventListener('load', () => {
         '<div class="bb-link-arrow">\u2192</div>' +
       '</div>';
 
-      // Breakdown of Skills button (under Skills link card)
-      html += '<div onclick="bbGoToSkillsTags()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,#1C2E52,#243b6a);border:1px solid rgba(255,215,0,0.3);border-radius:10px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor=\'rgba(255,215,0,0.6)\';this.style.background=\'linear-gradient(135deg,#243b6a,#2d4a82)\'" onmouseout="this.style.borderColor=\'rgba(255,215,0,0.3)\';this.style.background=\'linear-gradient(135deg,#1C2E52,#243b6a)\'">' +
+      // Breakdown of Skills button (under Skills link card) — opens the Skills & Tags doc modal
+      html += '<div onclick="openSkillsDoc()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,#1C2E52,#243b6a);border:1px solid rgba(255,215,0,0.3);border-radius:10px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor=\'rgba(255,215,0,0.6)\';this.style.background=\'linear-gradient(135deg,#243b6a,#2d4a82)\'" onmouseout="this.style.borderColor=\'rgba(255,215,0,0.3)\';this.style.background=\'linear-gradient(135deg,#1C2E52,#243b6a)\'">' +
         '<span style="font-size:15px;">\ud83d\udcca</span>' +
         '<span style="font-size:13px;font-weight:700;color:var(--snappy-yellow);">Breakdown of Skills</span>' +
         '<span style="color:var(--snappy-yellow);font-size:14px;">\u2192</span>' +
