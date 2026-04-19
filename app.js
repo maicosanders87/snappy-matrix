@@ -5084,7 +5084,7 @@ window.addEventListener('load', () => {
       const main = document.getElementById('tfMain');
       const typeLabels = {
         recall: 'Recall', invoice: 'Invoice', summary: 'Summary', callback: 'Callback',
-        complaint: 'Complaint', photo: 'Photo', note: 'Note', other: 'Other'
+        complaint: 'Complaint', photo: 'Photo', note: 'Note', scorecard: 'Score Breakdown', other: 'Other'
       };
 
       let html = `<div class="tf-header">
@@ -5099,6 +5099,7 @@ window.addEventListener('load', () => {
             <option value="complaint"${filterVal==='complaint'?' selected':''}>Complaints</option>
             <option value="photo"${filterVal==='photo'?' selected':''}>Photos</option>
             <option value="note"${filterVal==='note'?' selected':''}>Notes</option>
+            <option value="scorecard"${filterVal==='scorecard'?' selected':''}>Score Breakdowns</option>
             <option value="other"${filterVal==='other'?' selected':''}>Other</option>
           </select>
           <button class="tf-upload-btn" onclick="tfOpenUpload()">

@@ -2923,6 +2923,7 @@
     .tf-type-complaint { background: #FCE7F3; color: #9D174D; }
     .tf-type-photo { background: #E0E7FF; color: #3730A3; }
     .tf-type-note { background: rgba(45,106,106,0.1); color: var(--accent-teal); }
+    .tf-type-scorecard { background: #EDE9FE; color: #5B21B6; }
     .tf-type-other { background: var(--bg-hover); color: var(--text-muted); }
     .tf-card-name {
       font-size: 13px;
