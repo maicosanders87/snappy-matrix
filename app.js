@@ -2432,7 +2432,7 @@ window.addEventListener('load', () => {
         memberships: { total_mem_sold: 0, total_mem_opps: 8, total_mem_pct: 0 },
         productivity: { rev_hr: 24, billable_hours: 87.35, sold_hrs_on_job_pct: 32, tasks_per_opp: 2.63, options_per_opp: 0.75, recalls: 1 },
         sales: { total_sales: 1233, avg_sale_s: 411, close_rate: 38, sales_opps: 8, options_per_opp_s: 0.75 },
-        installs: { count: 0, total_revenue: 0, avg_sale: 0, leads_generated: 0, self_sourced: 0 }
+        installs: { count: 1, total_revenue: 13410, avg_sale: 13410, leads_generated: 1, self_sourced: 0 }
       }
     ];
 
