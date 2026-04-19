@@ -1102,7 +1102,7 @@ window.addEventListener('load', () => {
       else if (composite >= 78) { tier = 'B'; tierLabel = 'Solid'; }
       else { tier = 'C'; tierLabel = 'Developing'; }
 
-      return { tier, tierLabel, composite: Math.round(composite), aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore) };
+      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore) };
     }
 
     function tierBadgeHTML(tier, size) {
@@ -3552,7 +3552,9 @@ window.addEventListener('load', () => {
         // === Build BACK side: tier progression info ===
         const next = nextTierMap[tierInfo.tier];
         const target = next ? thresholds[tierInfo.tier] : null;
-        const gap = target ? target - tierInfo.composite : 0;
+        // Use raw composite for gap so rounding never shows +0 when tech hasn't crossed threshold
+        const gapRaw = target ? target - tierInfo.compositeRaw : 0;
+        const gap = Math.max(Math.ceil(gapRaw), next ? 1 : 0); // At least +1 if not yet promoted
         const nextLabel = next ? tierLabelsMap[next] : null;
         const nextColor = next ? tierColors[next] : tierColors[tierInfo.tier];
 
