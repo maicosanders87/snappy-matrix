@@ -1,27 +1,34 @@
-// ========== ACCESS CONTROL (Manager vs Viewer) ==========
+// ========== ACCESS CONTROL (Manager vs Viewer vs Coach) ==========
 const MGR_PIN = '3433';
+const COACH_PIN = '1234';
 let isManagerMode = localStorage.getItem('snappy_mgr_mode') === 'true';
+let isCoachMode = localStorage.getItem('snappy_coach_mode') === 'true';
 
 function applyViewMode() {
+  document.body.classList.remove('viewer-mode', 'manager-mode', 'coach-mode');
   if (isManagerMode) {
-    document.body.classList.remove('viewer-mode');
     document.body.classList.add('manager-mode');
+  } else if (isCoachMode) {
+    document.body.classList.add('coach-mode');
   } else {
     document.body.classList.add('viewer-mode');
-    document.body.classList.remove('manager-mode');
   }
   // Update header subtitle
   var sub = document.getElementById('headerSubtitle');
-  if (sub) sub.textContent = isManagerMode ? 'Tech Skills Matrix \u2014 Manager View' : 'Tech Skills Matrix \u2014 Viewer Mode';
+  if (sub) {
+    if (isManagerMode) sub.textContent = 'Tech Skills Matrix \u2014 Manager View';
+    else if (isCoachMode) sub.textContent = 'Tech Skills Matrix \u2014 Coach View';
+    else sub.textContent = 'Tech Skills Matrix \u2014 Viewer Mode';
+  }
   // Update lock icon (open vs closed)
   var lockSvg = document.getElementById('lockIcon');
   if (lockSvg) {
-    lockSvg.innerHTML = isManagerMode
+    lockSvg.innerHTML = (isManagerMode || isCoachMode)
       ? '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5"/>'
       : '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
   }
   // If switching to viewer while on Manager tab, redirect to Overview
-  if (!isManagerMode) {
+  if (!isManagerMode && !isCoachMode) {
     var activeTab = document.querySelector('.nav-tabs:not(#st-sub-tabs):not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs) .nav-tab.active');
     if (activeTab && activeTab.dataset.view === 'manager') {
       activeTab.classList.remove('active');
@@ -35,19 +42,29 @@ function applyViewMode() {
 }
 
 function promptManagerPIN() {
-  if (isManagerMode) {
-    // Already manager — offer to lock
-    if (confirm('Lock manager mode?')) {
+  if (isManagerMode || isCoachMode) {
+    // Already unlocked — offer to lock
+    if (confirm('Lock access?')) {
       isManagerMode = false;
+      isCoachMode = false;
       localStorage.removeItem('snappy_mgr_mode');
+      localStorage.removeItem('snappy_coach_mode');
       applyViewMode();
     }
     return;
   }
-  var pin = prompt('Enter manager PIN:');
+  var pin = prompt('Enter PIN:');
   if (pin === MGR_PIN) {
     isManagerMode = true;
+    isCoachMode = false;
     localStorage.setItem('snappy_mgr_mode', 'true');
+    localStorage.removeItem('snappy_coach_mode');
+    applyViewMode();
+  } else if (pin === COACH_PIN) {
+    isCoachMode = true;
+    isManagerMode = false;
+    localStorage.setItem('snappy_coach_mode', 'true');
+    localStorage.removeItem('snappy_mgr_mode');
     applyViewMode();
   } else if (pin !== null) {
     alert('Incorrect PIN.');
@@ -3676,7 +3693,7 @@ window.addEventListener('load', () => {
       const dayEntries = mgrState.entries.filter(e => e.date === dateStr);
 
       let html = `
-        <div class="mgr-panel-actions">
+        <div class="mgr-panel-actions mgr-edit-only">
           <button class="mgr-btn green" onclick="mgrStartForm('one-on-one')">+ 1-on-1</button>
           <button class="mgr-btn" style="background:#3A6BA8" onclick="mgrStartForm('ride-along')">+ Ride-Along</button>
         </div>

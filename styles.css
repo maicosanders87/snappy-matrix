@@ -2277,6 +2277,59 @@
     .manager-mode .access-lock-btn svg { stroke: var(--snappy-yellow); }
     .viewer-mode .access-lock-btn svg { stroke: #FF9800; }
 
+    /* ========== COACH MODE (view-only Manager tab, everything else locked) ========== */
+    /* Same viewer restrictions for non-manager sections */
+    .coach-mode .mgr-only:not(.nav-tab) { display: none !important; }
+    .coach-mode .sm-check-yes,
+    .coach-mode .sm-check-no { pointer-events: none; cursor: default; }
+    .coach-mode .disp-pool-tag { pointer-events: none; cursor: default; }
+    .coach-mode .disp-tag-x { display: none; }
+    .coach-mode .disp-remove-tag { display: none; }
+    .coach-mode .disp-tech-tags { pointer-events: none; }
+    .coach-mode #dispAddTagBtn { display: none; }
+    .coach-mode #dispNewTag { display: none; }
+    .coach-mode .mgr-stat-editable { pointer-events: none; cursor: default; }
+    .coach-mode .bb-add-form { display: none; }
+    .coach-mode .bb-remove { display: none !important; }
+    /* Show Manager tab nav button */
+    .coach-mode .nav-tab[data-view="manager"] { display: inline-flex !important; }
+    /* Manager tab content: show but read-only */
+    .coach-mode #view-manager { display: block; }
+    /* Hide all edit/add/delete controls inside Manager tab */
+    .coach-mode .mgr-add-btn { display: none !important; }
+    .coach-mode .mgr-delete-btn { display: none !important; }
+    .coach-mode .mgr-save-btn { display: none !important; }
+    .coach-mode .mgr-bb-add-btn { display: none !important; }
+    .coach-mode .tf-save-btn { display: none !important; }
+    .coach-mode .tf-card-btn.danger { display: none !important; }
+    .coach-mode .tf-dropzone { display: none !important; }
+    .coach-mode #tfFileInput { display: none !important; }
+    .coach-mode .tf-upload-btn { display: none !important; }
+    .coach-mode button[onclick*="tfOpenUpload"] { display: none !important; }
+    .coach-mode button[onclick*="tfEditFile"] { display: none !important; }
+    .coach-mode button[onclick*="tfDeleteFile"] { display: none !important; }
+    .coach-mode button[onclick*="mgrAddEntry"] { display: none !important; }
+    .coach-mode button[onclick*="mgrSaveEntry"] { display: none !important; }
+    .coach-mode button[onclick*="mgrDeleteEntry"] { display: none !important; }
+    .coach-mode .mgr-form-actions { display: none !important; }
+    .coach-mode #view-manager textarea { pointer-events: none; opacity: 0.7; }
+    .coach-mode #view-manager select { pointer-events: none; opacity: 0.7; }
+    .coach-mode #view-manager input[type="text"],
+    .coach-mode #view-manager input[type="date"] { pointer-events: none; opacity: 0.7; }
+    /* Hide add-entry actions in manager panel */
+    .coach-mode .mgr-edit-only { display: none !important; }
+    .coach-mode .mgr-panel-actions { display: none !important; }
+    /* Disable checkboxes and form inputs inside manager panel */
+    .coach-mode #mgrPanel input[type="checkbox"] { pointer-events: none; }
+    .coach-mode #mgrPanel input[type="text"],
+    .coach-mode #mgrPanel input[type="date"],
+    .coach-mode #mgrPanel input[type="time"],
+    .coach-mode #mgrPanel textarea,
+    .coach-mode #mgrPanel select { pointer-events: none; opacity: 0.7; }
+    .coach-mode #mgrPanel .mgr-btn { display: none !important; }
+    /* Lock icon color for coach mode */
+    .coach-mode .access-lock-btn svg { stroke: #4FC3F7; }
+
     /* ========== MANAGER TAB ========== */
     .mgr-section { display: none; }
     .mgr-section.active { display: block; }
