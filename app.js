@@ -1497,7 +1497,7 @@ window.addEventListener('load', () => {
         { icon: '\u26a0\ufe0f', value: liveComplaints, label: 'Complaints', sub: 'Active customer complaints' },
         { icon: '\ud83d\udcb0', value: '$' + totalRevenue.toLocaleString(), label: 'MTD Revenue', sub: 'Month-to-date service' },
         { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'Last 90 days' },
-        { icon: '\ud83c\udfe0', value: '$' + totalInstallRev.toLocaleString(), label: 'Install Revenue', sub: 'Equipment installs' }
+        { icon: '\ud83c\udfe0', value: '$' + totalInstallRev.toLocaleString(), label: 'Install Revenue', sub: 'Month-to-date installs' }
       ];
 
       kpis.forEach(function(k) {
