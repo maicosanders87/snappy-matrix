@@ -1,8 +1,12 @@
 // ========== ACCESS CONTROL (Manager vs Viewer vs Coach) ==========
 const MGR_PIN = '3433';
-const COACH_PIN = '1234';
+const COACH_PINS = {
+  'Nexstar': 'Jay / Greg',
+  'AdamB': 'Adam'
+};
 let isManagerMode = localStorage.getItem('snappy_mgr_mode') === 'true';
 let isCoachMode = localStorage.getItem('snappy_coach_mode') === 'true';
+let coachName = localStorage.getItem('snappy_coach_name') || '';
 
 function applyViewMode() {
   document.body.classList.remove('viewer-mode', 'manager-mode', 'coach-mode');
@@ -17,7 +21,7 @@ function applyViewMode() {
   var sub = document.getElementById('headerSubtitle');
   if (sub) {
     if (isManagerMode) sub.textContent = 'Tech Skills Matrix \u2014 Manager View';
-    else if (isCoachMode) sub.textContent = 'Tech Skills Matrix \u2014 Coach View';
+    else if (isCoachMode) sub.textContent = 'Tech Skills Matrix \u2014 Coach View (' + coachName + ')';
     else sub.textContent = 'Tech Skills Matrix \u2014 Viewer Mode';
   }
   // Update lock icon (open vs closed)
@@ -47,27 +51,34 @@ function promptManagerPIN() {
     if (confirm('Lock access?')) {
       isManagerMode = false;
       isCoachMode = false;
+      coachName = '';
       localStorage.removeItem('snappy_mgr_mode');
       localStorage.removeItem('snappy_coach_mode');
+      localStorage.removeItem('snappy_coach_name');
       applyViewMode();
     }
     return;
   }
-  var pin = prompt('Enter PIN:');
+  var pin = prompt('Enter password:');
+  if (pin === null) return;
   if (pin === MGR_PIN) {
     isManagerMode = true;
     isCoachMode = false;
+    coachName = '';
     localStorage.setItem('snappy_mgr_mode', 'true');
     localStorage.removeItem('snappy_coach_mode');
+    localStorage.removeItem('snappy_coach_name');
     applyViewMode();
-  } else if (pin === COACH_PIN) {
+  } else if (COACH_PINS[pin]) {
     isCoachMode = true;
     isManagerMode = false;
+    coachName = COACH_PINS[pin];
     localStorage.setItem('snappy_coach_mode', 'true');
+    localStorage.setItem('snappy_coach_name', coachName);
     localStorage.removeItem('snappy_mgr_mode');
     applyViewMode();
-  } else if (pin !== null) {
-    alert('Incorrect PIN.');
+  } else {
+    alert('Incorrect password.');
   }
 }
 
