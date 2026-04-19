@@ -1471,6 +1471,14 @@ window.addEventListener('load', () => {
           if (stSection) stSection.classList.add('active');
         }
       }
+      // Close sidebar if open (mobile slide-in or desktop expanded)
+      if (window.innerWidth <= 768) {
+        var navEl = document.querySelector('.nav-tabs');
+        if (navEl) navEl.classList.remove('mobile-open');
+      } else {
+        document.body.classList.remove('sidebar-expanded');
+        localStorage.setItem('sidebarExpanded', 'false');
+      }
       // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -2830,7 +2838,7 @@ if (typeof Chart !== 'undefined') {
             })()}
 
             ${(() => { const gr = googleReviews[t.short]; return gr ? `
-            <div class="google-reviews profile-section-link" onclick="window.open('https://www.google.com/maps/search/Snappy+Electric+Plumbing+Heating+Air+2200+Canton+Road+Marietta+GA','_blank')" title="Open Snappy Google Reviews">
+            <div class="google-reviews profile-section-link" onclick="window.open('https://www.google.com/maps/place/Snappy+Services+-+Electric,+Plumbing,+Heating+%26+Air/@34.0072193,-84.5263963,17z/data=!4m8!3m7!1s0x88f514994f0e3935:0x22b134f3a8a78d1f!8m2!3d34.0072193!4d-84.5263963!9m1!1b1!16s%2Fg%2F1vd724vq','_blank')" title="Open Snappy Google Reviews">
               <div class="google-reviews-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                 Google Reviews — Last 90 Days
