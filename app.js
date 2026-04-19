@@ -42,6 +42,8 @@ function applyViewMode() {
   // Show/hide editor instructions banner
   var editorBanner = document.getElementById('editorInstructionsBanner');
   if (editorBanner) editorBanner.style.display = isEditorMode ? 'block' : 'none';
+  // Re-render profiles so manager edit buttons appear/disappear
+  if (typeof renderProfiles === 'function') { try { renderProfiles(); } catch(e) {} }
   // If switching to viewer while on Manager tab, redirect to Overview
   if (!isManagerMode && !isCoachMode && !isEditorMode) {
     var activeTab = document.querySelector('.nav-tabs:not(#st-sub-tabs):not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs) .nav-tab.active');
@@ -493,8 +495,8 @@ async function manualSync() {
     SyncEngine.write('skills', skillsData.assignments);
     SyncEngine.write('manager', mgrState);
     SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
-    var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','daynotes','nexstar','recall','complaint'];
-    var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1'];
+    var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','daynotes','nexstar','recall','complaint','mgrnotes'];
+    var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1'];
     dKeys.forEach(function(k, i) {
       var v = localStorage.getItem(dLocalKeys[i]);
       if (v) {
@@ -523,7 +525,8 @@ async function manualSync() {
         'nexstar': 'snappy_nexstar',
         'bulletin': 'snappy_bulletin_board',
         'recall': 'snappy_recall_log_v1',
-        'complaint': 'snappy_complaint_log_v1'
+        'complaint': 'snappy_complaint_log_v1',
+        'mgrnotes': 'snappy_mgr_notes_v1'
       };
       for (var ck in keyMap) {
         if (cloudData[ck]) {
@@ -2738,30 +2741,38 @@ if (typeof Chart !== 'undefined') {
 
             <div class="tier-section">
               <div class="tier-breakdown">
-                <div class="tier-factor">Aptitude<br><span class="tier-factor-value">${tierInfo.aptScore}</span></div>
-                <div class="tier-factor">Skills<br><span class="tier-factor-value">${tierInfo.skillScore}</span></div>
-                <div class="tier-factor">ST Perf<br><span class="tier-factor-value">${tierInfo.stScore}</span></div>
-                <div class="tier-factor">Installs<br><span class="tier-factor-value">${tierInfo.installScore}</span></div>
-                <div class="tier-factor">Mgr Score<br><span class="tier-factor-value">${tierInfo.mgrScore}</span></div>
-                <div class="tier-factor">Reviews<br><span class="tier-factor-value">${tierInfo.reviewScore}</span></div>
+                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('aptitude-skills','')" title="Go to Aptitude & Skills">Aptitude<br><span class="tier-factor-value">${tierInfo.aptScore}</span></div>
+                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('skills-tags','')" title="Go to Skills Tags">Skills<br><span class="tier-factor-value">${tierInfo.skillScore}</span></div>
+                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('scorecards','overview')" title="Go to ST Scorecards">ST Perf<br><span class="tier-factor-value">${tierInfo.stScore}</span></div>
+                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('scorecards','installs')" title="Go to ST Installs">Installs<br><span class="tier-factor-value">${tierInfo.installScore}</span></div>
+                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('manager','')" title="Go to Manager Hub">Mgr Score<br><span class="tier-factor-value">${tierInfo.mgrScore}</span></div>
+                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('scorecards','overview')" title="Go to Reviews">Reviews<br><span class="tier-factor-value">${tierInfo.reviewScore}</span></div>
                 <div class="tier-factor" style="border-left:2px solid var(--border-subtle);padding-left:12px">Composite<br><span class="tier-factor-value" style="font-size:16px">${tierInfo.composite}</span></div>
               </div>
             </div>
 
             ${renderXPBar(t, '')}
 
-            ${t.managerNotes ? `
-            <div class="manager-notes">
+            <div class="manager-notes" id="mgr-notes-${t.short}">
               <div class="manager-notes-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                 Manager Notes
+                ${isManagerMode ? `<button class="mgr-notes-edit-btn" onclick="toggleMgrNoteEdit('${t.short}')" title="Edit notes">&#9998; Edit</button>` : ''}
               </div>
-              <p>${t.managerNotes}</p>
+              <div class="mgr-notes-display" id="mgr-notes-display-${t.short}">
+                <p>${getMgrNote(t.short, t.managerNotes)}</p>
+              </div>
+              <div class="mgr-notes-editor" id="mgr-notes-editor-${t.short}" style="display:none">
+                <textarea class="mgr-notes-textarea" id="mgr-notes-ta-${t.short}" rows="4">${getMgrNote(t.short, t.managerNotes)}</textarea>
+                <div class="mgr-notes-actions">
+                  <button class="mgr-notes-save" onclick="saveMgrNote('${t.short}')">Save</button>
+                  <button class="mgr-notes-cancel" onclick="cancelMgrNoteEdit('${t.short}')">Cancel</button>
+                </div>
+              </div>
               ${t.managerTags ? `<div style="margin-top:8px">${t.managerTags.map(tag =>
                 `<span class="manager-tag tag-${tag.type}">${tag.label}</span>`
               ).join('')}</div>` : ''}
             </div>
-            ` : ''}
 
             ${(() => {
               const apt = aptitudeTests[t.short];
@@ -7572,6 +7583,67 @@ if (typeof Chart !== 'undefined') {
       for (var k in data) count += (data[k] || []).length;
       return count;
     }
+
+    // ========== MANAGER NOTES EDIT SYSTEM ==========
+    var MGR_NOTES_KEY = 'snappy_mgr_notes_v1';
+
+    function loadMgrNotes() {
+      try { return JSON.parse(localStorage.getItem(MGR_NOTES_KEY)) || {}; } catch(e) { return {}; }
+    }
+    function saveMgrNotesStore(data) {
+      localStorage.setItem(MGR_NOTES_KEY, JSON.stringify(data));
+      SyncEngine.write('mgrnotes', data);
+    }
+    function getMgrNote(techShort, fallback) {
+      var notes = loadMgrNotes();
+      return notes[techShort] !== undefined ? notes[techShort] : (fallback || '');
+    }
+    window.getMgrNote = getMgrNote;
+
+    window.toggleMgrNoteEdit = function(techShort) {
+      var display = document.getElementById('mgr-notes-display-' + techShort);
+      var editor = document.getElementById('mgr-notes-editor-' + techShort);
+      if (!display || !editor) return;
+      display.style.display = 'none';
+      editor.style.display = 'block';
+      var ta = document.getElementById('mgr-notes-ta-' + techShort);
+      if (ta) ta.focus();
+    };
+
+    window.saveMgrNote = function(techShort) {
+      var ta = document.getElementById('mgr-notes-ta-' + techShort);
+      if (!ta) return;
+      var notes = loadMgrNotes();
+      notes[techShort] = ta.value.trim();
+      saveMgrNotesStore(notes);
+      // Update display
+      var display = document.getElementById('mgr-notes-display-' + techShort);
+      var editor = document.getElementById('mgr-notes-editor-' + techShort);
+      if (display) {
+        display.innerHTML = '<p>' + (notes[techShort] || '(No notes)') + '</p>';
+        display.style.display = '';
+      }
+      if (editor) editor.style.display = 'none';
+      // Also update the tech object so leaderboard etc. reflect it
+      var tech = techs.find(function(t) { return t.short === techShort; });
+      if (tech) tech.managerNotes = notes[techShort];
+    };
+
+    window.cancelMgrNoteEdit = function(techShort) {
+      var display = document.getElementById('mgr-notes-display-' + techShort);
+      var editor = document.getElementById('mgr-notes-editor-' + techShort);
+      if (display) display.style.display = '';
+      if (editor) editor.style.display = 'none';
+    };
+
+    // Load any saved overrides on startup
+    (function applyMgrNoteOverrides() {
+      var notes = loadMgrNotes();
+      Object.keys(notes).forEach(function(techShort) {
+        var tech = techs.find(function(t) { return t.short === techShort; });
+        if (tech && notes[techShort]) tech.managerNotes = notes[techShort];
+      });
+    })();
 
     // ========== SIDEBAR TOOLTIP POSITIONING ==========
     (function initSidebarTooltips() {
