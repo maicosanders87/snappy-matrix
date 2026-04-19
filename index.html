@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260419v57">
+  <link rel="stylesheet" href="styles.css?v=20260419v58">
 </head>
 <body>
   <div class="container">
@@ -273,6 +273,9 @@
       <!-- NexTech Alignment sub-tab -->
       <div id="sk-nextech" class="sk-section">
         <div class="sk-nextech-grid" id="skNextechCards"></div>
+        <div class="section-title" style="margin-top:32px;margin-bottom:16px;font-size:14px;">Per-Tech NexTech Readiness</div>
+        <div class="sk-nextech-breakdown-subtitle" style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">Click a technician to expand their NexTech level breakdown. Shows skills earned, skills needed, and completion percentage per level.</div>
+        <div id="skNextechBreakdown"></div>
       </div>
 
       <!-- Progression Requirements sub-tab -->
@@ -941,6 +944,6 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="app.js?v=20260419v57"></script>
+  <script src="app.js?v=20260419v58"></script>
 </body>
 </html>

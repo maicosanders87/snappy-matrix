@@ -2964,6 +2964,111 @@ window.addEventListener('load', () => {
       });
       document.getElementById('skNextechCards').innerHTML = nextechHtml;
 
+      // ---- Per-Tech NexTech Breakdown (Interactive) ----
+      const nextechLevelSkillMap = {
+        'Level 1': ['A11','A3','A7','G2'],
+        'Level 2': ['A9','A3','B4','C5','E4','G3','D3'],
+        'Level 3': ['F3','D3','G2','A5','A7','H1','H2','H3','H4','H5','D5','C1','D2','D4','A2','A4','E1','E2'],
+        'Level 4': ['A6','C6','C2','B6','C7','H6','A11','B7','B8','B5','B9','A8','A10','A1','B3','D1']
+      };
+      const nextechLevelDescriptions = {
+        'Level 1': 'Can safely use tools and meters, test/replace motors and capacitors, understand duct types and airflow, handle refrigerant tools, and present professionally.',
+        'Level 2': 'Can perform combustion analysis, diagnose IAQ issues, install/repair gas furnaces, repair ductwork, communicate with customers, and follow SOPs.',
+        'Level 3': 'Executes all Nexstar Service System steps (Greet through Wrap Up), presents options, completes Summary of Findings, brazes copper, handles refrigerant, replaces coils, and performs changeouts.',
+        'Level 4': 'Troubleshoots advanced electrical, control boards, igniters, gas valves, heat exchangers, zoning, compressors, and refrigerant. Closes Service Partner Plans, handles pushbacks, and manages challenging situations.'
+      };
+
+      let breakdownHtml = '';
+      techs.forEach((tech, techIdx) => {
+        const techSkills = skillsData.assignments[tech] || [];
+        const color = techColors[tech] || '#2D6A6A';
+
+        // Calculate overall NexTech readiness
+        let totalSkillsNeeded = 0;
+        let totalSkillsHave = 0;
+        Object.values(nextechLevelSkillMap).forEach(skills => {
+          const unique = [...new Set(skills)];
+          totalSkillsNeeded += unique.length;
+          totalSkillsHave += unique.filter(s => techSkills.includes(s)).length;
+        });
+        const overallPct = Math.round((totalSkillsHave / totalSkillsNeeded) * 100);
+
+        breakdownHtml += `
+          <div class="ntb-card" onclick="this.classList.toggle('ntb-open')">
+            <div class="ntb-header">
+              <div class="ntb-avatar" style="background:${color}">${tech[0]}</div>
+              <div class="ntb-info">
+                <div class="ntb-name">${tech}</div>
+                <div class="ntb-summary">${techSkills.length} skills assigned · ${overallPct}% NexTech coverage</div>
+              </div>
+              <div class="ntb-overall-bar-wrap">
+                <div class="ntb-overall-bar" style="width:${overallPct}%;background:${overallPct >= 75 ? 'var(--accent-green)' : overallPct >= 50 ? 'var(--accent-gold)' : 'var(--accent-red)'}"></div>
+              </div>
+              <div class="ntb-overall-pct">${overallPct}%</div>
+              <div class="ntb-chevron">▼</div>
+            </div>
+            <div class="ntb-body">`;
+
+        // Per-level breakdown
+        Object.entries(nextechLevelSkillMap).forEach(([levelName, levelSkills]) => {
+          const unique = [...new Set(levelSkills)];
+          const has = unique.filter(s => techSkills.includes(s));
+          const missing = unique.filter(s => !techSkills.includes(s));
+          const pct = Math.round((has.length / unique.length) * 100);
+          const lvlColor = nextechColors[levelName] || '#2D6A6A';
+          const statusLabel = pct === 100 ? 'Complete' : pct >= 75 ? 'Near-Complete' : pct >= 50 ? 'In Progress' : pct > 0 ? 'Gaps' : 'Not Started';
+          const statusColor = pct === 100 ? 'var(--accent-green)' : pct >= 75 ? '#3A9A5A' : pct >= 50 ? 'var(--accent-gold)' : pct > 0 ? 'var(--accent-red)' : '#666';
+
+          breakdownHtml += `
+              <div class="ntb-level">
+                <div class="ntb-level-head">
+                  <span class="ntb-level-badge" style="background:${lvlColor}">${levelName}</span>
+                  <span class="ntb-level-title">${skillsData.nextechLevels[levelName].title}</span>
+                  <span class="ntb-level-status" style="color:${statusColor}">${statusLabel}</span>
+                  <span class="ntb-level-frac">${has.length}/${unique.length}</span>
+                </div>
+                <div class="ntb-level-bar-wrap">
+                  <div class="ntb-level-bar" style="width:${pct}%;background:${lvlColor}"></div>
+                </div>
+                <div class="ntb-level-desc">${nextechLevelDescriptions[levelName]}</div>`;
+
+          if (has.length > 0) {
+            breakdownHtml += `
+                <div class="ntb-skill-section">
+                  <div class="ntb-skill-label ntb-earned">✓ Earned (${has.length})</div>
+                  <div class="ntb-chip-grid">${has.map(s => {
+                    const catKey = s[0];
+                    const catColor = skillsData.categories[catKey] ? skillsData.categories[catKey].color : '#666';
+                    const skillObj = allSkills().find(sk => sk.id === s);
+                    const name = skillObj ? skillObj.name : s;
+                    return `<span class="ntb-chip ntb-earned-chip" style="border-color:${catColor}" title="${s} — ${name}"><span class="ntb-chip-id">${s}</span>${name}</span>`;
+                  }).join('')}</div>
+                </div>`;
+          }
+
+          if (missing.length > 0) {
+            breakdownHtml += `
+                <div class="ntb-skill-section">
+                  <div class="ntb-skill-label ntb-needed">✗ Needed (${missing.length})</div>
+                  <div class="ntb-chip-grid">${missing.map(s => {
+                    const catKey = s[0];
+                    const catColor = skillsData.categories[catKey] ? skillsData.categories[catKey].color : '#666';
+                    const skillObj = allSkills().find(sk => sk.id === s);
+                    const name = skillObj ? skillObj.name : s;
+                    return `<span class="ntb-chip ntb-needed-chip" style="border-color:${catColor}" title="${s} — ${name}"><span class="ntb-chip-id">${s}</span>${name}</span>`;
+                  }).join('')}</div>
+                </div>`;
+          }
+
+          breakdownHtml += `</div>`; // close ntb-level
+        });
+
+        breakdownHtml += `
+            </div>
+          </div>`; // close ntb-body + ntb-card
+      });
+      document.getElementById('skNextechBreakdown').innerHTML = breakdownHtml;
+
       // ---- Progression Ladder ----
       // Determine where each tech sits
       function getTechLevel(tech) {
