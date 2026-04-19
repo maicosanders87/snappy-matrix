@@ -1587,17 +1587,17 @@ window.addEventListener('load', () => {
             r: {
               min: 0,
               max: 5,
-              ticks: { stepSize: 1, backdropColor: 'transparent', color: '#8b93a8', font: { size: 10 } },
-              grid: { color: 'rgba(255,255,255,0.1)' },
-              angleLines: { color: 'rgba(255,255,255,0.1)' },
-              pointLabels: { color: '#c8cdd8', font: { size: 11, weight: '600' } }
+              ticks: { stepSize: 1, backdropColor: 'transparent', color: '#6b7280', font: { size: 10 } },
+              grid: { color: 'rgba(0,0,0,0.12)' },
+              angleLines: { color: 'rgba(0,0,0,0.12)' },
+              pointLabels: { color: '#374151', font: { size: 11, weight: '600' } }
             }
           },
           plugins: {
             legend: {
               display: true,
               position: 'bottom',
-              labels: { color: '#c8cdd8', usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 12, weight: '600' } }
+              labels: { color: '#374151', usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 12, weight: '600' } }
             },
             tooltip: {
               backgroundColor: 'rgba(15,27,46,0.95)',
