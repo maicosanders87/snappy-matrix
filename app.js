@@ -3378,60 +3378,78 @@ window.addEventListener('load', () => {
     function renderRookieCards() {
       let html = '';
 
-      // Manager card — Mark Sanders, S-Tier
+      // Manager card — Mark Sanders, S-Tier (no flip)
       const mgrTierLower = 's';
-      // Avatar BG now handled by CSS tier class (.rookie-tier-s .rookie-avatar-wrap)
       const mgrCompBarColor = 'linear-gradient(90deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF)';
       const ms = mgrLoadStats();
-      // Manager install data (excluded from stData per instructions)
       const mgrInstalls = { count: 5, total_revenue: 69610, avg_sale: 13922, opps: 10, conv_pct: 40 };
       const mgrNexstar = { total_revenue: 7083, avg_sale: 403, conversion_rate: 36, spps_sold: 5, tech_gen_leads: 2, sold_hours: 13.45 };
       html += `
-        <div class="rookie-card rookie-tier-s">
-          <div class="rookie-card-border tier-s"></div>
-          <div class="rookie-tier-badge tier-s">S-TIER</div>
-          <div class="rookie-avatar-wrap">
-            <img src="maico_avatar.png" alt="Mark Sanders">
-            <div class="rookie-label">
-              <span class="rookie-tag">Snappy Services</span>
-              <div class="rookie-name-overlay">Mark Sanders</div>
-              <div class="rookie-meta-overlay">Service Manager &bull; Elite</div>
+        <div class="rookie-flip-container no-flip">
+          <div class="rookie-flip-inner">
+            <div class="rookie-flip-front">
+              <div class="rookie-card rookie-tier-s">
+                <div class="rookie-card-border tier-s"></div>
+                <div class="rookie-tier-badge tier-s">S-TIER</div>
+                <div class="rookie-avatar-wrap">
+                  <img src="maico_avatar.png" alt="Mark Sanders">
+                  <div class="rookie-label">
+                    <span class="rookie-tag">Snappy Services</span>
+                    <div class="rookie-name-overlay">Mark Sanders</div>
+                    <div class="rookie-meta-overlay">Service Manager &bull; Elite</div>
+                  </div>
+                </div>
+                <div class="rookie-info">
+                  <div class="rookie-stats">
+                    <div class="rookie-stat">
+                      <div class="rookie-stat-value">$${mgrInstalls.total_revenue.toLocaleString()}</div>
+                      <div class="rookie-stat-label">Equip Sales</div>
+                      <div class="rookie-stat-period">${mgrInstalls.count} installs &bull; 90 days</div>
+                    </div>
+                    <div class="rookie-stat">
+                      <div class="rookie-stat-value">${mgrInstalls.conv_pct}%</div>
+                      <div class="rookie-stat-label">Install Conv %</div>
+                      <div class="rookie-stat-period">${mgrInstalls.count}/${mgrInstalls.opps} opps</div>
+                    </div>
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();mgrEditStat('oneonone_rate','1-on-1 Completion Rate (per week)','${ms.oneonone_rate||''}')"> 
+                      <div class="rookie-stat-value">${ms.oneonone_rate || '—'}</div>
+                      <div class="rookie-stat-label">1-on-1 Rate</div>
+                      <div class="rookie-stat-period">per week</div>
+                    </div>
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();mgrEditStat('ridealong_rate','Ride-Along Completion Rate (per week)','${ms.ridealong_rate||''}')"> 
+                      <div class="rookie-stat-value">${ms.ridealong_rate || '—'}</div>
+                      <div class="rookie-stat-label">Ride-Along Rate</div>
+                      <div class="rookie-stat-period">per week</div>
+                    </div>
+                  </div>
+                  <div class="rookie-composite">
+                    <div class="rookie-composite-label">Composite</div>
+                    <div class="rookie-composite-bar">
+                      <div class="rookie-composite-bar-fill" style="width:100%;background:${mgrCompBarColor}"></div>
+                    </div>
+                    <div class="rookie-composite-score" style="color:#FFD700">S</div>
+                  </div>
+                  <div class="rookie-certs"><span class="rookie-cert">Service Manager</span><span class="rookie-cert">Team Lead</span></div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="rookie-info">
-            <div class="rookie-stats">
-              <div class="rookie-stat">
-                <div class="rookie-stat-value">$${mgrInstalls.total_revenue.toLocaleString()}</div>
-                <div class="rookie-stat-label">Equip Sales</div>
-                <div class="rookie-stat-period">${mgrInstalls.count} installs &bull; 90 days</div>
-              </div>
-              <div class="rookie-stat">
-                <div class="rookie-stat-value">${mgrInstalls.conv_pct}%</div>
-                <div class="rookie-stat-label">Install Conv %</div>
-                <div class="rookie-stat-period">${mgrInstalls.count}/${mgrInstalls.opps} opps</div>
-              </div>
-              <div class="rookie-stat mgr-stat-editable" onclick="mgrEditStat('oneonone_rate','1-on-1 Completion Rate (per week)','${ms.oneonone_rate||''}')"> 
-                <div class="rookie-stat-value">${ms.oneonone_rate || '—'}</div>
-                <div class="rookie-stat-label">1-on-1 Rate</div>
-                <div class="rookie-stat-period">per week</div>
-              </div>
-              <div class="rookie-stat mgr-stat-editable" onclick="mgrEditStat('ridealong_rate','Ride-Along Completion Rate (per week)','${ms.ridealong_rate||''}')"> 
-                <div class="rookie-stat-value">${ms.ridealong_rate || '—'}</div>
-                <div class="rookie-stat-label">Ride-Along Rate</div>
-                <div class="rookie-stat-period">per week</div>
-              </div>
-            </div>
-            <div class="rookie-composite">
-              <div class="rookie-composite-label">Composite</div>
-              <div class="rookie-composite-bar">
-                <div class="rookie-composite-bar-fill" style="width:100%;background:${mgrCompBarColor}"></div>
-              </div>
-              <div class="rookie-composite-score" style="color:#FFD700">S</div>
-            </div>
-            <div class="rookie-certs"><span class="rookie-cert">Service Manager</span><span class="rookie-cert">Team Lead</span></div>
           </div>
         </div>
       `;
+
+      // Tier progression data for back side
+      const thresholds = { C: 78, B: 85, A: 92, S: 100 };
+      const nextTierMap = { C: 'B', B: 'A', A: 'S', S: null };
+      const tierLabelsMap = { B: 'Solid', A: 'Advanced', S: 'Elite' };
+      const tierColors = { S: '#FFD700', A: '#F87171', B: '#60A5FA', C: '#9CA3AF' };
+      const areas = [
+        { key: 'aptScore', name: 'Aptitude Test', weight: 30, tip: (s) => s < 70 ? 'Study weak sections and retake the aptitude test' : s < 85 ? 'Review advanced topics to push score higher' : 'Strong — maintain through continued learning' },
+        { key: 'stScore', name: 'ST Performance', weight: 35, tip: (s) => s < 50 ? 'Focus on conversion rate and revenue generation' : s < 70 ? 'Improve lead generation and close rate' : s < 85 ? 'Fine-tune options per opportunity and memberships' : 'Performing at a high level' },
+        { key: 'mgrScore', name: 'Manager Score', weight: 15, tip: (s) => s < 60 ? 'Focus on communication, punctuality, and professionalism' : s < 80 ? 'Take initiative on callbacks and team collaboration' : 'Highly rated by management' },
+        { key: 'installScore', name: 'Install Performance', weight: 10, tip: (s) => s < 30 ? 'Seek install opportunities and close equipment leads' : s < 60 ? 'Increase install count and average ticket size' : 'Solid install production' },
+        { key: 'reviewScore', name: 'Google Reviews', weight: 5, tip: (s) => s < 40 ? 'Ask satisfied customers for reviews after every job' : s < 70 ? 'Consistent review requests will move this up' : 'Good customer feedback presence' },
+        { key: 'skillScore', name: 'Skills Tags', weight: 10, tip: (s) => s < 40 ? 'Earn more skill certifications through training' : s < 70 ? 'Continue building skill count — almost there' : 'Strong skill coverage' }
+      ];
 
       // Sort techs by composite score (highest first)
       const sortedTechs = [...techs].sort((a, b) => getTechTier(b).composite - getTechTier(a).composite);
@@ -3448,8 +3466,6 @@ window.addEventListener('load', () => {
           : tierLower === 'a' ? 'linear-gradient(90deg, #DC2626, #EF4444)'
           : tierLower === 'b' ? 'linear-gradient(90deg, #2563EB, #3B82F6)'
           : 'linear-gradient(90deg, #6B7280, #9CA3AF)';
-
-        // Avatar BG now handled by CSS tier classes (.rookie-tier-X .rookie-avatar-wrap)
 
         // Build ST stat rows
         var stRows = '';
@@ -3533,48 +3549,153 @@ window.addEventListener('load', () => {
           `;
         }
 
-        html += `
-          <div class="rookie-card rookie-tier-${tierLower}">
-            <div class="rookie-card-border tier-${tierLower}"></div>
-            <div class="rookie-tier-badge tier-${tierLower}">${tierInfo.tier}-TIER</div>
-            <div class="rookie-avatar-wrap">
-              ${techAvatars[t.short]
-                ? `<img src="${techAvatars[t.short]}" alt="${t.name}">`
-                : `<div class="initials-circle" style="background:${t.color}">${t.initials}</div>`
-              }
-              <div class="rookie-label">
-                <span class="rookie-tag">Snappy Services</span>
-                <div class="rookie-name-overlay">${t.name}</div>
-                <div class="rookie-meta-overlay">${t.position} &bull; ${t.years} yrs &bull; ${tierInfo.tierLabel}</div>
+        // === Build BACK side: tier progression info ===
+        const next = nextTierMap[tierInfo.tier];
+        const target = next ? thresholds[tierInfo.tier] : null;
+        const gap = target ? target - tierInfo.composite : 0;
+        const nextLabel = next ? tierLabelsMap[next] : null;
+        const nextColor = next ? tierColors[next] : tierColors[tierInfo.tier];
+
+        // Score each area, sort by improvement potential (biggest gap first)
+        const areaScores = areas.map(a => ({
+          ...a,
+          score: tierInfo[a.key],
+          potential: (100 - tierInfo[a.key]) * (a.weight / 100)
+        }));
+        areaScores.sort((a, b) => b.potential - a.potential);
+
+        // Top 3 weakest areas for action items
+        const topActions = areaScores.slice(0, 3);
+
+        const backHTML = next ? `
+          <div class="rookie-back-content">
+            <div class="rookie-back-header">
+              <div class="rookie-back-name">${t.name}</div>
+              <div class="rookie-back-subtitle">Path to ${next}-Tier</div>
+            </div>
+
+            <div class="rookie-back-target">
+              <div class="rookie-back-target-tier" style="color:${nextColor}">${next}-TIER</div>
+              <div class="rookie-back-target-label">Next Tier: ${nextLabel} (${target}+ pts)</div>
+            </div>
+
+            <div class="rookie-back-gap">
+              <div class="rookie-back-gap-num" style="color:${nextColor}">+${gap}</div>
+              <div class="rookie-back-gap-label">points needed</div>
+            </div>
+
+            <div class="rookie-back-divider"></div>
+
+            <div>
+              <div class="rookie-back-section-title">Score Breakdown</div>
+              <div class="rookie-back-areas">
+                ${areaScores.map(a => {
+                  const cls = a.score >= 80 ? 'is-strong' : a.score < 55 ? 'is-weak' : 'is-ok';
+                  const fillColor = a.score >= 80 ? '#4ADE80' : a.score < 55 ? '#EF4444' : nextColor;
+                  return `
+                    <div class="rookie-back-area">
+                      <div class="rookie-back-area-header">
+                        <span class="rookie-back-area-name">${a.name} (${a.weight}%)</span>
+                        <span class="rookie-back-area-score ${cls}">${a.score}</span>
+                      </div>
+                      <div class="rookie-back-area-bar">
+                        <div class="rookie-back-area-bar-fill" style="width:${a.score}%;background:${fillColor}"></div>
+                      </div>
+                      <div class="rookie-back-area-tip">${a.tip(a.score)}</div>
+                    </div>
+                  `;
+                }).join('')}
               </div>
             </div>
-            <div class="rookie-info">
-              <div class="rookie-stats">
-                <div class="rookie-stat">
-                  <div class="rookie-stat-value">${apt ? Math.round((apt.totalScore / apt.maxScore) * 100) + '%' : '—'}</div>
-                  <div class="rookie-stat-label">Aptitude</div>
-                </div>
-                <div class="rookie-stat">
-                  <div class="rookie-stat-value">${gr ? gr.count : '—'}</div>
-                  <div class="rookie-stat-label">Reviews</div>
-                </div>
-                <div class="rookie-stat">
-                  <div class="rookie-stat-value">${st ? st.memberships.total_mem_sold : '—'}</div>
-                  <div class="rookie-stat-label">Mem Sold</div>
+
+            <div class="rookie-back-divider"></div>
+
+            <div>
+              <div class="rookie-back-section-title">Priority Actions</div>
+              <div class="rookie-back-actions">
+                ${topActions.map((a, i) => `
+                  <div class="rookie-back-action">
+                    <div class="rookie-back-action-icon" style="background:${a.score < 55 ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.08)'};color:${a.score < 55 ? '#EF4444' : 'rgba(255,255,255,0.5)'}">${i + 1}</div>
+                    <span><strong>${a.name}:</strong> ${a.tip(a.score)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="rookie-back-flip-hint">Tap to flip back</div>
+          </div>
+        ` : `
+          <div class="rookie-back-content">
+            <div class="rookie-back-header">
+              <div class="rookie-back-name">${t.name}</div>
+              <div class="rookie-back-subtitle">Maximum Tier Achieved</div>
+            </div>
+            <div class="rookie-back-target">
+              <div class="rookie-back-target-tier" style="color:#FFD700">S-TIER</div>
+              <div class="rookie-back-target-label">Elite — Top Performer</div>
+            </div>
+            <div class="rookie-back-flip-hint">Tap to flip back</div>
+          </div>
+        `;
+
+        html += `
+          <div class="rookie-flip-container" onclick="this.classList.toggle('flipped')">
+            <div class="rookie-flip-inner">
+              <div class="rookie-flip-front">
+                <div class="rookie-card rookie-tier-${tierLower}">
+                  <div class="rookie-card-border tier-${tierLower}"></div>
+                  <div class="rookie-tier-badge tier-${tierLower}">${tierInfo.tier}-TIER</div>
+                  <div class="rookie-avatar-wrap">
+                    ${techAvatars[t.short]
+                      ? `<img src="${techAvatars[t.short]}" alt="${t.name}">`
+                      : `<div class="initials-circle" style="background:${t.color}">${t.initials}</div>`
+                    }
+                    <div class="rookie-label">
+                      <span class="rookie-tag">Snappy Services</span>
+                      <div class="rookie-name-overlay">${t.name}</div>
+                      <div class="rookie-meta-overlay">${t.position} &bull; ${t.years} yrs &bull; ${tierInfo.tierLabel}</div>
+                    </div>
+                  </div>
+                  <div class="rookie-info">
+                    <div class="rookie-stats">
+                      <div class="rookie-stat">
+                        <div class="rookie-stat-value">${apt ? Math.round((apt.totalScore / apt.maxScore) * 100) + '%' : '—'}</div>
+                        <div class="rookie-stat-label">Aptitude</div>
+                      </div>
+                      <div class="rookie-stat">
+                        <div class="rookie-stat-value">${gr ? gr.count : '—'}</div>
+                        <div class="rookie-stat-label">Reviews</div>
+                      </div>
+                      <div class="rookie-stat">
+                        <div class="rookie-stat-value">${st ? st.memberships.total_mem_sold : '—'}</div>
+                        <div class="rookie-stat-label">Mem Sold</div>
+                      </div>
+                    </div>
+
+                    <div class="rookie-composite">
+                      <div class="rookie-composite-label">Composite</div>
+                      <div class="rookie-composite-bar">
+                        <div class="rookie-composite-bar-fill" style="width:${tierInfo.composite}%;background:${compBarColor}"></div>
+                      </div>
+                      <div class="rookie-composite-score" style="color:${t.color}">${tierInfo.composite}</div>
+                    </div>
+
+                    ${stRows}
+
+                    ${apt && apt.certs.length ? `<div class="rookie-certs">${apt.certs.map(c => `<span class="rookie-cert">${c}</span>`).join('')}</div>` : ''}
+                  </div>
+                  <div class="rookie-flip-hint">
+                    <svg viewBox="0 0 24 24"><path d="M9 3l-5 5 5 5M15 3l5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    TAP TO FLIP
+                  </div>
                 </div>
               </div>
-
-              <div class="rookie-composite">
-                <div class="rookie-composite-label">Composite</div>
-                <div class="rookie-composite-bar">
-                  <div class="rookie-composite-bar-fill" style="width:${tierInfo.composite}%;background:${compBarColor}"></div>
+              <div class="rookie-flip-back">
+                <div class="rookie-card rookie-tier-${tierLower}">
+                  <div class="rookie-card-border tier-${tierLower}"></div>
+                  ${backHTML}
                 </div>
-                <div class="rookie-composite-score" style="color:${t.color}">${tierInfo.composite}</div>
               </div>
-
-              ${stRows}
-
-              ${apt && apt.certs.length ? `<div class="rookie-certs">${apt.certs.map(c => `<span class="rookie-cert">${c}</span>`).join('')}</div>` : ''}
             </div>
           </div>
         `;
