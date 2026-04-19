@@ -1042,9 +1042,10 @@ window.addEventListener('load', () => {
       // 1. Aptitude test score (0–100): actual test percentage — PRIMARY knowledge gauge
       const aptScore = getTechAptitudeScore(tech);
 
-      // 2. Self-eval skills score — tracked but NOT weighted in composite (tech's own interpretation)
-      const skillAvg = techOverallAvg(tech);
-      const skillScore = (skillAvg / 5) * 100;
+      // 2. Skills tag score (0–100): assigned skills / total skills available
+      const totalSkillsAvailable = Object.values(skillsData.categories).reduce((sum, cat) => sum + cat.skills.length, 0);
+      const assignedSkills = (skillsData.assignments[tech.short] || []).length;
+      const skillScore = Math.min((assignedSkills / totalSkillsAvailable) * 100, 100);
 
       // 3. Manager score (0–100): 1–10 scale → percentage
       const mgrRaw = managerScores[tech.short] || 5;
@@ -1092,9 +1093,8 @@ window.addEventListener('load', () => {
         reviewScore = countNorm * 0.6 + qualityNorm * 0.4;
       }
 
-      // Composite: Aptitude 30% + ST 35% + Manager 15% + Installs 10% + Reviews 10%
-      // Self-eval (skillScore) excluded — tech's own interpretation, not weighted
-      const composite = aptScore * 0.30 + stScore * 0.35 + mgrScore * 0.15 + installScore * 0.10 + reviewScore * 0.10;
+      // Composite: Aptitude 30% + ST 35% + Skills 10% + Manager 10% + Installs 10% + Reviews 5%
+      const composite = aptScore * 0.30 + stScore * 0.35 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05;
 
       let tier, tierLabel;
       if (composite >= 92) { tier = 'S'; tierLabel = 'Elite'; }
@@ -1283,6 +1283,10 @@ window.addEventListener('load', () => {
       }
       saveSkillAssignments();
       renderSkillsTags(); // re-render all sub-tabs reactively
+      // Live-refresh profiles, overview, and rookie cards since skills affect composite
+      try { renderProfiles(); } catch(e) {}
+      try { renderOverviewTab(); } catch(e) {}
+      try { renderRookieCards(); } catch(e) {}
 
       // Apply pop animation to the toggled cell
       setTimeout(() => {
