@@ -1132,6 +1132,127 @@
     .rookie-tier-s .rookie-name-overlay { text-shadow: 0 0 10px rgba(255,215,0,0.3), 0 1px 2px rgba(0,0,0,0.5); }
     .rookie-tier-s .rookie-meta-overlay { text-shadow: 0 0 8px rgba(255,215,0,0.15); }
     .rookie-tier-s .rookie-tag { text-shadow: 0 0 6px rgba(255,215,0,0.2); }
+
+    /* === S-TIER AVATAR FLAME ANIMATIONS === */
+    .rookie-tier-s .rookie-avatar-wrap {
+      overflow: hidden;
+    }
+    /* Layer 1: Flickering warm glow — pulses orange/gold behind avatar */
+    .rookie-tier-s .rookie-avatar-wrap::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse at 30% 80%, rgba(255,165,0,0.35) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 75%, rgba(255,69,0,0.3) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 60%, rgba(255,215,0,0.2) 0%, transparent 55%),
+        radial-gradient(ellipse at 20% 40%, rgba(255,0,100,0.15) 0%, transparent 40%),
+        radial-gradient(ellipse at 80% 30%, rgba(139,92,246,0.15) 0%, transparent 40%);
+      animation: sFlameFlicker 2s ease-in-out infinite alternate;
+      z-index: 1;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+    @keyframes sFlameFlicker {
+      0% {
+        opacity: 0.4;
+        transform: scale(1) translateY(0);
+      }
+      25% {
+        opacity: 0.6;
+        transform: scale(1.02) translateY(-1%);
+      }
+      50% {
+        opacity: 0.35;
+        transform: scale(0.98) translateY(1%);
+      }
+      75% {
+        opacity: 0.55;
+        transform: scale(1.01) translateY(-0.5%);
+      }
+      100% {
+        opacity: 0.5;
+        transform: scale(1) translateY(0);
+      }
+    }
+    /* Layer 2: Rising heat shimmer — wavy distortion overlay */
+    .rookie-tier-s .rookie-avatar-wrap::after {
+      content: '';
+      position: absolute;
+      top: -10%; left: -10%; right: -10%; bottom: -10%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        rgba(255,200,50,0.03) 2px,
+        transparent 4px,
+        rgba(255,120,0,0.02) 6px,
+        transparent 8px
+      );
+      animation: sHeatRise 3s linear infinite;
+      z-index: 2;
+      pointer-events: none;
+      mix-blend-mode: overlay;
+    }
+    @keyframes sHeatRise {
+      0% { transform: translateY(0) scaleX(1); }
+      50% { transform: translateY(-4%) scaleX(1.01); }
+      100% { transform: translateY(-8%) scaleX(1); }
+    }
+    /* Layer 3: Floating diamond sparkles — CSS-only particles */
+    .s-tier-sparkles {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 3;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .s-tier-sparkle {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,215,0,0.6) 40%, transparent 70%);
+      border-radius: 50%;
+      animation: sSparkleFloat 4s ease-in-out infinite;
+      box-shadow: 0 0 6px rgba(255,215,0,0.5), 0 0 12px rgba(255,255,255,0.3);
+    }
+    .s-tier-sparkle:nth-child(1) { left: 12%; top: 65%; animation-delay: 0s; animation-duration: 3.5s; width: 5px; height: 5px; }
+    .s-tier-sparkle:nth-child(2) { left: 28%; top: 72%; animation-delay: 0.8s; animation-duration: 4.2s; width: 4px; height: 4px; }
+    .s-tier-sparkle:nth-child(3) { left: 55%; top: 58%; animation-delay: 1.5s; animation-duration: 3.8s; width: 7px; height: 7px; }
+    .s-tier-sparkle:nth-child(4) { left: 75%; top: 70%; animation-delay: 2.2s; animation-duration: 4.5s; width: 5px; height: 5px; }
+    .s-tier-sparkle:nth-child(5) { left: 88%; top: 50%; animation-delay: 0.4s; animation-duration: 3.2s; width: 4px; height: 4px; }
+    .s-tier-sparkle:nth-child(6) { left: 40%; top: 80%; animation-delay: 1.8s; animation-duration: 4s; width: 6px; height: 6px; }
+    .s-tier-sparkle:nth-child(7) { left: 65%; top: 40%; animation-delay: 2.8s; animation-duration: 3.6s; width: 3px; height: 3px; }
+    .s-tier-sparkle:nth-child(8) { left: 8%; top: 35%; animation-delay: 1.2s; animation-duration: 4.8s; width: 5px; height: 5px; }
+    @keyframes sSparkleFloat {
+      0% { transform: translateY(0) scale(0.5); opacity: 0; }
+      15% { opacity: 1; transform: translateY(-10px) scale(1); }
+      50% { opacity: 0.8; transform: translateY(-30px) scale(0.8); }
+      85% { opacity: 0.3; transform: translateY(-50px) scale(0.5); }
+      100% { transform: translateY(-60px) scale(0.2); opacity: 0; }
+    }
+    /* Layer 4: Color cycling overlay — shifts the flame hues */
+    .s-tier-color-cycle {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: linear-gradient(
+        180deg,
+        rgba(255,215,0,0.08) 0%,
+        rgba(255,69,0,0.06) 30%,
+        rgba(255,0,100,0.05) 50%,
+        rgba(139,92,246,0.06) 70%,
+        rgba(77,150,255,0.05) 100%
+      );
+      background-size: 100% 300%;
+      animation: sColorCycle 5s ease infinite;
+      mix-blend-mode: color;
+    }
+    @keyframes sColorCycle {
+      0% { background-position: 50% 0%; }
+      50% { background-position: 50% 100%; }
+      100% { background-position: 50% 0%; }
+    }
     .rookie-card-border {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;

@@ -3393,6 +3393,13 @@ window.addEventListener('load', () => {
                 <div class="rookie-tier-badge tier-s">S-TIER</div>
                 <div class="rookie-avatar-wrap">
                   <img src="maico_avatar.png" alt="Mark Sanders">
+                  <div class="s-tier-sparkles">
+                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                  </div>
+                  <div class="s-tier-color-cycle"></div>
                   <div class="rookie-label">
                     <span class="rookie-tag">Snappy Services</span>
                     <div class="rookie-name-overlay">Mark Sanders</div>
@@ -3652,6 +3659,15 @@ window.addEventListener('load', () => {
                       ? `<img src="${techAvatars[t.short]}" alt="${t.name}">`
                       : `<div class="initials-circle" style="background:${t.color}">${t.initials}</div>`
                     }
+                    ${tierLower === 's' ? `
+                      <div class="s-tier-sparkles">
+                        <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                        <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                        <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                        <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                      </div>
+                      <div class="s-tier-color-cycle"></div>
+                    ` : ''}
                     <div class="rookie-label">
                       <span class="rookie-tag">Snappy Services</span>
                       <div class="rookie-name-overlay">${t.name}</div>
