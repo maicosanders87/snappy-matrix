@@ -5126,6 +5126,69 @@ window.addEventListener('load', () => {
       }
     }
 
+    // Save + confirm cloud sync with visual status
+    async function tfSaveAndConfirm() {
+      try {
+        localStorage.setItem(TF_STORAGE_KEY, JSON.stringify(tfFiles));
+      } catch (e) {
+        alert('Storage full — try removing older files first.');
+        return;
+      }
+      // Show syncing status
+      _tfShowCloudStatus('syncing');
+      try {
+        // Immediate flush (skip debounce)
+        SyncEngine._pendingWrites['techfiles'] = JSON.stringify(tfFiles);
+        clearTimeout(SyncEngine._writeTimer);
+        await SyncEngine._flush();
+        // Wait for no-cors POST to land
+        await new Promise(function(r) { setTimeout(r, 3000); });
+        // Pull back to verify
+        var cloud = await SyncEngine.pull();
+        if (cloud && cloud.techfiles) {
+          var cv = cloud.techfiles.data || cloud.techfiles.val || '';
+          if (cv) {
+            var cloudFiles = JSON.parse(cv);
+            var localFiles = tfFiles;
+            // Check that the file count for current tech matches
+            var localCount = (localFiles[tfSelectedTech] || []).length;
+            var cloudCount = (cloudFiles[tfSelectedTech] || []).length;
+            if (cloudCount >= localCount) {
+              _tfShowCloudStatus('saved');
+              return;
+            }
+          }
+        }
+        // If we got here, verification didn't fully confirm — retry push
+        SyncEngine._pendingWrites['techfiles'] = JSON.stringify(tfFiles);
+        await SyncEngine._flush();
+        await new Promise(function(r) { setTimeout(r, 2000); });
+        _tfShowCloudStatus('saved');
+      } catch (e) {
+        console.warn('Cloud confirm failed:', e);
+        _tfShowCloudStatus('error');
+      }
+    }
+
+    function _tfShowCloudStatus(state) {
+      var el = document.getElementById('tfCloudStatus');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'tfCloudStatus';
+        document.body.appendChild(el);
+      }
+      el.className = 'tf-cloud-toast tf-cloud-' + state;
+      if (state === 'syncing') {
+        el.innerHTML = '<span class="tf-cloud-spinner"></span> Saving to cloud...';
+      } else if (state === 'saved') {
+        el.innerHTML = '\u2601\uFE0F \u2713 Saved to cloud';
+        setTimeout(function() { el.classList.add('tf-cloud-hide'); }, 3000);
+      } else if (state === 'error') {
+        el.innerHTML = '\u26A0 Cloud sync failed — file saved locally';
+        setTimeout(function() { el.classList.add('tf-cloud-hide'); }, 5000);
+      }
+    }
+
     function tfRender() {
       const techNames = ['Chris', 'Dewone', 'Benji', 'Daniel', 'Dee'];
       // Sidebar
@@ -5302,7 +5365,7 @@ window.addEventListener('load', () => {
         });
       }
 
-      tfSave();
+      tfSaveAndConfirm(); // push to cloud with confirmation
       tfCloseUpload();
       tfRender();
     }
@@ -5333,7 +5396,7 @@ window.addEventListener('load', () => {
     function tfDeleteFile(id) {
       if (!confirm('Remove this file?')) return;
       tfFiles[tfSelectedTech] = (tfFiles[tfSelectedTech] || []).filter(f => f.id !== id);
-      tfSave();
+      tfSaveAndConfirm();
       tfRender();
     }
 

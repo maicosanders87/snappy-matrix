@@ -3055,6 +3055,55 @@
     }
     .tf-cancel-btn:hover { border-color: var(--text-muted); }
 
+    /* Cloud sync toast for tech files */
+    .tf-cloud-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 22px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      transition: opacity 0.4s, transform 0.4s;
+      opacity: 1;
+    }
+    .tf-cloud-toast.tf-cloud-hide {
+      opacity: 0;
+      transform: translateX(-50%) translateY(10px);
+      pointer-events: none;
+    }
+    .tf-cloud-syncing {
+      background: #1E293B;
+      color: #E2E8F0;
+    }
+    .tf-cloud-saved {
+      background: #065F46;
+      color: #D1FAE5;
+    }
+    .tf-cloud-error {
+      background: #991B1B;
+      color: #FEE2E2;
+    }
+    .tf-cloud-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: tfSpin 0.7s linear infinite;
+    }
+    @keyframes tfSpin {
+      to { transform: rotate(360deg); }
+    }
+
     .mgr-panel-body {
       padding: 18px 22px;
       overflow-y: auto;
