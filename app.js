@@ -5276,14 +5276,62 @@ window.addEventListener('load', () => {
     function tfViewFile(id) {
       const file = (tfFiles[tfSelectedTech] || []).find(f => f.id === id);
       if (!file || !file.fileData) return;
-      const win = window.open();
+
+      // Build inline overlay viewer instead of popup
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;';
+
+      // Header bar with back button, title, and download
+      const header = document.createElement('div');
+      header.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(15,27,46,0.95);flex-shrink:0;';
+
+      const backBtn = document.createElement('button');
+      backBtn.textContent = '\u2190 Back';
+      backBtn.style.cssText = 'padding:6px 14px;background:#374151;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;';
+      backBtn.onclick = function() { overlay.remove(); };
+
+      const titleEl = document.createElement('div');
+      titleEl.textContent = file.title;
+      titleEl.style.cssText = 'flex:1;color:#fff;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+
+      const dlBtn = document.createElement('button');
+      dlBtn.textContent = '\u2B07 Download';
+      dlBtn.style.cssText = 'padding:6px 14px;background:#01696F;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;';
+      dlBtn.onclick = function() { tfDownloadFile(id); };
+
+      header.appendChild(backBtn);
+      header.appendChild(titleEl);
+      header.appendChild(dlBtn);
+      overlay.appendChild(header);
+
+      // Content area
+      const content = document.createElement('div');
+      content.style.cssText = 'flex:1;overflow:auto;display:flex;justify-content:center;align-items:center;padding:16px;';
+
       if (file.fileData.startsWith('data:image')) {
-        win.document.write(`<html><head><title>${escHtml(file.title)}</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#111;"><img src="${file.fileData}" style="max-width:100%;max-height:100vh;"/></body></html>`);
+        const img = document.createElement('img');
+        img.src = file.fileData;
+        img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;';
+        content.appendChild(img);
       } else if (file.fileData.startsWith('data:application/pdf')) {
-        win.document.write(`<html><head><title>${escHtml(file.title)}</title></head><body style="margin:0;"><embed src="${file.fileData}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0;"/></body></html>`);
+        const embed = document.createElement('iframe');
+        embed.src = file.fileData;
+        embed.style.cssText = 'width:100%;max-width:900px;height:100%;border:none;border-radius:8px;background:#fff;';
+        content.style.alignItems = 'stretch';
+        content.appendChild(embed);
       } else {
-        win.document.write(`<html><head><title>${escHtml(file.title)}</title></head><body><pre style="white-space:pre-wrap;padding:20px;font-family:monospace;">${escHtml(atob(file.fileData.split(',')[1] || ''))}</pre></body></html>`);
+        const pre = document.createElement('pre');
+        try { pre.textContent = atob(file.fileData.split(',')[1] || ''); } catch(e) { pre.textContent = 'Unable to preview this file.'; }
+        pre.style.cssText = 'white-space:pre-wrap;padding:20px;font-family:monospace;color:#e0e6f0;max-width:900px;width:100%;';
+        content.appendChild(pre);
       }
+
+      overlay.appendChild(content);
+
+      // Close on background click
+      overlay.addEventListener('click', function(e) { if (e.target === overlay || e.target === content) overlay.remove(); });
+
+      document.body.appendChild(overlay);
     }
 
     function tfDownloadFile(id) {
