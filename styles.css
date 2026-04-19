@@ -671,33 +671,34 @@
       transform: translateY(-4px) scale(1.01);
       box-shadow: 0 12px 40px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
     }
-    /* C-TIER: Gray/slate — muted, minimal */
+    /* C-TIER: Steel/slate — solid, professional, visible */
     .rookie-tier-c {
       background:
-        radial-gradient(ellipse at 30% 80%, rgba(120,130,145,0.12) 0%, transparent 60%),
-        radial-gradient(ellipse at 80% 20%, rgba(148,163,184,0.08) 0%, transparent 50%),
-        linear-gradient(160deg, #1A1C22 0%, #22252D 40%, #2A2D36 70%, #1E2028 100%);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        radial-gradient(ellipse at 25% 85%, rgba(100,116,139,0.22) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 15%, rgba(148,163,184,0.18) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(71,85,105,0.10) 0%, transparent 65%),
+        linear-gradient(160deg, #1A1D25 0%, #242832 30%, #2E333F 55%, #21252E 100%);
+      box-shadow: 0 4px 24px rgba(100,116,139,0.22), 0 2px 8px rgba(0,0,0,0.18);
     }
     .rookie-tier-c:hover {
-      box-shadow: 0 8px 28px rgba(100,116,139,0.2), 0 4px 12px rgba(0,0,0,0.25);
+      box-shadow: 0 12px 40px rgba(100,116,139,0.32), 0 6px 16px rgba(148,163,184,0.18);
     }
     .rookie-tier-c .rookie-stat {
-      background: rgba(148,163,184,0.08);
-      border-color: rgba(148,163,184,0.12);
+      background: rgba(148,163,184,0.10);
+      border-color: rgba(148,163,184,0.18);
     }
-    .rookie-tier-c .rookie-stat-value { color: #94A3B8; }
+    .rookie-tier-c .rookie-stat-value { color: #B0BEC5; font-weight: 700; text-shadow: 0 0 6px rgba(148,163,184,0.25); }
     .rookie-tier-c .rookie-composite {
-      background: rgba(148,163,184,0.08);
-      border-color: rgba(148,163,184,0.12);
+      background: rgba(148,163,184,0.10);
+      border-color: rgba(148,163,184,0.18);
     }
-    .rookie-tier-c .rookie-composite-score { color: #8B95A5; }
-    .rookie-tier-c .rookie-cert { background: rgba(148,163,184,0.10); color: #8B95A5; }
-    .rookie-tier-c .rookie-stat-label { color: rgba(200,210,220,0.35); }
-    .rookie-tier-c .rookie-composite-label { color: rgba(200,210,220,0.35); }
-    .rookie-tier-c .rookie-name-overlay { color: #CBD5E1; }
-    .rookie-tier-c .rookie-meta-overlay { color: rgba(148,163,184,0.7); }
-    .rookie-tier-c .rookie-tag { color: #8B95A5; border-color: rgba(148,163,184,0.25); }
+    .rookie-tier-c .rookie-composite-score { color: #90A4AE; font-weight: 800; text-shadow: 0 0 8px rgba(148,163,184,0.35); }
+    .rookie-tier-c .rookie-cert { background: rgba(148,163,184,0.14); color: #B0BEC5; text-shadow: 0 0 4px rgba(148,163,184,0.2); }
+    .rookie-tier-c .rookie-stat-label { color: rgba(200,210,220,0.45); }
+    .rookie-tier-c .rookie-composite-label { color: rgba(200,210,220,0.45); }
+    .rookie-tier-c .rookie-name-overlay { color: #E2E8F0; text-shadow: 0 0 6px rgba(148,163,184,0.2); }
+    .rookie-tier-c .rookie-meta-overlay { color: rgba(176,190,197,0.8); }
+    .rookie-tier-c .rookie-tag { color: #B0BEC5; border-color: rgba(148,163,184,0.35); text-shadow: 0 0 4px rgba(148,163,184,0.15); }
 
     /* B-TIER: Deep blue with enhanced blue glow + bold blue lettering */
     .rookie-tier-b {
@@ -846,7 +847,7 @@
       z-index: 2;
       background: none;
     }
-    .rookie-card-border.tier-c { border: 2px solid rgba(100,116,139,0.35); background: none; box-shadow: inset 0 0 15px rgba(100,116,139,0.05); }
+    .rookie-card-border.tier-c { border: 2px solid rgba(148,163,184,0.50); background: none; box-shadow: inset 0 0 25px rgba(100,116,139,0.10), inset 0 0 50px rgba(148,163,184,0.05); }
     .rookie-card-border.tier-b { border: 2px solid rgba(59,130,246,0.7); background: none; box-shadow: inset 0 0 30px rgba(59,130,246,0.12), inset 0 0 60px rgba(37,99,235,0.06); }
     .rookie-card-border.tier-a { border: 3px solid rgba(220,38,38,0.7); background: none; box-shadow: inset 0 0 30px rgba(220,38,38,0.12), inset 0 0 60px rgba(248,113,113,0.06); }
     .rookie-card-border.tier-s {
@@ -869,7 +870,7 @@
       letter-spacing: 0.05em;
       box-shadow: 0 2px 8px rgba(0,0,0,0.35);
     }
-    .rookie-tier-badge.tier-c { background: linear-gradient(135deg, #6B7B8D, #4A5568); color: #E2E8F0; }
+    .rookie-tier-badge.tier-c { background: linear-gradient(135deg, #78909C, #546E7A); color: #ECEFF1; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
     .rookie-tier-badge.tier-b { background: linear-gradient(135deg, #4A90D9, #2563EB); color: #EBF5FF; }
     .rookie-tier-badge.tier-a { background: linear-gradient(135deg, #EF4444, #B91C1C); color: #FEF2F2; text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
     .rookie-tier-badge.tier-s { background: linear-gradient(135deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
@@ -893,7 +894,10 @@
     }
     /* Tier-matched avatar backgrounds — universal per tier */
     .rookie-tier-c .rookie-avatar-wrap {
-      background: linear-gradient(160deg, #1A1C22 0%, #22252D 40%, #2A2D36 70%, #1E2028 100%);
+      background:
+        radial-gradient(ellipse at 25% 85%, rgba(100,116,139,0.25) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 15%, rgba(148,163,184,0.18) 0%, transparent 50%),
+        linear-gradient(160deg, #1A1D25 0%, #242832 50%, #2E333F 100%);
     }
     .rookie-tier-b .rookie-avatar-wrap {
       background:
@@ -1140,26 +1144,26 @@
       border: 1px solid rgba(59,130,246,0.08);
     }
     .rookie-tier-c .rookie-st-item {
-      background: rgba(148,163,184,0.04);
+      background: rgba(148,163,184,0.08);
       border-radius: 6px;
       padding: 5px 3px;
-      border: 1px solid rgba(148,163,184,0.06);
+      border: 1px solid rgba(148,163,184,0.12);
     }
     /* ST values — tier-matched */
     .rookie-tier-s .rookie-st-val { color: #FDE68A; text-shadow: 0 0 6px rgba(255,215,0,0.2); }
     .rookie-tier-a .rookie-st-val { color: #FCA5A5; text-shadow: 0 0 6px rgba(220,38,38,0.2); }
     .rookie-tier-b .rookie-st-val { color: #BFDBFE; text-shadow: 0 0 6px rgba(59,130,246,0.2); }
-    .rookie-tier-c .rookie-st-val { color: rgba(200,210,220,0.75); }
+    .rookie-tier-c .rookie-st-val { color: #B0BEC5; text-shadow: 0 0 4px rgba(148,163,184,0.15); }
     /* ST labels — tier-matched */
     .rookie-tier-s .rookie-st-lbl { color: rgba(253,230,138,0.40); }
     .rookie-tier-a .rookie-st-lbl { color: rgba(252,165,165,0.40); }
     .rookie-tier-b .rookie-st-lbl { color: rgba(147,197,253,0.40); }
-    .rookie-tier-c .rookie-st-lbl { color: rgba(200,210,220,0.28); }
+    .rookie-tier-c .rookie-st-lbl { color: rgba(200,210,220,0.38); }
     /* Stat period text — tier-matched */
     .rookie-tier-s .rookie-stat-period { color: rgba(253,230,138,0.30); }
     .rookie-tier-a .rookie-stat-period { color: rgba(252,165,165,0.30); }
     .rookie-tier-b .rookie-stat-period { color: rgba(147,197,253,0.30); }
-    .rookie-tier-c .rookie-stat-period { color: rgba(200,210,220,0.22); }
+    .rookie-tier-c .rookie-stat-period { color: rgba(200,210,220,0.30); }
 
     @media (max-width: 600px) {
       .rookie-grid { grid-template-columns: 1fr; max-width: 340px; margin: 0 auto; }
