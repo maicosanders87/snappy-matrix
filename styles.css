@@ -218,7 +218,8 @@
     .nav-tabs .nav-tabs,
     #as-sub-tabs,
     #sk-sub-tabs,
-    #mgr-sub-tabs {
+    #mgr-sub-tabs,
+    #st-sub-tabs {
       position: static;
       width: auto;
       height: auto;
@@ -235,7 +236,8 @@
     }
     #as-sub-tabs .nav-tab,
     #sk-sub-tabs .nav-tab,
-    #mgr-sub-tabs .nav-tab {
+    #mgr-sub-tabs .nav-tab,
+    #st-sub-tabs .nav-tab {
       width: auto;
       padding: 9px 18px;
       border-radius: 8px;
@@ -246,7 +248,8 @@
     }
     #as-sub-tabs .nav-tab.active,
     #sk-sub-tabs .nav-tab.active,
-    #mgr-sub-tabs .nav-tab.active {
+    #mgr-sub-tabs .nav-tab.active,
+    #st-sub-tabs .nav-tab.active {
       background: linear-gradient(135deg, var(--snappy-yellow), #FCD34D);
       color: #1E3A8A;
       border-left: none;
@@ -7055,7 +7058,7 @@
 /* ========== PHASE 3: HEADER SCAN-LINE & ANIMATED BORDER ========== */
 .header {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 .header::after {
   content: '';
@@ -7070,6 +7073,8 @@
   );
   pointer-events: none;
   z-index: 0;
+  border-radius: 16px;
+  overflow: hidden;
 }
 .header > * { position: relative; z-index: 1; }
 .header::before {
@@ -7409,4 +7414,26 @@
 .chart-container-st-radar canvas {
   width: 100% !important;
   height: 100% !important;
+}
+
+/* ========== PERFORMANCE OPTIMIZATIONS ========== */
+/* Hide non-active sections from rendering pipeline */
+.view-section:not(.active) {
+  display: none !important;
+}
+/* Reduce paint overhead for non-visible sections */
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+/* GPU-promote animated sidebar and header */
+.nav-tabs {
+  will-change: width;
+}
+.nav-tab {
+  will-change: background-color;
 }

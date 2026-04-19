@@ -1,3 +1,18 @@
+// ========== CHART REGISTRY (destroy before recreate to prevent memory leaks) ==========
+var _chartRegistry = {};
+function createChart(canvasId, config) {
+  if (_chartRegistry[canvasId]) {
+    _chartRegistry[canvasId].destroy();
+    delete _chartRegistry[canvasId];
+  }
+  var canvas = typeof canvasId === 'string' ? document.getElementById(canvasId) : canvasId;
+  if (!canvas) return null;
+  var ctx = canvas.getContext ? canvas.getContext('2d') : canvas;
+  var chart = new Chart(ctx, config);
+  _chartRegistry[canvas.id || canvasId] = chart;
+  return chart;
+}
+
 // ========== ACCESS CONTROL (Manager vs Viewer vs Coach vs Editor) ==========
 const MGR_PIN = '3433';
 const COACH_PINS = {
@@ -2143,8 +2158,6 @@ window.addEventListener('load', () => {
           fill: true
         };
       });
-      if (radarChartInstance) radarChartInstance.destroy();
-
 // ========== CHART.JS DARK THEME DEFAULTS ==========
 if (typeof Chart !== 'undefined') {
   Chart.defaults.color = '#94a3b8';
@@ -2155,7 +2168,7 @@ if (typeof Chart !== 'undefined') {
   }
 }
 
-      radarChartInstance = new Chart(canvas, {
+      radarChartInstance = createChart('radarCanvas', {
         type: 'radar',
         data: {
           labels: catKeys.map(function(c) { return categories[c].label; }),
@@ -2193,8 +2206,7 @@ if (typeof Chart !== 'undefined') {
       });
     }
     function renderBar() {
-      const ctx = document.getElementById('barChart').getContext('2d');
-      new Chart(ctx, {
+      createChart('barChart', {
         type: 'bar',
         data: {
           labels: techs.map(t => t.short),
@@ -2227,8 +2239,7 @@ if (typeof Chart !== 'undefined') {
 
     function renderGroupedBar() {
       const catKeys = Object.keys(categories);
-      const ctx = document.getElementById('groupedBarChart').getContext('2d');
-      new Chart(ctx, {
+      createChart('groupedBarChart', {
         type: 'bar',
         data: {
           labels: catKeys.map(c => categories[c].label),
@@ -2305,7 +2316,7 @@ if (typeof Chart !== 'undefined') {
         };
       });
 
-      new Chart(stCtx, {
+      createChart('stRadarCanvas', {
         type: 'radar',
         data: {
           labels: stRadarLabels,
@@ -2484,7 +2495,7 @@ if (typeof Chart !== 'undefined') {
       const sectionLabels = ['A: Electrical', 'B: Airflow', 'C: Refrigerant', 'D: Zoning/LV', 'E: Bonus'];
       const sectionKeys = ['Section A', 'Section B', 'Section C', 'Section D', 'Bonus (E)'];
 
-      new Chart(document.getElementById('aptSectionChart').getContext('2d'), {
+      createChart('aptSectionChart', {
         type: 'bar',
         data: {
           labels: sectionLabels,
@@ -2520,7 +2531,7 @@ if (typeof Chart !== 'undefined') {
 
       // ---- 3. TOTAL SCORE HORIZONTAL BAR ----
       const sorted = [...techAptData];
-      new Chart(document.getElementById('aptTotalChart').getContext('2d'), {
+      createChart('aptTotalChart', {
         type: 'bar',
         data: {
           labels: sorted.map(d => d.tech.short),
@@ -2642,7 +2653,7 @@ if (typeof Chart !== 'undefined') {
 
       // ---- 6. COMPARISON CHART ----
       const compSections = Object.entries(aptSectionToSelfEval).map(([k,v]) => v.label);
-      new Chart(document.getElementById('aptVsEstChart').getContext('2d'), {
+      createChart('aptVsEstChart', {
         type: 'bar',
         data: {
           labels: techs.map(t => t.short),
@@ -3638,8 +3649,7 @@ if (typeof Chart !== 'undefined') {
 
     function renderSTCharts() {
       // Revenue bar chart
-      const ctx1 = document.getElementById('stRevenueChart').getContext('2d');
-      new Chart(ctx1, {
+      createChart('stRevenueChart', {
         type: 'bar',
         data: {
           labels: stData.map(t => t.name),
@@ -3668,8 +3678,7 @@ if (typeof Chart !== 'undefined') {
       });
 
       // Conversion + Leads combo chart
-      const ctx2 = document.getElementById('stConversionChart').getContext('2d');
-      new Chart(ctx2, {
+      createChart('stConversionChart', {
         type: 'bar',
         data: {
           labels: stData.map(t => t.name),
