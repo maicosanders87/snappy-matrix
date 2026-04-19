@@ -157,6 +157,29 @@
       color: var(--snappy-yellow-light);
       border-color: rgba(255,215,0,0.2);
     }
+    .share-matrix-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(45,212,191,0.12);
+      color: var(--accent-teal);
+      border: 1px solid rgba(45,212,191,0.25);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+    .share-matrix-btn:hover {
+      background: rgba(45,212,191,0.22);
+      border-color: rgba(45,212,191,0.4);
+      transform: translateY(-1px);
+    }
+    .share-matrix-btn svg {
+      flex-shrink: 0;
+    }
     .sync-indicator { color: rgba(255,255,255,0.7) !important; }
     .sync-indicator:hover { color: #FFFFFF !important; }
 

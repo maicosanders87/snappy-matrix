@@ -13,6 +13,26 @@ function createChart(canvasId, config) {
   return chart;
 }
 
+// ========== SHARE MATRIX ==========
+function shareMatrix() {
+  const shareUrl = window.location.href;
+  const shareTitle = 'Snappy Services — Tech Skills Matrix';
+  const shareText = 'Check out the Snappy Services Tech Skills Matrix';
+  if (navigator.share) {
+    navigator.share({ title: shareTitle, text: shareText, url: shareUrl }).catch(function() {});
+  } else {
+    navigator.clipboard.writeText(shareUrl).then(function() {
+      var btn = document.querySelector('.share-matrix-btn');
+      var orig = btn.innerHTML;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+      btn.style.background = 'rgba(45,212,191,0.25)';
+      setTimeout(function() { btn.innerHTML = orig; btn.style.background = ''; }, 2000);
+    }).catch(function() {
+      prompt('Copy this link to share:', shareUrl);
+    });
+  }
+}
+
 // ========== ACCESS CONTROL (Manager vs Viewer vs Coach vs Editor) ==========
 const MGR_PIN = '3433';
 const COACH_PINS = {
