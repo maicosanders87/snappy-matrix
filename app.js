@@ -7247,6 +7247,9 @@ if (typeof Chart !== 'undefined') {
       return bonus;
     }
     const DISP_DEFAULT_TAGS = [
+      'Lead Tech',
+      'Ride Along Trainer',
+      'Warranty Tech',
       'Diagnostics',
       'Install / Changeout',
       'Maintenance',
@@ -7257,17 +7260,44 @@ if (typeof Chart !== 'undefined') {
     function dispLoad() {
       try {
         const raw = localStorage.getItem(DISP_STORAGE);
-        if (raw) return JSON.parse(raw);
+        if (raw) {
+          var data = JSON.parse(raw);
+          // Migration: ensure premium tags exist in tag pool
+          var migrated = false;
+          DISP_PREMIUM_TAGS.forEach(function(pt) {
+            if (!data.tags.includes(pt)) { data.tags.unshift(pt); migrated = true; }
+          });
+          // Migration: auto-assign premium + corrected standard tags
+          var tagMigrations = {
+            'Chris':  ['Lead Tech'],
+            'Dewone': ['Ride Along Trainer'],
+            'Dee':    ['Warranty Tech', 'Diagnostics', 'Install / Changeout'],
+            'Daniel': ['Install / Changeout', 'Sales Capable']
+          };
+          Object.keys(tagMigrations).forEach(function(tech) {
+            if (!data.assignments[tech]) data.assignments[tech] = [];
+            tagMigrations[tech].forEach(function(tag) {
+              if (!data.assignments[tech].includes(tag)) {
+                // Premium tags go to front, standard to end
+                if (DISP_PREMIUM_TAGS.includes(tag)) data.assignments[tech].unshift(tag);
+                else data.assignments[tech].push(tag);
+                migrated = true;
+              }
+            });
+          });
+          if (migrated) { localStorage.setItem(DISP_STORAGE, JSON.stringify(data)); }
+          return data;
+        }
       } catch(e) {}
       // Defaults
       return {
         tags: DISP_DEFAULT_TAGS.slice(),
         assignments: {
-          'Chris':  ['Diagnostics', 'Install / Changeout', 'Sales Capable', 'Solo Approved'],
-          'Dewone': ['Maintenance', 'Sales Capable'],
+          'Chris':  ['Lead Tech', 'Diagnostics', 'Install / Changeout', 'Sales Capable', 'Solo Approved'],
+          'Dewone': ['Ride Along Trainer', 'Maintenance', 'Sales Capable'],
           'Benji':  ['Diagnostics', 'Maintenance'],
-          'Daniel': ['Diagnostics', 'Maintenance'],
-          'Dee':    ['Maintenance']
+          'Daniel': ['Diagnostics', 'Install / Changeout', 'Maintenance', 'Sales Capable'],
+          'Dee':    ['Warranty Tech', 'Diagnostics', 'Install / Changeout', 'Maintenance']
         }
       };
     }
