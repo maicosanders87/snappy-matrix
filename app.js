@@ -3549,14 +3549,7 @@ window.addEventListener('load', () => {
                   <div class="rookie-st-val">$${st.installs.total_revenue.toLocaleString()}</div>
                   <div class="rookie-st-lbl">Install Rev</div>
                 </div>
-                <div class="rookie-st-item">
-                  <div class="rookie-st-val">${st.installs.leads_generated > 0 ? Math.round((st.installs.count / st.installs.leads_generated) * 100) + '%' : '—'}</div>
-                  <div class="rookie-st-lbl">Equip Close %</div>
-                </div>
-                <div class="rookie-st-item">
-                  <div class="rookie-st-val">${st.installs.leads_generated}</div>
-                  <div class="rookie-st-lbl">Self-Source</div>
-                </div>
+
               </div>
             </div>
           `;
