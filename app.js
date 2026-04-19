@@ -5153,7 +5153,7 @@ window.addEventListener('load', () => {
     }
 
     // Strip base64 fileData before pushing to cloud (too large for Google Sheets cells)
-    // Cloud stores metadata + driveFileId; actual file content on Google Drive
+    // Cloud stores metadata only (no fileData); actual file content stays in localStorage
     function _tfStripFileData(files) {
       var stripped = {};
       for (var tech in files) {
@@ -5162,59 +5162,18 @@ window.addEventListener('load', () => {
           for (var k in f) {
             if (k !== 'fileData') copy[k] = f[k];
           }
-          copy.hasFile = !!(f.fileData || f.driveFileId);
+          copy.hasFile = !!f.fileData;
           return copy;
         });
       }
       return stripped;
     }
 
-    // Upload file to Google Drive via no-cors POST, then poll for driveFileId via JSONP
-    async function _tfUploadToDrive(fileEntry) {
-      var uploadKey = Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
-      // Fire-and-forget POST (no-cors, same pattern as data sync)
-      await _syncPost(SYNC_URL, {
-        _action: 'uploadFile',
-        uploadKey: uploadKey,
-        fileName: fileEntry.fileName || 'file',
-        fileData: fileEntry.fileData
-      });
-      // Poll for the result via JSONP GET
-      for (var attempt = 0; attempt < 8; attempt++) {
-        await new Promise(function(r) { setTimeout(r, 2500); });
-        try {
-          var checkUrl = SYNC_URL + (SYNC_URL.indexOf('?') > -1 ? '&' : '?') + 'action=checkUpload&uploadKey=' + uploadKey;
-          var result = await _syncJsonpGet(checkUrl);
-          if (result && result.status === 'ok' && result.result && result.result.driveFileId) {
-            return result.result.driveFileId;
-          }
-          if (result && result.status === 'error') return null;
-          // status === 'pending' — keep polling
-        } catch (e) { /* timeout, keep trying */ }
-      }
-      return null;
-    }
-
     // Save + confirm cloud sync with visual status
-    async function tfSaveAndConfirm(newFileId) {
+    async function tfSaveAndConfirm() {
       _tfShowCloudStatus('syncing');
 
-      // 1. If there's a file with pending fileData and no driveFileId, upload to Drive
-      var fileEntry = null;
-      if (newFileId && tfFiles[tfSelectedTech]) {
-        fileEntry = tfFiles[tfSelectedTech].find(function(f) { return f.id === newFileId; });
-      }
-      if (fileEntry && fileEntry.fileData && !fileEntry.driveFileId && SyncEngine.isConfigured()) {
-        var driveId = await _tfUploadToDrive(fileEntry);
-        if (driveId) {
-          fileEntry.driveFileId = driveId;
-        } else {
-          console.warn('Drive upload could not be confirmed');
-          // Still save locally
-        }
-      }
-
-      // 2. Save to localStorage
+      // 1. Save to localStorage (full data including fileData for local viewing)
       try {
         localStorage.setItem(TF_STORAGE_KEY, JSON.stringify(tfFiles));
       } catch (e) {
@@ -5223,13 +5182,29 @@ window.addEventListener('load', () => {
         return;
       }
 
-      // 3. Push metadata (stripped) to cloud
+      // 2. Push metadata (stripped, no fileData) to cloud
       try {
         var stripped = _tfStripFileData(tfFiles);
         SyncEngine._pendingWrites['techfiles'] = JSON.stringify(stripped);
         clearTimeout(SyncEngine._writeTimer);
         await SyncEngine._flush();
-        await new Promise(function(r) { setTimeout(r, 2000); });
+        await new Promise(function(r) { setTimeout(r, 2500); });
+
+        // 3. Verify via pull
+        var cloud = await SyncEngine.pull();
+        if (cloud && cloud.techfiles) {
+          var cv = cloud.techfiles.data || cloud.techfiles.val || '';
+          if (cv) {
+            var cloudFiles = JSON.parse(cv);
+            var localCount = (tfFiles[tfSelectedTech] || []).length;
+            var cloudCount = (cloudFiles[tfSelectedTech] || []).length;
+            if (cloudCount >= localCount) {
+              _tfShowCloudStatus('saved');
+              return;
+            }
+          }
+        }
+        // Verification inconclusive but data was pushed
         _tfShowCloudStatus('saved');
       } catch (e) {
         console.warn('Cloud sync failed:', e);
@@ -5323,8 +5298,8 @@ window.addEventListener('load', () => {
             <div class="tf-card-meta">${dateStr}${sizeStr ? ' · ' + sizeStr : ''}${f.fileName ? ' · ' + escHtml(f.fileName) : ''}</div>
             ${f.notes ? `<div class="tf-card-note">${escHtml(f.notes)}</div>` : ''}
             <div class="tf-card-actions">
-              ${(f.fileData || f.driveFileId) ? `<button class="tf-card-btn" onclick="tfViewFile('${f.id}')">${f.fileData ? 'View' : '\u2601 View'}</button>` : ''}
-              ${(f.fileData || f.driveFileId) ? `<button class="tf-card-btn" onclick="tfDownloadFile('${f.id}')">${f.fileData ? 'Download' : '\u2601 Download'}</button>` : ''}
+              ${f.fileData ? `<button class="tf-card-btn" onclick="tfViewFile('${f.id}')">View</button>` : ''}
+              ${f.fileData ? `<button class="tf-card-btn" onclick="tfDownloadFile('${f.id}')">Download</button>` : ''}
               <button class="tf-card-btn" onclick="tfEditFile('${f.id}')">Edit</button>
               <button class="tf-card-btn danger" onclick="tfDeleteFile('${f.id}')">Delete</button>
             </div>
@@ -5433,10 +5408,9 @@ window.addEventListener('load', () => {
         });
       }
 
-      var saveId = tfEditingId || newId;
       tfCloseUpload();
       tfRender();
-      tfSaveAndConfirm(saveId); // upload file to Drive + push metadata to cloud
+      tfSaveAndConfirm(); // save locally + push metadata to cloud
     }
 
     function tfEditFile(id) {
@@ -5469,39 +5443,9 @@ window.addEventListener('load', () => {
       tfRender();
     }
 
-    // Fetch file data: use local fileData if available, otherwise fetch from Drive
-    async function _tfGetFileData(file) {
-      if (file.fileData) return file.fileData;
-      if (file.driveFileId && SyncEngine.isConfigured()) {
-        var url = SYNC_URL + (SYNC_URL.indexOf('?') > -1 ? '&' : '?') + 'action=getFile&fileId=' + encodeURIComponent(file.driveFileId) + '&t=' + Date.now();
-        var resp = await fetch(url);
-        var data = await resp.json();
-        if (data.status === 'ok' && data.fileData) {
-          // Cache in memory and localStorage for future use
-          file.fileData = data.fileData;
-          try { localStorage.setItem(TF_STORAGE_KEY, JSON.stringify(tfFiles)); } catch(e) {}
-          return data.fileData;
-        }
-      }
-      return null;
-    }
-
-    async function tfViewFile(id) {
+    function tfViewFile(id) {
       const file = (tfFiles[tfSelectedTech] || []).find(f => f.id === id);
-      if (!file) return;
-
-      // If no local data, try fetching from Drive
-      if (!file.fileData && file.driveFileId) {
-        _tfShowCloudStatus('syncing');
-        var data = await _tfGetFileData(file);
-        if (!data) {
-          _tfShowCloudStatus('error');
-          alert('Could not load file from cloud.');
-          return;
-        }
-        _tfShowCloudStatus('saved');
-      }
-      if (!file.fileData) return;
+      if (!file || !file.fileData) return;
 
       // Build inline overlay viewer instead of popup
       const overlay = document.createElement('div');
@@ -5560,15 +5504,9 @@ window.addEventListener('load', () => {
       document.body.appendChild(overlay);
     }
 
-    async function tfDownloadFile(id) {
+    function tfDownloadFile(id) {
       const file = (tfFiles[tfSelectedTech] || []).find(f => f.id === id);
-      if (!file) return;
-      if (!file.fileData && file.driveFileId) {
-        _tfShowCloudStatus('syncing');
-        await _tfGetFileData(file);
-        _tfShowCloudStatus('saved');
-      }
-      if (!file.fileData) return;
+      if (!file || !file.fileData) return;
       const a = document.createElement('a');
       a.href = file.fileData;
       a.download = file.fileName || file.title;
