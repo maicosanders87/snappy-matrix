@@ -1831,6 +1831,7 @@ window.addEventListener('load', () => {
       bb.meetings.push(newMeeting);
       bbSave(bb);
       renderBulletinBoard();
+      renderMgrBulletinBoard();
     }
 
     function bbAddOneOnOne() {
@@ -1891,6 +1892,7 @@ window.addEventListener('load', () => {
         }
       }
       renderBulletinBoard();
+      renderMgrBulletinBoard();
     }
 
     function bbGoToSkillsTags() {
@@ -4292,6 +4294,208 @@ window.addEventListener('load', () => {
       `;
     }
 
+    // ----- Manager Bulletin Board (9-day rolling) -----
+    function renderMgrBulletinBoard() {
+      var container = document.getElementById('mgrBulletinBoard');
+      if (!container) return;
+
+      var now = new Date();
+      var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      // 9-day window: yesterday through +7 days
+      var startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+      var endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+
+      // Build array of 9 days
+      var days = [];
+      for (var d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        days.push(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+      }
+
+      // Collect all events per date
+      var bb = bbLoad();
+      var eventsByDate = {};
+      days.forEach(function(day) {
+        var ds = mgrFmtDate(day);
+        var evts = [];
+        var dow = day.getDay();
+
+        // Recurring labels
+        if (dow === 1 && isNexstarMonday(day)) {
+          evts.push({ type: 'nexstar', text: 'Nexstar Zoom 8AM', icon: '\ud83d\udcf9' });
+        }
+        if (dow === 1) evts.push({ type: 'recurring', text: 'Planning & Review', icon: '\ud83d\udccb' });
+        if (dow === 2) evts.push({ type: 'recurring', text: 'Training Prep', icon: '\u270f\ufe0f' });
+        if (dow === 3) evts.push({ type: 'recurring', text: 'Team Meeting', icon: '\ud83d\udce3' });
+
+        // BB meetings
+        (bb.meetings || []).forEach(function(m) {
+          if (m.date === ds) evts.push({ type: 'meeting', text: m.subject || 'Meeting', icon: '\ud83d\udce3', time: m.time, id: m.id });
+        });
+
+        // BB one-on-ones
+        (bb.oneOnOnes || []).forEach(function(o) {
+          if (o.date === ds) evts.push({ type: 'oneonone', text: o.tech, icon: '\ud83e\udd1d', status: o.status || 'planned', id: o.id });
+        });
+
+        // BB ride-alongs
+        (bb.rideAlongs || []).forEach(function(r) {
+          if (r.date === ds) evts.push({ type: 'ridealong', text: r.tech, icon: '\ud83d\ude90', status: r.status || 'planned', id: r.id });
+        });
+
+        // Manager entries
+        if (mgrState && mgrState.entries) {
+          var bbOOIds = {}; var bbRAIds = {};
+          (bb.oneOnOnes || []).forEach(function(o) { bbOOIds[o.id] = true; });
+          (bb.rideAlongs || []).forEach(function(r) { bbRAIds[r.id] = true; });
+          mgrState.entries.forEach(function(e) {
+            if (e.date !== ds) return;
+            if (e.type === 'one-on-one' && !bbOOIds[e.id]) {
+              evts.push({ type: 'oneonone', text: e.tech, icon: '\ud83e\udd1d', status: e.status || 'planned', id: e.id });
+            } else if (e.type === 'ride-along' && !bbRAIds[e.id]) {
+              evts.push({ type: 'ridealong', text: e.tech, icon: '\ud83d\ude90', status: e.status || 'planned', id: e.id });
+            }
+          });
+        }
+
+        eventsByDate[ds] = evts;
+      });
+
+      // Window label
+      var windowLabel = mgrFmtShort(startDate) + ' \u2013 ' + mgrFmtShort(endDate);
+
+      var html = '';
+      html += '<div class="mgr-bb-header">';
+      html += '<div class="mgr-bb-title"><div class="mgr-bb-title-icon">\ud83d\udccc</div>Bulletin Board</div>';
+      html += '<div class="mgr-bb-window">9-day window: ' + windowLabel + '</div>';
+      html += '</div>';
+
+      // Day header row
+      html += '<div class="mgr-bb-board">';
+      var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      days.forEach(function(day) {
+        var isToday = mgrSameDay(day, today);
+        html += '<div class="mgr-bb-dayhead' + (isToday ? ' today-col' : '') + '">' + dayNames[day.getDay()] + '</div>';
+      });
+
+      // Day cells
+      days.forEach(function(day) {
+        var ds = mgrFmtDate(day);
+        var isToday = mgrSameDay(day, today);
+        var isPast = day < today;
+        var evts = eventsByDate[ds] || [];
+
+        html += '<div class="mgr-bb-day' + (isToday ? ' is-today' : '') + (isPast ? ' is-past' : '') + '" data-date="' + ds + '" onclick="mgrOpenDayPanel(\'' + ds + '\')';
+        html += '">';
+        html += '<div class="mgr-bb-daynum">' + day.getDate() + ' <span class="mgr-bb-dayname">' + day.toLocaleDateString('en-US', { month: 'short' }) + '</span></div>';
+
+        if (evts.length === 0) {
+          html += '<div class="mgr-bb-empty-day">No events</div>';
+        } else {
+          evts.forEach(function(evt) {
+            var cls = 'mgr-bb-pin ' + evt.type;
+            if (evt.status === 'completed') cls += ' completed';
+            html += '<div class="' + cls + '">';
+            html += '<span class="mgr-bb-pin-icon">' + evt.icon + '</span>';
+            html += '<span class="mgr-bb-pin-text">' + evt.text + '</span>';
+            if (evt.status === 'completed') html += '<span style="margin-left:auto;font-size:9px;">\u2705</span>';
+            html += '</div>';
+          });
+        }
+
+        html += '</div>';
+      });
+
+      html += '</div>'; // close board
+
+      // Quick-add buttons (manager only)
+      html += '<div class="mgr-bb-add-row mgr-only">';
+      html += '<button class="mgr-bb-add-btn" onclick="mgrBBQuickAdd(\'meeting\')">+ Meeting</button>';
+      html += '<button class="mgr-bb-add-btn" onclick="mgrBBQuickAdd(\'oneonone\')">+ 1-on-1</button>';
+      html += '<button class="mgr-bb-add-btn" onclick="mgrBBQuickAdd(\'ridealong\')">+ Ride-Along</button>';
+      html += '</div>';
+
+      container.innerHTML = html;
+    }
+
+    // Quick-add modal for bulletin board
+    function mgrBBQuickAdd(type) {
+      var old = document.getElementById('mgrBBAddModal');
+      if (old) old.remove();
+      var techOpts = techs.map(function(t) { return '<option value="' + t.short + '">' + t.name + '</option>'; }).join('');
+      var todayStr = mgrFmtDate(mgrToday());
+
+      var title, fields;
+      if (type === 'meeting') {
+        title = 'Post Meeting';
+        fields = '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Date</label>' +
+          '<input type="date" id="mgrBBDate" value="' + bbGetWednesday() + '" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">' +
+          '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Subject</label>' +
+          '<input type="text" id="mgrBBSubject" placeholder="e.g. Superheat & Subcool Review" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">' +
+          '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Time</label>' +
+          '<input type="text" id="mgrBBTime" placeholder="e.g. 8:00 AM" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">';
+      } else if (type === 'oneonone') {
+        title = 'Add 1-on-1';
+        fields = '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Tech</label>' +
+          '<select id="mgrBBTech" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">' + techOpts + '</select>' +
+          '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Date</label>' +
+          '<input type="date" id="mgrBBDate" value="' + todayStr + '" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">';
+      } else {
+        title = 'Add Ride-Along';
+        fields = '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Tech</label>' +
+          '<select id="mgrBBTech" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">' + techOpts + '</select>' +
+          '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Date</label>' +
+          '<input type="date" id="mgrBBDate" value="' + todayStr + '" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">';
+      }
+
+      var modal = document.createElement('div');
+      modal.id = 'mgrBBAddModal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
+      modal.innerHTML = '<div style="background:#1C2E52;border-radius:16px;padding:24px 28px;max-width:380px;width:90%;color:#fff;font-family:var(--font);box-shadow:0 8px 32px rgba(0,0,0,0.5);">' +
+        '<div style="font-size:17px;font-weight:700;margin-bottom:12px;">' + title + '</div>' +
+        fields +
+        '<div style="display:flex;gap:10px;margin-top:16px;">' +
+        '<button onclick="mgrBBSubmitQuickAdd(\'' + type + '\')" style="flex:1;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#0F1B2E;font-weight:700;font-size:13px;cursor:pointer;">Add</button>' +
+        '<button onclick="document.getElementById(\'mgrBBAddModal\').remove()" style="flex:1;padding:10px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;background:transparent;color:#8b93a8;font-weight:600;font-size:13px;cursor:pointer;">Cancel</button>' +
+        '</div></div>';
+      document.body.appendChild(modal);
+      modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+    }
+
+    function mgrBBSubmitQuickAdd(type) {
+      var dateStr = document.getElementById('mgrBBDate').value;
+      if (!dateStr) { alert('Please select a date.'); return; }
+
+      var bb = bbLoad();
+      if (type === 'meeting') {
+        bb.meetings.push({
+          id: bbUID(),
+          subject: document.getElementById('mgrBBSubject').value || 'Team Meeting',
+          date: dateStr,
+          time: document.getElementById('mgrBBTime').value || '',
+          location: '', notes: '', source: 'mgr'
+        });
+      } else if (type === 'oneonone') {
+        var tech = document.getElementById('mgrBBTech').value;
+        bb.oneOnOnes.push({ id: bbUID(), tech: tech, date: dateStr, status: 'planned', time: '', notes: '', source: 'mgr' });
+      } else {
+        var tech = document.getElementById('mgrBBTech').value;
+        bb.rideAlongs.push({ id: bbUID(), tech: tech, date: dateStr, status: 'planned', time: '', notes: '', source: 'mgr' });
+      }
+      bbSave(bb);
+
+      document.getElementById('mgrBBAddModal').remove();
+      renderMgrBulletinBoard();
+      renderBulletinBoard(); // sync overview BB
+      renderManagerCalendar(); // refresh dots
+
+      // Toast
+      var toast = document.createElement('div');
+      toast.textContent = '\u2705 Added to Bulletin Board';
+      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1B5E20;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 400); }, 2000);
+    }
+
     // ----- Side Panel -----
     function mgrOpenPanel() {
       document.getElementById('mgrOverlay').classList.add('open');
@@ -5722,6 +5926,7 @@ window.addEventListener('load', () => {
       renderManagerCompliance();
       renderManagerKPIs();
       renderManagerCalendar();
+      renderMgrBulletinBoard();
       renderManagerLog();
       renderManagerTraining();
     }
