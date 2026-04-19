@@ -888,6 +888,44 @@
       height: 100%;
       object-fit: cover;
       object-position: top center;
+      position: relative;
+      z-index: 0;
+    }
+    /* Tier-matched avatar backgrounds — universal per tier */
+    .rookie-tier-c .rookie-avatar-wrap {
+      background: linear-gradient(160deg, #1A1C22 0%, #22252D 40%, #2A2D36 70%, #1E2028 100%);
+    }
+    .rookie-tier-b .rookie-avatar-wrap {
+      background:
+        radial-gradient(ellipse at 25% 85%, rgba(37,99,235,0.30) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 15%, rgba(59,130,246,0.20) 0%, transparent 50%),
+        linear-gradient(160deg, #0A1628 0%, #122650 50%, #0E1E3A 100%);
+    }
+    .rookie-tier-a .rookie-avatar-wrap {
+      background:
+        radial-gradient(ellipse at 20% 85%, rgba(220,38,38,0.30) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 15%, rgba(248,113,113,0.22) 0%, transparent 50%),
+        linear-gradient(160deg, #1A0A0A 0%, #2D0F0F 50%, #3B1212 100%);
+    }
+    .rookie-tier-s .rookie-avatar-wrap {
+      background:
+        radial-gradient(ellipse at 20% 85%, rgba(255,215,0,0.18) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.15) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 50%, rgba(255,107,107,0.10) 0%, transparent 55%),
+        linear-gradient(160deg, #2A1F0A 0%, #1A0F20 35%, #0A1A2A 65%, #1A200A 100%);
+    }
+    /* Tier-matched avatar bottom overlay gradient */
+    .rookie-tier-c .rookie-label {
+      background: linear-gradient(0deg, rgba(26,28,34,0.92) 0%, rgba(26,28,34,0.5) 50%, transparent 100%);
+    }
+    .rookie-tier-b .rookie-label {
+      background: linear-gradient(0deg, rgba(10,22,40,0.92) 0%, rgba(14,30,58,0.5) 50%, transparent 100%);
+    }
+    .rookie-tier-a .rookie-label {
+      background: linear-gradient(0deg, rgba(26,10,10,0.92) 0%, rgba(45,15,15,0.5) 50%, transparent 100%);
+    }
+    .rookie-tier-s .rookie-label {
+      background: linear-gradient(0deg, rgba(20,16,8,0.92) 0%, rgba(26,15,32,0.5) 50%, transparent 100%);
     }
     .rookie-avatar-wrap .initials-circle {
       width: 100px;

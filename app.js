@@ -3380,7 +3380,7 @@ window.addEventListener('load', () => {
 
       // Manager card — Mark Sanders, S-Tier
       const mgrTierLower = 's';
-      const mgrAvatarBg = 'linear-gradient(135deg, #2A1F0A, #1A0F20, #0A1A2A, #1A200A)';
+      // Avatar BG now handled by CSS tier class (.rookie-tier-s .rookie-avatar-wrap)
       const mgrCompBarColor = 'linear-gradient(90deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF)';
       const ms = mgrLoadStats();
       // Manager install data (excluded from stData per instructions)
@@ -3390,7 +3390,7 @@ window.addEventListener('load', () => {
         <div class="rookie-card rookie-tier-s">
           <div class="rookie-card-border tier-s"></div>
           <div class="rookie-tier-badge tier-s">S-TIER</div>
-          <div class="rookie-avatar-wrap" style="background:${mgrAvatarBg}">
+          <div class="rookie-avatar-wrap">
             <img src="maico_avatar.png" alt="Mark Sanders">
             <div class="rookie-label">
               <span class="rookie-tag">Snappy Services</span>
@@ -3449,11 +3449,7 @@ window.addEventListener('load', () => {
           : tierLower === 'b' ? 'linear-gradient(90deg, #2563EB, #3B82F6)'
           : 'linear-gradient(90deg, #6B7280, #9CA3AF)';
 
-        // Avatar BG gradient based on tier
-        const avatarBg = tierLower === 's' ? 'linear-gradient(135deg, #2A1F0A, #1A0F20, #0A1A2A, #1A200A)'
-          : tierLower === 'a' ? 'linear-gradient(135deg, #1A0A0A, #2D0F0F, #3B1212)'
-          : tierLower === 'b' ? 'linear-gradient(135deg, #0A1628, #122650, #0E1E3A)'
-          : 'linear-gradient(135deg, #1A1C22, #22252D, #2A2D36)';
+        // Avatar BG now handled by CSS tier classes (.rookie-tier-X .rookie-avatar-wrap)
 
         // Build ST stat rows
         var stRows = '';
@@ -3541,7 +3537,7 @@ window.addEventListener('load', () => {
           <div class="rookie-card rookie-tier-${tierLower}">
             <div class="rookie-card-border tier-${tierLower}"></div>
             <div class="rookie-tier-badge tier-${tierLower}">${tierInfo.tier}-TIER</div>
-            <div class="rookie-avatar-wrap" style="background:${avatarBg}">
+            <div class="rookie-avatar-wrap">
               ${techAvatars[t.short]
                 ? `<img src="${techAvatars[t.short]}" alt="${t.name}">`
                 : `<div class="initials-circle" style="background:${t.color}">${t.initials}</div>`
