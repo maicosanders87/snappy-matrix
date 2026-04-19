@@ -3366,8 +3366,8 @@ window.addEventListener('load', () => {
                   <div class="rookie-st-lbl">Install Rev</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${st.installs.count > 0 ? '$' + st.installs.avg_sale.toLocaleString() : '—'}</div>
-                  <div class="rookie-st-lbl">Avg Install</div>
+                  <div class="rookie-st-val">${st.sales.close_rate}%</div>
+                  <div class="rookie-st-lbl">Closing %</div>
                 </div>
                 <div class="rookie-st-item">
                   <div class="rookie-st-val">${st.installs.leads_generated}</div>
