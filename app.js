@@ -203,7 +203,10 @@ async function manualSync() {
     });
     await SyncEngine._flush();
 
-    // 2. Pull cloud data
+    // 1b. Wait for no-cors POST to land on server before reading back
+    await new Promise(function(r) { setTimeout(r, 2500); });
+
+    // 2. Pull cloud data (verifies push landed)
     var cloudData = await SyncEngine.pull();
     if (cloudData) {
       var keyMap = {
