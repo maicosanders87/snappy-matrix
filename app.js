@@ -222,6 +222,9 @@ async function initCloudSync() {
     SyncEngine.write('techfiles', typeof _tfStripFileData === 'function' ? _tfStripFileData(parsed) : parsed);
   }
 
+  // Sync Drive file map from cloud
+  if (typeof _tfSyncDriveMap === 'function') _tfSyncDriveMap(cloudData);
+
   if (updated && !alreadyReloaded) {
     sessionStorage.setItem(SYNC_RELOAD_KEY, '1');
     console.log('Cloud data loaded — refreshing views (one-time)');
@@ -296,6 +299,8 @@ async function manualSync() {
         var p = JSON.parse(mergedTf);
         SyncEngine.write('techfiles', typeof _tfStripFileData === 'function' ? _tfStripFileData(p) : p);
       }
+      // Sync Drive file map
+      if (typeof _tfSyncDriveMap === 'function') _tfSyncDriveMap(cloudData);
       await SyncEngine._flush();
       await new Promise(function(r) { setTimeout(r, 1500); });
     }
@@ -427,6 +432,9 @@ async function saveSyncUrl() {
         }
       }
     }
+
+    // Sync Drive file map
+    if (pullData && pullData.result && typeof _tfSyncDriveMap === 'function') _tfSyncDriveMap(pullData.result);
 
     statusEl.textContent = 'All data synced!'; statusEl.style.color = '#81c784';
     setTimeout(function() { closeSyncSetup(); location.reload(); }, 1500);
@@ -5129,7 +5137,9 @@ window.addEventListener('load', () => {
 
     // ========== TECH FILES ==========
     const TF_STORAGE_KEY = 'snappy_tech_files';
+    const TF_DRIVEMAP_KEY = 'snappy_tf_drivemap';
     let tfFiles = {}; // { tech: [ { id, type, title, notes, fileName, fileSize, fileData, date } ] }
+    let tfDriveMap = {}; // { fileEntryId: driveFileId }
     let tfSelectedTech = 'Chris';
     let tfPendingFileData = null;
     let tfPendingFileName = '';
@@ -5141,6 +5151,10 @@ window.addEventListener('load', () => {
         const raw = localStorage.getItem(TF_STORAGE_KEY);
         if (raw) tfFiles = JSON.parse(raw);
       } catch (e) { console.warn('Tech Files: load failed', e); }
+      try {
+        const dm = localStorage.getItem(TF_DRIVEMAP_KEY);
+        if (dm) tfDriveMap = JSON.parse(dm);
+      } catch (e) {}
     }
     function tfSave() {
       try {
@@ -5162,7 +5176,7 @@ window.addEventListener('load', () => {
           for (var k in f) {
             if (k !== 'fileData') copy[k] = f[k];
           }
-          copy.hasFile = !!f.fileData;
+          copy.hasFile = !!(f.fileData || (typeof tfDriveMap !== 'undefined' && tfDriveMap[f.id]));
           return copy;
         });
       }
@@ -5210,6 +5224,15 @@ window.addEventListener('load', () => {
         console.warn('Cloud sync failed:', e);
         _tfShowCloudStatus('error');
       }
+
+      // 4. Upload any new files to Drive (non-blocking, after metadata is safe)
+      for (var tech in tfFiles) {
+        (tfFiles[tech] || []).forEach(function(entry) {
+          if (entry.fileData && !tfDriveMap[entry.id]) {
+            _tfUploadToDrive(tech, entry);
+          }
+        });
+      }
     }
 
     function _tfShowCloudStatus(state) {
@@ -5228,6 +5251,81 @@ window.addEventListener('load', () => {
       } else if (state === 'error') {
         el.innerHTML = '\u26A0 Cloud sync failed — file saved locally';
         setTimeout(function() { el.classList.add('tf-cloud-hide'); }, 5000);
+      }
+    }
+
+    // Upload file content to Google Drive (non-blocking, fire-and-forget)
+    function _tfUploadToDrive(techName, fileEntry) {
+      if (!fileEntry.fileData || !SyncEngine.isConfigured()) return;
+      if (tfDriveMap[fileEntry.id]) return; // already uploaded
+      var payload = JSON.stringify({
+        _action: 'uploadFile',
+        techName: techName,
+        fileEntryId: fileEntry.id,
+        fileName: fileEntry.fileName || fileEntry.title,
+        fileData: fileEntry.fileData
+      });
+      fetch(SYNC_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: payload
+      }).then(function() {
+        console.log('Drive upload sent for', fileEntry.id);
+      }).catch(function(err) {
+        console.warn('Drive upload failed:', err);
+      });
+    }
+
+    // Fetch file from Drive via JSONP (for cross-device viewing)
+    function _tfFetchFromDrive(driveFileId) {
+      return new Promise(function(resolve, reject) {
+        var cbName = '_tfDriveCb_' + Date.now();
+        var timeout = setTimeout(function() {
+          delete window[cbName];
+          reject(new Error('Drive fetch timeout'));
+        }, 30000);
+        window[cbName] = function(data) {
+          clearTimeout(timeout);
+          delete window[cbName];
+          var s = document.getElementById(cbName);
+          if (s) s.remove();
+          if (data && data.status === 'ok' && data.fileData) {
+            resolve(data.fileData);
+          } else {
+            reject(new Error(data && data.message || 'No file data'));
+          }
+        };
+        var url = SYNC_URL + (SYNC_URL.indexOf('?') > -1 ? '&' : '?') +
+          'action=getFile&fileId=' + encodeURIComponent(driveFileId) +
+          '&callback=' + cbName + '&t=' + Date.now();
+        var s = document.createElement('script');
+        s.id = cbName;
+        s.src = url;
+        s.onerror = function() {
+          clearTimeout(timeout);
+          delete window[cbName];
+          s.remove();
+          reject(new Error('Drive fetch network error'));
+        };
+        document.body.appendChild(s);
+      });
+    }
+
+    // Pull Drive map from cloud on sync
+    function _tfSyncDriveMap(cloudData) {
+      if (cloudData && cloudData.techfile_drivemap) {
+        var val = cloudData.techfile_drivemap.val || cloudData.techfile_drivemap.data || '';
+        if (val) {
+          try {
+            var cloudMap = JSON.parse(val);
+            // Merge with local map
+            for (var k in cloudMap) {
+              tfDriveMap[k] = cloudMap[k];
+            }
+            localStorage.setItem(TF_DRIVEMAP_KEY, JSON.stringify(tfDriveMap));
+          } catch (e) { console.warn('Drive map parse error', e); }
+        }
       }
     }
 
@@ -5298,8 +5396,8 @@ window.addEventListener('load', () => {
             <div class="tf-card-meta">${dateStr}${sizeStr ? ' · ' + sizeStr : ''}${f.fileName ? ' · ' + escHtml(f.fileName) : ''}</div>
             ${f.notes ? `<div class="tf-card-note">${escHtml(f.notes)}</div>` : ''}
             <div class="tf-card-actions">
-              ${f.fileData ? `<button class="tf-card-btn" onclick="tfViewFile('${f.id}')">View</button>` : ''}
-              ${f.fileData ? `<button class="tf-card-btn" onclick="tfDownloadFile('${f.id}')">Download</button>` : ''}
+              ${(f.fileData || tfDriveMap[f.id]) ? `<button class="tf-card-btn" onclick="tfViewFile('${f.id}')">${f.fileData ? 'View' : '\u2601 View'}</button>` : ''}
+              ${(f.fileData || tfDriveMap[f.id]) ? `<button class="tf-card-btn" onclick="tfDownloadFile('${f.id}')">${f.fileData ? 'Download' : '\u2601 Download'}</button>` : ''}
               <button class="tf-card-btn" onclick="tfEditFile('${f.id}')">Edit</button>
               <button class="tf-card-btn danger" onclick="tfDeleteFile('${f.id}')">Delete</button>
             </div>
@@ -5506,9 +5604,27 @@ window.addEventListener('load', () => {
       tfRender();
     }
 
-    function tfViewFile(id) {
+    async function tfViewFile(id) {
       const file = (tfFiles[tfSelectedTech] || []).find(f => f.id === id);
-      if (!file || !file.fileData) return;
+      if (!file) return;
+
+      // If no local data, try fetching from Drive
+      if (!file.fileData && tfDriveMap[file.id]) {
+        _tfShowCloudStatus('syncing');
+        try {
+          var data = await _tfFetchFromDrive(tfDriveMap[file.id]);
+          if (data) {
+            file.fileData = data;
+            try { localStorage.setItem(TF_STORAGE_KEY, JSON.stringify(tfFiles)); } catch(e) {}
+            _tfShowCloudStatus('saved');
+          }
+        } catch (err) {
+          _tfShowCloudStatus('error');
+          alert('Could not load file from cloud.');
+          return;
+        }
+      }
+      if (!file.fileData) return;
 
       // Build inline overlay viewer instead of popup
       const overlay = document.createElement('div');
@@ -5567,9 +5683,26 @@ window.addEventListener('load', () => {
       document.body.appendChild(overlay);
     }
 
-    function tfDownloadFile(id) {
+    async function tfDownloadFile(id) {
       const file = (tfFiles[tfSelectedTech] || []).find(f => f.id === id);
-      if (!file || !file.fileData) return;
+      if (!file) return;
+
+      // If no local data, try fetching from Drive
+      if (!file.fileData && tfDriveMap[file.id]) {
+        _tfShowCloudStatus('syncing');
+        try {
+          var data = await _tfFetchFromDrive(tfDriveMap[file.id]);
+          if (data) {
+            file.fileData = data;
+            try { localStorage.setItem(TF_STORAGE_KEY, JSON.stringify(tfFiles)); } catch(e) {}
+            _tfShowCloudStatus('saved');
+          }
+        } catch (err) {
+          _tfShowCloudStatus('error');
+          return;
+        }
+      }
+      if (!file.fileData) return;
       const a = document.createElement('a');
       a.href = file.fileData;
       a.download = file.fileName || file.title;
