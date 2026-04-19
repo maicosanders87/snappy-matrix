@@ -713,7 +713,8 @@ window.addEventListener('load', () => {
     // C = Developing (<78) — building fundamentals
     //
     // Composite score (0–100) built from:
-    //   Aptitude (25%) + Skills (10%) + ST performance (30%) + Manager score (15%) + Installs (10%) + Google reviews (10%)
+    //   Aptitude (35%) + ST performance (30%) + Manager score (15%) + Installs (10%) + Google reviews (10%)
+    //   Self-eval (Skills) tracked but NOT weighted — tech's own interpretation
 
     function getTechAptitudeScore(tech) {
       const apt = aptitudeTests[tech.short];
@@ -725,7 +726,7 @@ window.addEventListener('load', () => {
       // 1. Aptitude test score (0–100): actual test percentage — PRIMARY knowledge gauge
       const aptScore = getTechAptitudeScore(tech);
 
-      // 2. Self-eval skills score (0–100): avg out of 5 → percentage — SECONDARY gauge
+      // 2. Self-eval skills score — tracked but NOT weighted in composite (tech's own interpretation)
       const skillAvg = techOverallAvg(tech);
       const skillScore = (skillAvg / 5) * 100;
 
@@ -775,8 +776,9 @@ window.addEventListener('load', () => {
         reviewScore = countNorm * 0.6 + qualityNorm * 0.4;
       }
 
-      // Composite: Aptitude 25% + Skills 10% + ST 30% + Manager 15% + Installs 10% + Reviews 10%
-      const composite = aptScore * 0.25 + skillScore * 0.10 + stScore * 0.30 + mgrScore * 0.15 + installScore * 0.10 + reviewScore * 0.10;
+      // Composite: Aptitude 35% + ST 30% + Manager 15% + Installs 10% + Reviews 10%
+      // Self-eval (skillScore) excluded — tech's own interpretation, not weighted
+      const composite = aptScore * 0.35 + stScore * 0.30 + mgrScore * 0.15 + installScore * 0.10 + reviewScore * 0.10;
 
       let tier, tierLabel;
       if (composite >= 92) { tier = 'S'; tierLabel = 'Elite'; }
@@ -3009,8 +3011,7 @@ window.addEventListener('load', () => {
       const nextTierColors = { B: '#3B82F6', A: '#8B5CF6', S: '#FFD700' };
 
       const areas = [
-        { key: 'aptScore', name: 'Aptitude', weight: 25, tip: (s) => s < 70 ? 'Retake the aptitude test after studying weak areas' : s < 85 ? 'Review advanced topics to push score higher' : 'Strong — maintain through continued learning' },
-        { key: 'skillScore', name: 'Skills (Self-Eval)', weight: 10, tip: (s) => s < 60 ? 'Expand hands-on experience across more skill categories' : s < 80 ? 'Work on weaker skill areas to round out the profile' : 'Well-rounded skill set' },
+        { key: 'aptScore', name: 'Aptitude', weight: 35, tip: (s) => s < 70 ? 'Retake the aptitude test after studying weak areas' : s < 85 ? 'Review advanced topics to push score higher' : 'Strong — maintain through continued learning' },
         { key: 'stScore', name: 'ST Performance', weight: 30, tip: (s) => s < 50 ? 'Focus on conversion rate and revenue generation' : s < 70 ? 'Improve lead generation and close rate' : s < 85 ? 'Fine-tune options per opportunity and memberships' : 'Performing at a high level' },
         { key: 'mgrScore', name: 'Manager Score', weight: 15, tip: (s) => s < 60 ? 'Focus on communication, punctuality, and professionalism' : s < 80 ? 'Take initiative on callbacks and team collaboration' : 'Highly rated by management' },
         { key: 'installScore', name: 'Installs', weight: 10, tip: (s) => s < 30 ? 'Seek install opportunities and close equipment replacements' : s < 60 ? 'Increase install count and average ticket size' : 'Solid install production' },
