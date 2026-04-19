@@ -1487,6 +1487,8 @@ window.addEventListener('load', () => {
         if (v === 'skills-tags' || v === 'aptitude-skills' || v === 'overview') {
           _markNewSkillsSeen();
         }
+        // Animate counters when switching to overview
+        if (v === 'overview') { setTimeout(animateCounters, 300); }
         // Re-render Overview tab content when switching back
         if (v === 'overview') {
           renderBulletinBoard();
@@ -1521,6 +1523,42 @@ window.addEventListener('load', () => {
         tab.classList.add('active');
         document.getElementById('as-' + tab.dataset.as).classList.add('active');
       });
+    });
+
+    // ========== PHASE 3: ANIMATED COUNTER ==========
+    function animateCounters() {
+      document.querySelectorAll('.ov-kpi-value, .kpi-value').forEach(function(el) {
+        var text = el.textContent.trim();
+        var prefix = '';
+        var suffix = '';
+        var numStr = text;
+        if (text.startsWith('$')) { prefix = '$'; numStr = text.slice(1); }
+        numStr = numStr.replace(/,/g, '');
+        var target = parseFloat(numStr);
+        if (isNaN(target)) return;
+        var isFloat = numStr.includes('.');
+        var duration = 800;
+        var start = performance.now();
+        var startVal = 0;
+        function tick(now) {
+          var elapsed = now - start;
+          var progress = Math.min(elapsed / duration, 1);
+          var eased = 1 - Math.pow(1 - progress, 3);
+          var current = startVal + (target - startVal) * eased;
+          if (isFloat) {
+            el.textContent = prefix + current.toFixed(1) + suffix;
+          } else {
+            el.textContent = prefix + Math.round(current).toLocaleString() + suffix;
+          }
+          if (progress < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      });
+    }
+    // Trigger counters when Overview tab is shown
+    var origSwitchView = null;
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(animateCounters, 500);
     });
 
     // ========== RENDER KPIs ==========

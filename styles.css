@@ -6937,3 +6937,262 @@
     margin-bottom: 4px;
   }
 }
+
+/* ========== PHASE 3: PARTICLE STARS BACKGROUND ========== */
+.bg-grid-effect::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.15) 0%, transparent 100%),
+    radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.1) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 50% 10%, rgba(255,255,255,0.12) 0%, transparent 100%),
+    radial-gradient(1px 1px at 70% 40%, rgba(255,255,255,0.08) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 90% 80%, rgba(255,255,255,0.1) 0%, transparent 100%),
+    radial-gradient(1px 1px at 15% 85%, rgba(255,255,255,0.07) 0%, transparent 100%),
+    radial-gradient(1px 1px at 45% 75%, rgba(255,255,255,0.09) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 80% 15%, rgba(255,255,255,0.11) 0%, transparent 100%),
+    radial-gradient(1px 1px at 25% 45%, rgba(59,130,246,0.12) 0%, transparent 100%),
+    radial-gradient(1px 1px at 65% 70%, rgba(6,182,212,0.08) 0%, transparent 100%);
+  animation: starTwinkle 8s ease-in-out infinite alternate;
+}
+@keyframes starTwinkle {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.7; }
+}
+
+/* ========== PHASE 3: STAGGERED CARD ENTRANCE ANIMATIONS ========== */
+.ov-snap-card, .ov-kpi-card, .kpi-card, .chart-card,
+.prog-card, .rookie-card-outer, .sk-cat-card, .sk-tech-card,
+.disp-card, .mgr-today-card, .mgr-training-card, .mgr-form-card,
+.st-overview-card, .st-detail-card, .tf-file-card {
+  animation: fadeInUp 0.45s ease-out backwards;
+}
+.ov-snap-card:nth-child(1), .ov-kpi-card:nth-child(1), .kpi-card:nth-child(1) { animation-delay: 0s; }
+.ov-snap-card:nth-child(2), .ov-kpi-card:nth-child(2), .kpi-card:nth-child(2) { animation-delay: 0.06s; }
+.ov-snap-card:nth-child(3), .ov-kpi-card:nth-child(3), .kpi-card:nth-child(3) { animation-delay: 0.12s; }
+.ov-snap-card:nth-child(4), .ov-kpi-card:nth-child(4), .kpi-card:nth-child(4) { animation-delay: 0.18s; }
+.ov-snap-card:nth-child(5), .ov-kpi-card:nth-child(5), .kpi-card:nth-child(5) { animation-delay: 0.24s; }
+.ov-snap-card:nth-child(6), .ov-kpi-card:nth-child(6), .kpi-card:nth-child(6) { animation-delay: 0.30s; }
+.chart-card:nth-child(1) { animation-delay: 0.1s; }
+.chart-card:nth-child(2) { animation-delay: 0.2s; }
+.chart-card:nth-child(3) { animation-delay: 0.3s; }
+.prog-card:nth-child(1) { animation-delay: 0.05s; }
+.prog-card:nth-child(2) { animation-delay: 0.15s; }
+.prog-card:nth-child(3) { animation-delay: 0.25s; }
+.prog-card:nth-child(4) { animation-delay: 0.35s; }
+.prog-card:nth-child(5) { animation-delay: 0.45s; }
+
+/* ========== PHASE 3: HOVER MICRO-INTERACTIONS ========== */
+.ov-snap-card, .ov-kpi-card, .kpi-card, .chart-card, .prog-card,
+.mgr-today-card, .mgr-form-card, .mgr-training-card,
+.st-overview-card, .st-detail-card, .sk-cat-card, .sk-tech-card {
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.ov-snap-card:hover, .ov-kpi-card:hover, .kpi-card:hover,
+.mgr-today-card:hover, .mgr-form-card:hover, .mgr-training-card:hover,
+.st-overview-card:hover, .st-detail-card:hover, .sk-cat-card:hover, .sk-tech-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(59,130,246,0.12);
+  border-color: rgba(59,130,246,0.25);
+}
+.chart-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 30px rgba(59,130,246,0.15);
+  border-color: rgba(59,130,246,0.3);
+}
+.prog-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(59,130,246,0.1);
+}
+
+/* Button hover glow */
+.nav-tab:hover .nav-icon {
+  filter: drop-shadow(0 0 4px rgba(59,130,246,0.5));
+  opacity: 1;
+}
+.nav-tab.active .nav-icon {
+  filter: drop-shadow(0 0 6px rgba(251,191,36,0.4));
+}
+.mgr-btn:hover, .mgr-cal-btn:hover, .sync-now-btn:hover {
+  box-shadow: 0 0 12px rgba(59,130,246,0.3);
+}
+
+/* Badge/pill hover lift */
+.tier-badge:hover, .ov-snap-tier:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+}
+
+/* ========== PHASE 3: TAB TRANSITION EFFECTS ========== */
+.view-section {
+  display: none;
+  opacity: 0;
+  transform: translateY(12px);
+}
+.view-section.active {
+  display: block;
+  animation: viewEnter 0.4s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+@keyframes viewEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sub-section transitions */
+.as-section, .sk-section, .mgr-section {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+.as-section.active, .sk-section.active, .mgr-section.active {
+  opacity: 1;
+  transform: translateY(0);
+  animation: viewEnter 0.3s ease-out forwards;
+}
+
+/* ========== PHASE 3: HEADER SCAN-LINE & ANIMATED BORDER ========== */
+.header {
+  position: relative;
+  overflow: hidden;
+}
+.header::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.015) 2px,
+    rgba(255,255,255,0.015) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+.header > * { position: relative; z-index: 1; }
+.header::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(59,130,246,0.5) 20%, 
+    rgba(251,191,36,0.6) 50%, 
+    rgba(59,130,246,0.5) 80%, 
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: headerBorderGlow 4s ease-in-out infinite;
+}
+@keyframes headerBorderGlow {
+  0%, 100% { background-position: 200% 0; }
+  50% { background-position: -200% 0; }
+}
+
+/* ========== PHASE 3: CHART CARD GLOW BORDERS ========== */
+.chart-card {
+  position: relative;
+  overflow: hidden;
+}
+.chart-card::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: -1px; right: -1px; bottom: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(6,182,212,0.1), rgba(139,92,246,0.15));
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.chart-card:hover::before {
+  opacity: 1;
+}
+
+/* ========== PHASE 3: SIDEBAR ACTIVE GLOW EFFECT ========== */
+.nav-tab.active {
+  position: relative;
+}
+.nav-tab.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 25%;
+  bottom: 25%;
+  width: 3px;
+  background: var(--snappy-yellow);
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 8px rgba(251,191,36,0.4), 0 0 16px rgba(251,191,36,0.2);
+}
+
+/* ========== PHASE 3: SCROLLBAR GLOW ========== */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(10, 14, 26, 0.5); }
+::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.25);
+  border-radius: 4px;
+  border: 1px solid rgba(59, 130, 246, 0.1);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.4);
+}
+
+/* ========== PHASE 3: KPI COUNTER ANIMATION ========== */
+.ov-kpi-value, .kpi-value {
+  transition: all 0.3s;
+}
+.ov-kpi-card:hover .ov-kpi-value,
+.kpi-card:hover .kpi-value {
+  transform: scale(1.08);
+  text-shadow: 0 0 12px rgba(59,130,246,0.3);
+}
+.ov-kpi-icon {
+  transition: transform 0.3s;
+}
+.ov-kpi-card:hover .ov-kpi-icon {
+  transform: scale(1.15) rotate(-5deg);
+}
+
+/* ========== PHASE 3: SECTION HEADER GLOW ========== */
+.section-title, .ov-section-header {
+  position: relative;
+}
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--snappy-blue-light), transparent);
+  border-radius: 1px;
+}
+
+/* ========== PHASE 3: TABLE ROW HOVER GLOW ========== */
+.matrix-table tbody tr:hover,
+.skills-matrix tbody tr:hover {
+  background: rgba(59, 130, 246, 0.08) !important;
+  box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.05);
+}
+
+/* ========== PHASE 3: PROFILE CARD TIER GLOW ON HOVER ========== */
+.tech-detail-card:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 24px rgba(59, 130, 246, 0.1);
+}
+
+/* ========== PHASE 3: LOADING SHIMMER FOR EMPTY STATES ========== */
+@keyframes shimmerLoad {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer-placeholder {
+  background: linear-gradient(90deg, rgba(15,23,42,0.5) 25%, rgba(30,41,59,0.8) 50%, rgba(15,23,42,0.5) 75%);
+  background-size: 200% 100%;
+  animation: shimmerLoad 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
