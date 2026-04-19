@@ -56,6 +56,61 @@ function applyViewMode() {
   }
 }
 
+// ---- Silent Cloud Sync on Login ----
+async function silentSyncOnLogin() {
+  if (!SyncEngine.isConfigured()) return;
+  try {
+    var cloudData = await SyncEngine.pull();
+    if (!cloudData) return;
+    var keyMap = {
+      'skills': 'snappy_skills_assignments',
+      'manager': 'snappy_manager_entries',
+      'techfiles': 'snappy_tech_files',
+      'dispatch': 'snappy_dispatch_v1',
+      'dailyduties': 'snappy_daily_duties',
+      'mgrstats': 'snappy_mgr_stats',
+      'daynotes': 'snappy_day_notes',
+      'nexstar': 'snappy_nexstar',
+      'bulletin': 'snappy_bulletin_board',
+      'recall': 'snappy_recall_log_v1',
+      'complaint': 'snappy_complaint_log_v1'
+    };
+    var updated = false;
+    for (var ck in keyMap) {
+      if (cloudData[ck]) {
+        var cv = cloudData[ck].data || cloudData[ck].val || '';
+        if (!cv) continue;
+        var lv = localStorage.getItem(keyMap[ck]) || '';
+        if (ck === 'techfiles') {
+          var merged = _mergeTechFiles(lv, cv);
+          if (merged !== lv) { localStorage.setItem(keyMap[ck], merged); updated = true; }
+        } else if (cv !== lv) {
+          localStorage.setItem(keyMap[ck], cv);
+          updated = true;
+        }
+      }
+    }
+    if (updated) {
+      console.log('Login sync: cloud data merged — refreshing views');
+      // Re-render all dynamic sections without page reload
+      try { renderDispatchBoard(); } catch(e) {}
+      try { renderRecallLog(); } catch(e) {}
+      try { renderComplaintLog(); } catch(e) {}
+      try { renderManagerTab(); } catch(e) {}
+      try { renderOverviewTab(); } catch(e) {}
+      try { renderProfiles(); } catch(e) {}
+      try { renderRookieCards(); } catch(e) {}
+      try { renderSkillsTags(); } catch(e) {}
+      try { renderSTTables(); } catch(e) {}
+      try { tfLoad(); tfRender(); } catch(e) {}
+    } else {
+      console.log('Login sync: already up to date');
+    }
+  } catch(e) {
+    console.warn('Login sync error (non-blocking):', e);
+  }
+}
+
 // ---- View Switcher (Manager-only dropdown) ----
 function switchToView(mode, name) {
   isManagerMode = false; isCoachMode = false; isEditorMode = false;
@@ -75,6 +130,8 @@ function switchToView(mode, name) {
   // mode === 'viewer' leaves everything false
   closeViewSwitcher();
   applyViewMode();
+  // Auto-sync cloud data on view switch
+  silentSyncOnLogin();
 }
 
 function openViewSwitcher() {
@@ -172,6 +229,7 @@ function promptManagerPIN() {
     localStorage.removeItem('snappy_editor_mode');
     localStorage.removeItem('snappy_editor_name');
     applyViewMode();
+    silentSyncOnLogin();
   } else if (EDITOR_PINS[pin]) {
     isEditorMode = true;
     isManagerMode = false;
@@ -184,6 +242,7 @@ function promptManagerPIN() {
     localStorage.removeItem('snappy_coach_mode');
     localStorage.removeItem('snappy_coach_name');
     applyViewMode();
+    silentSyncOnLogin();
   } else if (COACH_PINS[pin]) {
     isCoachMode = true;
     isManagerMode = false;
@@ -196,6 +255,7 @@ function promptManagerPIN() {
     localStorage.removeItem('snappy_editor_mode');
     localStorage.removeItem('snappy_editor_name');
     applyViewMode();
+    silentSyncOnLogin();
   } else {
     alert('Incorrect password.');
   }
