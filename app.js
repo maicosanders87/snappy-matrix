@@ -4294,9 +4294,195 @@ window.addEventListener('load', () => {
       `;
     }
 
+    // ----- Manager Today View -----
+    function renderMgrToday() {
+      var container = document.getElementById('mgr-today');
+      if (!container) return;
+
+      var today = mgrToday();
+      var dateStr = mgrFmtDate(today);
+      var dow = today.getDay();
+      var dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      var dayLabel = dayNames[dow];
+      var displayDate = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+      // Gather today's coaching entries
+      var todayEntries = mgrState.entries.filter(function(e) { return e.date === dateStr; });
+
+      // Gather today's BB items
+      var bb = bbLoad();
+      var todayMeetings = (bb.meetings || []).filter(function(m) { return m.date === dateStr; });
+      var todayOO = (bb.oneOnOnes || []).filter(function(o) { return o.date === dateStr; });
+      var todayRA = (bb.rideAlongs || []).filter(function(r) { return r.date === dateStr; });
+      // Also merge manager entries not in BB
+      var bbOOIds = {}; var bbRAIds = {};
+      todayOO.forEach(function(o) { bbOOIds[o.id] = true; });
+      todayRA.forEach(function(r) { bbRAIds[r.id] = true; });
+      todayEntries.forEach(function(e) {
+        if (e.type === 'one-on-one' && !bbOOIds[e.id]) todayOO.push({ id: e.id, tech: e.tech, date: e.date, status: e.status || 'planned' });
+        else if (e.type === 'ride-along' && !bbRAIds[e.id]) todayRA.push({ id: e.id, tech: e.tech, date: e.date, status: e.status || 'planned' });
+      });
+
+      var totalEvents = todayMeetings.length + todayOO.length + todayRA.length;
+      var isNex = dow === 1 && isNexstarMonday(today);
+
+      var html = '';
+
+      // ---- Header ----
+      html += '<div class="mgr-today-header">';
+      html += '<div class="mgr-today-date-box"><div class="day-num">' + today.getDate() + '</div><div class="day-name">' + dayLabel.substring(0,3) + '</div></div>';
+      html += '<div class="mgr-today-info"><h2>' + dayLabel + '</h2><div class="sub">' + displayDate + ' &bull; ' + totalEvents + ' event' + (totalEvents !== 1 ? 's' : '') + ' today</div></div>';
+      html += '</div>';
+
+      // ---- Two-column grid: Checklist + Notes ----
+      html += '<div class="mgr-today-grid">';
+
+      // ---- LEFT: Daily Checklist ----
+      html += '<div class="mgr-today-card">';
+      html += '<div class="mgr-today-card-title"><span class="icon">\u2705</span> Daily Duties</div>';
+      html += '<div class="mgr-today-checklist">';
+
+      var dailyItems = [
+        { key: 'review_calls', label: 'Review prior day calls, service & installs' },
+        { key: 'clear_cases', label: 'Task management — clear ST cases' },
+        { key: 'daily_huddle', label: 'Daily huddle with HVAC (Slack)' },
+        { key: 'update_matrix', label: 'Update Matrix' }
+      ];
+      dailyItems.forEach(function(item) {
+        var checked = mgrGetDailyDuty(dateStr, item.key);
+        html += '<label class="mgr-today-check' + (checked ? ' is-done' : '') + '">';
+        html += '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="mgrToggleDailyDuty(\'' + dateStr + '\',\'' + item.key + '\',this.checked);renderMgrToday()">';
+        html += '<span>' + item.label + '</span></label>';
+      });
+
+      // Day-of-week specific items
+      if (dow === 1) {
+        html += '<div style="border-top:1px solid var(--border);margin:8px 0;padding-top:8px;">';
+        html += '<div style="font-size:11px;font-weight:700;color:#FFD700;margin-bottom:6px;">Monday Specifics</div>';
+        var monItems = [
+          { key: 'mon_employee_review', label: 'Employee Review #1 for the week' },
+          { key: 'mon_leadership_mtg', label: '10:00 AM Leadership Meeting' },
+          { key: 'mon_prior_week', label: 'Review prior week performance' },
+          { key: 'mon_weekend_calls', label: 'Review weekend service calls' },
+          { key: 'mon_training_plan', label: 'Build weekly training plan' },
+          { key: 'mon_invoice_review', label: 'Invoice review from weekend' }
+        ];
+        monItems.forEach(function(item) {
+          var checked = mgrGetDailyDuty(dateStr, item.key);
+          html += '<label class="mgr-today-check' + (checked ? ' is-done' : '') + '">';
+          html += '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="mgrToggleDailyDuty(\'' + dateStr + '\',\'' + item.key + '\',this.checked);renderMgrToday()">';
+          html += '<span>' + item.label + '</span></label>';
+        });
+        html += '</div>';
+      }
+      if (dow === 2) {
+        html += '<div style="border-top:1px solid var(--border);margin:8px 0;padding-top:8px;">';
+        html += '<div style="font-size:11px;font-weight:700;color:#FFD700;margin-bottom:6px;">Tuesday — Training Prep</div>';
+        html += '<label class="mgr-today-check"><input type="checkbox" disabled><span>Prepare training topic for Wednesday meeting</span></label>';
+        html += '<button class="mgr-today-action-btn" style="background:linear-gradient(135deg,#FFD700,#FFA500);color:#0F1B2E;margin-top:6px;font-size:12px;padding:6px 14px;" onclick="mgrGoTrainingTab()">Open Training Planner \u2192</button>';
+        html += '</div>';
+      }
+      if (dow === 3) {
+        html += '<div style="border-top:1px solid var(--border);margin:8px 0;padding-top:8px;">';
+        html += '<div style="font-size:11px;font-weight:700;color:#FFD700;margin-bottom:6px;">Wednesday — Team Meeting</div>';
+        var weekOf = mgrFmtDate(mgrStartOfWeek(today));
+        var training = mgrState.trainings.find(function(t) { return t.weekOf === weekOf; });
+        if (training) {
+          html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Topic: <strong style="color:var(--text);">' + (training.topic || '(not set)') + '</strong></div>';
+        } else {
+          html += '<div style="font-size:12px;color:var(--text-secondary);">No training prepared yet.</div>';
+        }
+        html += '</div>';
+      }
+
+      // Nexstar biweekly
+      if (isNex) {
+        html += '<div style="border-top:1px solid var(--border);margin:8px 0;padding-top:8px;">';
+        html += '<div style="font-size:11px;font-weight:700;color:#14B8A6;margin-bottom:6px;">\ud83c\udfa5 Nexstar Zoom — 8:00 AM</div>';
+        var nx = mgrGetNexstarData(dateStr);
+        var nexItems = [
+          { key: 'joined_call', label: 'Joined Zoom call' },
+          { key: 'reviewed_action_items', label: 'Reviewed prior action items' },
+          { key: 'shared_updates', label: 'Shared team updates' },
+          { key: 'new_action_items', label: 'Captured new action items' }
+        ];
+        nexItems.forEach(function(item) {
+          var checked = nx[item.key];
+          html += '<label class="mgr-today-check' + (checked ? ' is-done' : '') + '">';
+          html += '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="mgrToggleNexstar(\'' + dateStr + '\',\'' + item.key + '\',this.checked);renderMgrToday()">';
+          html += '<span>' + item.label + '</span></label>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div>'; // close checklist
+
+      // Completion percentage
+      var allChecks = dailyItems.length;
+      var doneChecks = dailyItems.filter(function(i) { return mgrGetDailyDuty(dateStr, i.key); }).length;
+      if (dow === 1) { allChecks += 6; ['mon_employee_review','mon_leadership_mtg','mon_prior_week','mon_weekend_calls','mon_training_plan','mon_invoice_review'].forEach(function(k){ if(mgrGetDailyDuty(dateStr,k)) doneChecks++; }); }
+      if (isNex) { allChecks += 4; var nx2 = mgrGetNexstarData(dateStr); ['joined_call','reviewed_action_items','shared_updates','new_action_items'].forEach(function(k){ if(nx2[k]) doneChecks++; }); }
+      var pct = allChecks ? Math.round(doneChecks / allChecks * 100) : 0;
+      html += '<div style="margin-top:12px;display:flex;align-items:center;gap:10px;">';
+      html += '<div style="flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden;"><div style="height:100%;width:' + pct + '%;border-radius:3px;background:' + (pct >= 100 ? '#22C55E' : '#FFD700') + ';transition:width 0.3s;"></div></div>';
+      html += '<div style="font-size:12px;font-weight:700;color:' + (pct >= 100 ? '#22C55E' : '#FFD700') + ';">' + pct + '%</div>';
+      html += '</div>';
+
+      html += '</div>'; // close checklist card
+
+      // ---- RIGHT: Notes ----
+      html += '<div class="mgr-today-card">';
+      html += '<div class="mgr-today-card-title"><span class="icon">\ud83d\udcdd</span> Notes & Ideas</div>';
+      var dayNotes = mgrGetDayNote(dateStr);
+      html += '<textarea class="mgr-today-notes" placeholder="Jot down ideas, reminders, or info for today..." oninput="mgrSaveDayNote(\'' + dateStr + '\',this.value)">' + mgrEscape(dayNotes) + '</textarea>';
+
+      // Coaching entries for today
+      if (todayEntries.length > 0 || todayOO.length > 0 || todayRA.length > 0) {
+        html += '<div style="margin-top:16px;">';
+        html += '<div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;">Today\u2019s Coaching</div>';
+        html += '<div class="mgr-today-entries">';
+        todayEntries.forEach(function(e) {
+          var typeLabel = e.type === 'one-on-one' ? '1-on-1' : 'Ride-Along';
+          var typeCls = e.type === 'one-on-one' ? 'oneonone' : 'ridealong';
+          html += '<div class="mgr-today-entry" onclick="mgrSwitchSubTab(\'calendar\');setTimeout(function(){mgrOpenDayPanel(\'' + dateStr + '\')},200)">';
+          html += '<div class="mgr-today-entry-dot ' + typeCls + '"></div>';
+          html += '<div class="mgr-today-entry-info"><div class="mgr-today-entry-type">' + typeLabel + '</div><div class="mgr-today-entry-name">' + e.tech + '</div></div>';
+          html += '<div class="mgr-today-entry-status ' + (e.status || 'planned') + '">' + (e.status || 'planned') + '</div>';
+          html += '</div>';
+        });
+        html += '</div></div>';
+      }
+
+      // Quick-add coaching buttons
+      html += '<div class="mgr-today-actions mgr-edit-only" style="margin-top:auto;padding-top:14px;">';
+      html += '<button class="mgr-today-action-btn green" onclick="mgrSwitchSubTab(\'calendar\');setTimeout(function(){mgrOpenDayPanel(\'' + dateStr + '\')},200)">+ 1-on-1</button>';
+      html += '<button class="mgr-today-action-btn blue" onclick="mgrSwitchSubTab(\'calendar\');setTimeout(function(){mgrOpenDayPanel(\'' + dateStr + '\')},200)">+ Ride-Along</button>';
+      html += '</div>';
+
+      html += '</div>'; // close notes card
+      html += '</div>'; // close grid
+
+      // ---- Bulletin Board (full width below) ----
+      html += '<div id="mgrTodayBB" class="mgr-bb"></div>';
+
+      container.innerHTML = html;
+
+      // Render the bulletin board into the Today section's BB container
+      renderMgrBulletinBoardInto('mgrTodayBB');
+    }
+
     // ----- Manager Bulletin Board (9-day rolling) -----
+    function renderMgrBulletinBoardInto(targetId) {
+      var container = document.getElementById(targetId || 'mgrBulletinBoard');
+      if (!container) return;
+      _renderMgrBBContent(container);
+    }
     function renderMgrBulletinBoard() {
-      var container = document.getElementById('mgrBulletinBoard');
+      // Render into both calendar BB and today BB (if they exist)
+      _renderMgrBBContent(document.getElementById('mgrBulletinBoard'));
+      _renderMgrBBContent(document.getElementById('mgrTodayBB'));
+    }
+    function _renderMgrBBContent(container) {
       if (!container) return;
 
       var now = new Date();
@@ -5925,6 +6111,7 @@ window.addEventListener('load', () => {
     function renderManagerTab() {
       renderManagerCompliance();
       renderManagerKPIs();
+      renderMgrToday();
       renderManagerCalendar();
       renderMgrBulletinBoard();
       renderManagerLog();
