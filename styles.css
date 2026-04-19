@@ -57,7 +57,7 @@
       gap: 16px;
       box-shadow: 0 4px 20px rgba(26,63,122,0.25);
       position: relative;
-      overflow: hidden;
+      overflow: visible;
     }
     .header::before {
       content: '';
@@ -66,6 +66,7 @@
       width: 300px; height: 300px;
       background: radial-gradient(circle, rgba(255,215,0,0.12) 0%, transparent 70%);
       pointer-events: none;
+      clip-path: inset(0 0 0 0 round 16px);
     }
     .header-left {
       display: flex;
@@ -3993,6 +3994,9 @@
 }
 
     /* ========== VIEW SWITCHER DROPDOWN (Manager-only) ========== */
+    .access-lock-wrap {
+      z-index: 10000;
+    }
     .view-switcher-dropdown {
       position: absolute;
       top: 100%;
@@ -4003,7 +4007,7 @@
       border: 1.5px solid #2d3548;
       border-radius: 12px;
       box-shadow: 0 12px 40px rgba(0,0,0,0.45);
-      z-index: 9999;
+      z-index: 10001;
       overflow: hidden;
       animation: vsFadeIn 0.15s ease;
     }
