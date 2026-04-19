@@ -713,7 +713,7 @@ window.addEventListener('load', () => {
     // C = Developing (<78) — building fundamentals
     //
     // Composite score (0–100) built from:
-    //   Aptitude (35%) + ST performance (30%) + Manager score (15%) + Installs (10%) + Google reviews (10%)
+    //   Aptitude (30%) + ST performance (35%) + Manager score (15%) + Installs (10%) + Google reviews (10%)
     //   Self-eval (Skills) tracked but NOT weighted — tech's own interpretation
 
     function getTechAptitudeScore(tech) {
@@ -776,9 +776,9 @@ window.addEventListener('load', () => {
         reviewScore = countNorm * 0.6 + qualityNorm * 0.4;
       }
 
-      // Composite: Aptitude 35% + ST 30% + Manager 15% + Installs 10% + Reviews 10%
+      // Composite: Aptitude 30% + ST 35% + Manager 15% + Installs 10% + Reviews 10%
       // Self-eval (skillScore) excluded — tech's own interpretation, not weighted
-      const composite = aptScore * 0.35 + stScore * 0.30 + mgrScore * 0.15 + installScore * 0.10 + reviewScore * 0.10;
+      const composite = aptScore * 0.30 + stScore * 0.35 + mgrScore * 0.15 + installScore * 0.10 + reviewScore * 0.10;
 
       let tier, tierLabel;
       if (composite >= 92) { tier = 'S'; tierLabel = 'Elite'; }
@@ -3011,8 +3011,8 @@ window.addEventListener('load', () => {
       const nextTierColors = { B: '#3B82F6', A: '#8B5CF6', S: '#FFD700' };
 
       const areas = [
-        { key: 'aptScore', name: 'Aptitude', weight: 35, tip: (s) => s < 70 ? 'Retake the aptitude test after studying weak areas' : s < 85 ? 'Review advanced topics to push score higher' : 'Strong — maintain through continued learning' },
-        { key: 'stScore', name: 'ST Performance', weight: 30, tip: (s) => s < 50 ? 'Focus on conversion rate and revenue generation' : s < 70 ? 'Improve lead generation and close rate' : s < 85 ? 'Fine-tune options per opportunity and memberships' : 'Performing at a high level' },
+        { key: 'aptScore', name: 'Aptitude', weight: 30, tip: (s) => s < 70 ? 'Retake the aptitude test after studying weak areas' : s < 85 ? 'Review advanced topics to push score higher' : 'Strong — maintain through continued learning' },
+        { key: 'stScore', name: 'ST Performance', weight: 35, tip: (s) => s < 50 ? 'Focus on conversion rate and revenue generation' : s < 70 ? 'Improve lead generation and close rate' : s < 85 ? 'Fine-tune options per opportunity and memberships' : 'Performing at a high level' },
         { key: 'mgrScore', name: 'Manager Score', weight: 15, tip: (s) => s < 60 ? 'Focus on communication, punctuality, and professionalism' : s < 80 ? 'Take initiative on callbacks and team collaboration' : 'Highly rated by management' },
         { key: 'installScore', name: 'Installs', weight: 10, tip: (s) => s < 30 ? 'Seek install opportunities and close equipment replacements' : s < 60 ? 'Increase install count and average ticket size' : 'Solid install production' },
         { key: 'reviewScore', name: 'Google Reviews', weight: 10, tip: (s) => s < 40 ? 'Ask satisfied customers for Google reviews after every job' : s < 70 ? 'Consistent review requests will move this up' : 'Good customer feedback presence' }
