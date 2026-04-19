@@ -3041,7 +3041,7 @@ window.addEventListener('load', () => {
                     const catColor = skillsData.categories[catKey] ? skillsData.categories[catKey].color : '#666';
                     const skillObj = allSkills().find(sk => sk.id === s);
                     const name = skillObj ? skillObj.name : s;
-                    return `<span class="ntb-chip ntb-earned-chip" style="border-color:${catColor}" title="${s} — ${name}"><span class="ntb-chip-id">${s}</span>${name}</span>`;
+                    return `<span class="ntb-chip ntb-earned-chip ntb-clickable" style="border-color:${catColor}" title="Click to remove ${s} — ${name} from ${tech}" onclick="event.stopPropagation();toggleSkill('${tech}','${s}')"><span class="ntb-chip-id">${s}</span>${name}<span class="ntb-chip-action ntb-chip-remove">✕</span></span>`;
                   }).join('')}</div>
                 </div>`;
           }
@@ -3055,7 +3055,7 @@ window.addEventListener('load', () => {
                     const catColor = skillsData.categories[catKey] ? skillsData.categories[catKey].color : '#666';
                     const skillObj = allSkills().find(sk => sk.id === s);
                     const name = skillObj ? skillObj.name : s;
-                    return `<span class="ntb-chip ntb-needed-chip" style="border-color:${catColor}" title="${s} — ${name}"><span class="ntb-chip-id">${s}</span>${name}</span>`;
+                    return `<span class="ntb-chip ntb-needed-chip ntb-clickable" style="border-color:${catColor}" title="Click to add ${s} — ${name} to ${tech}" onclick="event.stopPropagation();toggleSkill('${tech}','${s}')"><span class="ntb-chip-id">${s}</span>${name}<span class="ntb-chip-action ntb-chip-add">+</span></span>`;
                   }).join('')}</div>
                 </div>`;
           }

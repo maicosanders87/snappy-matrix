@@ -5106,6 +5106,46 @@
   opacity: .7;
 }
 
+/* Clickable chip interactions */
+.ntb-clickable {
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s, background .15s;
+  position: relative;
+}
+.ntb-clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.ntb-clickable:active {
+  transform: scale(.96);
+}
+.ntb-needed-chip.ntb-clickable:hover {
+  background: rgba(52,199,89,.15);
+  color: var(--accent-green);
+}
+.ntb-earned-chip.ntb-clickable:hover {
+  background: rgba(255,69,58,.15);
+  color: var(--accent-red);
+}
+.ntb-chip-action {
+  font-size: 9px;
+  font-weight: 700;
+  margin-left: 3px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.ntb-clickable:hover .ntb-chip-action {
+  opacity: 1;
+}
+.ntb-chip-add {
+  color: var(--accent-green);
+  font-size: 11px;
+}
+.ntb-chip-remove {
+  color: var(--accent-red);
+  font-size: 8px;
+}
+
 /* Mobile */
 @media (max-width: 600px) {
   .ntb-header {
@@ -5116,5 +5156,8 @@
   }
   .ntb-level-head {
     gap: 4px;
+  }
+  .ntb-chip-action {
+    opacity: 1;
   }
 }
