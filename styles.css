@@ -3992,6 +3992,74 @@
   font-size: 14px;
 }
 
+    /* ========== EDITOR INSTRUCTIONS BANNER ========== */
+    .editor-instructions-banner {
+      background: linear-gradient(135deg, rgba(255,152,0,0.08), rgba(255,193,7,0.06));
+      border: 1.5px solid rgba(255,152,0,0.25);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .editor-instr-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .editor-instr-toggle:hover {
+      background: rgba(255,152,0,0.06);
+    }
+    .editor-instr-icon {
+      font-size: 18px;
+    }
+    .editor-instr-label {
+      font-weight: 700;
+      font-size: 14px;
+      color: #FF9800;
+      flex: 1;
+    }
+    .editor-instr-arrow {
+      font-size: 11px;
+      color: #FF9800;
+      transition: transform 0.2s;
+    }
+    .editor-instr-arrow.open {
+      transform: rotate(90deg);
+    }
+    .editor-instr-body {
+      padding: 0 18px 18px;
+    }
+    .editor-instr-section {
+      margin-bottom: 16px;
+    }
+    .editor-instr-section:last-child {
+      margin-bottom: 0;
+    }
+    .editor-instr-heading {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(255,152,0,0.15);
+    }
+    .editor-instr-list {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+    .editor-instr-list li {
+      margin-bottom: 2px;
+    }
+    .editor-instr-list strong {
+      color: var(--text-primary);
+    }
+
     /* ========== RECALL & COMPLAINT LOG STYLES ========== */
     .disp-log-section {
       padding-top: 8px;

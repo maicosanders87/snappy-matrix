@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260419v37">
+  <link rel="stylesheet" href="styles.css?v=20260419v38">
 </head>
 <body>
   <div class="container">
@@ -763,6 +763,53 @@ AND 30% of advancement "votes" come from skills progress
 
     <!-- DISPATCH BOARD TAB -->
     <div id="view-dispatch" class="view-section">
+      <!-- Editor Instructions Banner (Judah only) -->
+      <div id="editorInstructionsBanner" class="editor-instructions-banner" style="display:none">
+        <div class="editor-instr-toggle" onclick="document.getElementById('editorInstrBody').style.display=document.getElementById('editorInstrBody').style.display==='none'?'block':'none'; this.querySelector('.editor-instr-arrow').classList.toggle('open')">
+          <span class="editor-instr-icon">&#x1F4D6;</span>
+          <span class="editor-instr-label">Editor Instructions — Judah</span>
+          <span class="editor-instr-arrow">&#x25B6;</span>
+        </div>
+        <div id="editorInstrBody" class="editor-instr-body" style="display:none">
+          <div class="editor-instr-section">
+            <div class="editor-instr-heading">Your Permissions</div>
+            <ul class="editor-instr-list">
+              <li><strong>Dispatch Tags</strong> — You can add, remove, and assign tags to technicians.</li>
+              <li><strong>Recall Log</strong> — You can add and delete recall entries for any tech.</li>
+              <li><strong>Customer Complaints</strong> — You can add and delete complaint entries for any tech.</li>
+              <li><strong>All Other Tabs</strong> — View-only. You can see everything (scorecards, skills, manager tab, etc.) but cannot edit.</li>
+            </ul>
+          </div>
+          <div class="editor-instr-section">
+            <div class="editor-instr-heading">How to Add a Recall</div>
+            <ol class="editor-instr-list">
+              <li>Scroll down to the <strong>Recall Log</strong> section below the dispatch grid.</li>
+              <li>Find the technician's card and tap <strong>+ Add</strong>.</li>
+              <li>Enter the <strong>date</strong> when prompted (e.g. 04/19/2026).</li>
+              <li>Enter the <strong>job number</strong> when prompted.</li>
+              <li>The entry appears on the tech's card — newest entries show first.</li>
+              <li>To remove an entry, tap the <strong>&times;</strong> button next to it.</li>
+            </ol>
+          </div>
+          <div class="editor-instr-section">
+            <div class="editor-instr-heading">How to Add a Customer Complaint</div>
+            <ol class="editor-instr-list">
+              <li>Scroll down to the <strong>Customer Complaint Log</strong> section (below Recall Log).</li>
+              <li>Find the technician's card and tap <strong>+ Add</strong>.</li>
+              <li>Enter the <strong>date</strong> and <strong>job number</strong> when prompted — same flow as recalls.</li>
+            </ol>
+          </div>
+          <div class="editor-instr-section">
+            <div class="editor-instr-heading">How to Manage Dispatch Tags</div>
+            <ol class="editor-instr-list">
+              <li>Use the <strong>Manage Tags</strong> area to create new tags or delete existing ones.</li>
+              <li>Drag a tag from the pool onto a tech's card to assign it (or tap the tag, then tap the tech card on mobile).</li>
+              <li>Tap <strong>&times;</strong> on an assigned tag to remove it from that tech.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
       <div class="section">
         <div class="section-header">
           <div class="section-title">Dispatch Board</div>
@@ -890,7 +937,7 @@ AND 30% of advancement "votes" come from skills progress
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
-  <script src="pdf_data.js?v=20260419v37"></script>
-  <script src="app.js?v=20260419v37"></script>
+  <script src="pdf_data.js?v=20260419v38"></script>
+  <script src="app.js?v=20260419v38"></script>
 </body>
 </html>

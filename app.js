@@ -39,6 +39,9 @@ function applyViewMode() {
       ? '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5"/>'
       : '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
   }
+  // Show/hide editor instructions banner
+  var editorBanner = document.getElementById('editorInstructionsBanner');
+  if (editorBanner) editorBanner.style.display = isEditorMode ? 'block' : 'none';
   // If switching to viewer while on Manager tab, redirect to Overview
   if (!isManagerMode && !isCoachMode && !isEditorMode) {
     var activeTab = document.querySelector('.nav-tabs:not(#st-sub-tabs):not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs) .nav-tab.active');
