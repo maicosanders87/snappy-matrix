@@ -1487,10 +1487,14 @@ window.addEventListener('load', () => {
         totalReviews += googleReviews[name].count || 0;
       });
 
+      // Pull live recall/complaint counts from dispatch logs
+      var liveRecalls = getTotalRecalls();
+      var liveComplaints = getTotalComplaints();
+
       var kpiHTML = '';
       var kpis = [
-        { icon: '\ud83d\udd04', value: totalCallbacks, label: 'Callbacks', sub: 'Team total (ST recalls)' },
-        { icon: '\u26a0\ufe0f', value: totalComplaints, label: 'Complaints', sub: 'Open filed complaints' },
+        { icon: '\ud83d\udd04', value: liveRecalls, label: 'Recalls', sub: 'Active dispatch recalls' },
+        { icon: '\u26a0\ufe0f', value: liveComplaints, label: 'Complaints', sub: 'Active customer complaints' },
         { icon: '\ud83d\udcb0', value: '$' + totalRevenue.toLocaleString(), label: 'MTD Revenue', sub: 'Month-to-date service' },
         { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'Last 90 days' },
         { icon: '\ud83c\udfe0', value: '$' + totalInstallRev.toLocaleString(), label: 'Install Revenue', sub: 'Equipment installs' }
@@ -1525,6 +1529,12 @@ window.addEventListener('load', () => {
             tagsHTML += '<span class="ov-snap-tag ' + tag.type + '">' + tag.label + '</span>';
           });
         }
+
+        // Recall/Complaint badges for snapshot
+        var tRecalls = getRecallCount(t.short);
+        var tComplaints = getComplaintCount(t.short);
+        if (tRecalls > 0) tagsHTML += '<span class="ov-snap-tag" style="background:rgba(255,152,0,0.12);color:#FF9800;border-color:rgba(255,152,0,0.25)">\ud83d\udd04 ' + tRecalls + ' Recall' + (tRecalls > 1 ? 's' : '') + '</span>';
+        if (tComplaints > 0) tagsHTML += '<span class="ov-snap-tag" style="background:rgba(239,83,80,0.12);color:#EF5350;border-color:rgba(239,83,80,0.25)">\u26a0\ufe0f ' + tComplaints + ' Complaint' + (tComplaints > 1 ? 's' : '') + '</span>';
 
         var statsLine = '';
         if (st) {
@@ -2511,6 +2521,33 @@ window.addEventListener('load', () => {
               <div class="st-insight">${stInsights[t.short] || ''}</div>
             </div>
             ` : ''}
+
+            ${(() => {
+              var rc = getRecallEntries(t.short);
+              var cc = getComplaintEntries(t.short);
+              if (rc.length === 0 && cc.length === 0) return '';
+              var out = '<div class="rc-profile-section">';
+              out += '<div class="rc-profile-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Recalls & Complaints</div>';
+              out += '<div class="rc-profile-grid">';
+              if (rc.length > 0) {
+                out += '<div class="rc-profile-col">';
+                out += '<div class="rc-profile-col-header" style="color:#FF9800">Recalls <span class="rc-profile-count" style="background:rgba(255,152,0,0.12);color:#FF9800">' + rc.length + '</span></div>';
+                rc.forEach(function(e) {
+                  out += '<div class="rc-profile-entry"><span class="rc-profile-date">' + escHtml(e.date) + '</span><span class="rc-profile-job">Job #' + escHtml(e.jobNum) + '</span></div>';
+                });
+                out += '</div>';
+              }
+              if (cc.length > 0) {
+                out += '<div class="rc-profile-col">';
+                out += '<div class="rc-profile-col-header" style="color:#EF5350">Complaints <span class="rc-profile-count" style="background:rgba(239,83,80,0.12);color:#EF5350">' + cc.length + '</span></div>';
+                cc.forEach(function(e) {
+                  out += '<div class="rc-profile-entry"><span class="rc-profile-date">' + escHtml(e.date) + '</span><span class="rc-profile-job">Job #' + escHtml(e.jobNum) + '</span></div>';
+                });
+                out += '</div>';
+              }
+              out += '</div></div>';
+              return out;
+            })()}
 
             <div class="detail-section">
               <div class="detail-section-title">Self-Identified Strengths</div>
@@ -6440,6 +6477,36 @@ window.addEventListener('load', () => {
     }
     function renderComplaintLog() {
       renderLogSection(COMPLAINT_STORAGE, 'complaintGrid', 'complaint');
+    }
+
+    // ========== RECALL/COMPLAINT HELPERS FOR CROSS-MATRIX DISPLAY ==========
+    function getRecallCount(tech) {
+      var data = loadLogData(RECALL_STORAGE);
+      return (data[tech] || []).length;
+    }
+    function getComplaintCount(tech) {
+      var data = loadLogData(COMPLAINT_STORAGE);
+      return (data[tech] || []).length;
+    }
+    function getRecallEntries(tech) {
+      var data = loadLogData(RECALL_STORAGE);
+      return (data[tech] || []).slice().sort(function(a,b) { return (b.ts||0) - (a.ts||0); });
+    }
+    function getComplaintEntries(tech) {
+      var data = loadLogData(COMPLAINT_STORAGE);
+      return (data[tech] || []).slice().sort(function(a,b) { return (b.ts||0) - (a.ts||0); });
+    }
+    function getTotalRecalls() {
+      var data = loadLogData(RECALL_STORAGE);
+      var count = 0;
+      for (var k in data) count += (data[k] || []).length;
+      return count;
+    }
+    function getTotalComplaints() {
+      var data = loadLogData(COMPLAINT_STORAGE);
+      var count = 0;
+      for (var k in data) count += (data[k] || []).length;
+      return count;
     }
 
     // ========== INIT ==========

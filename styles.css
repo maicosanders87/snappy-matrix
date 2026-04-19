@@ -4261,6 +4261,69 @@
       }
     }
 
+    /* ========== RECALL/COMPLAINT IN TECH PROFILES ========== */
+    .rc-profile-section {
+      background: linear-gradient(135deg, rgba(239,83,80,0.04), rgba(255,152,0,0.04));
+      border: 1px solid rgba(239,83,80,0.15);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .rc-profile-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      color: #EF5350;
+      margin-bottom: 12px;
+    }
+    .rc-profile-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 500px) {
+      .rc-profile-grid { grid-template-columns: 1fr; }
+    }
+    .rc-profile-col-header {
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .rc-profile-count {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .rc-profile-entry {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 12px;
+    }
+    .rc-profile-date {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .rc-profile-job {
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
     /* ========== Cloud Sync Button & Indicator ========== */
     .sync-now-btn {
       display: inline-flex;
