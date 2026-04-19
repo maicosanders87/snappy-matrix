@@ -2277,9 +2277,14 @@
     .manager-mode .access-lock-btn svg { stroke: var(--snappy-yellow); }
     .viewer-mode .access-lock-btn svg { stroke: #FF9800; }
 
-    /* ========== COACH MODE (view-only Manager tab, everything else locked) ========== */
-    /* Same viewer restrictions for non-manager sections */
-    .coach-mode .mgr-only:not(.nav-tab) { display: none !important; }
+    /* ========== COACH MODE (full visibility, all tabs, view-only) ========== */
+    /* Show everything — coaches see all tabs and content, just can't edit */
+    /* Only hide the sync button and cloud settings (no sync for coaches) */
+    .coach-mode #syncNowBtn { display: none !important; }
+    .coach-mode #syncStatusIndicator { display: none !important; }
+    /* Hide skills edit banner and reset btn */
+    .coach-mode #skEditBanner { display: none !important; }
+    .coach-mode .sk-reset-btn { display: none !important; }
     .coach-mode .sm-check-yes,
     .coach-mode .sm-check-no { pointer-events: none; cursor: default; }
     .coach-mode .disp-pool-tag { pointer-events: none; cursor: default; }
