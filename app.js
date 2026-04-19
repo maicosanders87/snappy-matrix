@@ -4044,6 +4044,7 @@ window.addEventListener('load', () => {
             <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','review_calls',this.checked)" ${mgrGetDailyDuty(dateStr,'review_calls')?'checked':''}><span>Review prior day calls, service & installs (pics, invoices, summaries)</span></label>
             <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','clear_cases',this.checked)" ${mgrGetDailyDuty(dateStr,'clear_cases')?'checked':''}><span>Task management on Service Titan (clear cases)</span></label>
             <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','daily_huddle',this.checked)" ${mgrGetDailyDuty(dateStr,'daily_huddle')?'checked':''}><span>Daily huddle with HVAC through Slack app</span></label>
+            <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','update_matrix',this.checked)" ${mgrGetDailyDuty(dateStr,'update_matrix')?'checked':''}><span>Update Matrix</span></label>
           </div>
         </div>
       `;
