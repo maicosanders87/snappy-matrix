@@ -1462,11 +1462,13 @@ window.addEventListener('load', () => {
       var totalRevenue = 0;
       var totalReviews = 0;
       var totalInstallRev = 0;
+      var totalMtdInstalls = 0;
 
       stData.forEach(function(st) {
         totalCallbacks += st.productivity.recalls || 0;
         totalRevenue += st.mtd_service_rev || 0;
         totalInstallRev += st.installs.total_revenue || 0;
+        totalMtdInstalls += st.mtd_installs || 0;
       });
 
       try {
@@ -1497,7 +1499,8 @@ window.addEventListener('load', () => {
         { icon: '\u26a0\ufe0f', value: liveComplaints, label: 'Complaints', sub: 'Active customer complaints' },
         { icon: '\ud83d\udcb0', value: '$' + totalRevenue.toLocaleString(), label: 'Service Revenue', sub: 'Maintenance & service only' },
         { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'Last 90 days' },
-        { icon: '\ud83c\udfe0', value: '$' + totalInstallRev.toLocaleString(), label: 'Install Revenue', sub: 'Month-to-date installs' }
+        { icon: '\ud83c\udfe0', value: '$' + totalInstallRev.toLocaleString(), label: 'Install Revenue', sub: 'Last 90 days' },
+        { icon: '\ud83d\udee0\ufe0f', value: totalMtdInstalls, label: 'MTD Installs', sub: 'Month-to-date completed' }
       ];
 
       kpis.forEach(function(k) {
@@ -2511,11 +2514,15 @@ window.addEventListener('load', () => {
                 </div>
                 <div class="st-metric">
                   <div class="st-metric-value">${st.installs.count}</div>
-                  <div class="st-metric-label">Installs Sold</div>
+                  <div class="st-metric-label">Installs Sold (90d)</div>
                 </div>
                 <div class="st-metric">
                   <div class="st-metric-value">$${st.installs.total_revenue.toLocaleString()}</div>
-                  <div class="st-metric-label">Install Revenue</div>
+                  <div class="st-metric-label">Install Rev (90d)</div>
+                </div>
+                <div class="st-metric">
+                  <div class="st-metric-value">${st.mtd_installs || 0}</div>
+                  <div class="st-metric-label">MTD Installs</div>
                 </div>
               </div>
               <div class="st-insight">${stInsights[t.short] || ''}</div>
@@ -2619,6 +2626,7 @@ window.addEventListener('load', () => {
         name: "Dewone",
         color: "#E07B3A",
         mtd_service_rev: 7061,
+        mtd_installs: 16,
         nexstar: { total_revenue: 25675, avg_sale: 440, conversion_rate: 79, spps_sold: 8, tech_gen_leads: 34, sold_hours: 138.55, tech_sold_hr_eff: 0, flat_rate_tasks: 1.84 },
         overview: { revenue: 25675, total_job_avg: 153, opp_job_avg: 351, opp_conversion: 79, opps: 71, converted_jobs: 56 },
         leads: { opps: 71, leads_set: 34, conv_rate: 48, avg_sale: 440 },
@@ -2631,6 +2639,7 @@ window.addEventListener('load', () => {
         name: "Benji",
         color: "#5B4A8A",
         mtd_service_rev: 7363,
+        mtd_installs: 0,
         nexstar: { total_revenue: 18238, avg_sale: 445, conversion_rate: 56, spps_sold: 2, tech_gen_leads: 9, sold_hours: 130.65, tech_sold_hr_eff: 0.28, flat_rate_tasks: 2.17 },
         overview: { revenue: 18238, total_job_avg: 108, opp_job_avg: 260, opp_conversion: 56, opps: 66, converted_jobs: 37 },
         leads: { opps: 66, leads_set: 9, conv_rate: 14, avg_sale: 445 },
@@ -2643,6 +2652,7 @@ window.addEventListener('load', () => {
         name: "Daniel",
         color: "#C47F17",
         mtd_service_rev: 4707,
+        mtd_installs: 9,
         nexstar: { total_revenue: 19162, avg_sale: 547, conversion_rate: 64, spps_sold: 4, tech_gen_leads: 5, sold_hours: 120.75, tech_sold_hr_eff: 0, flat_rate_tasks: 2.03 },
         overview: { revenue: 19162, total_job_avg: 121, opp_job_avg: 355, opp_conversion: 64, opps: 53, converted_jobs: 34 },
         leads: { opps: 53, leads_set: 5, conv_rate: 9, avg_sale: 547 },
@@ -2655,6 +2665,7 @@ window.addEventListener('load', () => {
         name: "Chris",
         color: "#8B3A3A",
         mtd_service_rev: 5311,
+        mtd_installs: 15,
         nexstar: { total_revenue: 15359, avg_sale: 360, conversion_rate: 55, spps_sold: 6, tech_gen_leads: 26, sold_hours: 127.67, tech_sold_hr_eff: 0, flat_rate_tasks: 1.91 },
         overview: { revenue: 15359, total_job_avg: 86, opp_job_avg: 203, opp_conversion: 55, opps: 73, converted_jobs: 40 },
         leads: { opps: 73, leads_set: 26, conv_rate: 36, avg_sale: 360 },
@@ -2667,6 +2678,7 @@ window.addEventListener('load', () => {
         name: "Dee",
         color: "#2D6A6A",
         mtd_service_rev: 632,
+        mtd_installs: 1,
         isWarrantyTech: true,
         completedJobs: 113,
         nexstar: { total_revenue: 6416, avg_sale: 562, conversion_rate: 85, spps_sold: 0, tech_gen_leads: 3, sold_hours: 87.35, tech_sold_hr_eff: 0, flat_rate_tasks: 2.65 },
@@ -3016,6 +3028,7 @@ window.addEventListener('load', () => {
       const totalSales = stData.reduce((s,t) => s + t.sales.total_sales, 0);
       const totalInstalls = stData.reduce((s,t) => s + t.installs.count, 0);
       const totalInstallRev = stData.reduce((s,t) => s + t.installs.total_revenue, 0);
+      const totalMtdInst = stData.reduce((s,t) => s + (t.mtd_installs || 0), 0);
       const topRev = stData.reduce((best, t) => t.nexstar.total_revenue > best.nexstar.total_revenue ? t : best);
 
       document.getElementById('st-kpi-row').innerHTML = `
@@ -3040,9 +3053,14 @@ window.addEventListener('load', () => {
           <div class="kpi-sub">All technicians combined</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Tech-Gen Installs</div>
+          <div class="kpi-label">Tech-Gen Installs (90d)</div>
           <div class="kpi-value">${totalInstalls}</div>
           <div class="kpi-sub">${fmt$(totalInstallRev)} install revenue</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">MTD Installs</div>
+          <div class="kpi-value">${totalMtdInst}</div>
+          <div class="kpi-sub">Month-to-date completed</div>
         </div>
       `;
     }
@@ -3116,8 +3134,9 @@ window.addEventListener('load', () => {
       ]);
 
       buildSTTable('stInstallsTable', [
-        { label: 'Installs Sold', get: t => t.installs.count },
-        { label: 'Install Revenue', get: t => t.installs.total_revenue, fmt: fmt$ },
+        { label: 'MTD Installs', get: t => t.mtd_installs || 0 },
+        { label: 'Installs Sold (90d)', get: t => t.installs.count },
+        { label: 'Install Revenue (90d)', get: t => t.installs.total_revenue, fmt: fmt$ },
         { label: 'Avg Install Sale', get: t => t.installs.avg_sale, fmt: fmt$ },
         { label: 'Leads Generated', get: t => t.installs.leads_generated },
         { label: 'Self-Sourced', get: t => t.installs.self_sourced }
