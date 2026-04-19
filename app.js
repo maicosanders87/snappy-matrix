@@ -6074,60 +6074,107 @@ window.addEventListener('load', () => {
 function openEmbeddedPDF(filename) {
   const b64 = PDF_BASE64[filename];
   if (!b64) { alert('PDF not found: ' + filename); return; }
-  const byteChars = atob(b64);
-  const byteNumbers = new Array(byteChars.length);
-  for (let i = 0; i < byteChars.length; i++) {
-    byteNumbers[i] = byteChars.charCodeAt(i);
+
+  // Decode base64 to Uint8Array for PDF.js
+  var byteChars = atob(b64);
+  var byteArray = new Uint8Array(byteChars.length);
+  for (var i = 0; i < byteChars.length; i++) {
+    byteArray[i] = byteChars.charCodeAt(i);
   }
-  const byteArray = new Uint8Array(byteNumbers);
-  const blob = new Blob([byteArray], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
 
   // Remove any existing viewer
-  const existing = document.getElementById('pdfViewerOverlay');
+  var existing = document.getElementById('pdfViewerOverlay');
   if (existing) existing.remove();
 
-  // Create full-page PDF viewer overlay
-  const overlay = document.createElement('div');
+  // Create full-page overlay
+  var overlay = document.createElement('div');
   overlay.id = 'pdfViewerOverlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center;padding:16px;';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;background:rgba(0,0,0,0.88);display:flex;flex-direction:column;align-items:center;';
 
-  // Header bar with title, download, and close
-  const header = document.createElement('div');
-  header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;width:100%;max-width:900px;margin-bottom:12px;';
+  // Header bar
+  var header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;width:100%;max-width:900px;padding:12px 16px;flex-shrink:0;';
 
-  const title = document.createElement('span');
-  title.textContent = filename.replace(/_/g, ' ').replace('.pdf', '');
-  title.style.cssText = 'color:#fff;font-size:16px;font-weight:600;text-transform:capitalize;';
+  var titleEl = document.createElement('span');
+  titleEl.textContent = filename.replace(/_/g, ' ').replace('.pdf', '');
+  titleEl.style.cssText = 'color:#fff;font-size:16px;font-weight:600;text-transform:capitalize;';
 
-  const btnGroup = document.createElement('div');
-  btnGroup.style.cssText = 'display:flex;gap:8px;';
+  var pageInfo = document.createElement('span');
+  pageInfo.id = 'pdfPageInfo';
+  pageInfo.style.cssText = 'color:#aaa;font-size:13px;font-weight:500;';
 
-  const dlBtn = document.createElement('a');
-  dlBtn.href = url;
-  dlBtn.download = filename;
-  dlBtn.textContent = 'Download';
-  dlBtn.style.cssText = 'padding:8px 16px;background:#2D6A6A;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;';
+  var btnGroup = document.createElement('div');
+  btnGroup.style.cssText = 'display:flex;gap:8px;align-items:center;';
 
-  const closeBtn = document.createElement('button');
+  var closeBtn = document.createElement('button');
   closeBtn.textContent = '\u00D7 Close';
   closeBtn.style.cssText = 'padding:8px 16px;background:#555;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;';
-  closeBtn.onclick = function() { overlay.remove(); URL.revokeObjectURL(url); };
+  closeBtn.onclick = function() { overlay.remove(); };
 
-  btnGroup.appendChild(dlBtn);
+  btnGroup.appendChild(pageInfo);
   btnGroup.appendChild(closeBtn);
-  header.appendChild(title);
+  header.appendChild(titleEl);
   header.appendChild(btnGroup);
   overlay.appendChild(header);
 
-  // PDF embed
-  const embed = document.createElement('iframe');
-  embed.src = url;
-  embed.style.cssText = 'width:100%;max-width:900px;flex:1;border:none;border-radius:8px;background:#fff;';
-  overlay.appendChild(embed);
+  // Scrollable container for rendered pages
+  var scrollContainer = document.createElement('div');
+  scrollContainer.id = 'pdfScrollContainer';
+  scrollContainer.style.cssText = 'flex:1;overflow-y:auto;overflow-x:hidden;width:100%;display:flex;flex-direction:column;align-items:center;padding:0 16px 24px;-webkit-overflow-scrolling:touch;';
+  overlay.appendChild(scrollContainer);
 
-  // Close on overlay background click
-  overlay.addEventListener('click', function(e) { if (e.target === overlay) { overlay.remove(); URL.revokeObjectURL(url); } });
+  // Close on overlay background click (not on content)
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay || e.target === scrollContainer) overlay.remove();
+  });
 
   document.body.appendChild(overlay);
+
+  // Loading indicator
+  var loadingEl = document.createElement('div');
+  loadingEl.textContent = 'Loading PDF...';
+  loadingEl.style.cssText = 'color:#fff;font-size:15px;padding:40px;';
+  scrollContainer.appendChild(loadingEl);
+
+  // Render all pages using PDF.js
+  var loadingTask = pdfjsLib.getDocument({ data: byteArray });
+  loadingTask.promise.then(function(pdf) {
+    scrollContainer.removeChild(loadingEl);
+    var totalPages = pdf.numPages;
+    pageInfo.textContent = totalPages + ' page' + (totalPages === 1 ? '' : 's');
+
+    // Determine scale: fit within container width (max 900px) at 2x for retina
+    var containerWidth = Math.min(900, window.innerWidth - 32);
+    var devicePixelRatio = window.devicePixelRatio || 1;
+
+    for (var p = 1; p <= totalPages; p++) {
+      (function(pageNum) {
+        pdf.getPage(pageNum).then(function(page) {
+          // Calculate scale to fit container width
+          var unscaledViewport = page.getViewport({ scale: 1 });
+          var scale = containerWidth / unscaledViewport.width;
+          var viewport = page.getViewport({ scale: scale * devicePixelRatio });
+
+          // Canvas for this page
+          var canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvas.style.cssText = 'width:' + (viewport.width / devicePixelRatio) + 'px;height:' + (viewport.height / devicePixelRatio) + 'px;margin-bottom:8px;border-radius:4px;background:#fff;display:block;';
+
+          // Page wrapper to maintain order
+          var wrapper = document.createElement('div');
+          wrapper.dataset.page = pageNum;
+          wrapper.style.cssText = 'order:' + pageNum + ';display:flex;justify-content:center;';
+          wrapper.appendChild(canvas);
+          scrollContainer.appendChild(wrapper);
+
+          var ctx = canvas.getContext('2d');
+          page.render({ canvasContext: ctx, viewport: viewport });
+        });
+      })(p);
+    }
+  }).catch(function(err) {
+    loadingEl.textContent = 'Error loading PDF: ' + err.message;
+    loadingEl.style.color = '#ff6b6b';
+  });
 }
