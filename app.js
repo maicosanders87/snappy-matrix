@@ -3058,6 +3058,88 @@ window.addEventListener('load', () => {
           : tierLower === 'b' ? 'linear-gradient(135deg, #0A1628, #122650, #0E1E3A)'
           : 'linear-gradient(135deg, #1A1C22, #22252D, #2A2D36)';
 
+        // Build ST stat rows
+        var stRows = '';
+        if (st) {
+          var isW = st.isWarrantyTech;
+          stRows = `
+            <div class="rookie-st-section">
+              <div class="rookie-st-header">ServiceTitan Performance</div>
+              <div class="rookie-st-grid">
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">$${st.nexstar.total_revenue.toLocaleString()}</div>
+                  <div class="rookie-st-lbl">Revenue</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">$${st.nexstar.avg_sale}</div>
+                  <div class="rookie-st-lbl">Avg Ticket</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${st.nexstar.conversion_rate}%</div>
+                  <div class="rookie-st-lbl">Conv Rate</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${st.memberships.total_mem_sold}/${st.memberships.total_mem_opps}</div>
+                  <div class="rookie-st-lbl">Mem Sold</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${st.memberships.total_mem_pct}%</div>
+                  <div class="rookie-st-lbl">Mem Conv</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${isW ? st.completedJobs : st.nexstar.tech_gen_leads}</div>
+                  <div class="rookie-st-lbl">${isW ? 'Jobs Done' : 'Leads Set'}</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">$${st.productivity.rev_hr}</div>
+                  <div class="rookie-st-lbl">Rev/Hr</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${st.productivity.sold_hrs_on_job_pct}%</div>
+                  <div class="rookie-st-lbl">Sold Hrs %</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${st.sales.close_rate}%</div>
+                  <div class="rookie-st-lbl">Close Rate</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${st.productivity.options_per_opp}</div>
+                  <div class="rookie-st-lbl">Opts/Opp</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${st.productivity.recalls}</div>
+                  <div class="rookie-st-lbl">Recalls</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${st.nexstar.spps_sold}</div>
+                  <div class="rookie-st-lbl">SPPs Sold</div>
+                </div>
+              </div>
+            </div>
+            <div class="rookie-st-section">
+              <div class="rookie-st-header">Install Performance</div>
+              <div class="rookie-st-grid">
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${st.installs.count}</div>
+                  <div class="rookie-st-lbl">Installs</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">$${st.installs.total_revenue.toLocaleString()}</div>
+                  <div class="rookie-st-lbl">Install Rev</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${st.installs.count > 0 ? '$' + st.installs.avg_sale.toLocaleString() : '—'}</div>
+                  <div class="rookie-st-lbl">Avg Install</div>
+                </div>
+                <div class="rookie-st-item">
+                  <div class="rookie-st-val">${st.installs.leads_generated}</div>
+                  <div class="rookie-st-lbl">Self-Source</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
         html += `
           <div class="rookie-card rookie-tier-${tierLower}">
             <div class="rookie-card-border tier-${tierLower}"></div>
@@ -3080,24 +3162,12 @@ window.addEventListener('load', () => {
                   <div class="rookie-stat-label">Aptitude</div>
                 </div>
                 <div class="rookie-stat">
-                  <div class="rookie-stat-value">${st ? st.memberships.total_mem_sold : '—'}</div>
-                  <div class="rookie-stat-label">Mem Sold</div>
-                </div>
-                <div class="rookie-stat">
-                  <div class="rookie-stat-value">${st ? '$' + (st.nexstar.total_revenue / 1000).toFixed(0) + 'k' : '—'}</div>
-                  <div class="rookie-stat-label">Revenue</div>
-                </div>
-                <div class="rookie-stat">
-                  <div class="rookie-stat-value">${st ? (st.isWarrantyTech ? st.completedJobs : st.nexstar.tech_gen_leads) : '—'}</div>
-                  <div class="rookie-stat-label">${st && st.isWarrantyTech ? 'Jobs' : 'Leads'}</div>
-                </div>
-                <div class="rookie-stat">
                   <div class="rookie-stat-value">${gr ? gr.count : '—'}</div>
                   <div class="rookie-stat-label">Reviews</div>
                 </div>
                 <div class="rookie-stat">
-                  <div class="rookie-stat-value">${st ? '$' + (st.installs.total_revenue / 1000).toFixed(0) + 'k' : '—'}</div>
-                  <div class="rookie-stat-label">Installs</div>
+                  <div class="rookie-stat-value">${tierInfo.composite}</div>
+                  <div class="rookie-stat-label">Composite</div>
                 </div>
               </div>
 
@@ -3108,6 +3178,8 @@ window.addEventListener('load', () => {
                 </div>
                 <div class="rookie-composite-score" style="color:${t.color}">${tierInfo.composite}</div>
               </div>
+
+              ${stRows}
 
               ${apt && apt.certs.length ? `<div class="rookie-certs">${apt.certs.map(c => `<span class="rookie-cert">${c}</span>`).join('')}</div>` : ''}
             </div>

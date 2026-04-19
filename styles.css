@@ -1032,8 +1032,58 @@
       background: rgba(45,106,106,0.2);
       color: #6BC5C5;
     }
+    /* Rookie card — ServiceTitan data sections */
+    .rookie-st-section {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .rookie-st-header {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 6px;
+    }
+    .rookie-st-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px 6px;
+    }
+    .rookie-st-item {
+      text-align: center;
+      padding: 3px 0;
+    }
+    .rookie-st-val {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.88);
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.3;
+    }
+    .rookie-st-lbl {
+      font-size: 8px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.30);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      line-height: 1.2;
+    }
+    /* Tier-specific ST header colors */
+    .rookie-tier-s .rookie-st-header { color: rgba(255,215,0,0.50); }
+    .rookie-tier-a .rookie-st-header { color: rgba(248,113,113,0.50); }
+    .rookie-tier-b .rookie-st-header { color: rgba(96,165,250,0.50); }
+    .rookie-tier-c .rookie-st-header { color: rgba(148,163,184,0.40); }
+    /* Tier-specific ST value colors */
+    .rookie-tier-s .rookie-st-val { color: #FDE68A; }
+    .rookie-tier-a .rookie-st-val { color: #FCA5A5; }
+    .rookie-tier-b .rookie-st-val { color: #BFDBFE; }
+    .rookie-tier-c .rookie-st-val { color: rgba(200,210,220,0.75); }
+
     @media (max-width: 600px) {
       .rookie-grid { grid-template-columns: 1fr; max-width: 340px; margin: 0 auto; }
+      .rookie-st-grid { grid-template-columns: repeat(3, 1fr); }
     }
 
     /* Tier Progression */
