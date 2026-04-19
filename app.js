@@ -7400,6 +7400,8 @@ if (typeof Chart !== 'undefined') {
         }
         cardsHtml += `</div>`;
         cardsHtml += `<div class="disp-tag-count ${count >= DISP_MAX_TAGS ? 'at-limit' : ''}">${count} / ${DISP_MAX_TAGS} tags</div>`;
+        const techBonus = calcDispatchBonus(assigned);
+        cardsHtml += `<div class="disp-tag-points"><span class="disp-pts-icon">&#9889;</span> +${techBonus.toFixed(2)} pts to composite</div>`;
         cardsHtml += `</div>`;
       });
       cardsHtml += '</div>';
