@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260419v67b">
+  <link rel="stylesheet" href="styles.css?v=20260419v67c">
 </head>
 <body>
   <!-- Background Grid Effect -->
@@ -57,41 +57,50 @@
         <img src="snappy_logo.png" alt="Snappy" class="sidebar-logo">
         <span class="nav-label sidebar-title">SNAPPY</span>
       </div>
-      <button class="nav-tab active" data-view="overview">
+      <button class="nav-tab active" data-view="overview" data-tip="Dashboard overview, KPIs, leaderboard & charts">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         <span class="nav-label">Overview</span>
+        <span class="nav-tooltip">Overview<small>KPIs, leaderboard & charts</small></span>
       </button>
       <button class="nav-tab" data-view="aptitude-skills">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         <span class="nav-label">Aptitude & Skills</span>
+        <span class="nav-tooltip">Aptitude & Skills<small>Test results & skills matrix</small></span>
       </button>
       <button class="nav-tab" data-view="profiles">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         <span class="nav-label">Tech Profiles</span>
+        <span class="nav-tooltip">Tech Profiles<small>Individual stats & analysis</small></span>
       </button>
       <button class="nav-tab" data-view="rookie">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M12 17v4"/><path d="M8 21h8"/></svg>
         <span class="nav-label">Rookie Cards</span>
+        <span class="nav-tooltip">Rookie Cards<small>Trading card-style stat cards</small></span>
       </button>
       <button class="nav-tab" data-view="progression">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
         <span class="nav-label">Tier Progression</span>
+        <span class="nav-tooltip">Tier Progression<small>XP, achievements & roadmap</small></span>
       </button>
       <button class="nav-tab" data-view="skills-tags">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
         <span class="nav-label">Skills Tags</span>
+        <span class="nav-tooltip">Skills Tags<small>48-skill ServiceTitan system</small></span>
       </button>
       <button class="nav-tab mgr-only" data-view="manager">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         <span class="nav-label">Manager</span>
+        <span class="nav-tooltip">Manager<small>Coaching & training hub</small></span>
       </button>
       <button class="nav-tab" data-view="dispatch">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5a1 1 0 0 1-1 1h-1"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
         <span class="nav-label">Dispatch</span>
+        <span class="nav-tooltip">Dispatch<small>Tags, recalls & complaints</small></span>
       </button>
       <button class="nav-tab" data-view="scorecards">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         <span class="nav-label">ST Scorecards</span>
+        <span class="nav-tooltip">ST Scorecards<small>ServiceTitan performance data</small></span>
       </button>
     </nav>
 
@@ -151,6 +160,24 @@
             <div class="chart-title">Skill Breakdown by Category</div>
             <div class="chart-subtitle">Each tech's average across major evaluation categories</div>
             <div class="chart-container"><canvas id="groupedBarChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ServiceTitan Radar Comparison -->
+      <div class="ov-section">
+        <div class="ov-section-header">
+          <span class="ov-section-icon">🎯</span>
+          <span>ServiceTitan Radar — Tech Comparison</span>
+        </div>
+        <div class="charts-grid">
+          <div class="chart-card chart-card-full">
+            <div class="chart-title">ServiceTitan Performance Radar</div>
+            <div class="chart-subtitle">Normalized metrics across all techs — revenue, conversion, leads, memberships, options/opp, close rate</div>
+            <div class="chart-container-st-radar">
+              <canvas id="stRadarCanvas"></canvas>
+            </div>
+            <div class="radar3d-hint">Click legend to show/hide techs</div>
           </div>
         </div>
       </div>
@@ -873,12 +900,12 @@ AND 30% of advancement "votes" come from skills progress
         </p>
       </div>
 
-      <!-- Dispatch Tag Manager -->
-      <div class="section" style="margin-bottom:24px">
+      <!-- Dispatch Tag Manager (manager + editor only) -->
+      <div class="section disp-edit-section" style="margin-bottom:24px">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
           <div style="font-weight:600;font-size:14px;color:var(--text-primary)">Manage Tags</div>
           <div style="display:flex;gap:8px;align-items:center">
-            <input type="text" id="dispNewTag" placeholder="New tag name..." maxlength="40" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;width:220px;background:var(--bg-card);">
+            <input type="text" id="dispNewTag" placeholder="New tag name..." maxlength="40" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;width:220px;background:var(--bg-card);color:var(--text-primary);">
             <button id="dispAddTagBtn" style="padding:7px 16px;border:none;border-radius:8px;background:var(--accent-teal);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">+ Add Tag</button>
           </div>
         </div>
@@ -992,6 +1019,6 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="app.js?v=20260419v67b"></script>
+  <script src="app.js?v=20260419v67c"></script>
 </body>
 </html>

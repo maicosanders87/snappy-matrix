@@ -1478,6 +1478,8 @@ window.addEventListener('load', () => {
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById('view-' + tab.dataset.view).classList.add('active');
+        // Always scroll to top on tab switch
+        window.scrollTo({ top: 0, behavior: 'instant' });
         // Close mobile sidebar on nav
         if (window.innerWidth < 769) {
           document.querySelector('.nav-tabs').classList.remove('mobile-open');
@@ -2238,6 +2240,131 @@ if (typeof Chart !== 'undefined') {
           },
           plugins: {
             legend: { position: 'bottom', labels: { font: { size: 12, family: "'DM Sans'" }, usePointStyle: true, padding: 14 } }
+          }
+        }
+      });
+    }
+
+    // ========== SERVICETITAN RADAR CHART ==========
+    function renderSTRadar() {
+      var stCanvas = document.getElementById('stRadarCanvas');
+      if (!stCanvas) return;
+      var stCtx = stCanvas.getContext('2d');
+
+      // Compute max values across all techs for normalization (0-100 scale)
+      var maxRev = 0, maxConv = 0, maxLeads = 0, maxMem = 0, maxOpts = 0, maxClose = 0;
+      stData.forEach(function(t) {
+        if (t.nexstar.total_revenue > maxRev) maxRev = t.nexstar.total_revenue;
+        if (t.nexstar.conversion_rate > maxConv) maxConv = t.nexstar.conversion_rate;
+        if (t.nexstar.tech_gen_leads > maxLeads) maxLeads = t.nexstar.tech_gen_leads;
+        if (t.memberships.total_mem_pct > maxMem) maxMem = t.memberships.total_mem_pct;
+        if (t.productivity.options_per_opp > maxOpts) maxOpts = t.productivity.options_per_opp;
+        if (t.sales.close_rate > maxClose) maxClose = t.sales.close_rate;
+      });
+
+      // Avoid divide by zero
+      if (maxRev === 0) maxRev = 1;
+      if (maxConv === 0) maxConv = 1;
+      if (maxLeads === 0) maxLeads = 1;
+      if (maxMem === 0) maxMem = 1;
+      if (maxOpts === 0) maxOpts = 1;
+      if (maxClose === 0) maxClose = 1;
+
+      var stRadarLabels = ['Revenue', 'Conversion %', 'Tech-Gen Leads', 'Membership %', 'Options/Opp', 'Close Rate'];
+
+      var stRadarDatasets = stData.map(function(t) {
+        return {
+          label: t.name,
+          data: [
+            Math.round((t.nexstar.total_revenue / maxRev) * 100),
+            Math.round((t.nexstar.conversion_rate / maxConv) * 100),
+            Math.round((t.nexstar.tech_gen_leads / maxLeads) * 100),
+            Math.round((t.memberships.total_mem_pct / maxMem) * 100),
+            Math.round((t.productivity.options_per_opp / maxOpts) * 100),
+            Math.round((t.sales.close_rate / maxClose) * 100)
+          ],
+          backgroundColor: t.color + '25',
+          borderColor: t.color,
+          borderWidth: 2,
+          pointBackgroundColor: t.color,
+          pointBorderColor: '#0f172a',
+          pointBorderWidth: 1,
+          pointRadius: 4,
+          pointHoverRadius: 7
+        };
+      });
+
+      new Chart(stCtx, {
+        type: 'radar',
+        data: {
+          labels: stRadarLabels,
+          datasets: stRadarDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            r: {
+              min: 0,
+              max: 100,
+              ticks: {
+                stepSize: 20,
+                backdropColor: 'transparent',
+                color: '#94a3b8',
+                font: { size: 10, family: "'JetBrains Mono'" }
+              },
+              grid: {
+                color: 'rgba(59,130,246,0.12)',
+                lineWidth: 1
+              },
+              angleLines: {
+                color: 'rgba(59,130,246,0.12)',
+                lineWidth: 1
+              },
+              pointLabels: {
+                color: '#e2e8f0',
+                font: { size: 12, family: "'Inter'", weight: '600' },
+                padding: 12
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: '#e2e8f0',
+                font: { size: 12, family: "'Inter'" },
+                usePointStyle: true,
+                pointStyle: 'circle',
+                padding: 16
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.95)',
+              titleColor: '#e2e8f0',
+              bodyColor: '#cbd5e1',
+              borderColor: 'rgba(59,130,246,0.3)',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                label: function(context) {
+                  var techName = context.dataset.label;
+                  var metric = context.label;
+                  var normalized = context.raw;
+                  var st = stData.find(function(s) { return s.name === techName; });
+                  var raw = '';
+                  if (st) {
+                    if (metric === 'Revenue') raw = ' ($' + st.nexstar.total_revenue.toLocaleString() + ')';
+                    else if (metric === 'Conversion %') raw = ' (' + st.nexstar.conversion_rate + '%)';
+                    else if (metric === 'Tech-Gen Leads') raw = ' (' + st.nexstar.tech_gen_leads + ')';
+                    else if (metric === 'Membership %') raw = ' (' + st.memberships.total_mem_pct + '%)';
+                    else if (metric === 'Options/Opp') raw = ' (' + st.productivity.options_per_opp + ')';
+                    else if (metric === 'Close Rate') raw = ' (' + st.sales.close_rate + '%)';
+                  }
+                  return techName + ': ' + normalized + '/100' + raw;
+                }
+              }
+            }
           }
         }
       });
@@ -7446,6 +7573,21 @@ if (typeof Chart !== 'undefined') {
       return count;
     }
 
+    // ========== SIDEBAR TOOLTIP POSITIONING ==========
+    (function initSidebarTooltips() {
+      var mainNavTabs = document.querySelectorAll('.nav-tabs:not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs):not(#st-sub-tabs) > .nav-tab');
+      mainNavTabs.forEach(function(tab) {
+        var tooltip = tab.querySelector('.nav-tooltip');
+        if (!tooltip) return;
+        tab.addEventListener('mouseenter', function() {
+          var rect = tab.getBoundingClientRect();
+          tooltip.style.left = (rect.right + 12) + 'px';
+          tooltip.style.top = (rect.top + rect.height / 2) + 'px';
+          tooltip.style.transform = 'translateY(-50%)';
+        });
+      });
+    })();
+
     // ========== INIT ==========
     renderOverviewTab();
     renderKPIs();
@@ -7453,6 +7595,7 @@ if (typeof Chart !== 'undefined') {
     setTimeout(function() { renderRadar(); }, 300);
     renderBar();
     renderGroupedBar();
+    setTimeout(function() { renderSTRadar(); }, 400);
     renderMatrix();
     renderAptitudeSkills();
     renderProfiles();

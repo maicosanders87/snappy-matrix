@@ -7196,3 +7196,86 @@
   animation: shimmerLoad 1.5s ease-in-out infinite;
   border-radius: 8px;
 }
+
+/* Fix 1: Hide dispatch tag management for non-editable accounts */
+.viewer-mode .disp-edit-section { display: none !important; }
+.coach-mode .disp-edit-section { display: none !important; }
+
+/* Fix 4: Sidebar tooltip popups on hover — JS-positioned fixed tooltips */
+.nav-tooltip {
+  position: fixed;
+  z-index: 9999;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 10px;
+  padding: 8px 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 15px rgba(59,130,246,0.1);
+  backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.nav-tooltip small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.nav-tooltip::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-right-color: rgba(59,130,246,0.25);
+}
+.nav-tooltip::after {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-right-color: #1e293b;
+}
+.nav-tab:hover .nav-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+/* Hide tooltips when sidebar is expanded (labels are visible) */
+.sidebar-expanded .nav-tooltip {
+  display: none !important;
+}
+/* Hide tooltips for sub-tabs (they always show labels) */
+#as-sub-tabs .nav-tooltip,
+#sk-sub-tabs .nav-tooltip,
+#mgr-sub-tabs .nav-tooltip,
+#st-sub-tabs .nav-tooltip {
+  display: none !important;
+}
+
+/* Fix 3: ServiceTitan radar chart */
+.chart-container-st-radar {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  aspect-ratio: 1;
+}
+.chart-container-st-radar canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
