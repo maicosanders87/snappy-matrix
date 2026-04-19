@@ -3275,7 +3275,7 @@ window.addEventListener('load', () => {
       const mgrCompBarColor = 'linear-gradient(90deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF)';
       const ms = mgrLoadStats();
       // Manager install data (excluded from stData per instructions)
-      const mgrInstalls = { count: 5, total_revenue: 69610, avg_sale: 13922 };
+      const mgrInstalls = { count: 5, total_revenue: 69610, avg_sale: 13922, opps: 10, conv_pct: 40 };
       const mgrNexstar = { total_revenue: 7083, avg_sale: 403, conversion_rate: 36, spps_sold: 5, tech_gen_leads: 2, sold_hours: 13.45 };
       html += `
         <div class="rookie-card rookie-tier-s">
@@ -3297,9 +3297,9 @@ window.addEventListener('load', () => {
                 <div class="rookie-stat-period">${mgrInstalls.count} installs &bull; 90 days</div>
               </div>
               <div class="rookie-stat">
-                <div class="rookie-stat-value">$${mgrInstalls.avg_sale.toLocaleString()}</div>
-                <div class="rookie-stat-label">Avg Install</div>
-                <div class="rookie-stat-period">per job</div>
+                <div class="rookie-stat-value">${mgrInstalls.conv_pct}%</div>
+                <div class="rookie-stat-label">Install Conv %</div>
+                <div class="rookie-stat-period">${mgrInstalls.count}/${mgrInstalls.opps} opps</div>
               </div>
               <div class="rookie-stat mgr-stat-editable" onclick="mgrEditStat('oneonone_rate','1-on-1 Completion Rate (per week)','${ms.oneonone_rate||''}')"> 
                 <div class="rookie-stat-value">${ms.oneonone_rate || '—'}</div>
