@@ -1302,6 +1302,31 @@ window.addEventListener('load', () => {
     }
 
     // ========== TAB NAVIGATION ==========
+    // KPI card click navigation
+    window.navigateToKpi = function(tabView, stSub) {
+      // Switch main tab
+      var mainTab = document.querySelector('.nav-tab[data-view="' + tabView + '"]');
+      if (mainTab) {
+        document.querySelectorAll('.nav-tabs:not(#st-sub-tabs):not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs) .nav-tab').forEach(function(t) { t.classList.remove('active'); });
+        document.querySelectorAll('.view-section').forEach(function(s) { s.classList.remove('active'); });
+        mainTab.classList.add('active');
+        document.getElementById('view-' + tabView).classList.add('active');
+      }
+      // If ST sub-tab specified, switch to it
+      if (stSub && tabView === 'scorecards') {
+        var stTab = document.querySelector('#st-sub-tabs .nav-tab[data-st="' + stSub + '"]');
+        if (stTab) {
+          document.querySelectorAll('#st-sub-tabs .nav-tab').forEach(function(t) { t.classList.remove('active'); });
+          document.querySelectorAll('.st-section').forEach(function(s) { s.classList.remove('active'); });
+          stTab.classList.add('active');
+          var stSection = document.getElementById('st-' + stSub);
+          if (stSection) stSection.classList.add('active');
+        }
+      }
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     document.querySelectorAll('.nav-tabs:not(#st-sub-tabs):not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs) .nav-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.nav-tabs:not(#st-sub-tabs):not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs) .nav-tab').forEach(t => t.classList.remove('active'));
@@ -1472,8 +1497,8 @@ window.addEventListener('load', () => {
         totalMtdInstalls += st.mtd_installs || 0;
         totalMtdInstallRev += st.mtd_install_rev || 0;
       });
-      // Team MTD install totals (all installs incl. Adam/non-rostered)
-      totalMtdInstalls = 7;
+      // Team MTD install totals (all installs incl. Adam)
+      totalMtdInstalls = 5;
       totalMtdInstallRev = 63246;
 
       try {
@@ -1500,16 +1525,16 @@ window.addEventListener('load', () => {
 
       var kpiHTML = '';
       var kpis = [
-        { icon: '\ud83d\udd04', value: liveRecalls, label: 'Recalls', sub: 'Active dispatch recalls' },
-        { icon: '\u26a0\ufe0f', value: liveComplaints, label: 'Complaints', sub: 'Active customer complaints' },
-        { icon: '\ud83d\udcb0', value: '$' + totalRevenue.toLocaleString(), label: 'Service Revenue', sub: 'Maintenance & service only' },
-        { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'Last 90 days' },
-        { icon: '\ud83c\udfe0', value: '$' + totalMtdInstallRev.toLocaleString(), label: 'Install Revenue', sub: 'Month-to-date' },
-        { icon: '\ud83d\udee0\ufe0f', value: totalMtdInstalls, label: 'MTD Installs', sub: 'Month-to-date completed' }
+        { icon: '\ud83d\udd04', value: liveRecalls, label: 'Recalls', sub: 'Active dispatch recalls', nav: 'dispatch', stSub: null },
+        { icon: '\u26a0\ufe0f', value: liveComplaints, label: 'Complaints', sub: 'Active customer complaints', nav: 'dispatch', stSub: null },
+        { icon: '\ud83d\udcb0', value: '$' + totalRevenue.toLocaleString(), label: 'Service Revenue', sub: 'Maintenance & service only', nav: 'scorecards', stSub: 'overview' },
+        { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'Last 90 days', nav: 'profiles', stSub: null },
+        { icon: '\ud83c\udfe0', value: '$' + totalMtdInstallRev.toLocaleString(), label: 'Install Revenue', sub: 'Month-to-date', nav: 'scorecards', stSub: 'installs' },
+        { icon: '\ud83d\udee0\ufe0f', value: totalMtdInstalls, label: 'MTD Installs', sub: 'Month-to-date completed', nav: 'scorecards', stSub: 'installs' }
       ];
 
       kpis.forEach(function(k) {
-        kpiHTML += '<div class="ov-kpi-card">' +
+        kpiHTML += '<div class="ov-kpi-card ov-kpi-clickable" onclick="navigateToKpi(\'' + k.nav + '\',\'' + (k.stSub || '') + '\')">' +
           '<div class="ov-kpi-icon">' + k.icon + '</div>' +
           '<div class="ov-kpi-value">' + k.value + '</div>' +
           '<div class="ov-kpi-label">' + k.label + '</div>' +
@@ -3033,7 +3058,7 @@ window.addEventListener('load', () => {
       const totalSales = stData.reduce((s,t) => s + t.sales.total_sales, 0);
       const totalInstalls = stData.reduce((s,t) => s + t.installs.count, 0);
       const totalInstallRev = stData.reduce((s,t) => s + t.installs.total_revenue, 0);
-      const totalMtdInst = 7; // Team MTD installs incl. Adam/non-rostered
+      const totalMtdInst = 5; // Team MTD installs incl. Adam
       const totalMtdInstRev = 63246;
       const topRev = stData.reduce((best, t) => t.nexstar.total_revenue > best.nexstar.total_revenue ? t : best);
 
