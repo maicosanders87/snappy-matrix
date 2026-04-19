@@ -1472,9 +1472,9 @@ window.addEventListener('load', () => {
         totalMtdInstalls += st.mtd_installs || 0;
         totalMtdInstallRev += st.mtd_install_rev || 0;
       });
-      // Adam Bunyard (owner) — 1 MTD install, tracked in team total only
-      totalMtdInstalls += 1;
-      totalMtdInstallRev += 0; // Adam's install rev TBD
+      // Team MTD install totals (all installs incl. Adam/non-rostered)
+      totalMtdInstalls = 7;
+      totalMtdInstallRev = 63246;
 
       try {
         var tfRaw = localStorage.getItem('snappy_tech_files');
@@ -3033,8 +3033,8 @@ window.addEventListener('load', () => {
       const totalSales = stData.reduce((s,t) => s + t.sales.total_sales, 0);
       const totalInstalls = stData.reduce((s,t) => s + t.installs.count, 0);
       const totalInstallRev = stData.reduce((s,t) => s + t.installs.total_revenue, 0);
-      const totalMtdInst = stData.reduce((s,t) => s + (t.mtd_installs || 0), 0) + 1; // +1 for Adam
-      const totalMtdInstRev = stData.reduce((s,t) => s + (t.mtd_install_rev || 0), 0);
+      const totalMtdInst = 7; // Team MTD installs incl. Adam/non-rostered
+      const totalMtdInstRev = 63246;
       const topRev = stData.reduce((best, t) => t.nexstar.total_revenue > best.nexstar.total_revenue ? t : best);
 
       document.getElementById('st-kpi-row').innerHTML = `
