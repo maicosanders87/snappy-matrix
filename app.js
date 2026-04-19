@@ -177,10 +177,13 @@ function _mergeTechFiles(localJson, cloudJson) {
 
 // Cloud sync initialization — runs after page loads
 async function initCloudSync() {
+  // Guard: only allow one cloud-triggered reload per session to prevent loops
+  var SYNC_RELOAD_KEY = '_snappy_sync_reloaded';
+  var alreadyReloaded = sessionStorage.getItem(SYNC_RELOAD_KEY);
+
   const cloudData = await SyncEngine.pull();
   if (!cloudData) return;
 
-  // For each data store: if cloud has data AND it's newer than local, use cloud version
   const keyMap = {
     'skills': 'snappy_skills_assignments',
     'manager': 'snappy_manager_entries',
@@ -193,33 +196,41 @@ async function initCloudSync() {
     'bulletin': 'snappy_bulletin_board'
   };
 
-  let needsReload = false;
+  let updated = false;
   for (const [cloudKey, localKey] of Object.entries(keyMap)) {
     if (cloudData[cloudKey]) {
       const cloudVal = cloudData[cloudKey].data || cloudData[cloudKey].val || '';
-      const localVal = localStorage.getItem(localKey);
-      if (cloudVal && cloudVal !== localVal) {
-        if (cloudKey === 'techfiles') {
-          // Merge tech files — never lose local files missing from cloud
-          const merged = _mergeTechFiles(localVal, cloudVal);
+      if (!cloudVal) continue;
+      const localVal = localStorage.getItem(localKey) || '';
+      if (cloudKey === 'techfiles') {
+        // Always merge tech files — never overwrite
+        var merged = _mergeTechFiles(localVal, cloudVal);
+        if (merged !== localVal) {
           localStorage.setItem(localKey, merged);
-        } else {
-          localStorage.setItem(localKey, cloudVal);
+          updated = true;
         }
-        needsReload = true;
+      } else if (cloudVal !== localVal) {
+        localStorage.setItem(localKey, cloudVal);
+        updated = true;
       }
     }
   }
 
-  if (needsReload) {
-    // Push merged tech files back to cloud so it has the complete set
-    var mergedTf = localStorage.getItem('snappy_tech_files');
-    if (mergedTf) {
-      SyncEngine.write('techfiles', JSON.parse(mergedTf));
-      await SyncEngine._flush();
-    }
-    console.log('Cloud data loaded — refreshing views');
+  // Push merged tech files back to cloud (fire-and-forget, no reload dependency)
+  var mergedTf = localStorage.getItem('snappy_tech_files');
+  if (mergedTf) {
+    SyncEngine.write('techfiles', JSON.parse(mergedTf));
+    // Don't await — let it flush on its own debounce timer
+  }
+
+  if (updated && !alreadyReloaded) {
+    sessionStorage.setItem(SYNC_RELOAD_KEY, '1');
+    console.log('Cloud data loaded — refreshing views (one-time)');
     location.reload();
+  } else if (updated) {
+    // Already reloaded once this session — just refresh in-memory state
+    console.log('Cloud data merged — skipping reload (already reloaded this session)');
+    try { tfLoad(); tfRender(); } catch(e) {}
   }
 }
 
@@ -289,6 +300,7 @@ async function manualSync() {
     }
 
     // 4. Hard reload with cache-busting timestamp
+    sessionStorage.removeItem('_snappy_sync_reloaded'); // allow initCloudSync to reload once after manual sync
     var url = window.location.href.split('?')[0] + '?sync=' + Date.now();
     window.location.replace(url);
   } catch(e) {
