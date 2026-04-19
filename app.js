@@ -1141,12 +1141,12 @@ window.addEventListener('load', () => {
         reviewScore = countNorm * 0.6 + qualityNorm * 0.4;
       }
 
-      // 7. Dispatch tag bonus: +0.25 per assigned dispatch tag
+      // 7. Dispatch tag bonus: premium tags (Lead Tech, Ride Along Trainer, Warranty Tech) = +1.0 each, all others = +0.25 each
       const dispData = dispLoad();
       const dispTags = (dispData.assignments && dispData.assignments[tech.short]) || [];
-      const dispatchBonus = dispTags.length * 0.25;
+      const dispatchBonus = calcDispatchBonus(dispTags);
 
-      // Composite: Aptitude 30% + ST 35% + Skills 10% + Manager 10% + Installs 10% + Reviews 5% + Dispatch bonus (+0.25/tag)
+      // Composite: Aptitude 30% + ST 35% + Skills 10% + Manager 10% + Installs 10% + Reviews 5% + Dispatch bonus
       const composite = aptScore * 0.30 + stScore * 0.35 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus;
 
       let tier, tierLabel;
@@ -3982,13 +3982,13 @@ if (typeof Chart !== 'undefined') {
                 }).join('')}
                 <div class="rookie-back-area">
                   <div class="rookie-back-area-header">
-                    <span class="rookie-back-area-name">Dispatch Tags (+0.25/tag)</span>
-                    <span class="rookie-back-area-score ${tierInfo.dispatchTagCount >= 4 ? 'is-strong' : tierInfo.dispatchTagCount >= 2 ? 'is-ok' : 'is-weak'}">+${tierInfo.dispatchBonus}</span>
+                    <span class="rookie-back-area-name">Dispatch Tags (Premium +1 / Standard +0.25)</span>
+                    <span class="rookie-back-area-score ${tierInfo.dispatchBonus >= 2 ? 'is-strong' : tierInfo.dispatchBonus >= 1 ? 'is-ok' : 'is-weak'}">+${tierInfo.dispatchBonus.toFixed(2)}</span>
                   </div>
                   <div class="rookie-back-area-bar">
-                    <div class="rookie-back-area-bar-fill" style="width:${Math.min(tierInfo.dispatchTagCount / 5 * 100, 100)}%;background:${tierInfo.dispatchTagCount >= 4 ? '#4ADE80' : tierInfo.dispatchTagCount >= 2 ? nextColor : '#EF4444'}"></div>
+                    <div class="rookie-back-area-bar-fill" style="width:${Math.min(tierInfo.dispatchBonus / 4 * 100, 100)}%;background:${tierInfo.dispatchBonus >= 2 ? '#4ADE80' : tierInfo.dispatchBonus >= 1 ? nextColor : '#EF4444'}"></div>
                   </div>
-                  <div class="rookie-back-area-tip">${tierInfo.dispatchTagCount} tag${tierInfo.dispatchTagCount !== 1 ? 's' : ''} assigned — ${tierInfo.dispatchTagCount < 3 ? 'Earn more dispatch tags to boost composite' : 'Strong dispatch coverage'}</div>
+                  <div class="rookie-back-area-tip">${tierInfo.dispatchTagCount} tag${tierInfo.dispatchTagCount !== 1 ? 's' : ''} assigned (+${tierInfo.dispatchBonus.toFixed(2)} pts) — Lead Tech, Ride Along Trainer &amp; Warranty Tech = +1.0 each, all others +0.25</div>
                 </div>
               </div>
             </div>
@@ -4204,15 +4204,15 @@ if (typeof Chart !== 'undefined') {
                   </div>
                 `;
               }).join('')}
-              <div class="prog-area ${info.dispatchTagCount >= 4 ? 'is-strong' : info.dispatchTagCount >= 2 ? 'is-ok' : 'is-weak'}">
+              <div class="prog-area ${info.dispatchBonus >= 2 ? 'is-strong' : info.dispatchBonus >= 1 ? 'is-ok' : 'is-weak'}">
                 <div class="prog-area-header">
-                  <span class="prog-area-name">\uD83D\uDE90 Dispatch Tags (+0.25/tag)</span>
-                  <span class="prog-area-score">+${info.dispatchBonus}</span>
+                  <span class="prog-area-name">\uD83D\uDE90 Dispatch Tags (Premium +1 / Std +0.25)</span>
+                  <span class="prog-area-score">+${info.dispatchBonus.toFixed(2)}</span>
                 </div>
                 <div class="prog-area-bar">
-                  <div class="prog-area-bar-fill" style="width:${Math.min(info.dispatchTagCount / 5 * 100, 100)}%;background:${info.dispatchTagCount >= 4 ? 'var(--accent-green)' : info.dispatchTagCount >= 2 ? 'var(--snappy-blue-light)' : 'var(--accent-red)'}"></div>
+                  <div class="prog-area-bar-fill" style="width:${Math.min(info.dispatchBonus / 4 * 100, 100)}%;background:${info.dispatchBonus >= 2 ? 'var(--accent-green)' : info.dispatchBonus >= 1 ? 'var(--snappy-blue-light)' : 'var(--accent-red)'}"></div>
                 </div>
-                <div class="prog-area-tip">${info.dispatchTagCount} dispatch tag${info.dispatchTagCount !== 1 ? 's' : ''} \u2014 each adds +0.25 to composite</div>
+                <div class="prog-area-tip">${info.dispatchTagCount} tag${info.dispatchTagCount !== 1 ? 's' : ''} (+${info.dispatchBonus.toFixed(2)} pts) \u2014 Lead Tech, Ride Along Trainer &amp; Warranty Tech = +1.0 each, all others +0.25</div>
               </div>
             </div>
           </div>
@@ -7237,6 +7237,15 @@ if (typeof Chart !== 'undefined') {
       { bg: '#FBE9E7', text: '#D84315' }
     ];
     const DISP_MAX_TAGS = 10;
+    // Premium tags worth 1 full point toward composite (all others +0.25)
+    const DISP_PREMIUM_TAGS = ['Lead Tech', 'Ride Along Trainer', 'Warranty Tech'];
+    function calcDispatchBonus(tags) {
+      var bonus = 0;
+      (tags || []).forEach(function(tag) {
+        bonus += DISP_PREMIUM_TAGS.includes(tag) ? 1.0 : 0.25;
+      });
+      return bonus;
+    }
     const DISP_DEFAULT_TAGS = [
       'Diagnostics',
       'Install / Changeout',
@@ -7266,7 +7275,9 @@ if (typeof Chart !== 'undefined') {
       localStorage.setItem(DISP_STORAGE, JSON.stringify(data));
       SyncEngine.write('dispatch', data);
     }
+    const DISP_PREMIUM_COLOR = { bg: 'rgba(251,191,36,0.15)', text: '#FCD34D' };
     function dispTagColor(tagName, allTags) {
+      if (DISP_PREMIUM_TAGS.includes(tagName)) return DISP_PREMIUM_COLOR;
       const idx = allTags.indexOf(tagName);
       return DISP_TAG_COLORS[idx % DISP_TAG_COLORS.length];
     }
@@ -7280,7 +7291,10 @@ if (typeof Chart !== 'undefined') {
       // Render tag pool
       pool.innerHTML = data.tags.map(tag => {
         const c = dispTagColor(tag, data.tags);
-        return `<span class="disp-pool-tag" draggable="true" data-tag="${escHtml(tag)}" style="background:${c.bg};color:${c.text}">${escHtml(tag)}<span class="disp-tag-x" title="Delete tag" data-del="${escHtml(tag)}">&times;</span></span>`;
+        const isPremium = DISP_PREMIUM_TAGS.includes(tag);
+        const premiumBadge = isPremium ? '<span style="font-size:10px;margin-left:4px;opacity:0.8" title="+1.0 pt">&#9733;</span>' : '';
+        const borderStyle = isPremium ? 'border:1.5px solid rgba(251,191,36,0.4);' : '';
+        return `<span class="disp-pool-tag" draggable="true" data-tag="${escHtml(tag)}" style="background:${c.bg};color:${c.text};${borderStyle}">${escHtml(tag)}${premiumBadge}<span class="disp-tag-x" title="Delete tag" data-del="${escHtml(tag)}">&times;</span></span>`;
       }).join('');
 
       // Drag from pool
@@ -7348,7 +7362,10 @@ if (typeof Chart !== 'undefined') {
         } else {
           assigned.forEach(tag => {
             const c = dispTagColor(tag, data.tags);
-            cardsHtml += `<span class="disp-assigned-tag" draggable="true" data-tag="${escHtml(tag)}" style="background:${c.bg};color:${c.text}">${escHtml(tag)}<span class="disp-remove-tag" data-tech="${tech}" data-rtag="${escHtml(tag)}">&times;</span></span>`;
+            const isPremium = DISP_PREMIUM_TAGS.includes(tag);
+            const premiumBadge = isPremium ? '<span style="font-size:10px;margin-left:3px;opacity:0.8" title="+1.0 pt">&#9733;</span>' : '';
+            const borderStyle = isPremium ? 'border:1.5px solid rgba(251,191,36,0.4);' : '';
+            cardsHtml += `<span class="disp-assigned-tag" draggable="true" data-tag="${escHtml(tag)}" style="background:${c.bg};color:${c.text};${borderStyle}">${escHtml(tag)}${premiumBadge}<span class="disp-remove-tag" data-tech="${tech}" data-rtag="${escHtml(tag)}">&times;</span></span>`;
           });
         }
         cardsHtml += `</div>`;
@@ -7363,7 +7380,9 @@ if (typeof Chart !== 'undefined') {
       cardsHtml += '</tr></thead><tbody>';
       data.tags.forEach(tag => {
         const c = dispTagColor(tag, data.tags);
-        cardsHtml += `<tr><td style="color:${c.text};font-weight:600">${escHtml(tag)}</td>`;
+        const isPremium = DISP_PREMIUM_TAGS.includes(tag);
+        const starIcon = isPremium ? ' <span style="font-size:11px" title="+1.0 pt">&#9733;</span>' : '';
+        cardsHtml += `<tr><td style="color:${c.text};font-weight:600">${escHtml(tag)}${starIcon}</td>`;
         techOrder.forEach(tech => {
           const has = (data.assignments[tech] || []).includes(tag);
           cardsHtml += `<td>${has ? '<span class="disp-check">&check;</span>' : '<span class="disp-no">&ndash;</span>'}</td>`;

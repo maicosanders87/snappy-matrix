@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260419v67g">
+  <link rel="stylesheet" href="styles.css?v=20260419v67h">
 </head>
 <body>
   <!-- Background Grid Effect -->
@@ -895,9 +895,25 @@ AND 30% of advancement "votes" come from skills progress
         <div class="section-header">
           <div class="section-title">Dispatch Board</div>
         </div>
-        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:18px; max-width:720px;">
-          Quick-reference dispatch tags per technician — up to 5 tags each. Helps dispatch determine who can run what call. Tags are separate from the full 48-skill system.
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px; max-width:720px;">
+          Quick-reference dispatch tags per technician — up to 10 tags each. Helps dispatch determine who can run what call. Tags are separate from the full 48-skill system.
         </p>
+        <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:10px; padding:14px 18px; margin-bottom:20px; max-width:720px;">
+          <div style="font-weight:700; font-size:13px; color:var(--snappy-blue-light); margin-bottom:6px; letter-spacing:0.5px; text-transform:uppercase;">Dispatch Tag Point System</div>
+          <p style="font-size:12.5px; color:var(--text-secondary); margin:0 0 8px; line-height:1.6;">
+            Dispatch tags contribute bonus points toward each technician's composite score. At manager discretion, tags may be assigned or removed based on observed performance, training completion, and operational need.
+          </p>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px;">
+            <div style="background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.25); border-radius:8px; padding:8px 14px;">
+              <span style="font-weight:700; color:#FCD34D;">+1.0 pt</span>
+              <span style="color:var(--text-muted);"> — Lead Tech, Ride Along Trainer, Warranty Tech</span>
+            </div>
+            <div style="background:rgba(148,163,184,0.08); border:1px solid rgba(148,163,184,0.2); border-radius:8px; padding:8px 14px;">
+              <span style="font-weight:700; color:var(--text-secondary);">+0.25 pt</span>
+              <span style="color:var(--text-muted);"> — All other standard tags</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Dispatch Tag Manager (manager + editor only) -->
@@ -1019,6 +1035,6 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="app.js?v=20260419v67g"></script>
+  <script src="app.js?v=20260419v67h"></script>
 </body>
 </html>
