@@ -182,7 +182,7 @@ async function initCloudSync() {
   }
 }
 
-// Manual sync button
+// Manual sync button — push + pull + cache reset + hard reload
 async function manualSync() {
   var btn = document.getElementById('syncNowBtn');
   if (!SyncEngine.isConfigured()) {
@@ -191,12 +191,19 @@ async function manualSync() {
   }
   btn.classList.add('syncing');
   try {
-    // Push all local data to cloud
+    // 1. Push all local data to cloud
     SyncEngine.write('skills', skillsData.assignments);
     SyncEngine.write('manager', mgrState);
     SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
+    var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','daynotes','nexstar'];
+    var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_day_notes','snappy_nexstar'];
+    dKeys.forEach(function(k, i) {
+      var v = localStorage.getItem(dLocalKeys[i]);
+      if (v) SyncEngine.write(k, JSON.parse(v));
+    });
     await SyncEngine._flush();
-    // Pull cloud data
+
+    // 2. Pull cloud data
     var cloudData = await SyncEngine.pull();
     if (cloudData) {
       var keyMap = {
@@ -210,27 +217,23 @@ async function manualSync() {
         'nexstar': 'snappy_nexstar',
         'bulletin': 'snappy_bulletin_board'
       };
-      var updated = false;
       for (var ck in keyMap) {
         if (cloudData[ck]) {
           var cv = cloudData[ck].data || cloudData[ck].val || '';
-          if (cv && cv !== localStorage.getItem(keyMap[ck])) {
-            localStorage.setItem(keyMap[ck], cv);
-            updated = true;
-          }
+          if (cv) localStorage.setItem(keyMap[ck], cv);
         }
       }
-      if (updated) {
-        mgrLoad();
-        renderBulletinBoard();
-        try { renderManagerTab(); } catch(e) {}
-      }
     }
-    btn.classList.remove('syncing');
-    // Success flash
-    btn.style.color = '#4CAF50';
-    btn.style.borderColor = 'rgba(76,175,80,0.5)';
-    setTimeout(function() { btn.style.color = ''; btn.style.borderColor = ''; }, 1500);
+
+    // 3. Clear browser caches
+    if ('caches' in window) {
+      var cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map(function(name) { return caches.delete(name); }));
+    }
+
+    // 4. Hard reload with cache-busting timestamp
+    var url = window.location.href.split('?')[0] + '?sync=' + Date.now();
+    window.location.replace(url);
   } catch(e) {
     console.warn('Manual sync error:', e);
     btn.classList.remove('syncing');
