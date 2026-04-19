@@ -1,17 +1,24 @@
-// ========== ACCESS CONTROL (Manager vs Viewer vs Coach) ==========
+// ========== ACCESS CONTROL (Manager vs Viewer vs Coach vs Editor) ==========
 const MGR_PIN = '3433';
 const COACH_PINS = {
   'Nexstar': 'Jay / Greg',
   'AdamB': 'Adam'
 };
+const EDITOR_PINS = {
+  'OPM': 'Judah'
+};
 let isManagerMode = localStorage.getItem('snappy_mgr_mode') === 'true';
 let isCoachMode = localStorage.getItem('snappy_coach_mode') === 'true';
+let isEditorMode = localStorage.getItem('snappy_editor_mode') === 'true';
 let coachName = localStorage.getItem('snappy_coach_name') || '';
+let editorName = localStorage.getItem('snappy_editor_name') || '';
 
 function applyViewMode() {
-  document.body.classList.remove('viewer-mode', 'manager-mode', 'coach-mode');
+  document.body.classList.remove('viewer-mode', 'manager-mode', 'coach-mode', 'editor-mode');
   if (isManagerMode) {
     document.body.classList.add('manager-mode');
+  } else if (isEditorMode) {
+    document.body.classList.add('editor-mode');
   } else if (isCoachMode) {
     document.body.classList.add('coach-mode');
   } else {
@@ -21,18 +28,19 @@ function applyViewMode() {
   var sub = document.getElementById('headerSubtitle');
   if (sub) {
     if (isManagerMode) sub.textContent = 'Tech Skills Matrix \u2014 Manager View';
+    else if (isEditorMode) sub.textContent = 'Tech Skills Matrix \u2014 Editor View (' + editorName + ')';
     else if (isCoachMode) sub.textContent = 'Tech Skills Matrix \u2014 Coach View (' + coachName + ')';
     else sub.textContent = 'Tech Skills Matrix \u2014 Viewer Mode';
   }
   // Update lock icon (open vs closed)
   var lockSvg = document.getElementById('lockIcon');
   if (lockSvg) {
-    lockSvg.innerHTML = (isManagerMode || isCoachMode)
+    lockSvg.innerHTML = (isManagerMode || isCoachMode || isEditorMode)
       ? '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5"/>'
       : '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
   }
   // If switching to viewer while on Manager tab, redirect to Overview
-  if (!isManagerMode && !isCoachMode) {
+  if (!isManagerMode && !isCoachMode && !isEditorMode) {
     var activeTab = document.querySelector('.nav-tabs:not(#st-sub-tabs):not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs) .nav-tab.active');
     if (activeTab && activeTab.dataset.view === 'manager') {
       activeTab.classList.remove('active');
@@ -46,15 +54,19 @@ function applyViewMode() {
 }
 
 function promptManagerPIN() {
-  if (isManagerMode || isCoachMode) {
+  if (isManagerMode || isCoachMode || isEditorMode) {
     // Already unlocked — offer to lock
     if (confirm('Lock access?')) {
       isManagerMode = false;
       isCoachMode = false;
+      isEditorMode = false;
       coachName = '';
+      editorName = '';
       localStorage.removeItem('snappy_mgr_mode');
       localStorage.removeItem('snappy_coach_mode');
       localStorage.removeItem('snappy_coach_name');
+      localStorage.removeItem('snappy_editor_mode');
+      localStorage.removeItem('snappy_editor_name');
       applyViewMode();
     }
     return;
@@ -64,22 +76,47 @@ function promptManagerPIN() {
   if (pin === MGR_PIN) {
     isManagerMode = true;
     isCoachMode = false;
+    isEditorMode = false;
     coachName = '';
+    editorName = '';
     localStorage.setItem('snappy_mgr_mode', 'true');
+    localStorage.removeItem('snappy_coach_mode');
+    localStorage.removeItem('snappy_coach_name');
+    localStorage.removeItem('snappy_editor_mode');
+    localStorage.removeItem('snappy_editor_name');
+    applyViewMode();
+  } else if (EDITOR_PINS[pin]) {
+    isEditorMode = true;
+    isManagerMode = false;
+    isCoachMode = false;
+    editorName = EDITOR_PINS[pin];
+    coachName = '';
+    localStorage.setItem('snappy_editor_mode', 'true');
+    localStorage.setItem('snappy_editor_name', editorName);
+    localStorage.removeItem('snappy_mgr_mode');
     localStorage.removeItem('snappy_coach_mode');
     localStorage.removeItem('snappy_coach_name');
     applyViewMode();
   } else if (COACH_PINS[pin]) {
     isCoachMode = true;
     isManagerMode = false;
+    isEditorMode = false;
     coachName = COACH_PINS[pin];
+    editorName = '';
     localStorage.setItem('snappy_coach_mode', 'true');
     localStorage.setItem('snappy_coach_name', coachName);
     localStorage.removeItem('snappy_mgr_mode');
+    localStorage.removeItem('snappy_editor_mode');
+    localStorage.removeItem('snappy_editor_name');
     applyViewMode();
   } else {
     alert('Incorrect password.');
   }
+}
+
+// Guard for dispatch edit actions — Manager or Editor (Judah)
+function canEditDispatch() {
+  return isManagerMode || isEditorMode;
 }
 
 // Guard for edit actions — call before any write/edit operation
@@ -220,7 +257,9 @@ async function initCloudSync() {
     'mgrstats': 'snappy_mgr_stats',
     'daynotes': 'snappy_day_notes',
     'nexstar': 'snappy_nexstar',
-    'bulletin': 'snappy_bulletin_board'
+    'bulletin': 'snappy_bulletin_board',
+    'recall': 'snappy_recall_log_v1',
+    'complaint': 'snappy_complaint_log_v1'
   };
 
   let updated = false;
@@ -277,8 +316,8 @@ async function manualSync() {
     SyncEngine.write('skills', skillsData.assignments);
     SyncEngine.write('manager', mgrState);
     SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
-    var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','daynotes','nexstar'];
-    var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_day_notes','snappy_nexstar'];
+    var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','daynotes','nexstar','recall','complaint'];
+    var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1'];
     dKeys.forEach(function(k, i) {
       var v = localStorage.getItem(dLocalKeys[i]);
       if (v) {
@@ -305,7 +344,9 @@ async function manualSync() {
         'mgrstats': 'snappy_mgr_stats',
         'daynotes': 'snappy_day_notes',
         'nexstar': 'snappy_nexstar',
-        'bulletin': 'snappy_bulletin_board'
+        'bulletin': 'snappy_bulletin_board',
+        'recall': 'snappy_recall_log_v1',
+        'complaint': 'snappy_complaint_log_v1'
       };
       for (var ck in keyMap) {
         if (cloudData[ck]) {
@@ -422,7 +463,9 @@ async function saveSyncUrl() {
       'dailyduties': 'snappy_daily_duties',
       'mgrstats': 'snappy_mgr_stats',
       'daynotes': 'snappy_day_notes',
-      'nexstar': 'snappy_nexstar'
+      'nexstar': 'snappy_nexstar',
+      'recall': 'snappy_recall_log_v1',
+      'complaint': 'snappy_complaint_log_v1'
     };
     var payload = {};
     for (var ck in keyMap) {
@@ -445,7 +488,7 @@ async function saveSyncUrl() {
     // Pull cloud data into localStorage for this device (JSONP)
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
-      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar' };
+      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1' };
       for (var pk in pullKeys) {
         if (pullData.result[pk]) {
           var cv = pullData.result[pk].data || pullData.result[pk].val || '';
@@ -5987,7 +6030,7 @@ window.addEventListener('load', () => {
       pool.querySelectorAll('.disp-tag-x').forEach(el => {
         el.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (!requireManager()) return;
+          if (!canEditDispatch()) { alert('Viewing mode — editing is disabled.'); return; }
           const tag = el.dataset.del;
           if (!confirm('Remove "' + tag + '" tag from all techs?')) return;
           data.tags = data.tags.filter(t => t !== tag);
@@ -6063,7 +6106,7 @@ window.addEventListener('load', () => {
         zone.addEventListener('drop', (e) => {
           e.preventDefault();
           zone.classList.remove('drag-over');
-          if (!isManagerMode) return;
+          if (!canEditDispatch()) return;
           const tag = e.dataTransfer.getData('text/plain');
           const tech = zone.dataset.tech;
           const d = dispLoad();
@@ -6101,7 +6144,7 @@ window.addEventListener('load', () => {
       grid.querySelectorAll('.disp-remove-tag').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (!requireManager()) return;
+          if (!canEditDispatch()) { alert('Viewing mode — editing is disabled.'); return; }
           const tech = btn.dataset.tech;
           const tag = btn.dataset.rtag;
           const d = dispLoad();
@@ -6132,6 +6175,126 @@ window.addEventListener('load', () => {
       if (e.key === 'Enter') document.getElementById('dispAddTagBtn').click();
     });
 
+    // ========== RECALL & COMPLAINT LOGS ==========
+    const RECALL_STORAGE = 'snappy_recall_log_v1';
+    const COMPLAINT_STORAGE = 'snappy_complaint_log_v1';
+
+    function loadLogData(storageKey) {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (raw) return JSON.parse(raw);
+      } catch(e) {}
+      return {}; // { 'Chris': [{id, date, jobNum, ts}], ... }
+    }
+
+    function saveLogData(storageKey, data) {
+      localStorage.setItem(storageKey, JSON.stringify(data));
+      // Sync to cloud under a recognizable key
+      if (storageKey === RECALL_STORAGE) SyncEngine.write('recall', data);
+      if (storageKey === COMPLAINT_STORAGE) SyncEngine.write('complaint', data);
+    }
+
+    function addLogEntry(storageKey, tech) {
+      if (!canEditDispatch()) { alert('Viewing mode \u2014 editing is disabled.'); return; }
+      const date = prompt('Enter date (e.g. 04/19/2026):');
+      if (!date || !date.trim()) return;
+      const jobNum = prompt('Enter job number:');
+      if (!jobNum || !jobNum.trim()) return;
+      const data = loadLogData(storageKey);
+      if (!data[tech]) data[tech] = [];
+      data[tech].push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date: date.trim(), jobNum: jobNum.trim(), ts: Date.now() });
+      saveLogData(storageKey, data);
+      renderRecallLog();
+      renderComplaintLog();
+    }
+
+    function deleteLogEntry(storageKey, tech, entryId) {
+      if (!canEditDispatch()) { alert('Viewing mode \u2014 editing is disabled.'); return; }
+      if (!confirm('Remove this entry?')) return;
+      const data = loadLogData(storageKey);
+      if (data[tech]) {
+        data[tech] = data[tech].filter(e => e.id !== entryId);
+        if (data[tech].length === 0) delete data[tech];
+      }
+      saveLogData(storageKey, data);
+      renderRecallLog();
+      renderComplaintLog();
+    }
+
+    function renderLogSection(storageKey, containerId, logType) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      const data = loadLogData(storageKey);
+      const techOrder = ['Chris','Dewone','Benji','Daniel','Dee'];
+      const avatarMap = { Chris: 'chris_avatar.png', Dewone: 'dewone_avatar.png', Benji: 'benji_avatar.png', Daniel: 'daniel_avatar.png', Dee: 'dee_avatar.png' };
+      const dispTierColors = { S: 'linear-gradient(135deg,#ff6ec4,#7873f5,#4adede)', A: '#7C3AED', B: '#3B82F6', C: '#94A3B8' };
+      const typeColors = logType === 'recall'
+        ? { cardBorder: '#FF9800', badge: '#FF9800', badgeBg: 'rgba(255,152,0,0.12)', addBtn: '#FF9800', addBtnHover: '#F57C00' }
+        : { cardBorder: '#EF5350', badge: '#EF5350', badgeBg: 'rgba(239,83,80,0.12)', addBtn: '#EF5350', addBtnHover: '#D32F2F' };
+
+      let html = '<div class="disp-log-cards">';
+      techOrder.forEach(tech => {
+        const t = techs.find(x => x.short === tech);
+        const tierInfo = t ? getTechTier(t) : { tier: 'C' };
+        const tier = tierInfo.tier;
+        const tierBg = dispTierColors[tier] || dispTierColors.C;
+        const entries = data[tech] || [];
+        const count = entries.length;
+
+        html += `<div class="disp-log-card" style="border-top:3px solid ${typeColors.cardBorder}">`;
+        html += `<div class="disp-log-card-header">`;
+        html += `<img class="disp-tech-avatar" src="${avatarMap[tech]}" alt="${tech}">`;
+        html += `<div class="disp-log-card-name">${tech}</div>`;
+        html += `<span class="disp-log-count-badge" style="background:${typeColors.badgeBg};color:${typeColors.badge}">${count}</span>`;
+        html += `<button class="disp-log-add-btn" data-logtype="${logType}" data-tech="${tech}" style="background:${typeColors.addBtn}" onmouseover="this.style.background='${typeColors.addBtnHover}'" onmouseout="this.style.background='${typeColors.addBtn}'">+ Add</button>`;
+        html += `</div>`;
+
+        if (count === 0) {
+          html += `<div class="disp-log-empty">No ${logType === 'recall' ? 'recalls' : 'complaints'} logged</div>`;
+        } else {
+          html += `<div class="disp-log-entries">`;
+          // Sort newest first
+          const sorted = entries.slice().sort((a,b) => (b.ts||0) - (a.ts||0));
+          sorted.forEach(entry => {
+            html += `<div class="disp-log-entry">`;
+            html += `<div class="disp-log-entry-info">`;
+            html += `<span class="disp-log-entry-date">${escHtml(entry.date)}</span>`;
+            html += `<span class="disp-log-entry-job">Job #${escHtml(entry.jobNum)}</span>`;
+            html += `</div>`;
+            html += `<button class="disp-log-delete-btn" data-logtype="${logType}" data-tech="${tech}" data-entryid="${entry.id}" title="Remove">&times;</button>`;
+            html += `</div>`;
+          });
+          html += `</div>`;
+        }
+        html += `</div>`;
+      });
+      html += '</div>';
+      container.innerHTML = html;
+
+      // Wire up add buttons
+      container.querySelectorAll('.disp-log-add-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sk = btn.dataset.logtype === 'recall' ? RECALL_STORAGE : COMPLAINT_STORAGE;
+          addLogEntry(sk, btn.dataset.tech);
+        });
+      });
+
+      // Wire up delete buttons
+      container.querySelectorAll('.disp-log-delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sk = btn.dataset.logtype === 'recall' ? RECALL_STORAGE : COMPLAINT_STORAGE;
+          deleteLogEntry(sk, btn.dataset.tech, btn.dataset.entryid);
+        });
+      });
+    }
+
+    function renderRecallLog() {
+      renderLogSection(RECALL_STORAGE, 'recallGrid', 'recall');
+    }
+    function renderComplaintLog() {
+      renderLogSection(COMPLAINT_STORAGE, 'complaintGrid', 'complaint');
+    }
+
     // ========== INIT ==========
     renderOverviewTab();
     renderKPIs();
@@ -6152,6 +6315,8 @@ window.addEventListener('load', () => {
     setTimeout(function() { _markNewSkillsSeen(); }, 3000);
     renderManagerTab();
     renderDispatchBoard();
+    renderRecallLog();
+    renderComplaintLog();
 // PDF data loaded from pdf_data.js
 
 function openEmbeddedPDF(filename) {

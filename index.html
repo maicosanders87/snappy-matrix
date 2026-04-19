@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260419v36">
+  <link rel="stylesheet" href="styles.css?v=20260419v37">
 </head>
 <body>
   <div class="container">
@@ -786,6 +786,24 @@ AND 30% of advancement "votes" come from skills progress
 
       <!-- Dispatch Grid -->
       <div id="dispGrid" class="section"></div>
+
+      <!-- Recall Log Section -->
+      <div class="section disp-log-section" style="margin-top:32px">
+        <div class="disp-log-header">
+          <div class="disp-log-title">&#x1F4CB; Recall Log</div>
+          <div class="disp-log-subtitle">Track technician recalls — tag a tech, enter date &amp; job number.</div>
+        </div>
+        <div id="recallGrid" class="disp-log-grid"></div>
+      </div>
+
+      <!-- Customer Complaint Log Section -->
+      <div class="section disp-log-section" style="margin-top:32px">
+        <div class="disp-log-header">
+          <div class="disp-log-title">&#x26A0;&#xFE0F; Customer Complaint Log</div>
+          <div class="disp-log-subtitle">Track customer complaints — tag a tech, enter date &amp; job number.</div>
+        </div>
+        <div id="complaintGrid" class="disp-log-grid"></div>
+      </div>
     </div>
 
     <!-- SERVICETITAN SCORECARDS TAB -->
@@ -872,7 +890,7 @@ AND 30% of advancement "votes" come from skills progress
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
-  <script src="pdf_data.js?v=20260419v36"></script>
-  <script src="app.js?v=20260419v36"></script>
+  <script src="pdf_data.js?v=20260419v37"></script>
+  <script src="app.js?v=20260419v37"></script>
 </body>
 </html>
