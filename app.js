@@ -1029,8 +1029,8 @@ window.addEventListener('load', () => {
     // C = Developing (<78) — building fundamentals
     //
     // Composite score (0–100) built from:
-    //   Aptitude (30%) + ST performance (35%) + Manager score (15%) + Installs (10%) + Google reviews (10%)
-    //   Self-eval (Skills) tracked but NOT weighted — tech's own interpretation
+    //   Aptitude (30%) + ST performance (35%) + Skills Tags (10%) + Manager (10%) + Installs (10%) + Reviews (5%)
+    //   Skills = assigned tags / total available tags (52)
 
     function getTechAptitudeScore(tech) {
       const apt = aptitudeTests[tech.short];
@@ -1199,11 +1199,11 @@ window.addEventListener('load', () => {
         ]}
       },
       assignments: {
-        "Chris":  ["A1","A2","A3","A5","A6","A7","A8","A9","A10","A11","B1","B2","B6","C1","C3","C4","C6","D1","D3","D5","E1","E4","F1","F3","F5","G2","G3","H1","H2","H3","H4","H5"],
-        "Dewone": ["A3","A7","A11","B1","C1","C2","C3","C4","C5","C7","D3","D4","E2","F1","G3","H3"],
-        "Benji":  ["A2","A5","A7","A8","A11","B1","B2","D3","E2","F1","F2","F4"],
-        "Daniel": ["A1","A2","A3","A6","A7","A9","A11","B1","B2","B6","B7","B8","D4","F1","G1","G3"],
-        "Dee":    ["A7","A11","C1","C2","C7","D2","G3","H3"]
+        "Chris":  ["A6","A7","A8","A10","A11","B1","B2","B3","B5","B6","B7","B8","B9","C3","D1","D2","D5","F1","F2","F3","F5","G2","G3"],
+        "Dewone": ["A3","A7","A10","A11","B1","B5","B6","B7","B8","B9","C2","C3","C4","D2","F1","G1"],
+        "Benji":  ["A2","A3","A5","A7","A9","A10","A11","B1","B2","B4","B5","B6","B7","B8","B9","C1","C5","D1","D2","D3","D5","E2","E4","F1","F2","F3","F4","G2","G3","H1"],
+        "Daniel": ["A1","A2","A3","A4","A5","A7","A8","A10","A11","B1","B2","B3","B5","B6","B7","B8","B9","C4","D2","E1","E2","E3","E4","F1","F2","F3","F4","F5","G1"],
+        "Dee":    ["A1","A2","A3","A5","A7","A10","A11","B1","B5","B7","B8","B9","D2","E1","E2","E3","E4","F1"]
       },
       levels: {
         "C-1":    { min: 5,  max: 7,  composite: "< 60" },
