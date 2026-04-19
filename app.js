@@ -7262,30 +7262,32 @@ if (typeof Chart !== 'undefined') {
         const raw = localStorage.getItem(DISP_STORAGE);
         if (raw) {
           var data = JSON.parse(raw);
-          // Migration: ensure premium tags exist in tag pool
-          var migrated = false;
-          DISP_PREMIUM_TAGS.forEach(function(pt) {
-            if (!data.tags.includes(pt)) { data.tags.unshift(pt); migrated = true; }
-          });
-          // Migration: auto-assign premium + corrected standard tags
-          var tagMigrations = {
-            'Chris':  ['Lead Tech'],
-            'Dewone': ['Ride Along Trainer'],
-            'Dee':    ['Warranty Tech', 'Diagnostics', 'Install / Changeout'],
-            'Daniel': ['Install / Changeout', 'Sales Capable']
-          };
-          Object.keys(tagMigrations).forEach(function(tech) {
-            if (!data.assignments[tech]) data.assignments[tech] = [];
-            tagMigrations[tech].forEach(function(tag) {
-              if (!data.assignments[tech].includes(tag)) {
-                // Premium tags go to front, standard to end
-                if (DISP_PREMIUM_TAGS.includes(tag)) data.assignments[tech].unshift(tag);
-                else data.assignments[tech].push(tag);
-                migrated = true;
-              }
+          // Migration v1: ensure premium tags exist in tag pool (runs once)
+          if (!data._migV1) {
+            var migrated = false;
+            DISP_PREMIUM_TAGS.forEach(function(pt) {
+              if (!data.tags.includes(pt)) { data.tags.unshift(pt); migrated = true; }
             });
-          });
-          if (migrated) { localStorage.setItem(DISP_STORAGE, JSON.stringify(data)); }
+            // Auto-assign premium + corrected standard tags
+            var tagMigrations = {
+              'Chris':  ['Lead Tech'],
+              'Dewone': ['Ride Along Trainer'],
+              'Dee':    ['Warranty Tech', 'Diagnostics', 'Install / Changeout'],
+              'Daniel': ['Install / Changeout', 'Sales Capable']
+            };
+            Object.keys(tagMigrations).forEach(function(tech) {
+              if (!data.assignments[tech]) data.assignments[tech] = [];
+              tagMigrations[tech].forEach(function(tag) {
+                if (!data.assignments[tech].includes(tag)) {
+                  if (DISP_PREMIUM_TAGS.includes(tag)) data.assignments[tech].unshift(tag);
+                  else data.assignments[tech].push(tag);
+                  migrated = true;
+                }
+              });
+            });
+            data._migV1 = true;
+            localStorage.setItem(DISP_STORAGE, JSON.stringify(data));
+          }
           return data;
         }
       } catch(e) {}
