@@ -7365,6 +7365,39 @@
   transform: translateY(0);
 }
 
+/* Fix 7: Clickable profile sections */
+.profile-section-link {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.profile-section-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(59,130,246,0.15), inset 0 0 0 1px rgba(59,130,246,0.2);
+}
+.profile-section-link:active {
+  transform: translateY(0);
+}
+.profile-section-arrow {
+  margin-left: auto;
+  font-size: 14px;
+  opacity: 0.4;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.profile-section-link:hover .profile-section-arrow {
+  opacity: 1;
+  transform: translateX(3px);
+}
+/* Title rows need flex for arrow alignment */
+.google-reviews-title,
+.st-profile-title,
+.aptitude-title,
+.rc-profile-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Fix 3: ServiceTitan radar chart */
 .chart-container-st-radar {
   position: relative;

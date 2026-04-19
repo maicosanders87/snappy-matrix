@@ -2777,8 +2777,8 @@ if (typeof Chart !== 'undefined') {
             ${(() => {
               const apt = aptitudeTests[t.short];
 
-              let out = '<div class="aptitude-section">';
-              out += '<div class="aptitude-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg> Aptitude & Skills</div>';
+              let out = '<div class="aptitude-section profile-section-link" onclick="navigateToKpi(\'aptitude-skills\',\'\')">'; 
+              out += '<div class="aptitude-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg> Aptitude & Skills <span class="profile-section-arrow">&rarr;</span></div>';
               if (apt) {
                 out += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">HVAC Aptitude Test \u2014 ' + apt.date + '</div>';
                 out += '<div class="aptitude-grid">';
@@ -2808,7 +2808,7 @@ if (typeof Chart !== 'undefined') {
               // Self-Evaluation Bars (comparison vs aptitude)
               const catKeys = Object.keys(categories);
               out += '<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(51, 65, 85, 0.3)">';
-              out += '<div style="font-size:11px;font-weight:700;color:#10b981;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.04em">Self-Evaluation Breakdown</div>';
+              out += '<div style="font-size:11px;font-weight:700;color:#10b981;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.04em">Self-Evaluation Breakdown <span class="profile-section-arrow" style="color:#10b981">&rarr;</span></div>';
               catKeys.forEach(catKey => {
                 const cat = categories[catKey];
                 const selfAvg = techCategoryAvg(t, catKey);
@@ -2830,10 +2830,11 @@ if (typeof Chart !== 'undefined') {
             })()}
 
             ${(() => { const gr = googleReviews[t.short]; return gr ? `
-            <div class="google-reviews">
+            <div class="google-reviews profile-section-link" onclick="window.open('https://www.google.com/maps/search/Snappy+Electric+Plumbing+Heating+Air+2200+Canton+Road+Marietta+GA','_blank')" title="Open Snappy Google Reviews">
               <div class="google-reviews-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                 Google Reviews — Last 90 Days
+                <span class="profile-section-arrow">↗</span>
               </div>
               <div class="review-stats">
                 <div>
@@ -2851,10 +2852,11 @@ if (typeof Chart !== 'undefined') {
             ` : ''; })()}
 
             ${st ? `
-            <div class="st-profile">
+            <div class="st-profile profile-section-link" onclick="navigateToKpi('scorecards','overview')" title="Go to ST Scorecards">
               <div class="st-profile-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 9l-5 5-2-2-4 4"/></svg>
                 ServiceTitan Performance — Last 90 Days
+                <span class="profile-section-arrow">→</span>
               </div>
               <div class="st-metrics-grid">
                 <div class="st-metric">
@@ -2910,8 +2912,8 @@ if (typeof Chart !== 'undefined') {
               var rc = getRecallEntries(t.short);
               var cc = getComplaintEntries(t.short);
               if (rc.length === 0 && cc.length === 0) return '';
-              var out = '<div class="rc-profile-section">';
-              out += '<div class="rc-profile-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Recalls & Complaints</div>';
+              var out = '<div class="rc-profile-section profile-section-link" onclick="navigateToKpi(\'dispatch\',\'\')">'; 
+              out += '<div class="rc-profile-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Recalls & Complaints <span class="profile-section-arrow">&rarr;</span></div>';
               out += '<div class="rc-profile-grid">';
               if (rc.length > 0) {
                 out += '<div class="rc-profile-col">';
