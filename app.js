@@ -1576,9 +1576,16 @@ window.addEventListener('load', () => {
     // ========== PHASE 3: ANIMATED COUNTER ==========
     function animateCounters() {
       document.querySelectorAll('.ov-kpi-value, .kpi-value').forEach(function(el) {
-        var text = el.textContent.trim();
+        var textNode = null;
+        for (var i = 0; i < el.childNodes.length; i++) {
+          if (el.childNodes[i].nodeType === Node.TEXT_NODE) {
+            textNode = el.childNodes[i];
+            break;
+          }
+        }
+        if (!textNode) return;
+        var text = textNode.nodeValue.trim();
         var prefix = '';
-        var suffix = '';
         var numStr = text;
         if (text.startsWith('$')) { prefix = '$'; numStr = text.slice(1); }
         numStr = numStr.replace(/,/g, '');
@@ -1594,9 +1601,9 @@ window.addEventListener('load', () => {
           var eased = 1 - Math.pow(1 - progress, 3);
           var current = startVal + (target - startVal) * eased;
           if (isFloat) {
-            el.textContent = prefix + current.toFixed(1) + suffix;
+            textNode.nodeValue = prefix + current.toFixed(1);
           } else {
-            el.textContent = prefix + Math.round(current).toLocaleString() + suffix;
+            textNode.nodeValue = prefix + Math.round(current).toLocaleString();
           }
           if (progress < 1) requestAnimationFrame(tick);
         }
