@@ -144,6 +144,37 @@ const SyncEngine = {
   }
 };
 
+// Merge tech files: combine local + cloud by unique file ID so nothing gets lost
+function _mergeTechFiles(localJson, cloudJson) {
+  try {
+    var local = localJson ? JSON.parse(localJson) : {};
+    var cloud = cloudJson ? JSON.parse(cloudJson) : {};
+    var merged = {};
+    // Collect all tech names from both sources
+    var allTechs = {};
+    Object.keys(local).forEach(function(t) { allTechs[t] = true; });
+    Object.keys(cloud).forEach(function(t) { allTechs[t] = true; });
+    for (var tech in allTechs) {
+      var localFiles = Array.isArray(local[tech]) ? local[tech] : [];
+      var cloudFiles = Array.isArray(cloud[tech]) ? cloud[tech] : [];
+      // Index cloud files by ID
+      var byId = {};
+      cloudFiles.forEach(function(f) { if (f && f.id) byId[f.id] = f; });
+      // Start with cloud files, then add any local-only files
+      localFiles.forEach(function(f) {
+        if (f && f.id && !byId[f.id]) byId[f.id] = f;
+      });
+      var arr = Object.values(byId);
+      if (arr.length > 0) merged[tech] = arr;
+    }
+    return JSON.stringify(merged);
+  } catch (e) {
+    console.warn('Tech file merge failed:', e);
+    // Fallback: prefer whichever has more data
+    return (localJson && localJson.length > (cloudJson || '').length) ? localJson : (cloudJson || localJson);
+  }
+}
+
 // Cloud sync initialization — runs after page loads
 async function initCloudSync() {
   const cloudData = await SyncEngine.pull();
@@ -165,19 +196,29 @@ async function initCloudSync() {
   let needsReload = false;
   for (const [cloudKey, localKey] of Object.entries(keyMap)) {
     if (cloudData[cloudKey]) {
-      // API may return 'data' or 'val' depending on version
       const cloudVal = cloudData[cloudKey].data || cloudData[cloudKey].val || '';
       const localVal = localStorage.getItem(localKey);
       if (cloudVal && cloudVal !== localVal) {
-        localStorage.setItem(localKey, cloudVal);
+        if (cloudKey === 'techfiles') {
+          // Merge tech files — never lose local files missing from cloud
+          const merged = _mergeTechFiles(localVal, cloudVal);
+          localStorage.setItem(localKey, merged);
+        } else {
+          localStorage.setItem(localKey, cloudVal);
+        }
         needsReload = true;
       }
     }
   }
 
   if (needsReload) {
+    // Push merged tech files back to cloud so it has the complete set
+    var mergedTf = localStorage.getItem('snappy_tech_files');
+    if (mergedTf) {
+      SyncEngine.write('techfiles', JSON.parse(mergedTf));
+      await SyncEngine._flush();
+    }
     console.log('Cloud data loaded — refreshing views');
-    // Reload the page to pick up cloud data
     location.reload();
   }
 }
@@ -223,9 +264,22 @@ async function manualSync() {
       for (var ck in keyMap) {
         if (cloudData[ck]) {
           var cv = cloudData[ck].data || cloudData[ck].val || '';
-          if (cv) localStorage.setItem(keyMap[ck], cv);
+          if (cv) {
+            if (ck === 'techfiles') {
+              // Merge tech files — never lose local files missing from cloud
+              var localTf = localStorage.getItem(keyMap[ck]);
+              localStorage.setItem(keyMap[ck], _mergeTechFiles(localTf, cv));
+            } else {
+              localStorage.setItem(keyMap[ck], cv);
+            }
+          }
         }
       }
+      // After merge, push merged tech files back to cloud so it stays complete
+      var mergedTf = localStorage.getItem('snappy_tech_files');
+      if (mergedTf) SyncEngine.write('techfiles', JSON.parse(mergedTf));
+      await SyncEngine._flush();
+      await new Promise(function(r) { setTimeout(r, 1500); });
     }
 
     // 3. Clear browser caches
@@ -336,7 +390,14 @@ async function saveSyncUrl() {
       for (var pk in pullKeys) {
         if (pullData.result[pk]) {
           var cv = pullData.result[pk].data || pullData.result[pk].val || '';
-          if (cv) localStorage.setItem(pullKeys[pk], cv);
+          if (cv) {
+            if (pk === 'techfiles') {
+              var localTf = localStorage.getItem(pullKeys[pk]);
+              localStorage.setItem(pullKeys[pk], _mergeTechFiles(localTf, cv));
+            } else {
+              localStorage.setItem(pullKeys[pk], cv);
+            }
+          }
         }
       }
     }
