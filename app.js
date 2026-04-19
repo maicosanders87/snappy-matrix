@@ -3454,8 +3454,8 @@ window.addEventListener('load', () => {
                   <div class="rookie-stat-label">Reviews</div>
                 </div>
                 <div class="rookie-stat">
-                  <div class="rookie-stat-value">${tierInfo.composite}</div>
-                  <div class="rookie-stat-label">Composite</div>
+                  <div class="rookie-stat-value">${st ? st.memberships.total_mem_sold : '—'}</div>
+                  <div class="rookie-stat-label">Mem Sold</div>
                 </div>
               </div>
 
