@@ -282,10 +282,8 @@
       height: 420px;
       border-radius: 12px;
       overflow: hidden;
-      background: radial-gradient(ellipse at center, #0a1628 0%, #060e1a 100%);
-      cursor: grab;
+      background: transparent;
     }
-    .chart-container-radar:active { cursor: grabbing; }
     .chart-container-radar canvas { display: block; }
     .radar3d-legend {
       display: flex;

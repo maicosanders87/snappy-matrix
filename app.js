@@ -1551,331 +1551,66 @@ window.addEventListener('load', () => {
 
     // ========== CHARTS ==========
     var radar3dRendered = false;
+    var radarChartInstance = null;
     function renderRadar() {
-      var container = document.getElementById('radar3dContainer');
-      if (!container) return;
-      if (typeof THREE === 'undefined') {
-        // THREE.js hasn't loaded yet — retry
-        setTimeout(renderRadar, 500);
-        return;
-      }
-      // If container has no dimensions yet (hidden/not painted), retry
-      if (container.clientWidth < 10) {
-        setTimeout(renderRadar, 500);
-        return;
-      }
-      container.innerHTML = '';
+      var canvas = document.getElementById('radarCanvas');
+      if (!canvas) return;
       radar3dRendered = true;
 
-      var W = container.clientWidth;
-      var H = container.clientHeight || 420;
       var catKeys = Object.keys(categories);
-      var numAxes = catKeys.length;
-      var maxVal = 5;
-      var RADIUS = 3.2;
-
-      // Scene setup
-      var scene = new THREE.Scene();
-      var camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 100);
-      camera.position.set(0, 4.5, 7.5);
-      camera.lookAt(0, 0, 0);
-
-      var renderer;
-      try {
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      } catch(e) {
-        console.warn('WebGL failed:', e);
-        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#8b93a8;font-size:14px;">3D radar unavailable — WebGL not supported on this device</div>';
-        return;
-      }
-      if (!renderer.getContext()) {
-        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#8b93a8;font-size:14px;">3D radar unavailable — WebGL context failed</div>';
-        return;
-      }
-      renderer.setSize(W, H);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setClearColor(0x000000, 0);
-      container.appendChild(renderer.domElement);
-      // Handle WebGL context lost
-      renderer.domElement.addEventListener('webglcontextlost', function(e) {
-        e.preventDefault();
-        console.warn('WebGL context lost');
-        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#8b93a8;font-size:14px;">WebGL context lost — tap to retry</div>';
-        container.style.cursor = 'pointer';
-        container.onclick = function() { container.onclick = null; container.style.cursor = ''; radar3dRendered = false; renderRadar(); };
+      // Build datasets for each tech
+      var datasets = techs.map(function(t) {
+        return {
+          label: t.short,
+          data: catKeys.map(function(c) { return +techCategoryAvg(t, c).toFixed(2); }),
+          borderColor: t.color,
+          backgroundColor: t.color + '33',
+          pointBackgroundColor: t.color,
+          pointBorderColor: '#fff',
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          borderWidth: 2,
+          fill: true
+        };
       });
-
-      // Lighting
-      var ambient = new THREE.AmbientLight(0xffffff, 0.6);
-      scene.add(ambient);
-      var dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      dirLight.position.set(5, 10, 7);
-      scene.add(dirLight);
-
-      // Grid group
-      var gridGroup = new THREE.Group();
-      scene.add(gridGroup);
-
-      // Helper: get 3D position for axis index and value
-      function axisPos(axIdx, val) {
-        var angle = (axIdx / numAxes) * Math.PI * 2 - Math.PI / 2;
-        var r = (val / maxVal) * RADIUS;
-        return new THREE.Vector3(Math.cos(angle) * r, 0, Math.sin(angle) * r);
-      }
-
-      // Draw concentric grid rings (1-5)
-      var ringMat = new THREE.LineBasicMaterial({ color: 0x2a3f5f, transparent: true, opacity: 0.4 });
-      for (var ring = 1; ring <= maxVal; ring++) {
-        var ringPts = [];
-        for (var ai = 0; ai <= numAxes; ai++) {
-          var idx = ai % numAxes;
-          ringPts.push(axisPos(idx, ring));
-        }
-        var ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
-        gridGroup.add(new THREE.Line(ringGeo, ringMat));
-      }
-
-      // Draw axis lines from center to edge
-      var axisMat = new THREE.LineBasicMaterial({ color: 0x3a5580, transparent: true, opacity: 0.5 });
-      for (var ai2 = 0; ai2 < numAxes; ai2++) {
-        var axGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), axisPos(ai2, maxVal)]);
-        gridGroup.add(new THREE.Line(axGeo, axisMat));
-      }
-
-      // Axis labels as sprites
-      function makeLabel(text, position) {
-        var canvas = document.createElement('canvas');
-        var ctx2 = canvas.getContext('2d');
-        canvas.width = 256; canvas.height = 64;
-        ctx2.font = '600 28px DM Sans, sans-serif';
-        ctx2.fillStyle = '#8ab4f8';
-        ctx2.textAlign = 'center';
-        ctx2.textBaseline = 'middle';
-        ctx2.fillText(text, 128, 32);
-        var tex = new THREE.CanvasTexture(canvas);
-        tex.minFilter = THREE.LinearFilter;
-        var mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
-        var sprite = new THREE.Sprite(mat);
-        sprite.position.copy(position);
-        sprite.scale.set(2.2, 0.55, 1);
-        return sprite;
-      }
-
-      for (var ai3 = 0; ai3 < numAxes; ai3++) {
-        var lPos = axisPos(ai3, maxVal + 0.7);
-        lPos.y = 0.15;
-        gridGroup.add(makeLabel(categories[catKeys[ai3]].label, lPos));
-      }
-
-      // Ground plane (subtle reflective disc)
-      var groundGeo = new THREE.CircleGeometry(RADIUS + 0.5, 64);
-      var groundMat = new THREE.MeshPhongMaterial({ color: 0x0a1628, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
-      var ground = new THREE.Mesh(groundGeo, groundMat);
-      ground.rotation.x = -Math.PI / 2;
-      ground.position.y = -0.02;
-      gridGroup.add(ground);
-
-      // Tech data meshes
-      var techMeshes = [];
-      var techWires = [];
-      var techPillars = [];
-      var isolatedTech = null;
-
-      function hexToRgb(hex) {
-        hex = hex.replace('#', '');
-        return { r: parseInt(hex.substring(0,2),16)/255, g: parseInt(hex.substring(2,4),16)/255, b: parseInt(hex.substring(4,6),16)/255 };
-      }
-
-      techs.forEach(function(t, ti) {
-        var color = new THREE.Color(t.color);
-        var data = catKeys.map(function(c) { return techCategoryAvg(t, c); });
-        var yOffset = ti * 0.04;
-
-        // Build shape vertices
-        var shapePts = [];
-        for (var si = 0; si < numAxes; si++) {
-          var p = axisPos(si, data[si]);
-          p.y = yOffset;
-          shapePts.push(p);
-        }
-
-        // Filled surface
-        var shapeGeo = new THREE.BufferGeometry();
-        var verts = [];
-        for (var fi = 1; fi < numAxes - 1; fi++) {
-          verts.push(shapePts[0].x, shapePts[0].y, shapePts[0].z);
-          verts.push(shapePts[fi].x, shapePts[fi].y, shapePts[fi].z);
-          verts.push(shapePts[fi+1].x, shapePts[fi+1].y, shapePts[fi+1].z);
-        }
-        shapeGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-        shapeGeo.computeVertexNormals();
-        var shapeMat = new THREE.MeshPhongMaterial({
-          color: color, transparent: true, opacity: 0.25,
-          side: THREE.DoubleSide, depthWrite: false,
-          emissive: color, emissiveIntensity: 0.15
-        });
-        var shapeMesh = new THREE.Mesh(shapeGeo, shapeMat);
-        scene.add(shapeMesh);
-        techMeshes.push(shapeMesh);
-
-        // Wireframe outline
-        var wirePts = shapePts.slice();
-        wirePts.push(shapePts[0].clone());
-        var wireGeo = new THREE.BufferGeometry().setFromPoints(wirePts);
-        var wireMat = new THREE.LineBasicMaterial({ color: color, linewidth: 2, transparent: true, opacity: 0.9 });
-        var wireLine = new THREE.Line(wireGeo, wireMat);
-        scene.add(wireLine);
-        techWires.push(wireLine);
-
-        // Data point pillars (glowing spheres on each axis)
-        var pillarGroup = new THREE.Group();
-        shapePts.forEach(function(sp) {
-          var sphereGeo = new THREE.SphereGeometry(0.07, 16, 16);
-          var sphereMat = new THREE.MeshPhongMaterial({
-            color: color, emissive: color, emissiveIntensity: 0.6,
-            transparent: true, opacity: 0.9
-          });
-          var sphere = new THREE.Mesh(sphereGeo, sphereMat);
-          sphere.position.copy(sp);
-          pillarGroup.add(sphere);
-
-          // Vertical pillar line to ground
-          var pillarLinePts = [new THREE.Vector3(sp.x, -0.01, sp.z), sp.clone()];
-          var plGeo = new THREE.BufferGeometry().setFromPoints(pillarLinePts);
-          var plMat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.3 });
-          pillarGroup.add(new THREE.Line(plGeo, plMat));
-        });
-        scene.add(pillarGroup);
-        techPillars.push(pillarGroup);
-      });
-
-      // Legend
-      var legendEl = document.getElementById('radar3dLegend');
-      legendEl.innerHTML = '';
-      techs.forEach(function(t, ti) {
-        var item = document.createElement('div');
-        item.className = 'radar3d-legend-item';
-        item.innerHTML = '<span class="radar3d-legend-dot" style="background:' + t.color + '"></span>' + t.short;
-        item.addEventListener('click', function() {
-          if (isolatedTech === ti) {
-            isolatedTech = null;
-            techs.forEach(function(_, j) {
-              techMeshes[j].material.opacity = 0.25;
-              techWires[j].material.opacity = 0.9;
-              techPillars[j].visible = true;
-              legendEl.children[j].classList.remove('dimmed');
-            });
-          } else {
-            isolatedTech = ti;
-            techs.forEach(function(_, j) {
-              var active = j === ti;
-              techMeshes[j].material.opacity = active ? 0.4 : 0.03;
-              techWires[j].material.opacity = active ? 1 : 0.08;
-              techPillars[j].visible = active;
-              legendEl.children[j].classList.toggle('dimmed', !active);
-            });
+      if (radarChartInstance) radarChartInstance.destroy();
+      radarChartInstance = new Chart(canvas, {
+        type: 'radar',
+        data: {
+          labels: catKeys.map(function(c) { return categories[c].label; }),
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 0,
+              max: 5,
+              ticks: { stepSize: 1, backdropColor: 'transparent', color: '#8b93a8', font: { size: 10 } },
+              grid: { color: 'rgba(255,255,255,0.1)' },
+              angleLines: { color: 'rgba(255,255,255,0.1)' },
+              pointLabels: { color: '#c8cdd8', font: { size: 11, weight: '600' } }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'bottom',
+              labels: { color: '#c8cdd8', usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 12, weight: '600' } }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15,27,46,0.95)',
+              titleColor: '#FFD700',
+              bodyColor: '#e0e6f0',
+              borderColor: 'rgba(255,215,0,0.3)',
+              borderWidth: 1,
+              padding: 10
+            }
           }
-        });
-        legendEl.appendChild(item);
-      });
-
-      // Orbit controls (manual implementation)
-      var isDragging = false;
-      var prevMouse = { x: 0, y: 0 };
-      var spherical = { theta: 0.4, phi: 1.1, radius: 9 };
-      var autoRotate = true;
-
-      function updateCamera() {
-        camera.position.x = spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
-        camera.position.y = spherical.radius * Math.cos(spherical.phi);
-        camera.position.z = spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
-        camera.lookAt(0, 0, 0);
-      }
-      updateCamera();
-
-      renderer.domElement.addEventListener('pointerdown', function(e) {
-        isDragging = true;
-        autoRotate = false;
-        prevMouse.x = e.clientX;
-        prevMouse.y = e.clientY;
-      });
-      window.addEventListener('pointermove', function(e) {
-        if (!isDragging) return;
-        var dx = e.clientX - prevMouse.x;
-        var dy = e.clientY - prevMouse.y;
-        spherical.theta -= dx * 0.008;
-        spherical.phi = Math.max(0.3, Math.min(Math.PI - 0.3, spherical.phi + dy * 0.008));
-        prevMouse.x = e.clientX;
-        prevMouse.y = e.clientY;
-        updateCamera();
-      });
-      window.addEventListener('pointerup', function() { isDragging = false; });
-      renderer.domElement.addEventListener('wheel', function(e) {
-        e.preventDefault();
-        spherical.radius = Math.max(4, Math.min(16, spherical.radius + e.deltaY * 0.01));
-        updateCamera();
-      }, { passive: false });
-
-      // Touch support
-      var lastTouchDist = 0;
-      renderer.domElement.addEventListener('touchstart', function(e) {
-        if (e.touches.length === 1) {
-          isDragging = true;
-          autoRotate = false;
-          prevMouse.x = e.touches[0].clientX;
-          prevMouse.y = e.touches[0].clientY;
-        } else if (e.touches.length === 2) {
-          var dx = e.touches[0].clientX - e.touches[1].clientX;
-          var dy = e.touches[0].clientY - e.touches[1].clientY;
-          lastTouchDist = Math.sqrt(dx*dx + dy*dy);
-        }
-      }, { passive: true });
-      renderer.domElement.addEventListener('touchmove', function(e) {
-        e.preventDefault();
-        if (e.touches.length === 1 && isDragging) {
-          var dx = e.touches[0].clientX - prevMouse.x;
-          var dy = e.touches[0].clientY - prevMouse.y;
-          spherical.theta -= dx * 0.008;
-          spherical.phi = Math.max(0.3, Math.min(Math.PI - 0.3, spherical.phi + dy * 0.008));
-          prevMouse.x = e.touches[0].clientX;
-          prevMouse.y = e.touches[0].clientY;
-          updateCamera();
-        } else if (e.touches.length === 2) {
-          var dx2 = e.touches[0].clientX - e.touches[1].clientX;
-          var dy2 = e.touches[0].clientY - e.touches[1].clientY;
-          var dist = Math.sqrt(dx2*dx2 + dy2*dy2);
-          spherical.radius = Math.max(4, Math.min(16, spherical.radius - (dist - lastTouchDist) * 0.02));
-          lastTouchDist = dist;
-          updateCamera();
-        }
-      }, { passive: false });
-      renderer.domElement.addEventListener('touchend', function() { isDragging = false; });
-
-      // Animation loop
-      var radarAnimId;
-      function animate() {
-        radarAnimId = requestAnimationFrame(animate);
-        if (autoRotate) {
-          spherical.theta += 0.003;
-          updateCamera();
-        }
-        renderer.render(scene, camera);
-      }
-      animate();
-
-      // Resize handler
-      var radarResizeObs = new ResizeObserver(function() {
-        var w = container.clientWidth;
-        var h = container.clientHeight;
-        if (w && h) {
-          camera.aspect = w / h;
-          camera.updateProjectionMatrix();
-          renderer.setSize(w, h);
         }
       });
-      radarResizeObs.observe(container);
     }
-
     function renderBar() {
       const ctx = document.getElementById('barChart').getContext('2d');
       new Chart(ctx, {
