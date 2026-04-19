@@ -1463,13 +1463,18 @@ window.addEventListener('load', () => {
       var totalReviews = 0;
       var totalInstallRev = 0;
       var totalMtdInstalls = 0;
+      var totalMtdInstallRev = 0;
 
       stData.forEach(function(st) {
         totalCallbacks += st.productivity.recalls || 0;
         totalRevenue += st.mtd_service_rev || 0;
         totalInstallRev += st.installs.total_revenue || 0;
         totalMtdInstalls += st.mtd_installs || 0;
+        totalMtdInstallRev += st.mtd_install_rev || 0;
       });
+      // Adam Bunyard (owner) — 1 MTD install, tracked in team total only
+      totalMtdInstalls += 1;
+      totalMtdInstallRev += 0; // Adam's install rev TBD
 
       try {
         var tfRaw = localStorage.getItem('snappy_tech_files');
@@ -1499,7 +1504,7 @@ window.addEventListener('load', () => {
         { icon: '\u26a0\ufe0f', value: liveComplaints, label: 'Complaints', sub: 'Active customer complaints' },
         { icon: '\ud83d\udcb0', value: '$' + totalRevenue.toLocaleString(), label: 'Service Revenue', sub: 'Maintenance & service only' },
         { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'Last 90 days' },
-        { icon: '\ud83c\udfe0', value: '$' + totalInstallRev.toLocaleString(), label: 'Install Revenue', sub: 'Last 90 days' },
+        { icon: '\ud83c\udfe0', value: '$' + totalMtdInstallRev.toLocaleString(), label: 'Install Revenue', sub: 'Month-to-date' },
         { icon: '\ud83d\udee0\ufe0f', value: totalMtdInstalls, label: 'MTD Installs', sub: 'Month-to-date completed' }
       ];
 
@@ -3028,7 +3033,8 @@ window.addEventListener('load', () => {
       const totalSales = stData.reduce((s,t) => s + t.sales.total_sales, 0);
       const totalInstalls = stData.reduce((s,t) => s + t.installs.count, 0);
       const totalInstallRev = stData.reduce((s,t) => s + t.installs.total_revenue, 0);
-      const totalMtdInst = stData.reduce((s,t) => s + (t.mtd_installs || 0), 0);
+      const totalMtdInst = stData.reduce((s,t) => s + (t.mtd_installs || 0), 0) + 1; // +1 for Adam
+      const totalMtdInstRev = stData.reduce((s,t) => s + (t.mtd_install_rev || 0), 0);
       const topRev = stData.reduce((best, t) => t.nexstar.total_revenue > best.nexstar.total_revenue ? t : best);
 
       document.getElementById('st-kpi-row').innerHTML = `
@@ -3053,14 +3059,9 @@ window.addEventListener('load', () => {
           <div class="kpi-sub">All technicians combined</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Tech-Gen Installs (90d)</div>
-          <div class="kpi-value">${totalInstalls}</div>
-          <div class="kpi-sub">${fmt$(totalInstallRev)} install revenue</div>
-        </div>
-        <div class="kpi-card">
           <div class="kpi-label">MTD Installs</div>
           <div class="kpi-value">${totalMtdInst}</div>
-          <div class="kpi-sub">Month-to-date completed</div>
+          <div class="kpi-sub">${fmt$(totalMtdInstRev)} install revenue</div>
         </div>
       `;
     }
