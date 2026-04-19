@@ -1465,7 +1465,7 @@ window.addEventListener('load', () => {
 
       stData.forEach(function(st) {
         totalCallbacks += st.productivity.recalls || 0;
-        totalRevenue += (st.overview.revenue || 0) - (st.installs.total_revenue || 0);
+        totalRevenue += st.mtd_service_rev || 0;
         totalInstallRev += st.installs.total_revenue || 0;
       });
 
@@ -2618,6 +2618,7 @@ window.addEventListener('load', () => {
       {
         name: "Dewone",
         color: "#E07B3A",
+        mtd_service_rev: 7061,
         nexstar: { total_revenue: 25675, avg_sale: 440, conversion_rate: 79, spps_sold: 8, tech_gen_leads: 34, sold_hours: 138.55, tech_sold_hr_eff: 0, flat_rate_tasks: 1.84 },
         overview: { revenue: 25675, total_job_avg: 153, opp_job_avg: 351, opp_conversion: 79, opps: 71, converted_jobs: 56 },
         leads: { opps: 71, leads_set: 34, conv_rate: 48, avg_sale: 440 },
@@ -2629,6 +2630,7 @@ window.addEventListener('load', () => {
       {
         name: "Benji",
         color: "#5B4A8A",
+        mtd_service_rev: 7363,
         nexstar: { total_revenue: 18238, avg_sale: 445, conversion_rate: 56, spps_sold: 2, tech_gen_leads: 9, sold_hours: 130.65, tech_sold_hr_eff: 0.28, flat_rate_tasks: 2.17 },
         overview: { revenue: 18238, total_job_avg: 108, opp_job_avg: 260, opp_conversion: 56, opps: 66, converted_jobs: 37 },
         leads: { opps: 66, leads_set: 9, conv_rate: 14, avg_sale: 445 },
@@ -2640,6 +2642,7 @@ window.addEventListener('load', () => {
       {
         name: "Daniel",
         color: "#C47F17",
+        mtd_service_rev: 4707,
         nexstar: { total_revenue: 19162, avg_sale: 547, conversion_rate: 64, spps_sold: 4, tech_gen_leads: 5, sold_hours: 120.75, tech_sold_hr_eff: 0, flat_rate_tasks: 2.03 },
         overview: { revenue: 19162, total_job_avg: 121, opp_job_avg: 355, opp_conversion: 64, opps: 53, converted_jobs: 34 },
         leads: { opps: 53, leads_set: 5, conv_rate: 9, avg_sale: 547 },
@@ -2651,6 +2654,7 @@ window.addEventListener('load', () => {
       {
         name: "Chris",
         color: "#8B3A3A",
+        mtd_service_rev: 5311,
         nexstar: { total_revenue: 15359, avg_sale: 360, conversion_rate: 55, spps_sold: 6, tech_gen_leads: 26, sold_hours: 127.67, tech_sold_hr_eff: 0, flat_rate_tasks: 1.91 },
         overview: { revenue: 15359, total_job_avg: 86, opp_job_avg: 203, opp_conversion: 55, opps: 73, converted_jobs: 40 },
         leads: { opps: 73, leads_set: 26, conv_rate: 36, avg_sale: 360 },
@@ -2662,6 +2666,7 @@ window.addEventListener('load', () => {
       {
         name: "Dee",
         color: "#2D6A6A",
+        mtd_service_rev: 632,
         isWarrantyTech: true,
         completedJobs: 113,
         nexstar: { total_revenue: 6416, avg_sale: 562, conversion_rate: 85, spps_sold: 0, tech_gen_leads: 3, sold_hours: 87.35, tech_sold_hr_eff: 0, flat_rate_tasks: 2.65 },
