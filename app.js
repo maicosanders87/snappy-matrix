@@ -145,23 +145,23 @@ const SyncEngine = {
 };
 
 // Merge tech files: combine local + cloud by unique file ID so nothing gets lost
+// Local files always win (they have fileData); cloud-only files are added as metadata stubs
 function _mergeTechFiles(localJson, cloudJson) {
   try {
     var local = localJson ? JSON.parse(localJson) : {};
     var cloud = cloudJson ? JSON.parse(cloudJson) : {};
     var merged = {};
-    // Collect all tech names from both sources
     var allTechs = {};
     Object.keys(local).forEach(function(t) { allTechs[t] = true; });
     Object.keys(cloud).forEach(function(t) { allTechs[t] = true; });
     for (var tech in allTechs) {
       var localFiles = Array.isArray(local[tech]) ? local[tech] : [];
       var cloudFiles = Array.isArray(cloud[tech]) ? cloud[tech] : [];
-      // Index cloud files by ID
+      // Index local files by ID (these have fileData)
       var byId = {};
-      cloudFiles.forEach(function(f) { if (f && f.id) byId[f.id] = f; });
-      // Start with cloud files, then add any local-only files
-      localFiles.forEach(function(f) {
+      localFiles.forEach(function(f) { if (f && f.id) byId[f.id] = f; });
+      // Add cloud-only files (metadata stubs without fileData)
+      cloudFiles.forEach(function(f) {
         if (f && f.id && !byId[f.id]) byId[f.id] = f;
       });
       var arr = Object.values(byId);
@@ -170,8 +170,7 @@ function _mergeTechFiles(localJson, cloudJson) {
     return JSON.stringify(merged);
   } catch (e) {
     console.warn('Tech file merge failed:', e);
-    // Fallback: prefer whichever has more data
-    return (localJson && localJson.length > (cloudJson || '').length) ? localJson : (cloudJson || localJson);
+    return localJson || cloudJson || '{}';
   }
 }
 
@@ -216,11 +215,11 @@ async function initCloudSync() {
     }
   }
 
-  // Push merged tech files back to cloud (fire-and-forget, no reload dependency)
+  // Push merged tech files metadata back to cloud (fire-and-forget, strip fileData)
   var mergedTf = localStorage.getItem('snappy_tech_files');
   if (mergedTf) {
-    SyncEngine.write('techfiles', JSON.parse(mergedTf));
-    // Don't await — let it flush on its own debounce timer
+    var parsed = JSON.parse(mergedTf);
+    SyncEngine.write('techfiles', typeof _tfStripFileData === 'function' ? _tfStripFileData(parsed) : parsed);
   }
 
   if (updated && !alreadyReloaded) {
@@ -251,7 +250,12 @@ async function manualSync() {
     var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_day_notes','snappy_nexstar'];
     dKeys.forEach(function(k, i) {
       var v = localStorage.getItem(dLocalKeys[i]);
-      if (v) SyncEngine.write(k, JSON.parse(v));
+      if (v) {
+        var parsed = JSON.parse(v);
+        // Strip base64 fileData from techfiles — too large for Google Sheets
+        if (k === 'techfiles' && typeof _tfStripFileData === 'function') parsed = _tfStripFileData(parsed);
+        SyncEngine.write(k, parsed);
+      }
     });
     await SyncEngine._flush();
 
@@ -286,9 +290,12 @@ async function manualSync() {
           }
         }
       }
-      // After merge, push merged tech files back to cloud so it stays complete
+      // After merge, push stripped metadata back to cloud
       var mergedTf = localStorage.getItem('snappy_tech_files');
-      if (mergedTf) SyncEngine.write('techfiles', JSON.parse(mergedTf));
+      if (mergedTf) {
+        var p = JSON.parse(mergedTf);
+        SyncEngine.write('techfiles', typeof _tfStripFileData === 'function' ? _tfStripFileData(p) : p);
+      }
       await SyncEngine._flush();
       await new Promise(function(r) { setTimeout(r, 1500); });
     }
@@ -387,7 +394,14 @@ async function saveSyncUrl() {
     var payload = {};
     for (var ck in keyMap) {
       var val = localStorage.getItem(keyMap[ck]);
-      if (val) payload[ck] = val;
+      if (val) {
+        // Strip fileData from techfiles before cloud push
+        if (ck === 'techfiles' && typeof _tfStripFileData === 'function') {
+          payload[ck] = JSON.stringify(_tfStripFileData(JSON.parse(val)));
+        } else {
+          payload[ck] = val;
+        }
+      }
     }
     if (Object.keys(payload).length > 0) {
       await _syncPost(url, payload);
@@ -5131,11 +5145,28 @@ window.addEventListener('load', () => {
     function tfSave() {
       try {
         localStorage.setItem(TF_STORAGE_KEY, JSON.stringify(tfFiles));
-        SyncEngine.write('techfiles', tfFiles);
+        SyncEngine.write('techfiles', _tfStripFileData(tfFiles));
       } catch (e) {
         alert('Storage full — try removing older files first.');
         console.warn('Tech Files: save failed', e);
       }
+    }
+
+    // Strip base64 fileData before pushing to cloud (too large for Google Sheets cells)
+    // Cloud stores metadata only; actual file content stays in localStorage
+    function _tfStripFileData(files) {
+      var stripped = {};
+      for (var tech in files) {
+        stripped[tech] = (files[tech] || []).map(function(f) {
+          var copy = {};
+          for (var k in f) {
+            if (k !== 'fileData') copy[k] = f[k];
+          }
+          copy.hasFile = !!f.fileData; // flag so we know a file exists locally
+          return copy;
+        });
+      }
+      return stripped;
     }
 
     // Save + confirm cloud sync with visual status
@@ -5149,8 +5180,9 @@ window.addEventListener('load', () => {
       // Show syncing status
       _tfShowCloudStatus('syncing');
       try {
-        // Immediate flush (skip debounce)
-        SyncEngine._pendingWrites['techfiles'] = JSON.stringify(tfFiles);
+        // Immediate flush (skip debounce) — strip fileData to keep payload small
+        var stripped = _tfStripFileData(tfFiles);
+        SyncEngine._pendingWrites['techfiles'] = JSON.stringify(stripped);
         clearTimeout(SyncEngine._writeTimer);
         await SyncEngine._flush();
         // Wait for no-cors POST to land
@@ -5161,9 +5193,8 @@ window.addEventListener('load', () => {
           var cv = cloud.techfiles.data || cloud.techfiles.val || '';
           if (cv) {
             var cloudFiles = JSON.parse(cv);
-            var localFiles = tfFiles;
             // Check that the file count for current tech matches
-            var localCount = (localFiles[tfSelectedTech] || []).length;
+            var localCount = (tfFiles[tfSelectedTech] || []).length;
             var cloudCount = (cloudFiles[tfSelectedTech] || []).length;
             if (cloudCount >= localCount) {
               _tfShowCloudStatus('saved');
@@ -5172,7 +5203,7 @@ window.addEventListener('load', () => {
           }
         }
         // If we got here, verification didn't fully confirm — retry push
-        SyncEngine._pendingWrites['techfiles'] = JSON.stringify(tfFiles);
+        SyncEngine._pendingWrites['techfiles'] = JSON.stringify(stripped);
         await SyncEngine._flush();
         await new Promise(function(r) { setTimeout(r, 2000); });
         _tfShowCloudStatus('saved');
