@@ -276,36 +276,6 @@ function requireManager() {
 // Apply mode immediately
 applyViewMode();
 
-// Sidebar toggle
-function toggleSidebar() {
-  const nav = document.querySelector('.nav-tabs');
-  if (window.innerWidth <= 768) {
-    // Mobile: toggle slide-in
-    nav.classList.toggle('mobile-open');
-  } else {
-    // Desktop: toggle expand/collapse
-    document.body.classList.toggle('sidebar-expanded');
-    localStorage.setItem('sidebarExpanded', document.body.classList.contains('sidebar-expanded'));
-  }
-}
-// Initialize sidebar state
-(function() {
-  if (window.innerWidth > 768 && localStorage.getItem('sidebarExpanded') === 'true') {
-    document.body.classList.add('sidebar-expanded');
-  }
-})();
-// Close mobile sidebar when clicking outside
-document.addEventListener('click', function(e) {
-  const nav = document.querySelector('.nav-tabs');
-  const toggle = document.getElementById('sidebarToggle');
-  if (window.innerWidth <= 768 && nav && nav.classList.contains('mobile-open')) {
-    if (!nav.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
-      nav.classList.remove('mobile-open');
-    }
-  }
-});
-
-
 // ========== CLOUD SYNC ENGINE ==========
 // Google Apps Script Web App URL — set after deploying the script
 let SYNC_URL = localStorage.getItem('snappy_sync_url') || '';
@@ -1372,10 +1342,6 @@ window.addEventListener('load', () => {
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById('view-' + tab.dataset.view).classList.add('active');
-        // Close mobile sidebar on nav
-        if (window.innerWidth < 769) {
-          document.querySelector('.nav-tabs').classList.remove('mobile-open');
-        }
         // Auto-mark NEW skills as seen when visiting skills-related tabs
         var v = tab.dataset.view;
         if (v === 'skills-tags' || v === 'aptitude-skills' || v === 'overview') {
@@ -1980,17 +1946,6 @@ window.addEventListener('load', () => {
         };
       });
       if (radarChartInstance) radarChartInstance.destroy();
-
-// ========== CHART.JS DARK THEME DEFAULTS ==========
-if (typeof Chart !== 'undefined') {
-  Chart.defaults.color = '#94a3b8';
-  Chart.defaults.borderColor = 'rgba(51, 65, 85, 0.3)';
-  if (Chart.defaults.plugins && Chart.defaults.plugins.legend) {
-    Chart.defaults.plugins.legend.labels = Chart.defaults.plugins.legend.labels || {};
-    Chart.defaults.plugins.legend.labels.color = '#e2e8f0';
-  }
-}
-
       radarChartInstance = new Chart(canvas, {
         type: 'radar',
         data: {
@@ -2145,7 +2100,7 @@ if (typeof Chart !== 'undefined') {
         <td class="score-cell"><span class="avg-pill" style="background:var(--accent-teal);color:white;font-weight:700">${teamOverall.toFixed(1)}</span></td>
       </tr>`;
 
-      html += `<tr style="background:rgba(245, 158, 11, 0.1)">
+      html += `<tr style="background:#FFF8F0">
         <td style="font-weight:700">Tier Ranking</td>
         ${techs.map(t => {
           const ti = getTechTier(t);
@@ -2505,8 +2460,8 @@ if (typeof Chart !== 'undefined') {
                 });
                 out += '</div>';
                 out += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">';
-                out += '<span style="font-size:12px;font-weight:700;color:#10b981">Total: ' + apt.totalScore + '/' + apt.maxScore + '</span>';
-                out += '<span style="font-size:12px;color:#94a3b8">(' + Math.round((apt.totalScore/apt.maxScore)*100) + '%)</span>';
+                out += '<span style="font-size:12px;font-weight:700;color:#1B4332">Total: ' + apt.totalScore + '/' + apt.maxScore + '</span>';
+                out += '<span style="font-size:12px;color:#6B7280">(' + Math.round((apt.totalScore/apt.maxScore)*100) + '%)</span>';
                 out += '</div>';
                 if (apt.certs.length) {
                   out += '<div class="aptitude-certs">' + apt.certs.map(c => '<span class="aptitude-cert">' + c + '</span>').join('') + '</div>';
@@ -2516,16 +2471,16 @@ if (typeof Chart !== 'undefined') {
 
               // Self-Evaluation Bars (comparison vs aptitude)
               const catKeys = Object.keys(categories);
-              out += '<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(51, 65, 85, 0.3)">';
-              out += '<div style="font-size:11px;font-weight:700;color:#10b981;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.04em">Self-Evaluation Breakdown</div>';
+              out += '<div style="margin-top:14px;padding-top:12px;border-top:1px solid #B8D8C8">';
+              out += '<div style="font-size:11px;font-weight:700;color:#2D6A4F;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.04em">Self-Evaluation Breakdown</div>';
               catKeys.forEach(catKey => {
                 const cat = categories[catKey];
                 const selfAvg = techCategoryAvg(t, catKey);
                 const selfPct = Math.round((selfAvg / 5) * 100);
                 const barColor = selfPct >= 80 ? '#059669' : selfPct >= 60 ? '#D97706' : '#DC2626';
                 out += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
-                out += '<div style="width:70px;font-size:11px;font-weight:500;color:#94a3b8;flex-shrink:0">' + cat.label + '</div>';
-                out += '<div style="flex:1;height:7px;background:rgba(51, 65, 85, 0.4);border-radius:4px;overflow:hidden"><div style="height:100%;width:' + selfPct + '%;background:' + barColor + ';border-radius:4px;transition:width 0.4s ease"></div></div>';
+                out += '<div style="width:70px;font-size:11px;font-weight:500;color:#6B7280;flex-shrink:0">' + cat.label + '</div>';
+                out += '<div style="flex:1;height:7px;background:#E5E7EB;border-radius:4px;overflow:hidden"><div style="height:100%;width:' + selfPct + '%;background:' + barColor + ';border-radius:4px;transition:width 0.4s ease"></div></div>';
                 out += '<div style="font-size:11px;font-family:JetBrains Mono,monospace;font-weight:600;color:' + barColor + ';min-width:32px;text-align:right">' + selfAvg.toFixed(1) + '</div>';
                 out += '</div>';
               });
@@ -2694,8 +2649,8 @@ if (typeof Chart !== 'undefined') {
                 }).join('')}
               </div>
               <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
-                <span style="font-size:12px;font-weight:700;color:#10b981">Total: ${adamApt.totalScore}/${adamApt.maxScore}</span>
-                <span style="font-size:12px;color:#94a3b8">(${Math.round((adamApt.totalScore/adamApt.maxScore)*100)}%)</span>
+                <span style="font-size:12px;font-weight:700;color:#1B4332">Total: ${adamApt.totalScore}/${adamApt.maxScore}</span>
+                <span style="font-size:12px;color:#6B7280">(${Math.round((adamApt.totalScore/adamApt.maxScore)*100)}%)</span>
               </div>
               <div class="aptitude-interp">${adamApt.interpretation}</div>
             </div>
@@ -3492,7 +3447,7 @@ if (typeof Chart !== 'undefined') {
                     <div class="rookie-composite-bar">
                       <div class="rookie-composite-bar-fill" style="width:100%;background:${mgrCompBarColor}"></div>
                     </div>
-                    <div class="rookie-composite-score" style="color:#fbbf24">S</div>
+                    <div class="rookie-composite-score" style="color:#FFD700">S</div>
                   </div>
                   <div class="rookie-certs"><span class="rookie-cert">Service Manager</span><span class="rookie-cert">Team Lead</span></div>
                 </div>
@@ -3701,7 +3656,7 @@ if (typeof Chart !== 'undefined') {
               <div class="rookie-back-subtitle">Maximum Tier Achieved</div>
             </div>
             <div class="rookie-back-target">
-              <div class="rookie-back-target-tier" style="color:#fbbf24">S-TIER</div>
+              <div class="rookie-back-target-tier" style="color:#FFD700">S-TIER</div>
               <div class="rookie-back-target-label">Elite — Top Performer</div>
             </div>
             <div class="rookie-back-flip-hint">Tap to flip back</div>
@@ -4403,7 +4358,7 @@ if (typeof Chart !== 'undefined') {
       // Day-of-week specific items
       if (dow === 1) {
         html += '<div style="border-top:1px solid var(--border);margin:8px 0;padding-top:8px;">';
-        html += '<div style="font-size:11px;font-weight:700;color:#fbbf24;margin-bottom:6px;">Monday Specifics</div>';
+        html += '<div style="font-size:11px;font-weight:700;color:#FFD700;margin-bottom:6px;">Monday Specifics</div>';
         var monItems = [
           { key: 'mon_employee_review', label: 'Employee Review #1 for the week' },
           { key: 'mon_leadership_mtg', label: '10:00 AM Leadership Meeting' },
@@ -4422,14 +4377,14 @@ if (typeof Chart !== 'undefined') {
       }
       if (dow === 2) {
         html += '<div style="border-top:1px solid var(--border);margin:8px 0;padding-top:8px;">';
-        html += '<div style="font-size:11px;font-weight:700;color:#fbbf24;margin-bottom:6px;">Tuesday — Training Prep</div>';
+        html += '<div style="font-size:11px;font-weight:700;color:#FFD700;margin-bottom:6px;">Tuesday — Training Prep</div>';
         html += '<label class="mgr-today-check"><input type="checkbox" disabled><span>Prepare training topic for Wednesday meeting</span></label>';
         html += '<button class="mgr-today-action-btn" style="background:linear-gradient(135deg,#FFD700,#FFA500);color:#0F1B2E;margin-top:6px;font-size:12px;padding:6px 14px;" onclick="mgrGoTrainingTab()">Open Training Planner \u2192</button>';
         html += '</div>';
       }
       if (dow === 3) {
         html += '<div style="border-top:1px solid var(--border);margin:8px 0;padding-top:8px;">';
-        html += '<div style="font-size:11px;font-weight:700;color:#fbbf24;margin-bottom:6px;">Wednesday — Team Meeting</div>';
+        html += '<div style="font-size:11px;font-weight:700;color:#FFD700;margin-bottom:6px;">Wednesday — Team Meeting</div>';
         var weekOf = mgrFmtDate(mgrStartOfWeek(today));
         var training = mgrState.trainings.find(function(t) { return t.weekOf === weekOf; });
         if (training) {
@@ -4658,30 +4613,30 @@ if (typeof Chart !== 'undefined') {
       var title, fields;
       if (type === 'meeting') {
         title = 'Post Meeting';
-        fields = '<label style="font-size:11px;font-weight:600;color:#fbbf24;margin-top:8px;display:block;">Date</label>' +
+        fields = '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Date</label>' +
           '<input type="date" id="mgrBBDate" value="' + bbGetWednesday() + '" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">' +
-          '<label style="font-size:11px;font-weight:600;color:#fbbf24;margin-top:8px;display:block;">Subject</label>' +
+          '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Subject</label>' +
           '<input type="text" id="mgrBBSubject" placeholder="e.g. Superheat & Subcool Review" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">' +
-          '<label style="font-size:11px;font-weight:600;color:#fbbf24;margin-top:8px;display:block;">Time</label>' +
+          '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Time</label>' +
           '<input type="text" id="mgrBBTime" placeholder="e.g. 8:00 AM" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">';
       } else if (type === 'oneonone') {
         title = 'Add 1-on-1';
-        fields = '<label style="font-size:11px;font-weight:600;color:#fbbf24;margin-top:8px;display:block;">Tech</label>' +
+        fields = '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Tech</label>' +
           '<select id="mgrBBTech" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">' + techOpts + '</select>' +
-          '<label style="font-size:11px;font-weight:600;color:#fbbf24;margin-top:8px;display:block;">Date</label>' +
+          '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Date</label>' +
           '<input type="date" id="mgrBBDate" value="' + todayStr + '" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">';
       } else {
         title = 'Add Ride-Along';
-        fields = '<label style="font-size:11px;font-weight:600;color:#fbbf24;margin-top:8px;display:block;">Tech</label>' +
+        fields = '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Tech</label>' +
           '<select id="mgrBBTech" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">' + techOpts + '</select>' +
-          '<label style="font-size:11px;font-weight:600;color:#fbbf24;margin-top:8px;display:block;">Date</label>' +
+          '<label style="font-size:11px;font-weight:600;color:#FFD700;margin-top:8px;display:block;">Date</label>' +
           '<input type="date" id="mgrBBDate" value="' + todayStr + '" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:13px;">';
       }
 
       var modal = document.createElement('div');
       modal.id = 'mgrBBAddModal';
       modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
-      modal.innerHTML = '<div style="background:#141b2d;border-radius:16px;padding:24px 28px;max-width:380px;width:90%;color:#fff;font-family:var(--font);box-shadow:0 8px 32px rgba(0,0,0,0.5);">' +
+      modal.innerHTML = '<div style="background:#1C2E52;border-radius:16px;padding:24px 28px;max-width:380px;width:90%;color:#fff;font-family:var(--font);box-shadow:0 8px 32px rgba(0,0,0,0.5);">' +
         '<div style="font-size:17px;font-weight:700;margin-bottom:12px;">' + title + '</div>' +
         fields +
         '<div style="display:flex;gap:10px;margin-top:16px;">' +
@@ -4722,7 +4677,7 @@ if (typeof Chart !== 'undefined') {
       // Toast
       var toast = document.createElement('div');
       toast.textContent = '\u2705 Added to Bulletin Board';
-      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#065f46;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1B5E20;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
       document.body.appendChild(toast);
       setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 400); }, 2000);
     }
@@ -5425,7 +5380,7 @@ if (typeof Chart !== 'undefined') {
         const isOnBB = (e.type === 'one-on-one' && bbOOIds[e.id]) || (e.type === 'ride-along' && bbRAIds[e.id]);
         const bbBtn = isOnBB
           ? `<span title="On Bulletin Board" style="color:#4CAF50;font-size:16px;cursor:default;">\u2705</span>`
-          : `<button class="mgr-bb-add-btn mgr-only" title="Add to Bulletin Board" onclick="event.stopPropagation(); _logAddToBB('${e.id}')" style="background:none;border:1px solid rgba(255,215,0,0.4);border-radius:6px;padding:3px 8px;font-size:11px;color:#fbbf24;cursor:pointer;white-space:nowrap;">+ BB</button>`;
+          : `<button class="mgr-bb-add-btn mgr-only" title="Add to Bulletin Board" onclick="event.stopPropagation(); _logAddToBB('${e.id}')" style="background:none;border:1px solid rgba(255,215,0,0.4);border-radius:6px;padding:3px 8px;font-size:11px;color:#FFD700;cursor:pointer;white-space:nowrap;">+ BB</button>`;
         html += `<tr class="mgr-log-row" data-id="${e.id}">
           <td>${mgrFmtShort(d)} ${d.getFullYear()}</td>
           <td><span class="mgr-entry-type ${e.type}">${typeLabel}</span></td>
@@ -5619,7 +5574,7 @@ if (typeof Chart !== 'undefined') {
             <button type="submit" class="mgr-btn">Save Training Plan</button>
             <button type="button" class="mgr-btn secondary" onclick="mgrExportTrainingPDF()">Extract PDF</button>
             <button type="button" class="mgr-btn secondary" onclick="mgrTrainingAddToCalendar()" style="border-color:rgba(100,180,255,0.4);color:#64b4ff;">\ud83d\udcc5 Add to Calendar</button>
-            <button type="button" class="mgr-btn secondary" onclick="mgrTrainingAddToBB()" style="border-color:rgba(255,215,0,0.4);color:#fbbf24;">\ud83d\udccc Add to Bulletin Board</button>
+            <button type="button" class="mgr-btn secondary" onclick="mgrTrainingAddToBB()" style="border-color:rgba(255,215,0,0.4);color:#FFD700;">\ud83d\udccc Add to Bulletin Board</button>
           </div>
         </form>
       `;
@@ -5742,7 +5697,7 @@ if (typeof Chart !== 'undefined') {
       // Toast
       var toast = document.createElement('div');
       toast.textContent = '\u2705 Added to Calendar (' + wedStr + ')';
-      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#3b82f6;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1565C0;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
       document.body.appendChild(toast);
       setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 400); }, 2000);
     }
@@ -5766,7 +5721,7 @@ if (typeof Chart !== 'undefined') {
       // Toast
       var toast = document.createElement('div');
       toast.textContent = '\u2705 Added to Bulletin Board';
-      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#065f46;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1B5E20;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
       document.body.appendChild(toast);
       setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 400); }, 2000);
     }
@@ -5780,20 +5735,20 @@ if (typeof Chart !== 'undefined') {
       modal.id = 'trainingCalendarModal';
       modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
       modal.innerHTML = `
-        <div style="background:#141b2d;border-radius:16px;padding:28px 32px;max-width:420px;width:90%;color:#fff;font-family:var(--font);box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+        <div style="background:#1C2E52;border-radius:16px;padding:28px 32px;max-width:420px;width:90%;color:#fff;font-family:var(--font);box-shadow:0 8px 32px rgba(0,0,0,0.5);">
           <div style="font-size:18px;font-weight:700;margin-bottom:6px;">\ud83d\udcc5 Save to Calendar</div>
           <div style="font-size:13px;color:#8b93a8;margin-bottom:18px;">Training plan saved. Add this to the manager calendar?</div>
           <div style="margin-bottom:14px;">
-            <label style="font-size:12px;font-weight:600;color:#fbbf24;display:block;margin-bottom:4px;">Topic</label>
+            <label style="font-size:12px;font-weight:600;color:#FFD700;display:block;margin-bottom:4px;">Topic</label>
             <div style="font-size:14px;color:#e0e6f0;background:rgba(255,255,255,0.08);padding:8px 12px;border-radius:8px;">${topic || '(No topic)'}</div>
           </div>
           <div style="margin-bottom:14px;">
-            <label style="font-size:12px;font-weight:600;color:#fbbf24;display:block;margin-bottom:4px;">Meeting Date</label>
+            <label style="font-size:12px;font-weight:600;color:#FFD700;display:block;margin-bottom:4px;">Meeting Date</label>
             <input type="date" id="tcm_date" value="${defaultDate}" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:14px;">
           </div>
           <div style="margin-bottom:18px;">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-              <input type="checkbox" id="tcm_addBulletin" checked style="width:16px;height:16px;accent-color:#fbbf24;">
+              <input type="checkbox" id="tcm_addBulletin" checked style="width:16px;height:16px;accent-color:#FFD700;">
               <span style="font-size:13px;color:#e0e6f0;">Also add to Bulletin Board</span>
             </label>
           </div>
@@ -5868,15 +5823,15 @@ if (typeof Chart !== 'undefined') {
       modal.id = 'bbPromptModal';
       modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
       modal.innerHTML = `
-        <div style="background:#141b2d;border-radius:16px;padding:28px 32px;max-width:420px;width:90%;color:#fff;font-family:var(--font);box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+        <div style="background:#1C2E52;border-radius:16px;padding:28px 32px;max-width:420px;width:90%;color:#fff;font-family:var(--font);box-shadow:0 8px 32px rgba(0,0,0,0.5);">
           <div style="font-size:18px;font-weight:700;margin-bottom:6px;">${icon} ${typeLabel} Saved</div>
           <div style="font-size:13px;color:#8b93a8;margin-bottom:18px;">Saved to manager calendar. Add to Bulletin Board?</div>
           <div style="margin-bottom:14px;">
-            <label style="font-size:12px;font-weight:600;color:#fbbf24;display:block;margin-bottom:4px;">Tech</label>
+            <label style="font-size:12px;font-weight:600;color:#FFD700;display:block;margin-bottom:4px;">Tech</label>
             <div style="font-size:14px;color:#e0e6f0;background:rgba(255,255,255,0.08);padding:8px 12px;border-radius:8px;">${tech}</div>
           </div>
           <div style="margin-bottom:14px;">
-            <label style="font-size:12px;font-weight:600;color:#fbbf24;display:block;margin-bottom:4px;">Date</label>
+            <label style="font-size:12px;font-weight:600;color:#FFD700;display:block;margin-bottom:4px;">Date</label>
             <input type="date" id="bbp_date" value="${dateStr}" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:14px;">
           </div>
           <div style="display:flex;gap:10px;">
@@ -5927,7 +5882,7 @@ if (typeof Chart !== 'undefined') {
       // Toast confirmation
       var toast = document.createElement('div');
       toast.textContent = '\u2705 Added to Bulletin Board';
-      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#065f46;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1B5E20;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
       document.body.appendChild(toast);
       setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 400); }, 2000);
     }
@@ -6754,7 +6709,7 @@ if (typeof Chart !== 'undefined') {
       } else if (file.fileData.startsWith('data:application/pdf')) {
         const embed = document.createElement('iframe');
         embed.src = file.fileData;
-        embed.style.cssText = 'width:100%;max-width:900px;height:100%;border:none;border-radius:8px;background:rgba(17, 24, 39, 0.6);';
+        embed.style.cssText = 'width:100%;max-width:900px;height:100%;border:none;border-radius:8px;background:#fff;';
         content.style.alignItems = 'stretch';
         content.appendChild(embed);
       } else {
@@ -7383,7 +7338,7 @@ function openEmbeddedPDF(filename) {
           var canvas = document.createElement('canvas');
           canvas.width = viewport.width;
           canvas.height = viewport.height;
-          canvas.style.cssText = 'width:' + (viewport.width / devicePixelRatio) + 'px;height:' + (viewport.height / devicePixelRatio) + 'px;margin-bottom:8px;border-radius:4px;background:rgba(17, 24, 39, 0.6);display:block;';
+          canvas.style.cssText = 'width:' + (viewport.width / devicePixelRatio) + 'px;height:' + (viewport.height / devicePixelRatio) + 'px;margin-bottom:8px;border-radius:4px;background:#fff;display:block;';
 
           // Page wrapper to maintain order
           var wrapper = document.createElement('div');
