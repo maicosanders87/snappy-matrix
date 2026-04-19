@@ -5169,47 +5169,52 @@ window.addEventListener('load', () => {
       return stripped;
     }
 
+    // Upload file to Google Drive via no-cors POST, then poll for driveFileId via JSONP
+    async function _tfUploadToDrive(fileEntry) {
+      var uploadKey = Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+      // Fire-and-forget POST (no-cors, same pattern as data sync)
+      await _syncPost(SYNC_URL, {
+        _action: 'uploadFile',
+        uploadKey: uploadKey,
+        fileName: fileEntry.fileName || 'file',
+        fileData: fileEntry.fileData
+      });
+      // Poll for the result via JSONP GET
+      for (var attempt = 0; attempt < 8; attempt++) {
+        await new Promise(function(r) { setTimeout(r, 2500); });
+        try {
+          var checkUrl = SYNC_URL + (SYNC_URL.indexOf('?') > -1 ? '&' : '?') + 'action=checkUpload&uploadKey=' + uploadKey;
+          var result = await _syncJsonpGet(checkUrl);
+          if (result && result.status === 'ok' && result.result && result.result.driveFileId) {
+            return result.result.driveFileId;
+          }
+          if (result && result.status === 'error') return null;
+          // status === 'pending' — keep polling
+        } catch (e) { /* timeout, keep trying */ }
+      }
+      return null;
+    }
+
     // Save + confirm cloud sync with visual status
-    // If a new/updated file has fileData, upload it to Google Drive first
     async function tfSaveAndConfirm(newFileId) {
+      _tfShowCloudStatus('syncing');
+
       // 1. If there's a file with pending fileData and no driveFileId, upload to Drive
       var fileEntry = null;
       if (newFileId && tfFiles[tfSelectedTech]) {
         fileEntry = tfFiles[tfSelectedTech].find(function(f) { return f.id === newFileId; });
       }
-      if (fileEntry && fileEntry.fileData && !fileEntry.driveFileId) {
-        _tfShowCloudStatus('syncing');
-        try {
-          var uploadResp = await fetch(SYNC_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              _action: 'uploadFile',
-              fileName: fileEntry.fileName || 'file',
-              fileData: fileEntry.fileData
-            })
-          });
-          var uploadResult = await uploadResp.json();
-          if (uploadResult.status === 'ok' && uploadResult.driveFileId) {
-            fileEntry.driveFileId = uploadResult.driveFileId;
-          } else {
-            console.warn('Drive upload failed:', uploadResult);
-            _tfShowCloudStatus('error');
-            // Still save locally even if Drive fails
-            try { localStorage.setItem(TF_STORAGE_KEY, JSON.stringify(tfFiles)); } catch(e) {}
-            return;
-          }
-        } catch (e) {
-          console.warn('Drive upload error:', e);
-          _tfShowCloudStatus('error');
-          try { localStorage.setItem(TF_STORAGE_KEY, JSON.stringify(tfFiles)); } catch(e2) {}
-          return;
+      if (fileEntry && fileEntry.fileData && !fileEntry.driveFileId && SyncEngine.isConfigured()) {
+        var driveId = await _tfUploadToDrive(fileEntry);
+        if (driveId) {
+          fileEntry.driveFileId = driveId;
+        } else {
+          console.warn('Drive upload could not be confirmed');
+          // Still save locally
         }
-      } else {
-        _tfShowCloudStatus('syncing');
       }
 
-      // 2. Save to localStorage (full data with fileData for local viewing)
+      // 2. Save to localStorage
       try {
         localStorage.setItem(TF_STORAGE_KEY, JSON.stringify(tfFiles));
       } catch (e) {
@@ -5224,10 +5229,10 @@ window.addEventListener('load', () => {
         SyncEngine._pendingWrites['techfiles'] = JSON.stringify(stripped);
         clearTimeout(SyncEngine._writeTimer);
         await SyncEngine._flush();
-        await new Promise(function(r) { setTimeout(r, 2500); });
+        await new Promise(function(r) { setTimeout(r, 2000); });
         _tfShowCloudStatus('saved');
       } catch (e) {
-        console.warn('Cloud confirm failed:', e);
+        console.warn('Cloud sync failed:', e);
         _tfShowCloudStatus('error');
       }
     }
