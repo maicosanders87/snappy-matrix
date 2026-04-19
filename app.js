@@ -1140,6 +1140,112 @@ window.addEventListener('load', () => {
       return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length };
     }
 
+
+    // ========== GAMIFICATION: XP BAR SYSTEM ==========
+    function getXPData(tech) {
+      const info = getTechTier(tech);
+      const thresholds = { C: 0, B: 78, A: 85, S: 92 };
+      const tierFloor = thresholds[info.tier];
+      const nextTier = { C: 'B', B: 'A', A: 'S', S: null }[info.tier];
+      const nextThreshold = nextTier ? thresholds[nextTier] : 100;
+      const tierRange = nextThreshold - tierFloor;
+      const progress = nextTier ? ((info.composite - tierFloor) / tierRange) * 100 : 100;
+      const xpCurrent = Math.round(info.composite * 10); // XP = composite * 10
+      const xpNext = nextTier ? nextThreshold * 10 : info.composite * 10;
+      const xpFloor = tierFloor * 10;
+      return { 
+        ...info, xpCurrent, xpNext, xpFloor, progress: Math.max(0, Math.min(progress, 100)),
+        nextTier, tierRange, tierFloor, nextThreshold
+      };
+    }
+
+    function renderXPBar(tech, size) {
+      const xp = getXPData(tech);
+      const sizeClass = size === 'sm' ? 'xp-bar-sm' : size === 'lg' ? 'xp-bar-lg' : '';
+      const tierLower = xp.tier.toLowerCase();
+      const glowClass = xp.progress > 90 ? 'xp-near-levelup' : '';
+      return `
+        <div class="xp-bar-wrap ${sizeClass} ${glowClass}">
+          <div class="xp-bar-header">
+            <span class="xp-tier-badge tier-${tierLower}" style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;">${xp.tier}-TIER</span>
+            <span class="xp-label">${xp.nextTier ? xp.tierLabel + ' \u2192 ' + xp.nextTier + '-Tier' : '\u2605 MAX RANK'}</span>
+            <span class="xp-values">${xp.xpCurrent} / ${xp.xpNext} XP</span>
+          </div>
+          <div class="xp-bar-track">
+            <div class="xp-bar-fill tier-fill-${tierLower}" style="width:${xp.progress}%">
+              ${xp.progress > 15 ? '<span class="xp-bar-text">' + Math.round(xp.progress) + '%</span>' : ''}
+            </div>
+            ${xp.nextTier ? '<div class="xp-bar-marker" style="left:100%"><span>' + xp.nextThreshold + '</span></div>' : ''}
+          </div>
+          <div class="xp-bar-footer">
+            <span>${xp.composite} Composite</span>
+            ${xp.nextTier ? '<span>+' + (xp.nextThreshold - xp.composite) + ' pts to ' + xp.nextTier + '-Tier</span>' : '<span style="color:#fbbf24">\u2746 Elite Status</span>'}
+          </div>
+        </div>
+      `;
+    }
+
+    // ========== GAMIFICATION: ACHIEVEMENT BADGES ==========
+    function getAchievements(tech) {
+      const info = getTechTier(tech);
+      const st = stData.find(s => s.name === tech.short);
+      const gr = googleReviews[tech.short];
+      const skills = (skillsData.assignments[tech.short] || []).length;
+      const badges = [];
+      
+      // Revenue milestones
+      if (st && st.overview.revenue >= 20000) badges.push({ id: 'revenue_legend', icon: '\uD83D\uDCB0', name: 'Revenue Legend', desc: '$20K+ revenue', tier: 'gold', earned: true });
+      else if (st && st.overview.revenue >= 15000) badges.push({ id: 'revenue_master', icon: '\uD83D\uDCB5', name: 'Revenue Master', desc: '$15K+ revenue', tier: 'silver', earned: true });
+      else if (st && st.overview.revenue >= 8000) badges.push({ id: 'revenue_rookie', icon: '\uD83D\uDCB2', name: 'Revenue Builder', desc: '$8K+ revenue', tier: 'bronze', earned: true });
+      else badges.push({ id: 'revenue_locked', icon: '\uD83D\uDCB2', name: 'Revenue Builder', desc: 'Reach $8K revenue', tier: 'locked', earned: false });
+      
+      // Conversion rate
+      if (st && st.nexstar.conversion_rate >= 70) badges.push({ id: 'closer', icon: '\uD83C\uDFAF', name: 'The Closer', desc: '70%+ conversion', tier: 'gold', earned: true });
+      else if (st && st.nexstar.conversion_rate >= 55) badges.push({ id: 'closer_silver', icon: '\uD83C\uDFAF', name: 'Sharp Shooter', desc: '55%+ conversion', tier: 'silver', earned: true });
+      else badges.push({ id: 'closer_locked', icon: '\uD83C\uDFAF', name: 'Sharp Shooter', desc: 'Reach 55% conversion', tier: 'locked', earned: false });
+      
+      // Google Reviews
+      if (gr && gr.count >= 50) badges.push({ id: 'review_king', icon: '\u2B50', name: 'Review King', desc: '50+ reviews', tier: 'gold', earned: true });
+      else if (gr && gr.count >= 20) badges.push({ id: 'review_star', icon: '\u2B50', name: 'Review Star', desc: '20+ reviews', tier: 'silver', earned: true });
+      else if (gr && gr.count >= 5) badges.push({ id: 'review_start', icon: '\u2B50', name: 'Getting Noticed', desc: '5+ reviews', tier: 'bronze', earned: true });
+      else badges.push({ id: 'review_locked', icon: '\u2B50', name: 'Getting Noticed', desc: 'Get 5+ reviews', tier: 'locked', earned: false });
+      
+      // Skills mastery
+      if (skills >= 40) badges.push({ id: 'skill_master', icon: '\uD83D\uDD27', name: 'Skill Master', desc: '40+ skills tagged', tier: 'gold', earned: true });
+      else if (skills >= 25) badges.push({ id: 'skill_adept', icon: '\uD83D\uDD27', name: 'Skill Adept', desc: '25+ skills', tier: 'silver', earned: true });
+      else if (skills >= 15) badges.push({ id: 'skill_learner', icon: '\uD83D\uDD27', name: 'Skill Learner', desc: '15+ skills', tier: 'bronze', earned: true });
+      else badges.push({ id: 'skill_locked', icon: '\uD83D\uDD27', name: 'Skill Learner', desc: 'Earn 15+ skills', tier: 'locked', earned: false });
+      
+      // Install achievements
+      if (st && st.installs.count >= 5) badges.push({ id: 'install_pro', icon: '\uD83C\uDFE0', name: 'Install Pro', desc: '5+ installs', tier: 'gold', earned: true });
+      else if (st && st.installs.count >= 2) badges.push({ id: 'install_start', icon: '\uD83C\uDFE0', name: 'Install Starter', desc: '2+ installs', tier: 'bronze', earned: true });
+      else badges.push({ id: 'install_locked', icon: '\uD83C\uDFE0', name: 'Install Starter', desc: 'Complete 2+ installs', tier: 'locked', earned: false });
+      
+      // Aptitude
+      if (info.aptScore >= 90) badges.push({ id: 'brain', icon: '\uD83E\uDDE0', name: 'Big Brain', desc: '90%+ aptitude', tier: 'gold', earned: true });
+      else if (info.aptScore >= 75) badges.push({ id: 'brain_silver', icon: '\uD83E\uDDE0', name: 'Sharp Mind', desc: '75%+ aptitude', tier: 'silver', earned: true });
+      else badges.push({ id: 'brain_locked', icon: '\uD83E\uDDE0', name: 'Sharp Mind', desc: 'Score 75%+ on aptitude', tier: 'locked', earned: false });
+      
+      // Perfect reviews (all 5-star)
+      if (gr && gr.fiveStar === gr.count && gr.count >= 3) badges.push({ id: 'perfect', icon: '\uD83D\uDC8E', name: 'Flawless', desc: 'All 5-star reviews', tier: 'gold', earned: true });
+      
+      // Dispatch coverage
+      if (info.dispatchTagCount >= 4) badges.push({ id: 'dispatch_hero', icon: '\uD83D\uDE90', name: 'Dispatch Hero', desc: '4+ dispatch tags', tier: 'gold', earned: true });
+      else if (info.dispatchTagCount >= 2) badges.push({ id: 'dispatch_ready', icon: '\uD83D\uDE90', name: 'Dispatch Ready', desc: '2+ dispatch tags', tier: 'bronze', earned: true });
+      
+      return badges;
+    }
+
+    function renderBadgeRow(badges, maxShow) {
+      const show = maxShow ? badges.slice(0, maxShow) : badges;
+      return '<div class="badge-row">' + show.map(b => 
+        `<div class="achievement-badge badge-${b.tier}${b.earned ? '' : ' badge-locked'}" title="${b.name}: ${b.desc}">
+          <span class="badge-icon">${b.icon}</span>
+          <span class="badge-name">${b.name}</span>
+        </div>`
+      ).join('') + '</div>';
+    }
+
     function tierBadgeHTML(tier, size) {
       const cls = size === 'sm' ? 'tier-badge tier-badge-sm' : 'tier-badge';
       return `<span class="${cls} tier-${tier.toLowerCase()}">${tier}</span>`;
@@ -1586,49 +1692,56 @@ window.addEventListener('load', () => {
       });
       document.getElementById('ov-kpi-grid').innerHTML = kpiHTML;
 
-      // ---- 2. TEAM SNAPSHOT ----
+      // ---- 2. ANIMATED LEADERBOARD ----
       var snapHTML = '';
       var sortedTechs = techs.slice().sort(function(a,b) { return getTechTier(b).composite - getTechTier(a).composite; });
 
-      sortedTechs.forEach(function(t) {
+      sortedTechs.forEach(function(t, idx) {
         var tierInfo = getTechTier(t);
         var tierLower = tierInfo.tier.toLowerCase();
+        var xpData = getXPData(t);
         var st = stData.find(function(s) { return s.name === t.short; });
         var gr = googleReviews[t.short];
         var avatarEl = techAvatars[t.short]
           ? '<img class="ov-snap-avatar" src="' + techAvatars[t.short] + '" alt="' + t.name + '">'
           : '<div class="ov-snap-initials" style="background:' + t.color + '">' + t.initials + '</div>';
 
+        var rankIcon = idx === 0 ? '\uD83D\uDC51' : idx === 1 ? '\uD83E\uDD48' : idx === 2 ? '\uD83E\uDD49' : '#' + (idx + 1);
+        var rankClass = idx === 0 ? 'rank-gold' : idx === 1 ? 'rank-silver' : idx === 2 ? 'rank-bronze' : '';
+
         var tagsHTML = '';
         if (t.managerTags && t.managerTags.length) {
-          t.managerTags.slice(0, 4).forEach(function(tag) {
+          t.managerTags.slice(0, 3).forEach(function(tag) {
             tagsHTML += '<span class="ov-snap-tag ' + tag.type + '">' + tag.label + '</span>';
           });
         }
 
-        // Recall/Complaint badges for snapshot
         var tRecalls = getRecallCount(t.short);
         var tComplaints = getComplaintCount(t.short);
-        if (tRecalls > 0) tagsHTML += '<span class="ov-snap-tag" style="background:rgba(255,152,0,0.12);color:#FF9800;border-color:rgba(255,152,0,0.25)">\ud83d\udd04 ' + tRecalls + ' Recall' + (tRecalls > 1 ? 's' : '') + '</span>';
-        if (tComplaints > 0) tagsHTML += '<span class="ov-snap-tag" style="background:rgba(239,83,80,0.12);color:#EF5350;border-color:rgba(239,83,80,0.25)">\u26a0\ufe0f ' + tComplaints + ' Complaint' + (tComplaints > 1 ? 's' : '') + '</span>';
+        if (tRecalls > 0) tagsHTML += '<span class="ov-snap-tag" style="background:rgba(255,152,0,0.12);color:#FF9800;border-color:rgba(255,152,0,0.25)">\uD83D\uDD04 ' + tRecalls + ' Recall' + (tRecalls > 1 ? 's' : '') + '</span>';
+        if (tComplaints > 0) tagsHTML += '<span class="ov-snap-tag" style="background:rgba(239,83,80,0.12);color:#EF5350;border-color:rgba(239,83,80,0.25)">\u26A0\uFE0F ' + tComplaints + ' Complaint' + (tComplaints > 1 ? 's' : '') + '</span>';
 
         var statsLine = '';
         if (st) {
           statsLine += '<strong>$' + st.overview.revenue.toLocaleString() + '</strong> rev';
-          statsLine += ' &bull; <strong>' + st.nexstar.conversion_rate + '%</strong> conv';
-          statsLine += ' &bull; <strong>' + st.productivity.options_per_opp + '</strong> opts/opp';
+          statsLine += ' \u2022 <strong>' + st.nexstar.conversion_rate + '%</strong> conv';
         }
         if (gr) {
-          statsLine += ' &bull; <strong>' + gr.count + '</strong> reviews';
-          if (gr.fiveStar === gr.count && gr.count > 0) statsLine += ' (all 5\u2605)';
+          statsLine += ' \u2022 <strong>' + gr.count + '</strong> reviews';
         }
 
-        snapHTML += '<div class="ov-snap-card">' +
+        var badges = getAchievements(t);
+        var earnedCount = badges.filter(function(b) { return b.earned; }).length;
+
+        snapHTML += '<div class="ov-snap-card leaderboard-card card-animate" style="animation-delay:' + (idx * 0.08) + 's">' +
+          '<div class="leaderboard-rank ' + rankClass + '">' + rankIcon + '</div>' +
           avatarEl +
           '<div class="ov-snap-body">' +
             '<div class="ov-snap-name">' + t.short + ' <span class="ov-snap-tier tier-' + tierLower + '">' + tierInfo.tier + '-' + tierInfo.tierLabel + '</span></div>' +
             '<div class="ov-snap-highlights">' + tagsHTML + '</div>' +
+            renderXPBar(t, 'sm') +
             (statsLine ? '<div class="ov-snap-stat">' + statsLine + '</div>' : '') +
+            '<div class="ov-snap-badges">' + earnedCount + '/' + badges.length + ' badges earned</div>' +
           '</div>' +
         '</div>';
       });
@@ -2470,6 +2583,8 @@ if (typeof Chart !== 'undefined') {
               </div>
             </div>
 
+            ${renderXPBar(t, '')}
+
             ${t.managerNotes ? `
             <div class="manager-notes">
               <div class="manager-notes-title">
@@ -2650,6 +2765,11 @@ if (typeof Chart !== 'undefined') {
             <div class="detail-section">
               <div class="detail-section-title">Self-Identified Weaknesses</div>
               <div>${t.weaknesses.map(w => `<span class="weakness-tag">${w}</span>`).join('')}</div>
+            </div>
+
+            <div class="profile-achievements" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+              <div style="font-size:12px;font-weight:700;color:var(--text-secondary);letter-spacing:0.05em;margin-bottom:8px;font-family:Orbitron,monospace">\uD83C\uDFC6 ACHIEVEMENTS</div>
+              ${renderBadgeRow(getAchievements(t))}
             </div>
 
             ${t.growth ? `
@@ -3793,35 +3913,53 @@ if (typeof Chart !== 'undefined') {
     function renderProgression() {
       const thresholds = { C: 78, B: 85, A: 92, S: 100 };
       const nextTier = { C: 'B', B: 'A', A: 'S', S: null };
-      const tierColors = { S: '#FFD700', A: '#8B5CF6', B: '#3B82F6', C: '#9CA3AF' };
-      const nextTierColors = { B: '#3B82F6', A: '#8B5CF6', S: '#FFD700' };
-
-      const areas = [
-        { key: 'aptScore', name: 'Aptitude', weight: 30, tip: (s) => s < 70 ? 'Retake the aptitude test after studying weak areas' : s < 85 ? 'Review advanced topics to push score higher' : 'Strong — maintain through continued learning' },
-        { key: 'stScore', name: 'ST Performance', weight: 35, tip: (s) => s < 50 ? 'Focus on conversion rate and revenue generation' : s < 70 ? 'Improve lead generation and close rate' : s < 85 ? 'Fine-tune options per opportunity and memberships' : 'Performing at a high level' },
-        { key: 'mgrScore', name: 'Manager Score', weight: 15, tip: (s) => s < 60 ? 'Focus on communication, punctuality, and professionalism' : s < 80 ? 'Take initiative on callbacks and team collaboration' : 'Highly rated by management' },
-        { key: 'installScore', name: 'Installs', weight: 10, tip: (s) => s < 30 ? 'Seek install opportunities and close equipment replacements' : s < 60 ? 'Increase install count and average ticket size' : 'Solid install production' },
-        { key: 'reviewScore', name: 'Google Reviews', weight: 10, tip: (s) => s < 40 ? 'Ask satisfied customers for Google reviews after every job' : s < 70 ? 'Consistent review requests will move this up' : 'Good customer feedback presence' }
-      ];
-
-      // Sort by composite ascending so lowest-tier techs come first
-      const sorted = [...techs].sort((a, b) => getTechTier(a).composite - getTechTier(b).composite);
-
-      let html = '<div class="prog-grid">';
-
-      sorted.forEach(t => {
+      const tierNames = { C: 'Developing', B: 'Solid', A: 'Advanced', S: 'Elite' };
+      const tierIcons = { S: '\uD83D\uDC51', A: '\u2694\uFE0F', B: '\uD83D\uDEE1\uFE0F', C: '\uD83D\uDCDA' };
+      
+      const sorted = [...techs].sort((a, b) => getTechTier(b).composite - getTechTier(a).composite);
+      
+      // RPG Tier Map at the top
+      let html = '<div class="rpg-tier-map">';
+      html += '<div class="rpg-tier-map-title" style="font-family:Orbitron,monospace;font-size:16px;font-weight:700;text-align:center;margin-bottom:20px;color:var(--text-heading);">\u2694\uFE0F TIER PROGRESSION MAP \u2694\uFE0F</div>';
+      html += '<div class="rpg-tier-track">';
+      ['C', 'B', 'A', 'S'].forEach((tier, i) => {
+        const threshold = i === 0 ? 0 : thresholds[['C','B','A'][i-1]];
+        const techsInTier = sorted.filter(t => getTechTier(t).tier === tier);
+        const isActive = techsInTier.length > 0;
+        html += `<div class="rpg-tier-node ${isActive ? 'rpg-node-active' : 'rpg-node-locked'} rpg-node-${tier.toLowerCase()}">
+          <div class="rpg-node-icon">${tierIcons[tier]}</div>
+          <div class="rpg-node-label">${tier}-Tier</div>
+          <div class="rpg-node-sublabel">${tierNames[tier]}</div>
+          <div class="rpg-node-threshold">${i === 0 ? '<78' : threshold + '+ pts'}</div>
+          <div class="rpg-node-avatars">${techsInTier.map(t => 
+            techAvatars[t.short] 
+              ? '<img class="rpg-mini-avatar" src="' + techAvatars[t.short] + '" title="' + t.short + '">' 
+              : '<span class="rpg-mini-avatar-ph" style="background:' + t.color + '" title="' + t.short + '">' + t.initials + '</span>'
+          ).join('')}</div>
+        </div>`;
+        if (i < 3) html += '<div class="rpg-tier-connector"><div class="rpg-connector-line"></div><div class="rpg-connector-arrow">\u25B8</div></div>';
+      });
+      html += '</div></div>';
+      
+      // Individual tech progression cards
+      html += '<div class="prog-grid">';
+      sorted.forEach((t, idx) => {
         const info = getTechTier(t);
+        const xp = getXPData(t);
         const next = nextTier[info.tier];
         const target = next ? thresholds[info.tier] : null;
         const gap = target ? target - info.composite : 0;
-        const barPct = target ? Math.min((info.composite / target) * 100, 100) : 100;
-        const barColor = tierColors[info.tier];
-        const nextColor = next ? nextTierColors[next] : tierColors[info.tier];
 
-        // Identify weakest areas (biggest opportunity for improvement)
+        const areas = [
+          { key: 'aptScore', name: 'Aptitude', weight: 30, icon: '\uD83E\uDDE0', tip: (s) => s < 70 ? 'Retake aptitude test after studying weak areas' : s < 85 ? 'Review advanced topics to push score higher' : 'Strong \u2014 maintain through continued learning' },
+          { key: 'stScore', name: 'ST Performance', weight: 35, icon: '\uD83D\uDCCA', tip: (s) => s < 50 ? 'Focus on conversion rate and revenue' : s < 70 ? 'Improve lead gen and close rate' : s < 85 ? 'Fine-tune options/opp and memberships' : 'Performing at a high level' },
+          { key: 'mgrScore', name: 'Manager Score', weight: 15, icon: '\uD83D\uDCCB', tip: (s) => s < 60 ? 'Focus on communication and professionalism' : s < 80 ? 'Take initiative on callbacks and teamwork' : 'Highly rated by management' },
+          { key: 'installScore', name: 'Installs', weight: 10, icon: '\uD83C\uDFE0', tip: (s) => s < 30 ? 'Seek install opps and close equipment replacements' : s < 60 ? 'Increase install count and avg ticket' : 'Solid install production' },
+          { key: 'reviewScore', name: 'Google Reviews', weight: 10, icon: '\u2B50', tip: (s) => s < 40 ? 'Ask satisfied customers for reviews after every job' : s < 70 ? 'Consistent requests will move this up' : 'Good review presence' }
+        ];
+
         const areaScores = areas.map(a => ({
-          ...a,
-          score: info[a.key],
+          ...a, score: info[a.key],
           weighted: info[a.key] * (a.weight / 100),
           potential: (100 - info[a.key]) * (a.weight / 100)
         }));
@@ -3831,39 +3969,37 @@ if (typeof Chart !== 'undefined') {
           ? `<img class="prog-avatar" src="${techAvatars[t.short]}" alt="${t.name}">`
           : `<div class="prog-avatar-placeholder" style="background:${t.color}">${t.initials}</div>`;
 
+        const badges = getAchievements(t);
+
         html += `
-          <div class="prog-card">
+          <div class="prog-card card-animate" style="animation-delay:${idx * 0.1}s">
             <div class="prog-header">
               ${avatarHTML}
               <div>
                 <div class="prog-name">${t.name}</div>
-                <div class="prog-subtitle">${t.position} &bull; ${t.years} yrs</div>
+                <div class="prog-subtitle">${t.position} \u2022 ${t.years} yrs</div>
               </div>
               <div class="prog-badges">
                 ${tierBadgeHTML(info.tier)}
-                ${next ? `<span class="prog-arrow">&rarr;</span>${tierBadgeHTML(next)}<span class="prog-points-needed">+${gap} pts</span>` : '<span style="font-size:12px;color:var(--accent-gold);font-weight:700;">MAX TIER</span>'}
+                ${next ? `<span class="prog-arrow">\u2192</span>${tierBadgeHTML(next)}<span class="prog-points-needed">+${gap} pts</span>` : '<span style="font-size:12px;color:var(--accent-gold);font-weight:700;font-family:Orbitron,monospace">\u2605 MAX</span>'}
               </div>
             </div>
 
-            <div class="prog-bar-wrap">
-              <div class="prog-bar-label">
-                <span>Composite: ${info.composite}</span>
-                ${target ? `<span>Next tier: ${target}</span>` : '<span>S-Tier achieved</span>'}
-              </div>
-              <div class="prog-bar">
-                <div class="prog-bar-fill" style="width:${barPct}%;background:${barColor}"></div>
-                ${target ? `<div class="prog-bar-target" style="left:${(target / 100) * 100}%"></div>` : ''}
-              </div>
+            ${renderXPBar(t, 'lg')}
+
+            <div class="prog-achievement-section">
+              <div class="prog-achievement-title">\uD83C\uDFC6 Achievements (${badges.filter(b=>b.earned).length}/${badges.length})</div>
+              ${renderBadgeRow(badges)}
             </div>
 
             <div class="prog-areas">
               ${areaScores.map(a => {
                 const cls = a.score >= 80 ? 'is-strong' : a.score < 55 ? 'is-weak' : 'is-ok';
-                const fillColor = a.score >= 80 ? 'var(--accent-green)' : a.score < 55 ? 'var(--accent-red)' : barColor;
+                const fillColor = a.score >= 80 ? 'var(--accent-green)' : a.score < 55 ? 'var(--accent-red)' : 'var(--snappy-blue-light)';
                 return `
                   <div class="prog-area ${cls}">
                     <div class="prog-area-header">
-                      <span class="prog-area-name">${a.name} (${a.weight}%)</span>
+                      <span class="prog-area-name">${a.icon} ${a.name} (${a.weight}%)</span>
                       <span class="prog-area-score">${a.score}</span>
                     </div>
                     <div class="prog-area-bar">
@@ -3875,13 +4011,13 @@ if (typeof Chart !== 'undefined') {
               }).join('')}
               <div class="prog-area ${info.dispatchTagCount >= 4 ? 'is-strong' : info.dispatchTagCount >= 2 ? 'is-ok' : 'is-weak'}">
                 <div class="prog-area-header">
-                  <span class="prog-area-name">Dispatch Tags (+0.25/tag)</span>
+                  <span class="prog-area-name">\uD83D\uDE90 Dispatch Tags (+0.25/tag)</span>
                   <span class="prog-area-score">+${info.dispatchBonus}</span>
                 </div>
                 <div class="prog-area-bar">
-                  <div class="prog-area-bar-fill" style="width:${Math.min(info.dispatchTagCount / 5 * 100, 100)}%;background:${info.dispatchTagCount >= 4 ? 'var(--accent-green)' : info.dispatchTagCount >= 2 ? barColor : 'var(--accent-red)'}"></div>
+                  <div class="prog-area-bar-fill" style="width:${Math.min(info.dispatchTagCount / 5 * 100, 100)}%;background:${info.dispatchTagCount >= 4 ? 'var(--accent-green)' : info.dispatchTagCount >= 2 ? 'var(--snappy-blue-light)' : 'var(--accent-red)'}"></div>
                 </div>
-                <div class="prog-area-tip">${info.dispatchTagCount} dispatch tag${info.dispatchTagCount !== 1 ? 's' : ''} — each adds +0.25 to composite</div>
+                <div class="prog-area-tip">${info.dispatchTagCount} dispatch tag${info.dispatchTagCount !== 1 ? 's' : ''} \u2014 each adds +0.25 to composite</div>
               </div>
             </div>
           </div>
@@ -3891,6 +4027,7 @@ if (typeof Chart !== 'undefined') {
       html += '</div>';
       document.getElementById('progressionGrid').innerHTML = html;
     }
+
 
     // ========== MANAGER TAB ==========
     const MGR_STORAGE_KEY = 'snappy_manager_entries';

@@ -6543,3 +6543,397 @@
   pointer-events: auto;
 }
 
+
+/* ========== GAMIFICATION: XP BAR SYSTEM ========== */
+.xp-bar-wrap {
+  margin: 10px 0;
+  padding: 10px 14px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: 10px;
+}
+.xp-bar-lg {
+  padding: 14px 18px;
+  background: rgba(15, 23, 42, 0.7);
+  border-radius: 12px;
+}
+.xp-bar-sm {
+  padding: 6px 10px;
+  margin: 6px 0;
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 8px;
+}
+.xp-bar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.xp-tier-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.xp-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.xp-values {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent-teal);
+  font-weight: 600;
+}
+.xp-bar-track {
+  position: relative;
+  height: 20px;
+  background: rgba(30, 41, 59, 0.8);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(51, 65, 85, 0.3);
+}
+.xp-bar-lg .xp-bar-track {
+  height: 26px;
+  border-radius: 13px;
+}
+.xp-bar-sm .xp-bar-track {
+  height: 14px;
+  border-radius: 7px;
+}
+.xp-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.xp-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+  animation: xpShimmer 2s ease-in-out infinite;
+}
+@keyframes xpShimmer {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(50%); }
+}
+.tier-fill-s {
+  background: linear-gradient(90deg, #fbbf24, #f97316, #ef4444, #8b5cf6, #06b6d4, #10b981);
+  background-size: 200% 100%;
+  animation: tierSGradient 3s ease infinite;
+}
+@keyframes tierSGradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.tier-fill-a {
+  background: linear-gradient(90deg, #dc2626, #ef4444, #f87171);
+}
+.tier-fill-b {
+  background: linear-gradient(90deg, #1e40af, #3b82f6, #60a5fa);
+}
+.tier-fill-c {
+  background: linear-gradient(90deg, #475569, #64748b, #94a3b8);
+}
+.xp-bar-text {
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  position: relative;
+  z-index: 1;
+}
+.xp-bar-sm .xp-bar-text { font-size: 8px; }
+.xp-bar-marker {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--accent-gold);
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
+}
+.xp-bar-marker span {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: var(--accent-gold);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.xp-bar-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.xp-bar-sm .xp-bar-footer { font-size: 10px; margin-top: 3px; }
+.xp-near-levelup {
+  animation: nearLevelUpPulse 2s ease-in-out infinite;
+}
+@keyframes nearLevelUpPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(251, 191, 36, 0); }
+  50% { box-shadow: 0 0 16px rgba(251, 191, 36, 0.3), 0 0 32px rgba(251, 191, 36, 0.1); }
+}
+
+/* ========== GAMIFICATION: ACHIEVEMENT BADGES ========== */
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.achievement-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  cursor: default;
+}
+.achievement-badge:hover {
+  transform: translateY(-2px);
+}
+.badge-gold {
+  background: rgba(251, 191, 36, 0.15);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.15);
+}
+.badge-gold:hover {
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.3);
+}
+.badge-silver {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+  box-shadow: 0 0 8px rgba(148, 163, 184, 0.1);
+}
+.badge-bronze {
+  background: rgba(180, 130, 80, 0.15);
+  border-color: rgba(180, 130, 80, 0.3);
+  color: #d4a574;
+}
+.badge-locked {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(51, 65, 85, 0.3);
+  color: var(--text-muted);
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+.badge-locked:hover {
+  opacity: 0.7;
+  filter: grayscale(0.5);
+}
+.badge-icon {
+  font-size: 14px;
+}
+.badge-name {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.prog-achievement-section {
+  margin: 12px 0;
+  padding: 12px 14px;
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 10px;
+  border: 1px solid rgba(59, 130, 246, 0.1);
+}
+.prog-achievement-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+/* ========== GAMIFICATION: LEADERBOARD ========== */
+.leaderboard-card {
+  position: relative;
+  padding-left: 56px !important;
+}
+.leaderboard-rank {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  font-weight: 800;
+  width: 36px;
+  text-align: center;
+  font-family: 'Orbitron', monospace;
+  color: var(--text-muted);
+}
+.rank-gold {
+  color: #fbbf24;
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.4));
+  font-size: 24px;
+}
+.rank-silver {
+  color: #cbd5e1;
+  font-size: 22px;
+}
+.rank-bronze {
+  color: #d4a574;
+  font-size: 22px;
+}
+.ov-snap-badges {
+  font-size: 10px;
+  color: var(--accent-teal);
+  font-weight: 600;
+  margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ========== GAMIFICATION: RPG TIER MAP ========== */
+.rpg-tier-map {
+  margin-bottom: 28px;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+}
+.rpg-tier-track {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  overflow-x: auto;
+  padding: 10px 0;
+}
+.rpg-tier-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 20px;
+  min-width: 120px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  transition: all 0.3s;
+  position: relative;
+}
+.rpg-node-active {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+}
+.rpg-node-locked {
+  background: rgba(15, 23, 42, 0.4);
+  border-color: rgba(51, 65, 85, 0.2);
+  opacity: 0.5;
+}
+.rpg-node-s.rpg-node-active {
+  border-color: rgba(251, 191, 36, 0.4);
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.15);
+}
+.rpg-node-a.rpg-node-active {
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.15);
+}
+.rpg-node-b.rpg-node-active {
+  border-color: rgba(59, 130, 246, 0.4);
+}
+.rpg-node-icon {
+  font-size: 28px;
+  margin-bottom: 6px;
+}
+.rpg-node-label {
+  font-family: 'Orbitron', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+.rpg-node-sublabel {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.rpg-node-threshold {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 4px;
+}
+.rpg-node-avatars {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.rpg-mini-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(59, 130, 246, 0.3);
+}
+.rpg-mini-avatar-ph {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+}
+.rpg-tier-connector {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+}
+.rpg-connector-line {
+  width: 30px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.3), rgba(59, 130, 246, 0.6));
+}
+.rpg-connector-arrow {
+  color: rgba(59, 130, 246, 0.5);
+  font-size: 14px;
+}
+
+/* Responsive RPG map */
+@media (max-width: 768px) {
+  .rpg-tier-track {
+    flex-direction: column;
+  }
+  .rpg-tier-connector {
+    transform: rotate(90deg);
+    padding: 4px 0;
+  }
+  .rpg-tier-node {
+    min-width: auto;
+    width: 100%;
+  }
+  .leaderboard-card {
+    padding-left: 14px !important;
+  }
+  .leaderboard-rank {
+    position: static;
+    transform: none;
+    margin-bottom: 4px;
+  }
+}
