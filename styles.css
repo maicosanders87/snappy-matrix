@@ -1002,21 +1002,24 @@
     .rookie-tier-a .rookie-stat-label { color: rgba(252,165,165,0.5); }
     .rookie-tier-a .rookie-composite-label { color: rgba(252,165,165,0.5); }
 
-    /* S-TIER: Holographic — animated gradient overlay, rainbow shimmer, sparkle glow */
+    /* S-TIER: Holographic — animated gradient overlay, rainbow shimmer, sparkle glow, light streaks */
     .rookie-tier-s {
       background:
-        radial-gradient(ellipse at 25% 85%, rgba(255,215,0,0.2) 0%, transparent 50%),
-        radial-gradient(ellipse at 75% 15%, rgba(255,107,107,0.15) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 50%, rgba(139,92,246,0.12) 0%, transparent 60%),
-        radial-gradient(ellipse at 10% 30%, rgba(77,150,255,0.12) 0%, transparent 45%),
+        radial-gradient(ellipse at 25% 85%, rgba(255,215,0,0.25) 0%, transparent 50%),
+        radial-gradient(ellipse at 75% 15%, rgba(255,107,107,0.2) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(139,92,246,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 10% 30%, rgba(77,150,255,0.15) 0%, transparent 45%),
+        radial-gradient(ellipse at 90% 70%, rgba(107,203,119,0.12) 0%, transparent 45%),
         linear-gradient(160deg, #1A1520 0%, #1F1A2E 25%, #1A2530 50%, #2A1F15 75%, #201A1A 100%);
       box-shadow:
-        0 4px 30px rgba(255,215,0,0.25),
-        0 4px 30px rgba(139,92,246,0.2),
-        0 4px 30px rgba(255,107,107,0.15),
+        0 4px 30px rgba(255,215,0,0.3),
+        0 4px 30px rgba(139,92,246,0.25),
+        0 4px 30px rgba(255,107,107,0.2),
+        0 0 60px rgba(255,215,0,0.08),
         0 1px 4px rgba(0,0,0,0.15);
       animation: rookieHoloShimmer 5s ease infinite;
     }
+    /* Holographic sweep — animated rainbow gradient overlay */
     .rookie-tier-s::before {
       content: '';
       position: absolute;
@@ -1024,60 +1027,111 @@
       border-radius: 14px;
       background: linear-gradient(
         135deg,
-        rgba(255,215,0,0.06) 0%,
-        rgba(255,107,107,0.06) 20%,
-        rgba(139,92,246,0.06) 40%,
-        rgba(77,150,255,0.06) 60%,
-        rgba(107,203,119,0.06) 80%,
-        rgba(255,215,0,0.06) 100%
+        rgba(255,215,0,0.08) 0%,
+        rgba(255,107,107,0.08) 16%,
+        rgba(139,92,246,0.08) 33%,
+        rgba(77,150,255,0.08) 50%,
+        rgba(107,203,119,0.08) 66%,
+        rgba(255,215,0,0.08) 83%,
+        rgba(255,107,107,0.08) 100%
       );
-      background-size: 300% 300%;
-      animation: rookieHoloGradient 8s ease infinite;
+      background-size: 400% 400%;
+      animation: rookieHoloGradient 6s ease infinite;
       z-index: 0;
       pointer-events: none;
     }
+    /* Diagonal light streak — sweeps across the card */
+    .rookie-tier-s::after {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: linear-gradient(
+        115deg,
+        transparent 0%,
+        transparent 40%,
+        rgba(255,255,255,0.06) 45%,
+        rgba(255,255,255,0.12) 50%,
+        rgba(255,255,255,0.06) 55%,
+        transparent 60%,
+        transparent 100%
+      );
+      animation: rookieLightStreak 4s ease-in-out infinite;
+      z-index: 1;
+      pointer-events: none;
+      border-radius: 14px;
+    }
+    @keyframes rookieLightStreak {
+      0% { transform: translateX(-80%) translateY(-20%) rotate(0deg); opacity: 0; }
+      15% { opacity: 1; }
+      50% { transform: translateX(80%) translateY(20%) rotate(0deg); opacity: 1; }
+      65% { opacity: 0; }
+      100% { transform: translateX(80%) translateY(20%) rotate(0deg); opacity: 0; }
+    }
     @keyframes rookieHoloGradient {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+      0% { background-position: 0% 0%; }
+      25% { background-position: 100% 50%; }
+      50% { background-position: 50% 100%; }
+      75% { background-position: 0% 50%; }
+      100% { background-position: 0% 0%; }
     }
     @keyframes rookieHoloShimmer {
       0%, 100% {
         box-shadow:
-          0 4px 30px rgba(255,215,0,0.3),
-          0 4px 30px rgba(139,92,246,0.2),
-          0 4px 30px rgba(255,107,107,0.1);
+          0 4px 35px rgba(255,215,0,0.35),
+          0 4px 30px rgba(139,92,246,0.25),
+          0 4px 30px rgba(255,107,107,0.15),
+          0 0 60px rgba(255,215,0,0.08);
       }
       33% {
         box-shadow:
-          0 4px 30px rgba(255,107,107,0.3),
-          0 4px 30px rgba(77,150,255,0.2),
-          0 4px 30px rgba(107,203,119,0.1);
+          0 4px 35px rgba(255,107,107,0.35),
+          0 4px 30px rgba(77,150,255,0.25),
+          0 4px 30px rgba(107,203,119,0.15),
+          0 0 60px rgba(139,92,246,0.08);
       }
       66% {
         box-shadow:
-          0 4px 30px rgba(107,203,119,0.3),
-          0 4px 30px rgba(255,215,0,0.2),
-          0 4px 30px rgba(139,92,246,0.1);
+          0 4px 35px rgba(107,203,119,0.35),
+          0 4px 30px rgba(255,215,0,0.25),
+          0 4px 30px rgba(139,92,246,0.15),
+          0 0 60px rgba(77,150,255,0.08);
       }
     }
     .rookie-tier-s:hover {
       box-shadow:
-        0 12px 50px rgba(255,215,0,0.4),
-        0 8px 40px rgba(139,92,246,0.3),
-        0 8px 40px rgba(255,107,107,0.2);
+        0 12px 60px rgba(255,215,0,0.45),
+        0 8px 50px rgba(139,92,246,0.35),
+        0 8px 50px rgba(255,107,107,0.25),
+        0 0 80px rgba(255,215,0,0.12);
+    }
+    /* S-tier golden aura breathing on flip container */
+    .rookie-flip-container:has(.rookie-tier-s) {
+      animation: sTierAuraPulse 3s ease-in-out infinite;
+      border-radius: 16px;
+    }
+    @keyframes sTierAuraPulse {
+      0%, 100% {
+        filter: drop-shadow(0 0 8px rgba(255,215,0,0.15)) drop-shadow(0 0 20px rgba(139,92,246,0.08));
+      }
+      50% {
+        filter: drop-shadow(0 0 16px rgba(255,215,0,0.3)) drop-shadow(0 0 35px rgba(139,92,246,0.15));
+      }
     }
     .rookie-tier-s .rookie-stat {
       background: rgba(255,215,0,0.08);
       border-color: rgba(255,215,0,0.15);
     }
-    .rookie-tier-s .rookie-stat-value { color: #FDE68A; }
+    .rookie-tier-s .rookie-stat-value { color: #FDE68A; text-shadow: 0 0 8px rgba(255,215,0,0.3); }
     .rookie-tier-s .rookie-composite {
       background: rgba(255,215,0,0.08);
       border-color: rgba(255,215,0,0.15);
     }
-    .rookie-tier-s .rookie-composite-score { color: #FCD34D; }
-    .rookie-tier-s .rookie-cert { background: rgba(255,215,0,0.12); color: #FDE68A; }
+    .rookie-tier-s .rookie-composite-score { color: #FCD34D; text-shadow: 0 0 12px rgba(255,215,0,0.4); }
+    .rookie-tier-s .rookie-cert { background: rgba(255,215,0,0.12); color: #FDE68A; text-shadow: 0 0 6px rgba(255,215,0,0.25); }
+    .rookie-tier-s .rookie-name-overlay { text-shadow: 0 0 10px rgba(255,215,0,0.3), 0 1px 2px rgba(0,0,0,0.5); }
+    .rookie-tier-s .rookie-meta-overlay { text-shadow: 0 0 8px rgba(255,215,0,0.15); }
+    .rookie-tier-s .rookie-tag { text-shadow: 0 0 6px rgba(255,215,0,0.2); }
     .rookie-card-border {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -1092,9 +1146,16 @@
     .rookie-card-border.tier-s {
       border: 3px solid transparent;
       background: linear-gradient(135deg, #FF6B6B, #FFD93D, #6BCB77, #4D96FF, #9B59B6, #FF6B6B) border-box;
+      background-size: 300% 300%;
+      animation: sTierBorderRotate 4s linear infinite;
       -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
       -webkit-mask-composite: xor;
       mask-composite: exclude;
+    }
+    @keyframes sTierBorderRotate {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
     }
     .rookie-tier-badge {
       position: absolute;
@@ -1112,7 +1173,19 @@
     .rookie-tier-badge.tier-c { background: linear-gradient(135deg, #78909C, #546E7A); color: #ECEFF1; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
     .rookie-tier-badge.tier-b { background: linear-gradient(135deg, #4A90D9, #2563EB); color: #EBF5FF; }
     .rookie-tier-badge.tier-a { background: linear-gradient(135deg, #EF4444, #B91C1C); color: #FEF2F2; text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-    .rookie-tier-badge.tier-s { background: linear-gradient(135deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    .rookie-tier-badge.tier-s {
+      background: linear-gradient(135deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF, #6BCB77, #FFD700);
+      background-size: 300% 300%;
+      animation: sTierBadgeShift 3s ease infinite;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35), 0 0 12px rgba(255,215,0,0.3);
+    }
+    @keyframes sTierBadgeShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
     .rookie-avatar-wrap {
       width: 100%;
       aspect-ratio: 4 / 3;
