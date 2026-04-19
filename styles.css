@@ -1137,68 +1137,127 @@
     .rookie-tier-s .rookie-avatar-wrap {
       overflow: hidden;
     }
-    /* Layer 1: Flickering warm glow — pulses orange/gold behind avatar */
-    .rookie-tier-s .rookie-avatar-wrap::before {
-      content: '';
+
+    /* Flame container — holds individual flame tongues */
+    .s-tier-flames {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
-      background:
-        radial-gradient(ellipse at 30% 80%, rgba(255,165,0,0.35) 0%, transparent 50%),
-        radial-gradient(ellipse at 70% 75%, rgba(255,69,0,0.3) 0%, transparent 45%),
-        radial-gradient(ellipse at 50% 60%, rgba(255,215,0,0.2) 0%, transparent 55%),
-        radial-gradient(ellipse at 20% 40%, rgba(255,0,100,0.15) 0%, transparent 40%),
-        radial-gradient(ellipse at 80% 30%, rgba(139,92,246,0.15) 0%, transparent 40%);
-      animation: sFlameFlicker 2s ease-in-out infinite alternate;
       z-index: 1;
       pointer-events: none;
-      mix-blend-mode: screen;
+      overflow: hidden;
     }
-    @keyframes sFlameFlicker {
-      0% {
-        opacity: 0.4;
-        transform: scale(1) translateY(0);
-      }
-      25% {
-        opacity: 0.6;
-        transform: scale(1.02) translateY(-1%);
-      }
-      50% {
-        opacity: 0.35;
-        transform: scale(0.98) translateY(1%);
-      }
-      75% {
-        opacity: 0.55;
-        transform: scale(1.01) translateY(-0.5%);
-      }
-      100% {
-        opacity: 0.5;
-        transform: scale(1) translateY(0);
-      }
-    }
-    /* Layer 2: Rising heat shimmer — wavy distortion overlay */
-    .rookie-tier-s .rookie-avatar-wrap::after {
-      content: '';
+    /* Individual flame tongue — tall ellipse that sways and flickers */
+    .s-flame {
       position: absolute;
-      top: -10%; left: -10%; right: -10%; bottom: -10%;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent 0px,
-        rgba(255,200,50,0.03) 2px,
-        transparent 4px,
-        rgba(255,120,0,0.02) 6px,
-        transparent 8px
-      );
-      animation: sHeatRise 3s linear infinite;
-      z-index: 2;
-      pointer-events: none;
-      mix-blend-mode: overlay;
+      bottom: 0;
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+      filter: blur(6px);
+      mix-blend-mode: screen;
+      transform-origin: bottom center;
     }
-    @keyframes sHeatRise {
-      0% { transform: translateY(0) scaleX(1); }
-      50% { transform: translateY(-4%) scaleX(1.01); }
-      100% { transform: translateY(-8%) scaleX(1); }
+    /* — Left edge flames — */
+    .s-flame:nth-child(1) {
+      left: -4%; width: 28%; height: 80%;
+      background: radial-gradient(ellipse at 50% 80%, rgba(255,165,0,0.7) 0%, rgba(255,69,0,0.4) 40%, transparent 70%);
+      animation: sFlameDance1 1.8s ease-in-out infinite alternate;
     }
-    /* Layer 3: Floating diamond sparkles — CSS-only particles */
+    .s-flame:nth-child(2) {
+      left: 3%; width: 22%; height: 65%;
+      background: radial-gradient(ellipse at 50% 80%, rgba(255,215,0,0.6) 0%, rgba(255,140,0,0.35) 45%, transparent 70%);
+      animation: sFlameDance2 2.2s ease-in-out infinite alternate;
+      animation-delay: -0.4s;
+    }
+    .s-flame:nth-child(3) {
+      left: 8%; width: 18%; height: 55%;
+      background: radial-gradient(ellipse at 50% 75%, rgba(255,0,100,0.5) 0%, rgba(200,0,80,0.3) 50%, transparent 70%);
+      animation: sFlameDance3 1.5s ease-in-out infinite alternate;
+      animation-delay: -0.8s;
+    }
+    /* — Right edge flames — */
+    .s-flame:nth-child(4) {
+      right: -4%; left: auto; width: 28%; height: 78%;
+      background: radial-gradient(ellipse at 50% 80%, rgba(255,69,0,0.65) 0%, rgba(220,20,60,0.4) 40%, transparent 70%);
+      animation: sFlameDance1 2s ease-in-out infinite alternate;
+      animation-delay: -0.6s;
+    }
+    .s-flame:nth-child(5) {
+      right: 3%; left: auto; width: 22%; height: 60%;
+      background: radial-gradient(ellipse at 50% 80%, rgba(255,215,0,0.55) 0%, rgba(255,165,0,0.35) 45%, transparent 70%);
+      animation: sFlameDance2 1.7s ease-in-out infinite alternate;
+      animation-delay: -1s;
+    }
+    .s-flame:nth-child(6) {
+      right: 8%; left: auto; width: 18%; height: 50%;
+      background: radial-gradient(ellipse at 50% 75%, rgba(139,92,246,0.45) 0%, rgba(255,0,100,0.3) 50%, transparent 70%);
+      animation: sFlameDance3 2.4s ease-in-out infinite alternate;
+      animation-delay: -0.2s;
+    }
+    /* — Top flames (behind head) — */
+    .s-flame:nth-child(7) {
+      left: 20%; top: -10%; bottom: auto; width: 25%; height: 50%;
+      background: radial-gradient(ellipse at 50% 90%, rgba(255,140,0,0.5) 0%, rgba(255,69,0,0.3) 50%, transparent 70%);
+      animation: sFlameTop1 2.1s ease-in-out infinite alternate;
+      border-radius: 50%;
+    }
+    .s-flame:nth-child(8) {
+      right: 20%; left: auto; top: -8%; bottom: auto; width: 25%; height: 45%;
+      background: radial-gradient(ellipse at 50% 90%, rgba(255,215,0,0.45) 0%, rgba(255,107,107,0.3) 50%, transparent 70%);
+      animation: sFlameTop2 1.9s ease-in-out infinite alternate;
+      animation-delay: -0.7s;
+      border-radius: 50%;
+    }
+    .s-flame:nth-child(9) {
+      left: 35%; top: -15%; bottom: auto; width: 30%; height: 45%;
+      background: radial-gradient(ellipse at 50% 85%, rgba(255,0,100,0.4) 0%, rgba(139,92,246,0.25) 50%, transparent 70%);
+      animation: sFlameTop1 2.5s ease-in-out infinite alternate;
+      animation-delay: -1.2s;
+      border-radius: 50%;
+    }
+    /* — Bottom base glow — */
+    .s-flame:nth-child(10) {
+      left: 5%; width: 90%; height: 35%; bottom: -5%;
+      background: radial-gradient(ellipse at 50% 100%, rgba(255,165,0,0.6) 0%, rgba(255,69,0,0.3) 40%, transparent 70%);
+      animation: sFlameBase 1.5s ease-in-out infinite alternate;
+      filter: blur(10px);
+      border-radius: 50%;
+    }
+
+    /* Flame sway keyframes — different patterns for natural look */
+    @keyframes sFlameDance1 {
+      0%   { transform: scaleY(1) scaleX(1) rotate(-3deg); opacity: 0.7; }
+      25%  { transform: scaleY(1.12) scaleX(0.92) rotate(2deg); opacity: 0.9; }
+      50%  { transform: scaleY(0.95) scaleX(1.05) rotate(-1deg); opacity: 0.65; }
+      75%  { transform: scaleY(1.08) scaleX(0.96) rotate(3deg); opacity: 0.85; }
+      100% { transform: scaleY(1) scaleX(1) rotate(-2deg); opacity: 0.75; }
+    }
+    @keyframes sFlameDance2 {
+      0%   { transform: scaleY(1) scaleX(1) rotate(2deg); opacity: 0.65; }
+      33%  { transform: scaleY(1.15) scaleX(0.88) rotate(-3deg); opacity: 0.85; }
+      66%  { transform: scaleY(0.9) scaleX(1.08) rotate(1deg); opacity: 0.6; }
+      100% { transform: scaleY(1.05) scaleX(0.95) rotate(-1deg); opacity: 0.8; }
+    }
+    @keyframes sFlameDance3 {
+      0%   { transform: scaleY(1) rotate(1deg); opacity: 0.6; }
+      50%  { transform: scaleY(1.2) rotate(-4deg); opacity: 0.9; }
+      100% { transform: scaleY(0.92) rotate(2deg); opacity: 0.55; }
+    }
+    @keyframes sFlameTop1 {
+      0%   { transform: scaleY(1) translateY(0) rotate(0deg); opacity: 0.5; }
+      50%  { transform: scaleY(1.2) translateY(-8%) rotate(3deg); opacity: 0.8; }
+      100% { transform: scaleY(0.9) translateY(3%) rotate(-2deg); opacity: 0.45; }
+    }
+    @keyframes sFlameTop2 {
+      0%   { transform: scaleY(1) translateY(0) rotate(0deg); opacity: 0.55; }
+      50%  { transform: scaleY(1.15) translateY(-10%) rotate(-3deg); opacity: 0.75; }
+      100% { transform: scaleY(0.95) translateY(2%) rotate(2deg); opacity: 0.5; }
+    }
+    @keyframes sFlameBase {
+      0%   { transform: scaleX(1) scaleY(1); opacity: 0.5; }
+      50%  { transform: scaleX(1.05) scaleY(1.15); opacity: 0.7; }
+      100% { transform: scaleX(0.98) scaleY(0.95); opacity: 0.45; }
+    }
+
+    /* Floating diamond sparkles */
     .s-tier-sparkles {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -1210,39 +1269,41 @@
       position: absolute;
       width: 6px;
       height: 6px;
-      background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,215,0,0.6) 40%, transparent 70%);
-      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,215,0,0.7) 35%, transparent 65%);
+      border-radius: 1px;
+      transform: rotate(45deg);
       animation: sSparkleFloat 4s ease-in-out infinite;
-      box-shadow: 0 0 6px rgba(255,215,0,0.5), 0 0 12px rgba(255,255,255,0.3);
+      box-shadow: 0 0 8px rgba(255,215,0,0.7), 0 0 16px rgba(255,255,255,0.4);
     }
-    .s-tier-sparkle:nth-child(1) { left: 12%; top: 65%; animation-delay: 0s; animation-duration: 3.5s; width: 5px; height: 5px; }
-    .s-tier-sparkle:nth-child(2) { left: 28%; top: 72%; animation-delay: 0.8s; animation-duration: 4.2s; width: 4px; height: 4px; }
-    .s-tier-sparkle:nth-child(3) { left: 55%; top: 58%; animation-delay: 1.5s; animation-duration: 3.8s; width: 7px; height: 7px; }
-    .s-tier-sparkle:nth-child(4) { left: 75%; top: 70%; animation-delay: 2.2s; animation-duration: 4.5s; width: 5px; height: 5px; }
-    .s-tier-sparkle:nth-child(5) { left: 88%; top: 50%; animation-delay: 0.4s; animation-duration: 3.2s; width: 4px; height: 4px; }
-    .s-tier-sparkle:nth-child(6) { left: 40%; top: 80%; animation-delay: 1.8s; animation-duration: 4s; width: 6px; height: 6px; }
-    .s-tier-sparkle:nth-child(7) { left: 65%; top: 40%; animation-delay: 2.8s; animation-duration: 3.6s; width: 3px; height: 3px; }
-    .s-tier-sparkle:nth-child(8) { left: 8%; top: 35%; animation-delay: 1.2s; animation-duration: 4.8s; width: 5px; height: 5px; }
+    .s-tier-sparkle:nth-child(1) { left: 8%;  top: 60%; animation-delay: 0s;   animation-duration: 3s;   width: 6px; height: 6px; }
+    .s-tier-sparkle:nth-child(2) { left: 22%; top: 70%; animation-delay: 0.6s; animation-duration: 3.5s; width: 5px; height: 5px; }
+    .s-tier-sparkle:nth-child(3) { left: 50%; top: 50%; animation-delay: 1.2s; animation-duration: 3.2s; width: 8px; height: 8px; }
+    .s-tier-sparkle:nth-child(4) { left: 72%; top: 65%; animation-delay: 1.8s; animation-duration: 4s;   width: 6px; height: 6px; }
+    .s-tier-sparkle:nth-child(5) { left: 90%; top: 45%; animation-delay: 0.3s; animation-duration: 2.8s; width: 5px; height: 5px; }
+    .s-tier-sparkle:nth-child(6) { left: 35%; top: 75%; animation-delay: 2.2s; animation-duration: 3.8s; width: 7px; height: 7px; }
+    .s-tier-sparkle:nth-child(7) { left: 62%; top: 35%; animation-delay: 2.8s; animation-duration: 3.3s; width: 4px; height: 4px; }
+    .s-tier-sparkle:nth-child(8) { left: 15%; top: 30%; animation-delay: 1.5s; animation-duration: 4.2s; width: 5px; height: 5px; }
     @keyframes sSparkleFloat {
-      0% { transform: translateY(0) scale(0.5); opacity: 0; }
-      15% { opacity: 1; transform: translateY(-10px) scale(1); }
-      50% { opacity: 0.8; transform: translateY(-30px) scale(0.8); }
-      85% { opacity: 0.3; transform: translateY(-50px) scale(0.5); }
-      100% { transform: translateY(-60px) scale(0.2); opacity: 0; }
+      0%   { transform: translateY(0) rotate(45deg) scale(0.3); opacity: 0; }
+      10%  { opacity: 1; transform: translateY(-8px) rotate(45deg) scale(1); }
+      40%  { opacity: 0.9; transform: translateY(-25px) rotate(135deg) scale(0.9); }
+      70%  { opacity: 0.5; transform: translateY(-45px) rotate(225deg) scale(0.6); }
+      100% { transform: translateY(-65px) rotate(315deg) scale(0.2); opacity: 0; }
     }
-    /* Layer 4: Color cycling overlay — shifts the flame hues */
+
+    /* Color cycling overlay — shifts flame hues */
     .s-tier-color-cycle {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
-      z-index: 1;
+      z-index: 2;
       pointer-events: none;
       background: linear-gradient(
         180deg,
-        rgba(255,215,0,0.08) 0%,
-        rgba(255,69,0,0.06) 30%,
-        rgba(255,0,100,0.05) 50%,
-        rgba(139,92,246,0.06) 70%,
-        rgba(77,150,255,0.05) 100%
+        rgba(255,215,0,0.06) 0%,
+        rgba(255,69,0,0.05) 30%,
+        rgba(255,0,100,0.04) 50%,
+        rgba(139,92,246,0.05) 70%,
+        rgba(77,150,255,0.04) 100%
       );
       background-size: 100% 300%;
       animation: sColorCycle 5s ease infinite;

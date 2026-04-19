@@ -3393,6 +3393,12 @@ window.addEventListener('load', () => {
                 <div class="rookie-tier-badge tier-s">S-TIER</div>
                 <div class="rookie-avatar-wrap">
                   <img src="maico_avatar.png" alt="Mark Sanders">
+                  <div class="s-tier-flames">
+                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
+                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
+                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
+                    <div class="s-flame"></div>
+                  </div>
                   <div class="s-tier-sparkles">
                     <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
                     <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
@@ -3660,6 +3666,12 @@ window.addEventListener('load', () => {
                       : `<div class="initials-circle" style="background:${t.color}">${t.initials}</div>`
                     }
                     ${tierLower === 's' ? `
+                      <div class="s-tier-flames">
+                        <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
+                        <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
+                        <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
+                        <div class="s-flame"></div>
+                      </div>
                       <div class="s-tier-sparkles">
                         <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
                         <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
