@@ -5340,8 +5340,8 @@ window.addEventListener('load', () => {
       const dz = document.getElementById('tfDropzone');
       dz.classList.remove('has-file');
       dz.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <div>Drop file here or click to browse</div>
-        <div style="font-size:10px;margin-top:4px;opacity:0.7">PDF, images, text — max 4 MB</div>`;
+        <div>Drop files here or click to browse</div>
+        <div style="font-size:10px;margin-top:4px;opacity:0.7">PDF, images, text — max 4 MB each · select multiple</div>`;
     }
 
     function tfHandleFile(file) {
@@ -5366,6 +5366,69 @@ window.addEventListener('load', () => {
         }
       };
       reader.readAsDataURL(file);
+    }
+
+    // Batch upload: auto-creates entries for multiple files without the modal form
+    async function tfHandleMultipleFiles(fileList) {
+      if (!tfFiles[tfSelectedTech]) tfFiles[tfSelectedTech] = [];
+      var skipped = 0;
+      var added = 0;
+      var typeEl = document.getElementById('tfType');
+      var defaultType = typeEl ? typeEl.value : 'photo';
+
+      // Close modal if open
+      tfCloseUpload();
+      _tfShowCloudStatus('syncing');
+
+      for (var i = 0; i < fileList.length; i++) {
+        var f = fileList[i];
+        if (f.size > 4 * 1024 * 1024) {
+          skipped++;
+          continue;
+        }
+        // Read file as data URL
+        var dataUrl = await new Promise(function(resolve) {
+          var reader = new FileReader();
+          reader.onload = function() { resolve(reader.result); };
+          reader.onerror = function() { resolve(null); };
+          reader.readAsDataURL(f);
+        });
+        if (!dataUrl) { skipped++; continue; }
+
+        // Auto-detect type from file extension
+        var ext = (f.name.match(/\.([^.]+)$/) || [])[1] || '';
+        ext = ext.toLowerCase();
+        var fileType = defaultType;
+        if (['png','jpg','jpeg','gif','webp'].indexOf(ext) > -1) fileType = 'photo';
+        else if (ext === 'pdf') fileType = 'other';
+
+        var autoTitle = f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+        var newId = Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+        tfFiles[tfSelectedTech].push({
+          id: newId,
+          type: fileType,
+          title: autoTitle,
+          notes: '',
+          fileName: f.name,
+          fileSize: f.size,
+          fileData: dataUrl,
+          date: new Date().toISOString()
+        });
+        added++;
+      }
+
+      tfRender();
+      await tfSaveAndConfirm();
+
+      // Show result toast
+      var msg = added + ' file' + (added !== 1 ? 's' : '') + ' added to ' + tfSelectedTech;
+      if (skipped) msg += ' (' + skipped + ' skipped — over 4 MB)';
+      var el = document.getElementById('tfCloudStatus');
+      if (el) {
+        el.className = 'tf-cloud-toast tf-cloud-saved';
+        el.innerHTML = '\u2601\uFE0F \u2713 ' + msg;
+        setTimeout(function() { el.classList.add('tf-cloud-hide'); }, 4000);
+      }
     }
 
     function tfSaveFile() {
@@ -5520,13 +5583,24 @@ window.addEventListener('load', () => {
       const dz = document.getElementById('tfDropzone');
       const fi = document.getElementById('tfFileInput');
       dz.addEventListener('click', () => fi.click());
-      fi.addEventListener('change', () => { if (fi.files[0]) tfHandleFile(fi.files[0]); });
+      fi.addEventListener('change', () => {
+        if (fi.files.length > 1) {
+          tfHandleMultipleFiles(fi.files);
+        } else if (fi.files[0]) {
+          tfHandleFile(fi.files[0]);
+        }
+        fi.value = ''; // reset so same files can be re-selected
+      });
       dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
       dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
       dz.addEventListener('drop', (e) => {
         e.preventDefault();
         dz.classList.remove('dragover');
-        if (e.dataTransfer.files[0]) tfHandleFile(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files.length > 1) {
+          tfHandleMultipleFiles(e.dataTransfer.files);
+        } else if (e.dataTransfer.files[0]) {
+          tfHandleFile(e.dataTransfer.files[0]);
+        }
       });
     })();
 

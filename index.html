@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260418v28">
+  <link rel="stylesheet" href="styles.css?v=20260418v29">
 </head>
 <body>
   <div class="container">
@@ -453,10 +453,10 @@
         <textarea id="tfNotes" placeholder="Context for this file — what to discuss in 1-on-1..."></textarea>
         <div class="tf-dropzone" id="tfDropzone">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <div>Drop file here or click to browse</div>
-          <div style="font-size:10px;margin-top:4px;opacity:0.7">PDF, images, text — max 4 MB</div>
+          <div>Drop files here or click to browse</div>
+          <div style="font-size:10px;margin-top:4px;opacity:0.7">PDF, images, text — max 4 MB each · select multiple</div>
         </div>
-        <input type="file" id="tfFileInput" style="display:none" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.doc,.docx,.csv">
+        <input type="file" id="tfFileInput" style="display:none" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.doc,.docx,.csv" multiple>
         <div class="tf-modal-actions">
           <button class="tf-cancel-btn" onclick="tfCloseUpload()">Cancel</button>
           <button class="tf-save-btn" onclick="tfSaveFile()">Save</button>
@@ -868,7 +868,7 @@ AND 30% of advancement "votes" come from skills progress
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="pdf_data.js?v=20260418v28"></script>
-  <script src="app.js?v=20260418v28"></script>
+  <script src="pdf_data.js?v=20260418v29"></script>
+  <script src="app.js?v=20260418v29"></script>
 </body>
 </html>
