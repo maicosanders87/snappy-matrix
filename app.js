@@ -38,8 +38,19 @@ function downloadScorePDF(techShort) {
 }
 
 // ========== SHARE MATRIX ==========
+// Build a shareable URL with the sync URL baked in so recipients auto-configure.
+function _buildShareUrl() {
+  var base = window.location.href.split('#')[0];
+  try {
+    var u = localStorage.getItem('snappy_sync_url') || '';
+    if (u && u.length > 10) {
+      return base + '#sync=' + encodeURIComponent(u);
+    }
+  } catch (e) {}
+  return base;
+}
 function shareMatrix() {
-  const shareUrl = window.location.href;
+  const shareUrl = _buildShareUrl();
   const shareTitle = 'Snappy Services — Tech Skills Matrix';
   const shareText = 'Check out the Snappy Services Tech Skills Matrix';
   if (navigator.share) {
@@ -370,7 +381,26 @@ document.addEventListener('click', function(e) {
 
 // ========== CLOUD SYNC ENGINE ==========
 // Google Apps Script Web App URL — set after deploying the script
-let SYNC_URL = localStorage.getItem('snappy_sync_url') || '';
+// Portable sync: accept sync URL from window.location.hash (#sync=ENCODED_URL)
+// so viewers on other devices automatically inherit the manager's sync config.
+function _readSyncUrlFromHash() {
+  try {
+    var h = (window.location.hash || '').replace(/^#/, '');
+    if (!h) return '';
+    var parts = h.split('&');
+    for (var i = 0; i < parts.length; i++) {
+      var kv = parts[i].split('=');
+      if (kv[0] === 'sync' && kv[1]) return decodeURIComponent(kv[1]);
+    }
+  } catch (e) {}
+  return '';
+}
+var _hashSyncUrl = _readSyncUrlFromHash();
+if (_hashSyncUrl && _hashSyncUrl.length > 10) {
+  // Persist so sync works on this device going forward without needing the hash again.
+  try { localStorage.setItem('snappy_sync_url', _hashSyncUrl); } catch (e) {}
+}
+let SYNC_URL = localStorage.getItem('snappy_sync_url') || _hashSyncUrl || '';
 
 const SyncEngine = {
   _pendingWrites: {},
@@ -385,7 +415,17 @@ const SyncEngine = {
 
   getUrl() { return SYNC_URL; },
 
-  isConfigured() { return SYNC_URL.length > 10; },
+  isConfigured() {
+    if (SYNC_URL && SYNC_URL.length > 10) return true;
+    // Fallback: check the URL hash in case localStorage hasn't been primed yet.
+    var hashUrl = _readSyncUrlFromHash();
+    if (hashUrl && hashUrl.length > 10) {
+      SYNC_URL = hashUrl;
+      try { localStorage.setItem('snappy_sync_url', SYNC_URL); } catch (e) {}
+      return true;
+    }
+    return false;
+  },
 
   // Queue a key-value pair to be written to the cloud
   write(key, data) {
@@ -479,10 +519,17 @@ function _mergeTechFiles(localJson, cloudJson) {
 }
 
 // Cloud sync initialization — runs after page loads
-async function initCloudSync() {
+// userInitiated=true means this came from a manual click — OK to show alerts.
+// userInitiated=false (default) means auto-sync — stay silent if not configured.
+async function initCloudSync(userInitiated) {
   // Guard: only allow one cloud-triggered reload per session to prevent loops
   var SYNC_RELOAD_KEY = '_snappy_sync_reloaded';
   var alreadyReloaded = sessionStorage.getItem(SYNC_RELOAD_KEY);
+
+  if (!SyncEngine.isConfigured()) {
+    // Silent skip for auto-sync; manual sync handles its own messaging elsewhere.
+    return;
+  }
 
   const cloudData = await SyncEngine.pull();
   if (!cloudData) return;
@@ -779,11 +826,13 @@ var _lastAutoSyncAt = 0;
 var AUTO_SYNC_COOLDOWN_MS = 30000;
 function _autoCloudSync() {
   try {
+    // Silent skip — never show an alert from auto-sync. Only the manual sync button
+    // surfaces "not configured" messaging to the user.
     if (!SyncEngine.isConfigured()) return;
     var now = Date.now();
     if (now - _lastAutoSyncAt < AUTO_SYNC_COOLDOWN_MS) return;
     _lastAutoSyncAt = now;
-    var p = initCloudSync();
+    var p = initCloudSync(false);
     if (p && typeof p.catch === 'function') p.catch(function(e) { console.warn('Auto cloud sync failed:', e); });
   } catch (e) {
     console.warn('Auto cloud sync error:', e);
