@@ -3887,12 +3887,15 @@ if (typeof Chart !== 'undefined') {
       // Sort techs by composite score (highest first)
       const sortedTechs = [...techs].sort((a, b) => getTechTier(b).composite - getTechTier(a).composite);
 
+      const dispData = dispLoad();
+
       sortedTechs.forEach(t => {
         const tierInfo = getTechTier(t);
         const tierLower = tierInfo.tier.toLowerCase();
         const apt = aptitudeTests[t.short];
         const st = stData.find(s => s.name === t.short);
         const gr = googleReviews[t.short];
+        const techDispTags = (dispData.assignments && dispData.assignments[t.short]) || [];
 
         // Composite bar color based on tier
         const compBarColor = tierLower === 's' ? 'linear-gradient(90deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF)'
@@ -4132,6 +4135,20 @@ if (typeof Chart !== 'undefined') {
                       </div>
                       <div class="rookie-composite-score" style="color:${t.color}">${tierInfo.composite}</div>
                     </div>
+
+                    ${techDispTags.length ? `
+                    <div class="rookie-dispatch-tags">
+                      <div class="rookie-dispatch-header">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                        Dispatch Tags <span class="rookie-dispatch-bonus">+${tierInfo.dispatchBonus.toFixed(2)} pts</span>
+                      </div>
+                      <div class="rookie-dispatch-pills">
+                        ${techDispTags.map(tag => {
+                          const isPrem = DISP_PREMIUM_TAGS.includes(tag);
+                          return `<span class="rookie-dispatch-pill${isPrem ? ' is-premium' : ''}">${isPrem ? '\u2B50 ' : ''}${tag}</span>`;
+                        }).join('')}
+                      </div>
+                    </div>` : ''}
 
                     ${stRows}
 

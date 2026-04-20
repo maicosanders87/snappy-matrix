@@ -1830,6 +1830,54 @@
       background: rgba(45,106,106,0.2);
       color: #6BC5C5;
     }
+    /* Rookie card — Dispatch tags */
+    .rookie-dispatch-tags {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .rookie-dispatch-header {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+    .rookie-dispatch-header svg {
+      opacity: 0.5;
+    }
+    .rookie-dispatch-bonus {
+      margin-left: auto;
+      font-size: 10px;
+      font-weight: 700;
+      color: #4ADE80;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .rookie-dispatch-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .rookie-dispatch-pill {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.6);
+      white-space: nowrap;
+    }
+    .rookie-dispatch-pill.is-premium {
+      background: rgba(251,191,36,0.15);
+      color: #FCD34D;
+      border: 1px solid rgba(251,191,36,0.25);
+    }
+
     /* Rookie card — ServiceTitan data sections */
     .rookie-st-section {
       margin-top: 10px;
