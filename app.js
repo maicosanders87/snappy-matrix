@@ -13,6 +13,30 @@ function createChart(canvasId, config) {
   return chart;
 }
 
+// ========== SCORE BREAKDOWN PDF DOWNLOAD ==========
+function downloadScorePDF(techShort) {
+  if (typeof TECH_SCORE_PDFS === 'undefined' || !TECH_SCORE_PDFS[techShort]) {
+    alert('Score breakdown PDF not available for ' + techShort);
+    return;
+  }
+  var b64 = TECH_SCORE_PDFS[techShort];
+  var byteChars = atob(b64);
+  var byteNumbers = new Array(byteChars.length);
+  for (var i = 0; i < byteChars.length; i++) {
+    byteNumbers[i] = byteChars.charCodeAt(i);
+  }
+  var byteArray = new Uint8Array(byteNumbers);
+  var blob = new Blob([byteArray], { type: 'application/pdf' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = techShort.toLowerCase() + '_score_breakdown.pdf';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+}
+
 // ========== SHARE MATRIX ==========
 function shareMatrix() {
   const shareUrl = window.location.href;
@@ -2798,6 +2822,8 @@ if (typeof Chart !== 'undefined') {
             </div>
 
             ${renderXPBar(t, '')}
+
+            ${(typeof TECH_SCORE_PDFS !== 'undefined' && TECH_SCORE_PDFS[t.short]) ? `<button class="score-pdf-btn" onclick="downloadScorePDF('${t.short}')" title="Download Score Breakdown PDF"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg> Score Breakdown</button>` : ''}
 
             <div class="manager-notes" id="mgr-notes-${t.short}">
               <div class="manager-notes-title">
