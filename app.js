@@ -278,6 +278,7 @@ function promptManagerPIN() {
   }
   var pin = prompt('Enter password:');
   if (pin === null) return;
+  pin = (pin || '').trim();
   if (pin === MGR_PIN) {
     isManagerMode = true;
     isCoachMode = false;
@@ -500,6 +501,13 @@ async function initCloudSync() {
     'complaint': 'snappy_complaint_log_v1'
   };
 
+  // Protect recently-modified local keys from being overwritten by stale cloud data
+  var LOCAL_WINS_WINDOW_MS = 5 * 60 * 1000;
+  function _localRecentlyModified(localKey) {
+    var ts = parseInt(localStorage.getItem(localKey + '_localMod') || '0', 10);
+    return ts && (Date.now() - ts) < LOCAL_WINS_WINDOW_MS;
+  }
+
   let updated = false;
   for (const [cloudKey, localKey] of Object.entries(keyMap)) {
     if (cloudData[cloudKey]) {
@@ -514,6 +522,11 @@ async function initCloudSync() {
           updated = true;
         }
       } else if (cloudVal !== localVal) {
+        // Skip overwrite if user recently modified this data locally (not yet pushed)
+        if (_localRecentlyModified(localKey)) {
+          console.log('Skipping cloud overwrite for ' + localKey + ' — local changes newer than cloud');
+          continue;
+        }
         localStorage.setItem(localKey, cloudVal);
         updated = true;
       }
@@ -765,11 +778,16 @@ async function saveSyncUrl() {
 var _lastAutoSyncAt = 0;
 var AUTO_SYNC_COOLDOWN_MS = 30000;
 function _autoCloudSync() {
-  if (!SyncEngine.isConfigured()) return;
-  var now = Date.now();
-  if (now - _lastAutoSyncAt < AUTO_SYNC_COOLDOWN_MS) return;
-  _lastAutoSyncAt = now;
-  initCloudSync();
+  try {
+    if (!SyncEngine.isConfigured()) return;
+    var now = Date.now();
+    if (now - _lastAutoSyncAt < AUTO_SYNC_COOLDOWN_MS) return;
+    _lastAutoSyncAt = now;
+    var p = initCloudSync();
+    if (p && typeof p.catch === 'function') p.catch(function(e) { console.warn('Auto cloud sync failed:', e); });
+  } catch (e) {
+    console.warn('Auto cloud sync error:', e);
+  }
 }
 window.addEventListener('load', _autoCloudSync);
 document.addEventListener('visibilitychange', function() {
@@ -7436,6 +7454,7 @@ if (typeof Chart !== 'undefined') {
     }
     function dispSave(data) {
       localStorage.setItem(DISP_STORAGE, JSON.stringify(data));
+      localStorage.setItem(DISP_STORAGE + '_localMod', String(Date.now()));
       SyncEngine.write('dispatch', data);
     }
     const DISP_PREMIUM_COLOR = { bg: 'rgba(251,191,36,0.15)', text: '#FCD34D' };
