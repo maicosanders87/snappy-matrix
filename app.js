@@ -1326,8 +1326,12 @@ document.addEventListener('visibilitychange', function() {
       const dispTags = (dispData.assignments && dispData.assignments[tech.short]) || [];
       const dispatchBonus = calcDispatchBonus(dispTags);
 
-      // Composite: Aptitude 30% + ST 35% + Skills 10% + Manager 10% + Installs 10% + Reviews 5% + Dispatch bonus
-      const composite = aptScore * 0.30 + stScore * 0.35 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus;
+      // 8. Sold/Billable Hour Efficiency Bonus
+      const effData = calcEfficiencyBonus(tech);
+      const efficiencyBonus = effData.bonus;
+
+      // Composite: Aptitude 30% + ST 35% + Skills 10% + Manager 10% + Installs 10% + Reviews 5% + Dispatch bonus + Efficiency bonus
+      const composite = aptScore * 0.30 + stScore * 0.35 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus;
 
       let tier, tierLabel;
       if (composite >= 92) { tier = 'S'; tierLabel = 'Elite'; }
@@ -1335,7 +1339,7 @@ document.addEventListener('visibilitychange', function() {
       else if (composite >= 78) { tier = 'B'; tierLabel = 'Solid'; }
       else { tier = 'C'; tierLabel = 'Developing'; }
 
-      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length };
+      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct };
     }
 
 
@@ -4321,6 +4325,16 @@ if (typeof Chart !== 'undefined') {
                   </div>
                   <div class="rookie-back-area-tip">${tierInfo.dispatchTagCount} tag${tierInfo.dispatchTagCount !== 1 ? 's' : ''} assigned (+${tierInfo.dispatchBonus.toFixed(2)} pts) — Lead Tech, Ride Along Trainer &amp; Warranty Tech = +1.0 each, all others +0.25</div>
                 </div>
+                <div class="rookie-back-area">
+                  <div class="rookie-back-area-header">
+                    <span class="rookie-back-area-name">Efficiency Bonus (Sold/Billable Hr %)</span>
+                    <span class="rookie-back-area-score ${tierInfo.efficiencyBonus >= 1.5 ? 'is-strong' : tierInfo.efficiencyBonus >= 0.5 ? 'is-ok' : 'is-weak'}">+${tierInfo.efficiencyBonus.toFixed(2)}</span>
+                  </div>
+                  <div class="rookie-back-area-bar">
+                    <div class="rookie-back-area-bar-fill" style="width:${Math.min(tierInfo.efficiencyBonus / 2 * 100, 100)}%;background:${tierInfo.efficiencyBonus >= 1.5 ? '#4ADE80' : tierInfo.efficiencyBonus >= 0.5 ? nextColor : '#EF4444'}"></div>
+                  </div>
+                  <div class="rookie-back-area-tip">${tierInfo.efficiencyPct}% on-job (${tierInfo.efficiencyLabel}) — 30%=+0.50 | 40%=+1.00 | 50%=+1.50 | 60%=+2.00</div>
+                </div>
               </div>
             </div>
 
@@ -4424,6 +4438,17 @@ if (typeof Chart !== 'undefined') {
                         }).join('')}
                       </div>
                     </div>` : ''}
+
+                    <div class="rookie-dispatch-tags">
+                      <div class="rookie-dispatch-header">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        Efficiency Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.efficiencyBonus >= 1.5 ? '#4ADE80' : tierInfo.efficiencyBonus >= 0.5 ? '#60A5FA' : '#EF4444'}">+${tierInfo.efficiencyBonus.toFixed(2)} pts</span>
+                      </div>
+                      <div class="rookie-dispatch-pills">
+                        <span class="rookie-dispatch-pill${tierInfo.efficiencyBonus >= 1.5 ? ' is-premium' : ''}">${tierInfo.efficiencyPct}% On-Job</span>
+                        <span class="rookie-dispatch-pill">${tierInfo.efficiencyLabel}</span>
+                      </div>
+                    </div>
 
                     ${stRows}
 
@@ -4558,6 +4583,16 @@ if (typeof Chart !== 'undefined') {
                   <div class="prog-area-bar-fill" style="width:${Math.min(info.dispatchBonus / 4 * 100, 100)}%;background:${info.dispatchBonus >= 2 ? 'var(--accent-green)' : info.dispatchBonus >= 1 ? 'var(--snappy-blue-light)' : 'var(--accent-red)'}"></div>
                 </div>
                 <div class="prog-area-tip">${info.dispatchTagCount} tag${info.dispatchTagCount !== 1 ? 's' : ''} (+${info.dispatchBonus.toFixed(2)} pts) \u2014 Lead Tech, Ride Along Trainer &amp; Warranty Tech = +1.0 each, all others +0.25</div>
+              </div>
+              <div class="prog-area ${info.efficiencyBonus >= 1.5 ? 'is-strong' : info.efficiencyBonus >= 0.5 ? 'is-ok' : 'is-weak'}">
+                <div class="prog-area-header">
+                  <span class="prog-area-name">\u23F1 Efficiency Bonus (Sold/Billable Hr %)</span>
+                  <span class="prog-area-score">+${info.efficiencyBonus.toFixed(2)}</span>
+                </div>
+                <div class="prog-area-bar">
+                  <div class="prog-area-bar-fill" style="width:${Math.min(info.efficiencyBonus / 2 * 100, 100)}%;background:${info.efficiencyBonus >= 1.5 ? 'var(--accent-green)' : info.efficiencyBonus >= 0.5 ? 'var(--snappy-blue-light)' : 'var(--accent-red)'}"></div>
+                </div>
+                <div class="prog-area-tip">${info.efficiencyPct}% on-job (${info.efficiencyLabel}) \u2014 &lt;30%=+0 | 30%=+0.50 | 40%=+1.00 | 50%=+1.50 | 60%+=+2.00</div>
               </div>
             </div>
           </div>
@@ -7634,6 +7669,18 @@ if (typeof Chart !== 'undefined') {
         bonus += DISP_PREMIUM_TAGS.includes(tag) ? 1.0 : 0.25;
       });
       return bonus;
+    }
+
+    // Sold/Billable Hour Efficiency Bonus — composite score boost based on on-job %
+    // <30% = +0, 30-39% = +0.50, 40-49% = +1.00, 50-59% = +1.50, 60%+ = +2.00
+    function calcEfficiencyBonus(tech) {
+      var st = tech.st || tech.serviceData;
+      var pct = st && st.productivity ? st.productivity.sold_hrs_on_job_pct : 0;
+      if (pct >= 60) return { bonus: 2.00, label: 'Elite', pct: pct };
+      if (pct >= 50) return { bonus: 1.50, label: 'High Performer', pct: pct };
+      if (pct >= 40) return { bonus: 1.00, label: 'Above Average', pct: pct };
+      if (pct >= 30) return { bonus: 0.50, label: 'Average', pct: pct };
+      return { bonus: 0, label: 'Below Average', pct: pct };
     }
     const DISP_DEFAULT_TAGS = [
       'Lead Tech',
