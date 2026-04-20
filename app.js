@@ -34,7 +34,7 @@ function shareMatrix() {
 }
 
 // ========== ACCESS CONTROL (Manager vs Viewer vs Coach vs Editor) ==========
-const MGR_PIN = '3433';
+const MGR_PIN = 'sanders';
 const COACH_PINS = {
   'Nexstar': 'Jay / Greg',
   'AdamB': 'Adam'
