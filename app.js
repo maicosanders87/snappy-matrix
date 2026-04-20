@@ -6640,6 +6640,49 @@ if (typeof Chart !== 'undefined') {
       }
     }
 
+    // Auto-inject score breakdown PDFs from score_pdfs.js into Tech Files
+    // Runs once per version — checks a localStorage flag so it doesn't duplicate
+    function _tfSeedScorePDFs() {
+      if (typeof TECH_SCORE_PDFS === 'undefined') return;
+      var seedKey = 'snappy_tf_seeded_v1';
+      if (localStorage.getItem(seedKey)) return; // already seeded
+
+      var techMap = {
+        'Chris': 'Chris', 'Dewone': 'Dewone', 'Benji': 'Benji',
+        'Daniel': 'Daniel', 'Dee': 'Dee'
+      };
+      var changed = false;
+      for (var pdfKey in techMap) {
+        if (!TECH_SCORE_PDFS[pdfKey]) continue;
+        var techName = techMap[pdfKey];
+        if (!tfFiles[techName]) tfFiles[techName] = [];
+
+        // Skip if a scorecard entry already exists for this tech
+        var exists = tfFiles[techName].some(function(f) {
+          return f.type === 'scorecard';
+        });
+        if (exists) continue;
+
+        var b64 = TECH_SCORE_PDFS[pdfKey];
+        var byteLen = Math.round(b64.length * 3 / 4);
+        tfFiles[techName].push({
+          id: 'score_' + pdfKey.toLowerCase() + '_' + Date.now(),
+          type: 'scorecard',
+          title: pdfKey + ' — Score Breakdown',
+          notes: 'Auto-generated composite score breakdown with aptitude, skills, ST performance, and dispatch bonus details.',
+          fileName: pdfKey.toLowerCase() + '_score_breakdown.pdf',
+          fileSize: byteLen,
+          fileData: 'data:application/pdf;base64,' + b64,
+          date: new Date().toISOString()
+        });
+        changed = true;
+      }
+      if (changed) {
+        tfSave();
+      }
+      localStorage.setItem(seedKey, '1');
+    }
+
     // Strip base64 fileData before pushing to cloud (too large for Google Sheets cells)
     // Cloud stores metadata only (no fileData); actual file content stays in localStorage
     function _tfStripFileData(files) {
@@ -7213,6 +7256,7 @@ if (typeof Chart !== 'undefined') {
 
     // Init Tech Files
     tfLoad();
+    _tfSeedScorePDFs();   // auto-inject score breakdown PDFs
     tfRender();
 
     // ========== SKILLS SYSTEM DOC MODAL ==========
