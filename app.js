@@ -761,9 +761,19 @@ async function saveSyncUrl() {
   }
 }
 
-// Trigger cloud sync on page load
-window.addEventListener('load', () => {
-  if (SyncEngine.isConfigured()) initCloudSync();
+// Trigger cloud sync on page load + when app returns to foreground (pull-only, debounced 30s)
+var _lastAutoSyncAt = 0;
+var AUTO_SYNC_COOLDOWN_MS = 30000;
+function _autoCloudSync() {
+  if (!SyncEngine.isConfigured()) return;
+  var now = Date.now();
+  if (now - _lastAutoSyncAt < AUTO_SYNC_COOLDOWN_MS) return;
+  _lastAutoSyncAt = now;
+  initCloudSync();
+}
+window.addEventListener('load', _autoCloudSync);
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') _autoCloudSync();
 });
 
 // ========== DATA ==========
