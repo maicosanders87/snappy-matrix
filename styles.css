@@ -7565,3 +7565,105 @@
 .nav-tab {
   will-change: background-color;
 }
+
+/* Achievement Badge Tooltip */
+.achievement-badge[data-badge-tip] { cursor: pointer; }
+.badge-tooltip {
+  position: fixed;
+  z-index: 10000;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255,255,255,0.03) inset;
+  color: #e2e8f0;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.badge-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.badge-tooltip .bt-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.badge-tooltip .bt-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+.badge-tooltip .bt-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: #f1f5f9;
+  letter-spacing: 0.01em;
+}
+.badge-tooltip .bt-desc {
+  color: #cbd5e1;
+  font-size: 11.5px;
+  margin-bottom: 8px;
+}
+.badge-tooltip .bt-tier {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.badge-tooltip .bt-tier.tier-gold {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+.badge-tooltip .bt-tier.tier-silver {
+  background: rgba(203, 213, 225, 0.15);
+  color: #cbd5e1;
+  border: 1px solid rgba(203, 213, 225, 0.3);
+}
+.badge-tooltip .bt-tier.tier-bronze {
+  background: rgba(212, 165, 116, 0.15);
+  color: #d4a574;
+  border: 1px solid rgba(212, 165, 116, 0.3);
+}
+.badge-tooltip .bt-tier.tier-locked {
+  background: rgba(71, 85, 105, 0.3);
+  color: #94a3b8;
+  border: 1px solid rgba(100, 116, 139, 0.35);
+}
+.badge-tooltip .bt-locked-note {
+  margin-top: 6px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-style: italic;
+}
+.badge-tooltip .bt-arrow {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  border-right: 1px solid rgba(148, 163, 184, 0.22);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  transform: rotate(45deg);
+  left: 50%;
+  margin-left: -5px;
+}
+.badge-tooltip.tip-above .bt-arrow { bottom: -6px; }
+.badge-tooltip.tip-below .bt-arrow {
+  top: -6px;
+  border-right: none;
+  border-bottom: none;
+  border-left: 1px solid rgba(148, 163, 184, 0.22);
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}

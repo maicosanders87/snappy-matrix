@@ -1436,18 +1436,157 @@ document.addEventListener('visibilitychange', function() {
 
     function renderBadgeRow(badges, maxShow) {
       const show = maxShow ? badges.slice(0, maxShow) : badges;
-      return '<div class="badge-row">' + show.map(b => 
-        `<div class="achievement-badge badge-${b.tier}${b.earned ? '' : ' badge-locked'}" title="${b.name}: ${b.desc}">
+      const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return '<div class="badge-row">' + show.map(b => {
+        const tierLabel = b.earned ? (b.tier.charAt(0).toUpperCase() + b.tier.slice(1)) : 'Locked';
+        return `<div class="achievement-badge badge-${b.tier}${b.earned ? '' : ' badge-locked'}"
+          data-badge-tip="1"
+          data-badge-icon="${esc(b.icon)}"
+          data-badge-name="${esc(b.name)}"
+          data-badge-desc="${esc(b.desc)}"
+          data-badge-tier="${esc(tierLabel)}"
+          data-badge-earned="${b.earned ? '1' : '0'}">
           <span class="badge-icon">${b.icon}</span>
           <span class="badge-name">${b.name}</span>
-        </div>`
-      ).join('') + '</div>';
+        </div>`;
+      }).join('') + '</div>';
     }
 
     function tierBadgeHTML(tier, size) {
       const cls = size === 'sm' ? 'tier-badge tier-badge-sm' : 'tier-badge';
       return `<span class="${cls} tier-${tier.toLowerCase()}">${tier}</span>`;
     }
+
+    // ========== ACHIEVEMENT BADGE TOOLTIPS ==========
+    (function initBadgeTooltips() {
+      if (window.__badgeTooltipInit) return;
+      window.__badgeTooltipInit = true;
+
+      let tipEl = null;
+      let activeBadge = null;
+      let hideTimer = null;
+
+      function ensureTip() {
+        if (tipEl) return tipEl;
+        tipEl = document.createElement('div');
+        tipEl.className = 'badge-tooltip';
+        tipEl.setAttribute('role', 'tooltip');
+        document.body.appendChild(tipEl);
+        return tipEl;
+      }
+
+      function escapeHTML(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function buildContent(badge) {
+        const icon = badge.getAttribute('data-badge-icon') || '';
+        const name = badge.getAttribute('data-badge-name') || '';
+        const desc = badge.getAttribute('data-badge-desc') || '';
+        const tier = badge.getAttribute('data-badge-tier') || '';
+        const earned = badge.getAttribute('data-badge-earned') === '1';
+        const tierKey = tier.toLowerCase();
+        const descBlock = earned
+          ? `<div class="bt-desc">${escapeHTML(desc)}</div>`
+          : `<div class="bt-locked-note">\uD83D\uDD12 ${escapeHTML(desc)}</div>`;
+        return `
+          <div class="bt-head">
+            <span class="bt-icon">${icon}</span>
+            <span class="bt-name">${escapeHTML(name)}</span>
+          </div>
+          ${descBlock}
+          <span class="bt-tier tier-${escapeHTML(tierKey)}">${escapeHTML(tier)}</span>
+          <div class="bt-arrow"></div>
+        `;
+      }
+
+      function positionTip(badge) {
+        const rect = badge.getBoundingClientRect();
+        const tRect = tipEl.getBoundingClientRect();
+        const margin = 10;
+        const spaceAbove = rect.top;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const placeBelow = spaceAbove < tRect.height + margin && spaceBelow > spaceAbove;
+
+        let top = placeBelow
+          ? rect.bottom + margin
+          : rect.top - tRect.height - margin;
+        let left = rect.left + (rect.width / 2) - (tRect.width / 2);
+
+        left = Math.max(8, Math.min(left, window.innerWidth - tRect.width - 8));
+
+        tipEl.style.top = top + 'px';
+        tipEl.style.left = left + 'px';
+        tipEl.classList.toggle('tip-above', !placeBelow);
+        tipEl.classList.toggle('tip-below', placeBelow);
+
+        const arrow = tipEl.querySelector('.bt-arrow');
+        if (arrow) {
+          const badgeCenter = rect.left + rect.width / 2;
+          const arrowLeft = badgeCenter - left;
+          arrow.style.left = Math.max(10, Math.min(arrowLeft, tRect.width - 10)) + 'px';
+          arrow.style.marginLeft = '-5px';
+        }
+      }
+
+      function showTip(badge) {
+        clearTimeout(hideTimer);
+        ensureTip();
+        activeBadge = badge;
+        tipEl.innerHTML = buildContent(badge);
+        tipEl.style.top = '-9999px';
+        tipEl.style.left = '-9999px';
+        tipEl.classList.add('visible');
+        requestAnimationFrame(() => positionTip(badge));
+      }
+
+      function hideTip() {
+        if (!tipEl) return;
+        tipEl.classList.remove('visible');
+        activeBadge = null;
+      }
+
+      document.addEventListener('mouseover', function(e) {
+        const badge = e.target.closest && e.target.closest('[data-badge-tip]');
+        if (!badge) return;
+        showTip(badge);
+      });
+      document.addEventListener('mouseout', function(e) {
+        const badge = e.target.closest && e.target.closest('[data-badge-tip]');
+        if (!badge) return;
+        const to = e.relatedTarget;
+        if (to && badge.contains(to)) return;
+        hideTimer = setTimeout(hideTip, 80);
+      });
+
+      document.addEventListener('click', function(e) {
+        const badge = e.target.closest && e.target.closest('[data-badge-tip]');
+        if (badge) {
+          if (activeBadge === badge) {
+            hideTip();
+          } else {
+            showTip(badge);
+          }
+          e.stopPropagation();
+          return;
+        }
+        if (activeBadge) hideTip();
+      }, true);
+
+      document.addEventListener('touchstart', function(e) {
+        const badge = e.target.closest && e.target.closest('[data-badge-tip]');
+        if (badge) {
+          showTip(badge);
+        } else if (activeBadge) {
+          hideTip();
+        }
+      }, { passive: true });
+
+      window.addEventListener('scroll', function() { if (activeBadge) hideTip(); }, true);
+      window.addEventListener('resize', function() { if (activeBadge) hideTip(); });
+    })();
 
     // ========== SEEN SKILLS TRACKER ==========
     const SEEN_SKILLS_KEY = 'snappy_seen_skills';
