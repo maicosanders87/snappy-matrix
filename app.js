@@ -542,33 +542,38 @@ async function initCloudSync() {
 }
 
 // Manual sync button — push + pull + cache reset + hard reload
+// Viewers/coaches get pull-only (read-only refresh from cloud)
 async function manualSync() {
   var btn = document.getElementById('syncNowBtn');
   if (!SyncEngine.isConfigured()) {
-    openSyncSetup();
+    if (isManagerMode) openSyncSetup();
+    else alert('Cloud sync is not configured yet. Ask the manager to set it up.');
     return;
   }
+  var canPush = isManagerMode || isEditorMode;
   btn.classList.add('syncing');
   try {
-    // 1. Push all local data to cloud
-    SyncEngine.write('skills', skillsData.assignments);
-    SyncEngine.write('manager', mgrState);
-    SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
-    var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','daynotes','nexstar','recall','complaint','mgrnotes'];
-    var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1'];
-    dKeys.forEach(function(k, i) {
-      var v = localStorage.getItem(dLocalKeys[i]);
-      if (v) {
-        var parsed = JSON.parse(v);
-        // Strip base64 fileData from techfiles — too large for Google Sheets
-        if (k === 'techfiles' && typeof _tfStripFileData === 'function') parsed = _tfStripFileData(parsed);
-        SyncEngine.write(k, parsed);
-      }
-    });
-    await SyncEngine._flush();
+    if (canPush) {
+      // 1. Push all local data to cloud (managers/editors only)
+      SyncEngine.write('skills', skillsData.assignments);
+      SyncEngine.write('manager', mgrState);
+      SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
+      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','daynotes','nexstar','recall','complaint','mgrnotes'];
+      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1'];
+      dKeys.forEach(function(k, i) {
+        var v = localStorage.getItem(dLocalKeys[i]);
+        if (v) {
+          var parsed = JSON.parse(v);
+          // Strip base64 fileData from techfiles — too large for Google Sheets
+          if (k === 'techfiles' && typeof _tfStripFileData === 'function') parsed = _tfStripFileData(parsed);
+          SyncEngine.write(k, parsed);
+        }
+      });
+      await SyncEngine._flush();
 
-    // 1b. Wait for no-cors POST to land on server before reading back
-    await new Promise(function(r) { setTimeout(r, 2500); });
+      // 1b. Wait for no-cors POST to land on server before reading back
+      await new Promise(function(r) { setTimeout(r, 2500); });
+    }
 
     // 2. Pull cloud data (verifies push landed)
     var cloudData = await SyncEngine.pull();
@@ -601,16 +606,18 @@ async function manualSync() {
           }
         }
       }
-      // After merge, push stripped metadata back to cloud
-      var mergedTf = localStorage.getItem('snappy_tech_files');
-      if (mergedTf) {
-        var p = JSON.parse(mergedTf);
-        SyncEngine.write('techfiles', typeof _tfStripFileData === 'function' ? _tfStripFileData(p) : p);
+      if (canPush) {
+        // After merge, push stripped metadata back to cloud
+        var mergedTf = localStorage.getItem('snappy_tech_files');
+        if (mergedTf) {
+          var p = JSON.parse(mergedTf);
+          SyncEngine.write('techfiles', typeof _tfStripFileData === 'function' ? _tfStripFileData(p) : p);
+        }
+        // Sync Drive file map
+        if (typeof _tfSyncDriveMap === 'function') _tfSyncDriveMap(cloudData);
+        await SyncEngine._flush();
+        await new Promise(function(r) { setTimeout(r, 1500); });
       }
-      // Sync Drive file map
-      if (typeof _tfSyncDriveMap === 'function') _tfSyncDriveMap(cloudData);
-      await SyncEngine._flush();
-      await new Promise(function(r) { setTimeout(r, 1500); });
     }
 
     // 3. Clear browser caches

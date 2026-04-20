@@ -3244,7 +3244,6 @@
     .viewer-mode .access-lock-btn svg { stroke: #FF9800; }
 
     /* ========== COACH MODE ========== */
-    .coach-mode #syncNowBtn { display: none !important; }
     .coach-mode #syncStatusIndicator { display: none !important; }
     .coach-mode #skEditBanner { display: none !important; }
     .coach-mode .sk-reset-btn { display: none !important; }
