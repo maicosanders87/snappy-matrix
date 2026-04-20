@@ -145,7 +145,8 @@ async function silentSyncOnLogin() {
       'nexstar': 'snappy_nexstar',
       'bulletin': 'snappy_bulletin_board',
       'recall': 'snappy_recall_log_v1',
-      'complaint': 'snappy_complaint_log_v1'
+      'complaint': 'snappy_complaint_log_v1',
+      'mgrnotes': 'snappy_mgr_notes_v1'
     };
     var updated = false;
     for (var ck in keyMap) {
@@ -545,7 +546,8 @@ async function initCloudSync(userInitiated) {
     'nexstar': 'snappy_nexstar',
     'bulletin': 'snappy_bulletin_board',
     'recall': 'snappy_recall_log_v1',
-    'complaint': 'snappy_complaint_log_v1'
+    'complaint': 'snappy_complaint_log_v1',
+    'mgrnotes': 'snappy_mgr_notes_v1'
   };
 
   // Protect recently-modified local keys from being overwritten by stale cloud data
@@ -770,8 +772,10 @@ async function saveSyncUrl() {
       'mgrstats': 'snappy_mgr_stats',
       'daynotes': 'snappy_day_notes',
       'nexstar': 'snappy_nexstar',
+      'bulletin': 'snappy_bulletin_board',
       'recall': 'snappy_recall_log_v1',
-      'complaint': 'snappy_complaint_log_v1'
+      'complaint': 'snappy_complaint_log_v1',
+      'mgrnotes': 'snappy_mgr_notes_v1'
     };
     var payload = {};
     for (var ck in keyMap) {
@@ -794,7 +798,7 @@ async function saveSyncUrl() {
     // Pull cloud data into localStorage for this device (JSONP)
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
-      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1' };
+      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1' };
       for (var pk in pullKeys) {
         if (pullData.result[pk]) {
           var cv = pullData.result[pk].data || pullData.result[pk].val || '';
@@ -1547,7 +1551,7 @@ document.addEventListener('visibilitychange', function() {
     function saveSkillAssignments() {
       try {
         localStorage.setItem(SKILLS_STORAGE_KEY, JSON.stringify(skillsData.assignments));
-        SyncEngine.write('skills', skillsData.assignments);
+        if (SyncEngine.isConfigured()) SyncEngine.write('skills', skillsData.assignments);
         // Flash save indicator
         const indicator = document.getElementById('skSaveIndicator');
         if (indicator) {
@@ -1776,7 +1780,7 @@ document.addEventListener('visibilitychange', function() {
     }
     function bbSave(data) {
       localStorage.setItem(BB_KEY, JSON.stringify(data));
-      SyncEngine.write('bulletin', data);
+      if (SyncEngine.isConfigured()) SyncEngine.write('bulletin', data);
     }
     function bbUID() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
@@ -4435,7 +4439,7 @@ if (typeof Chart !== 'undefined') {
     function mgrSave() {
       try {
         localStorage.setItem(MGR_STORAGE_KEY, JSON.stringify(mgrState));
-        SyncEngine.write('manager', mgrState);
+        if (SyncEngine.isConfigured()) SyncEngine.write('manager', mgrState);
       } catch (e) {
         console.warn('Manager: failed to save storage', e);
       }
@@ -6734,7 +6738,7 @@ if (typeof Chart !== 'undefined') {
     function tfSave() {
       try {
         localStorage.setItem(TF_STORAGE_KEY, JSON.stringify(tfFiles));
-        SyncEngine.write('techfiles', _tfStripFileData(tfFiles));
+        if (SyncEngine.isConfigured()) SyncEngine.write('techfiles', _tfStripFileData(tfFiles));
       } catch (e) {
         alert('Storage full — try removing older files first.');
         console.warn('Tech Files: save failed', e);
@@ -7504,7 +7508,7 @@ if (typeof Chart !== 'undefined') {
     function dispSave(data) {
       localStorage.setItem(DISP_STORAGE, JSON.stringify(data));
       localStorage.setItem(DISP_STORAGE + '_localMod', String(Date.now()));
-      SyncEngine.write('dispatch', data);
+      if (SyncEngine.isConfigured()) SyncEngine.write('dispatch', data);
     }
     const DISP_PREMIUM_COLOR = { bg: 'rgba(251,191,36,0.15)', text: '#FCD34D' };
     function dispTagColor(tagName, allTags) {
@@ -7720,8 +7724,10 @@ if (typeof Chart !== 'undefined') {
     function saveLogData(storageKey, data) {
       localStorage.setItem(storageKey, JSON.stringify(data));
       // Sync to cloud under a recognizable key
-      if (storageKey === RECALL_STORAGE) SyncEngine.write('recall', data);
-      if (storageKey === COMPLAINT_STORAGE) SyncEngine.write('complaint', data);
+      if (SyncEngine.isConfigured()) {
+        if (storageKey === RECALL_STORAGE) SyncEngine.write('recall', data);
+        if (storageKey === COMPLAINT_STORAGE) SyncEngine.write('complaint', data);
+      }
     }
 
     function addLogEntry(storageKey, tech) {
@@ -7863,7 +7869,7 @@ if (typeof Chart !== 'undefined') {
     }
     function saveMgrNotesStore(data) {
       localStorage.setItem(MGR_NOTES_KEY, JSON.stringify(data));
-      SyncEngine.write('mgrnotes', data);
+      if (SyncEngine.isConfigured()) SyncEngine.write('mgrnotes', data);
     }
     function getMgrNote(techShort, fallback) {
       var notes = loadMgrNotes();
