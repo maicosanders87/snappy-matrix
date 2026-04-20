@@ -390,12 +390,13 @@ function _readSyncUrlFromHash() {
   } catch (e) {}
   return '';
 }
+var DEFAULT_SYNC_URL = 'https://script.google.com/macros/s/AKfycbxzSlRbXmPMMa2xOhbphSKTM7HRKZmeebjZ0BCIoFkLFSZ8yElQ_5qw9MWJIB4N-4OM/exec';
 var _hashSyncUrl = _readSyncUrlFromHash();
 if (_hashSyncUrl && _hashSyncUrl.length > 10) {
   // Persist so sync works on this device going forward without needing the hash again.
   try { localStorage.setItem('snappy_sync_url', _hashSyncUrl); } catch (e) {}
 }
-let SYNC_URL = localStorage.getItem('snappy_sync_url') || _hashSyncUrl || '';
+let SYNC_URL = localStorage.getItem('snappy_sync_url') || _hashSyncUrl || DEFAULT_SYNC_URL;
 
 const SyncEngine = {
   _pendingWrites: {},
@@ -404,7 +405,8 @@ const SyncEngine = {
 
   // Set the Apps Script URL and persist it
   setUrl(url) {
-    SYNC_URL = url.trim();
+    var trimmed = (url || '').trim();
+    SYNC_URL = trimmed || DEFAULT_SYNC_URL;
     localStorage.setItem('snappy_sync_url', SYNC_URL);
   },
 
