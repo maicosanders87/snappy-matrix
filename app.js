@@ -150,8 +150,10 @@ async function silentSyncOnLogin() {
     };
     var updated = false;
     for (var ck in keyMap) {
-      if (cloudData[ck]) {
-        var cv = cloudData[ck].data || cloudData[ck].val || '';
+      if (cloudData[ck] !== undefined && cloudData[ck] !== null) {
+        var cv = (typeof _extractCloudVal === 'function')
+          ? _extractCloudVal(cloudData[ck])
+          : (cloudData[ck].data || cloudData[ck].val || '');
         if (!cv) continue;
         var lv = localStorage.getItem(keyMap[ck]) || '';
         if (ck === 'techfiles') {
@@ -165,17 +167,9 @@ async function silentSyncOnLogin() {
     }
     if (updated) {
       console.log('Login sync: cloud data merged — refreshing views');
-      // Re-render all dynamic sections without page reload
-      try { renderDispatchBoard(); } catch(e) {}
-      try { renderRecallLog(); } catch(e) {}
-      try { renderComplaintLog(); } catch(e) {}
-      try { renderManagerTab(); } catch(e) {}
-      try { renderOverviewTab(); } catch(e) {}
-      try { renderProfiles(); } catch(e) {}
-      try { renderRookieCards(); } catch(e) {}
-      try { renderSkillsTags(); } catch(e) {}
-      try { renderSTTables(); } catch(e) {}
-      try { tfLoad(); tfRender(); } catch(e) {}
+      if (typeof _rerenderAllViewsAfterSync === 'function') {
+        _rerenderAllViewsAfterSync();
+      }
     } else {
       console.log('Login sync: already up to date');
     }
@@ -462,9 +456,10 @@ const SyncEngine = {
         this._updateIndicator('saved');
         return json.result;
       }
-      throw new Error('Bad response');
+      console.warn('SyncEngine.pull: unexpected response shape', json);
+      throw new Error('Bad response: status=' + (json && json.status ? json.status : 'missing'));
     } catch (e) {
-      console.warn('Sync pull failed:', e);
+      console.warn('Sync pull failed:', (e && e.message) ? e.message : e, e);
       this._updateIndicator('error');
     }
     return null;
@@ -519,6 +514,30 @@ function _mergeTechFiles(localJson, cloudJson) {
   }
 }
 
+// Helper: extract cloud value supporting {data}, {val}, or raw string formats
+function _extractCloudVal(entry) {
+  if (!entry) return '';
+  if (typeof entry === 'string') return entry;
+  if (typeof entry === 'object') return entry.data || entry.val || '';
+  return '';
+}
+
+// Helper: re-render all dynamic UI sections after a data merge.
+// Wrapped in try/catch blocks so one broken renderer doesn't stop the rest.
+function _rerenderAllViewsAfterSync() {
+  try { if (typeof renderOverviewTab === 'function') renderOverviewTab(); } catch(e) { console.warn('renderOverviewTab failed:', e); }
+  try { if (typeof renderProfiles === 'function') renderProfiles(); } catch(e) { console.warn('renderProfiles failed:', e); }
+  try { if (typeof renderRookieCards === 'function') renderRookieCards(); } catch(e) { console.warn('renderRookieCards failed:', e); }
+  try { if (typeof renderSkillsTags === 'function') renderSkillsTags(); } catch(e) { console.warn('renderSkillsTags failed:', e); }
+  try { if (typeof renderSTTables === 'function') renderSTTables(); } catch(e) { console.warn('renderSTTables failed:', e); }
+  try { if (typeof renderManagerTab === 'function') renderManagerTab(); } catch(e) { console.warn('renderManagerTab failed:', e); }
+  try { if (typeof renderDispatchBoard === 'function') renderDispatchBoard(); } catch(e) { console.warn('renderDispatchBoard failed:', e); }
+  try { if (typeof renderRecallLog === 'function') renderRecallLog(); } catch(e) { console.warn('renderRecallLog failed:', e); }
+  try { if (typeof renderComplaintLog === 'function') renderComplaintLog(); } catch(e) { console.warn('renderComplaintLog failed:', e); }
+  try { if (typeof renderBulletinBoard === 'function') renderBulletinBoard(); } catch(e) { console.warn('renderBulletinBoard failed:', e); }
+  try { if (typeof tfLoad === 'function') { tfLoad(); if (typeof tfRender === 'function') tfRender(); } } catch(e) { console.warn('tfLoad/tfRender failed:', e); }
+}
+
 // Cloud sync initialization — runs after page loads
 // userInitiated=true means this came from a manual click — OK to show alerts.
 // userInitiated=false (default) means auto-sync — stay silent if not configured.
@@ -533,7 +552,10 @@ async function initCloudSync(userInitiated) {
   }
 
   const cloudData = await SyncEngine.pull();
-  if (!cloudData) return;
+  if (!cloudData) {
+    console.warn('initCloudSync: pull returned no data');
+    return;
+  }
 
   const keyMap = {
     'skills': 'snappy_skills_assignments',
@@ -550,17 +572,22 @@ async function initCloudSync(userInitiated) {
     'mgrnotes': 'snappy_mgr_notes_v1'
   };
 
-  // Protect recently-modified local keys from being overwritten by stale cloud data
+  // Protect recently-modified local keys from being overwritten by stale cloud data.
+  // On a fresh device with no _localMod timestamp, parseInt(null||'0')===0 → returns false,
+  // so cloud data always wins when there's no local history.
   var LOCAL_WINS_WINDOW_MS = 5 * 60 * 1000;
   function _localRecentlyModified(localKey) {
-    var ts = parseInt(localStorage.getItem(localKey + '_localMod') || '0', 10);
-    return ts && (Date.now() - ts) < LOCAL_WINS_WINDOW_MS;
+    var raw = localStorage.getItem(localKey + '_localMod');
+    if (!raw) return false;
+    var ts = parseInt(raw, 10);
+    if (!ts || isNaN(ts)) return false;
+    return (Date.now() - ts) < LOCAL_WINS_WINDOW_MS;
   }
 
   let updated = false;
   for (const [cloudKey, localKey] of Object.entries(keyMap)) {
-    if (cloudData[cloudKey]) {
-      const cloudVal = cloudData[cloudKey].data || cloudData[cloudKey].val || '';
+    if (cloudData[cloudKey] !== undefined && cloudData[cloudKey] !== null) {
+      const cloudVal = _extractCloudVal(cloudData[cloudKey]);
       if (!cloudVal) continue;
       const localVal = localStorage.getItem(localKey) || '';
       if (cloudKey === 'techfiles') {
@@ -571,8 +598,9 @@ async function initCloudSync(userInitiated) {
           updated = true;
         }
       } else if (cloudVal !== localVal) {
-        // Skip overwrite if user recently modified this data locally (not yet pushed)
-        if (_localRecentlyModified(localKey)) {
+        // Skip overwrite if user recently modified this data locally (not yet pushed).
+        // Always allow fresh devices (no local value) to accept cloud data.
+        if (localVal && _localRecentlyModified(localKey)) {
           console.log('Skipping cloud overwrite for ' + localKey + ' — local changes newer than cloud');
           continue;
         }
@@ -585,8 +613,10 @@ async function initCloudSync(userInitiated) {
   // Push merged tech files metadata back to cloud (fire-and-forget, strip fileData)
   var mergedTf = localStorage.getItem('snappy_tech_files');
   if (mergedTf) {
-    var parsed = JSON.parse(mergedTf);
-    SyncEngine.write('techfiles', typeof _tfStripFileData === 'function' ? _tfStripFileData(parsed) : parsed);
+    try {
+      var parsed = JSON.parse(mergedTf);
+      SyncEngine.write('techfiles', typeof _tfStripFileData === 'function' ? _tfStripFileData(parsed) : parsed);
+    } catch (e) { console.warn('techfiles re-push parse failed:', e); }
   }
 
   // Sync Drive file map from cloud
@@ -594,12 +624,12 @@ async function initCloudSync(userInitiated) {
 
   if (updated && !alreadyReloaded) {
     sessionStorage.setItem(SYNC_RELOAD_KEY, '1');
-    console.log('Cloud data loaded — refreshing views (one-time)');
+    console.log('Cloud data loaded — refreshing views (one-time reload)');
     location.reload();
   } else if (updated) {
-    // Already reloaded once this session — just refresh in-memory state
-    console.log('Cloud data merged — skipping reload (already reloaded this session)');
-    try { tfLoad(); tfRender(); } catch(e) {}
+    // Already reloaded once this session — re-render the UI in place instead of another reload
+    console.log('Cloud data merged — updating UI in place (no reload)');
+    _rerenderAllViewsAfterSync();
   }
 }
 
@@ -655,8 +685,8 @@ async function manualSync() {
         'mgrnotes': 'snappy_mgr_notes_v1'
       };
       for (var ck in keyMap) {
-        if (cloudData[ck]) {
-          var cv = cloudData[ck].data || cloudData[ck].val || '';
+        if (cloudData[ck] !== undefined && cloudData[ck] !== null) {
+          var cv = _extractCloudVal(cloudData[ck]);
           if (cv) {
             if (ck === 'techfiles') {
               // Merge tech files — never lose local files missing from cloud
@@ -715,25 +745,32 @@ function closeSyncSetup() {
 // Helper: cross-origin GET via JSONP (reliable for Apps Script)
 function _syncJsonpGet(url) {
   return new Promise(function(resolve, reject) {
-    var cbName = '_syncCb' + Date.now();
+    // Unique callback name per request; add random suffix so concurrent requests never collide
+    var cbName = '_syncCb' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    var cleanedUp = false;
+    function cleanup() {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+      if (script && script.parentNode) script.parentNode.removeChild(script);
+    }
     window[cbName] = function(data) {
+      cleanup();
       resolve(data);
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
     };
     var script = document.createElement('script');
     script.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + cbName + '&t=' + Date.now();
-    script.onerror = function() {
-      reject(new Error('JSONP failed'));
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
+    script.onerror = function(ev) {
+      console.warn('JSONP script load error for', url, ev);
+      cleanup();
+      reject(new Error('JSONP network/script error'));
     };
     document.head.appendChild(script);
     setTimeout(function() {
-      if (window[cbName]) {
-        reject(new Error('JSONP timeout'));
-        delete window[cbName];
-        if (script.parentNode) script.parentNode.removeChild(script);
+      if (!cleanedUp) {
+        console.warn('JSONP timed out after 15s for', url);
+        cleanup();
+        reject(new Error('JSONP timeout (15s)'));
       }
     }, 15000);
   });
@@ -800,8 +837,8 @@ async function saveSyncUrl() {
     if (pullData && pullData.status === 'ok' && pullData.result) {
       var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1' };
       for (var pk in pullKeys) {
-        if (pullData.result[pk]) {
-          var cv = pullData.result[pk].data || pullData.result[pk].val || '';
+        if (pullData.result[pk] !== undefined && pullData.result[pk] !== null) {
+          var cv = _extractCloudVal(pullData.result[pk]);
           if (cv) {
             if (pk === 'techfiles') {
               var localTf = localStorage.getItem(pullKeys[pk]);
@@ -825,20 +862,29 @@ async function saveSyncUrl() {
   }
 }
 
-// Trigger cloud sync on page load + when app returns to foreground (pull-only, debounced 30s)
+// Trigger cloud sync on page load + when app returns to foreground (pull-only, debounced 60s)
 var _lastAutoSyncAt = 0;
-var AUTO_SYNC_COOLDOWN_MS = 30000;
+var _syncInProgress = false;
+var AUTO_SYNC_COOLDOWN_MS = 60000;
 function _autoCloudSync() {
   try {
     // Silent skip — never show an alert from auto-sync. Only the manual sync button
     // surfaces "not configured" messaging to the user.
     if (!SyncEngine.isConfigured()) return;
+    if (_syncInProgress) return; // already running — don't stack requests
     var now = Date.now();
     if (now - _lastAutoSyncAt < AUTO_SYNC_COOLDOWN_MS) return;
     _lastAutoSyncAt = now;
+    _syncInProgress = true;
     var p = initCloudSync(false);
-    if (p && typeof p.catch === 'function') p.catch(function(e) { console.warn('Auto cloud sync failed:', e); });
+    if (p && typeof p.finally === 'function') {
+      p.catch(function(e) { console.warn('Auto cloud sync failed:', e); })
+       .finally(function() { _syncInProgress = false; });
+    } else {
+      _syncInProgress = false;
+    }
   } catch (e) {
+    _syncInProgress = false;
     console.warn('Auto cloud sync error:', e);
   }
 }

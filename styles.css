@@ -1249,6 +1249,7 @@
         0 0 60px rgba(255,215,0,0.08),
         0 1px 4px rgba(0,0,0,0.15);
       animation: rookieHoloShimmer 5s ease infinite;
+      will-change: box-shadow;
     }
     /* Holographic sweep — animated rainbow gradient overlay */
     .rookie-tier-s::before {
@@ -1291,6 +1292,7 @@
       z-index: 1;
       pointer-events: none;
       border-radius: 14px;
+      will-change: transform, opacity;
     }
     @keyframes rookieLightStreak {
       0% { transform: translateX(-80%) translateY(-20%) rotate(0deg); opacity: 0; }
@@ -1500,6 +1502,7 @@
       transform: rotate(45deg);
       animation: sSparkleFloat 4s ease-in-out infinite;
       box-shadow: 0 0 8px rgba(255,215,0,0.7), 0 0 16px rgba(255,255,255,0.4);
+      will-change: transform, opacity;
     }
     .s-tier-sparkle:nth-child(1) { left: 8%;  top: 60%; animation-delay: 0s;   animation-duration: 3s;   width: 6px; height: 6px; }
     .s-tier-sparkle:nth-child(2) { left: 22%; top: 70%; animation-delay: 0.6s; animation-duration: 3.5s; width: 5px; height: 5px; }
@@ -7544,6 +7547,15 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  /* Drop GPU-layer hints when motion is disabled — no need to promote */
+  .rookie-tier-s,
+  .rookie-tier-s::after,
+  .s-tier-sparkle,
+  .s-tier-flame,
+  .nav-tabs,
+  .nav-tab {
+    will-change: auto !important;
   }
 }
 /* GPU-promote animated sidebar and header */
