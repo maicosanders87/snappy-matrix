@@ -1972,6 +1972,8 @@ document.addEventListener('visibilitychange', function() {
     function bbSave(data) {
       localStorage.setItem(BB_KEY, JSON.stringify(data));
       if (SyncEngine.isConfigured()) SyncEngine.write('bulletin', data);
+      // Re-render tech profiles so Coaching History stays in sync with BB
+      try { if (typeof renderProfiles === 'function') renderProfiles(); } catch(e) {}
     }
     function bbUID() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
@@ -3426,6 +3428,55 @@ if (typeof Chart !== 'undefined') {
                 out += '</div>';
               }
               out += '</div></div>';
+              return out;
+            })()}
+
+            ${(() => {
+              var bb = bbLoad();
+              var oneOnOnes = (bb.oneOnOnes || []).filter(function(o) { return o.tech === t.short; })
+                .slice().sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
+              var rideAlongs = (bb.rideAlongs || []).filter(function(r) { return r.tech === t.short; })
+                .slice().sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
+              if (oneOnOnes.length === 0 && rideAlongs.length === 0) return '';
+              var lastOO = oneOnOnes.length ? oneOnOnes[0].date : '\u2014';
+              var lastRA = rideAlongs.length ? rideAlongs[0].date : '\u2014';
+              var sectionId = 'coach-log-' + t.short;
+              var out = '<div class="coach-log-section profile-section-link" onclick="navigateToKpi(\'overview\',\'\')">';
+              out += '<div class="coach-log-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Coaching History <span class="profile-section-arrow">&rarr;</span></div>';
+              out += '<div class="coach-log-summary">';
+              out += '<div class="coach-log-pill oneonone"><span class="coach-log-pill-count">' + oneOnOnes.length + '</span><span class="coach-log-pill-label">1-on-1s</span><span class="coach-log-pill-last">last ' + escHtml(lastOO) + '</span></div>';
+              out += '<div class="coach-log-pill ridealong"><span class="coach-log-pill-count">' + rideAlongs.length + '</span><span class="coach-log-pill-label">Ride-Alongs</span><span class="coach-log-pill-last">last ' + escHtml(lastRA) + '</span></div>';
+              out += '<button class="coach-log-toggle" onclick="event.stopPropagation();var el=document.getElementById(\'' + sectionId + '\');if(el){el.classList.toggle(\'open\');this.textContent=el.classList.contains(\'open\')?\'Hide details\':\'Show details\';}">Show details</button>';
+              out += '</div>';
+              out += '<div class="coach-log-details" id="' + sectionId + '">';
+              out += '<div class="coach-log-grid">';
+              if (oneOnOnes.length > 0) {
+                out += '<div class="coach-log-col">';
+                out += '<div class="coach-log-col-header oneonone">\ud83e\udd1d 1-on-1s</div>';
+                oneOnOnes.forEach(function(e) {
+                  var statusClass = 'status-' + (e.status || 'planned');
+                  out += '<div class="coach-log-entry">';
+                  out += '<div class="coach-log-entry-top"><span class="coach-log-date">' + escHtml(e.date) + '</span><span class="coach-log-status ' + statusClass + '">' + escHtml(e.status || 'planned') + '</span></div>';
+                  if (e.time) out += '<div class="coach-log-time">' + escHtml(e.time) + '</div>';
+                  if (e.notes) out += '<div class="coach-log-notes">' + escHtml(e.notes) + '</div>';
+                  out += '</div>';
+                });
+                out += '</div>';
+              }
+              if (rideAlongs.length > 0) {
+                out += '<div class="coach-log-col">';
+                out += '<div class="coach-log-col-header ridealong">\ud83d\ude90 Ride-Alongs</div>';
+                rideAlongs.forEach(function(e) {
+                  var statusClass = 'status-' + (e.status || 'planned');
+                  out += '<div class="coach-log-entry">';
+                  out += '<div class="coach-log-entry-top"><span class="coach-log-date">' + escHtml(e.date) + '</span><span class="coach-log-status ' + statusClass + '">' + escHtml(e.status || 'planned') + '</span></div>';
+                  if (e.time) out += '<div class="coach-log-time">' + escHtml(e.time) + '</div>';
+                  if (e.notes) out += '<div class="coach-log-notes">' + escHtml(e.notes) + '</div>';
+                  out += '</div>';
+                });
+                out += '</div>';
+              }
+              out += '</div></div></div>';
               return out;
             })()}
 
@@ -7798,7 +7849,27 @@ if (typeof Chart !== 'undefined') {
 
     // Init Tech Files
     tfLoad();
-    _tfSeedScorePDFs();   // auto-inject score breakdown PDFs
+    // Auto-seed disabled per user request (was auto-injecting score PDFs into every tech)
+    // _tfSeedScorePDFs();
+    // One-time cleanup: remove any previously auto-seeded scorecard entries
+    (function _tfCleanupSeededScorecards() {
+      try {
+        var cleanupKey = 'snappy_tf_cleanup_scorecard_v1';
+        if (localStorage.getItem(cleanupKey)) return;
+        var changed = false;
+        Object.keys(tfFiles || {}).forEach(function(tech) {
+          if (!Array.isArray(tfFiles[tech])) return;
+          var before = tfFiles[tech].length;
+          tfFiles[tech] = tfFiles[tech].filter(function(f) { return f && f.type !== 'scorecard'; });
+          if (tfFiles[tech].length !== before) changed = true;
+          if (tfFiles[tech].length === 0) delete tfFiles[tech];
+        });
+        if (changed) tfSave();
+        localStorage.setItem(cleanupKey, '1');
+        // Clear the old seed flag so nothing fights the cleanup
+        localStorage.removeItem('snappy_tf_seeded_v1');
+      } catch(e) { console.warn('Tech Files cleanup failed:', e); }
+    })();
     tfRender();
 
     // ========== SKILLS SYSTEM DOC MODAL ==========
@@ -8178,6 +8249,9 @@ if (typeof Chart !== 'undefined') {
         if (storageKey === RECALL_STORAGE) SyncEngine.write('recall', data);
         if (storageKey === COMPLAINT_STORAGE) SyncEngine.write('complaint', data);
       }
+      // Re-render tech profiles + overview so recall/complaint counts stay in sync
+      try { if (typeof renderProfiles === 'function') renderProfiles(); } catch(e) {}
+      try { if (typeof renderOverviewTab === 'function') renderOverviewTab(); } catch(e) {}
     }
 
     function addLogEntry(storageKey, tech) {
