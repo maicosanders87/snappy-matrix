@@ -577,7 +577,7 @@ async function initCloudSync(userInitiated) {
   // Protect recently-modified local keys from being overwritten by stale cloud data.
   // On a fresh device with no _localMod timestamp, parseInt(null||'0')===0 → returns false,
   // so cloud data always wins when there's no local history.
-  var LOCAL_WINS_WINDOW_MS = 5 * 60 * 1000;
+  var LOCAL_WINS_WINDOW_MS = 60 * 60 * 1000; // 1 hour — protects local edits from cloud overwrites long enough for push round-trip
   function _localRecentlyModified(localKey) {
     var raw = localStorage.getItem(localKey + '_localMod');
     if (!raw) return false;
@@ -1971,6 +1971,7 @@ document.addEventListener('visibilitychange', function() {
     }
     function bbSave(data) {
       localStorage.setItem(BB_KEY, JSON.stringify(data));
+      localStorage.setItem(BB_KEY + '_localMod', String(Date.now()));
       if (SyncEngine.isConfigured()) SyncEngine.write('bulletin', data);
       // Re-render tech profiles so Coaching History stays in sync with BB
       try { if (typeof renderProfiles === 'function') renderProfiles(); } catch(e) {}
@@ -8247,6 +8248,8 @@ if (typeof Chart !== 'undefined') {
 
     function saveLogData(storageKey, data) {
       localStorage.setItem(storageKey, JSON.stringify(data));
+      // Mark as recently modified so cloud sync won't stomp it on next reload
+      localStorage.setItem(storageKey + '_localMod', String(Date.now()));
       // Sync to cloud under a recognizable key
       if (SyncEngine.isConfigured()) {
         if (storageKey === RECALL_STORAGE) SyncEngine.write('recall', data);
