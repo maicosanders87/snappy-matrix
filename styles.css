@@ -3311,6 +3311,7 @@
     .coach-mode .mgr-stat-editable { pointer-events: none; cursor: default; }
     .coach-mode .bb-add-form { display: none; }
     .coach-mode .bb-remove { display: none !important; }
+    .coach-mode .bb-card-actions { display: none !important; }
     .coach-mode .nav-tab[data-view="manager"] { display: inline-flex !important; }
     .coach-mode #view-manager { display: block; }
     .coach-mode .mgr-add-btn { display: none !important; }
@@ -3386,6 +3387,7 @@
     .editor-mode #mgrPanel .mgr-btn { display: none !important; }
     .editor-mode .bb-add-form { display: none; }
     .editor-mode .bb-remove { display: none !important; }
+    .editor-mode .bb-card-actions { display: none !important; }
     .editor-mode .mgr-stat-editable { pointer-events: none; cursor: default; }
     .editor-mode .access-lock-btn svg { stroke: #FF9800; }
 
@@ -6108,10 +6110,30 @@
   font-size: 24px;
   margin-bottom: 4px;
 }
-.bb-remove {
+/* BB card action buttons (edit + remove) */
+.bb-card-actions {
   position: absolute;
   top: 8px;
   right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.bb-card:hover .bb-card-actions { opacity: 1; }
+.bb-edit-btn {
+  background: rgba(59,130,246,0.8);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 10px;
+  padding: 2px 7px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.bb-edit-btn:hover { background: #3B82F6; }
+.bb-remove {
   background: #DC2626;
   color: #fff;
   border: none;
@@ -6120,10 +6142,154 @@
   padding: 2px 7px;
   cursor: pointer;
   font-weight: 600;
+  transition: background 0.15s;
+}
+.bb-remove:hover { background: #EF4444; }
+/* Legacy fallback: standalone bb-remove positioning */
+.bb-card > .bb-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   opacity: 0;
   transition: opacity 0.15s;
 }
-.bb-card:hover .bb-remove { opacity: 1; }
+.bb-card:hover > .bb-remove { opacity: 1; }
+
+/* ---- BB Edit Modal ---- */
+.bb-edit-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  z-index: 99998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: bbModalFadeIn 0.2s ease;
+}
+@keyframes bbModalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.bb-edit-modal {
+  background: #141b2d;
+  border-radius: 16px;
+  padding: 0;
+  max-width: 440px;
+  width: 92%;
+  color: #fff;
+  font-family: var(--font);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+.bb-edit-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.bb-edit-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.bb-edit-modal-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.bb-edit-modal-close:hover { color: #fff; }
+.bb-edit-modal-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bb-edit-modal-body label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+}
+.bb-edit-modal-body label:first-child { margin-top: 0; }
+.bb-edit-modal-body input,
+.bb-edit-modal-body select,
+.bb-edit-modal-body textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  font-size: 13px;
+  font-family: var(--font);
+  margin-top: 3px;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.bb-edit-modal-body input:focus,
+.bb-edit-modal-body select:focus,
+.bb-edit-modal-body textarea:focus {
+  outline: none;
+  border-color: rgba(59,130,246,0.5);
+}
+.bb-edit-modal-body textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+.bb-edit-modal-actions {
+  display: flex;
+  gap: 8px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.bb-edit-save {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.bb-edit-save:hover { opacity: 0.9; }
+.bb-edit-delete {
+  padding: 10px 16px;
+  border: 1px solid rgba(220,38,38,0.4);
+  border-radius: 8px;
+  background: transparent;
+  color: #EF4444;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.bb-edit-delete:hover { background: rgba(220,38,38,0.15); }
+.bb-edit-cancel {
+  padding: 10px 16px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.bb-edit-cancel:hover { color: #fff; }
 .bb-add-form {
   margin-top: 10px;
   padding: 12px;

@@ -2194,7 +2194,10 @@ document.addEventListener('visibilitychange', function() {
       if (weekMeetings.length > 0) {
         weekMeetings.forEach(function(m) {
           html += '<div class="bb-card">' +
-            '<button class="bb-remove mgr-only" onclick="bbRemove(\'meetings\',\'' + m.id + '\')">&times;</button>' +
+            '<div class="bb-card-actions mgr-only">' +
+              '<button class="bb-edit-btn" onclick="event.stopPropagation();bbEditEntry(\'meetings\',\'' + m.id + '\')" title="Edit">\u270E</button>' +
+              '<button class="bb-remove" onclick="bbRemove(\'meetings\',\'' + m.id + '\')">&times;</button>' +
+            '</div>' +
             '<div class="bb-card-day">' + bbFmtDay(m.date) + '</div>' +
             '<div class="bb-card-title">' + (m.subject || 'Team Meeting') + '</div>' +
             '<div class="bb-card-meta">' +
@@ -2231,9 +2234,11 @@ document.addEventListener('visibilitychange', function() {
         weekOneOnOnes.forEach(function(o) {
           var statusCls = (o.status || 'planned').replace(/\s/g, '_');
           var statusLbl = o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Planned';
-          var removeBtn = o.source === 'mgr' ? '' : '<button class="bb-remove mgr-only" onclick="bbRemove(\'oneOnOnes\',\'' + o.id + '\')">&times;</button>';
           html += '<div class="bb-card">' +
-            removeBtn +
+            '<div class="bb-card-actions mgr-only">' +
+              '<button class="bb-edit-btn" onclick="event.stopPropagation();bbEditEntry(\'oneOnOnes\',\'' + o.id + '\')" title="Edit">\u270E</button>' +
+              (o.source !== 'mgr' ? '<button class="bb-remove" onclick="bbRemove(\'oneOnOnes\',\'' + o.id + '\')">&times;</button>' : '') +
+            '</div>' +
             '<div class="bb-card-day">' + bbFmtDay(o.date) + '</div>' +
             '<div class="bb-card-title">' + o.tech + '</div>' +
             '<div class="bb-card-meta">' +
@@ -2271,9 +2276,11 @@ document.addEventListener('visibilitychange', function() {
         weekRideAlongs.forEach(function(r) {
           var statusCls = (r.status || 'planned').replace(/\s/g, '_');
           var statusLbl = r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : 'Planned';
-          var removeBtn = r.source === 'mgr' ? '' : '<button class="bb-remove mgr-only" onclick="bbRemove(\'rideAlongs\',\'' + r.id + '\')">&times;</button>';
           html += '<div class="bb-card">' +
-            removeBtn +
+            '<div class="bb-card-actions mgr-only">' +
+              '<button class="bb-edit-btn" onclick="event.stopPropagation();bbEditEntry(\'rideAlongs\',\'' + r.id + '\')" title="Edit">\u270E</button>' +
+              (r.source !== 'mgr' ? '<button class="bb-remove" onclick="bbRemove(\'rideAlongs\',\'' + r.id + '\')">&times;</button>' : '') +
+            '</div>' +
             '<div class="bb-card-day">' + bbFmtDay(r.date) + '</div>' +
             '<div class="bb-card-title">' + r.tech + '</div>' +
             '<div class="bb-card-meta">' +
@@ -2462,6 +2469,118 @@ document.addEventListener('visibilitychange', function() {
       bb.matrixUpdates = bb.matrixUpdates.filter(function(u) { return u.id !== id; });
       bbSave(bb);
       renderBulletinBoard();
+    }
+
+    // ---- Bulletin Board: Edit Entry Modal ----
+    function bbEditEntry(category, id) {
+      var bb = bbLoad();
+      var entry = null;
+      if (bb[category]) entry = bb[category].find(function(x) { return x.id === id; });
+      if (!entry) return;
+
+      var techOpts = '';
+      techs.forEach(function(t) {
+        techOpts += '<option value="' + t.short + '"' + (t.short === entry.tech ? ' selected' : '') + '>' + t.short + '</option>';
+      });
+
+      var fields = '';
+      var title = '';
+      var saveAction = '';
+
+      if (category === 'meetings') {
+        title = 'Edit Meeting';
+        fields =
+          '<label>Date</label><input type="date" id="bbEditDate" value="' + (entry.date || '') + '">' +
+          '<label>Subject / Theme</label><input type="text" id="bbEditSubject" value="' + (entry.subject || '').replace(/"/g,'&quot;') + '">' +
+          '<label>Time</label><input type="text" id="bbEditTime" value="' + (entry.time || '').replace(/"/g,'&quot;') + '" placeholder="e.g. 8:00 AM">' +
+          '<label>Location</label><input type="text" id="bbEditLocation" value="' + (entry.location || '').replace(/"/g,'&quot;') + '" placeholder="e.g. Shop / Zoom">' +
+          '<label>Notes</label><textarea id="bbEditNotes">' + (entry.notes || '') + '</textarea>';
+      } else if (category === 'oneOnOnes') {
+        title = 'Edit 1-on-1';
+        fields =
+          '<label>Tech</label><select id="bbEditTech">' + techOpts + '</select>' +
+          '<label>Date</label><input type="date" id="bbEditDate" value="' + (entry.date || '') + '">' +
+          '<label>Time</label><input type="text" id="bbEditTime" value="' + (entry.time || '').replace(/"/g,'&quot;') + '" placeholder="e.g. 2:00 PM">' +
+          '<label>Status</label><select id="bbEditStatus"><option value="planned"' + (entry.status === 'planned' ? ' selected' : '') + '>Planned</option><option value="completed"' + (entry.status === 'completed' ? ' selected' : '') + '>Completed</option></select>' +
+          '<label>Notes</label><textarea id="bbEditNotes">' + (entry.notes || '') + '</textarea>';
+      } else if (category === 'rideAlongs') {
+        title = 'Edit Ride-Along';
+        fields =
+          '<label>Tech</label><select id="bbEditTech">' + techOpts + '</select>' +
+          '<label>Date</label><input type="date" id="bbEditDate" value="' + (entry.date || '') + '">' +
+          '<label>Time</label><input type="text" id="bbEditTime" value="' + (entry.time || '').replace(/"/g,'&quot;') + '" placeholder="e.g. 9:00 AM">' +
+          '<label>Status</label><select id="bbEditStatus"><option value="planned"' + (entry.status === 'planned' ? ' selected' : '') + '>Planned</option><option value="completed"' + (entry.status === 'completed' ? ' selected' : '') + '>Completed</option></select>' +
+          '<label>Notes</label><textarea id="bbEditNotes">' + (entry.notes || '') + '</textarea>';
+      }
+
+      var modal = document.createElement('div');
+      modal.id = 'bbEditModal';
+      modal.className = 'bb-edit-modal-overlay';
+      modal.innerHTML =
+        '<div class="bb-edit-modal">' +
+          '<div class="bb-edit-modal-header">' +
+            '<span class="bb-edit-modal-title">' + title + '</span>' +
+            '<button class="bb-edit-modal-close" onclick="document.getElementById(\'bbEditModal\').remove()">&times;</button>' +
+          '</div>' +
+          '<div class="bb-edit-modal-body">' + fields + '</div>' +
+          '<div class="bb-edit-modal-actions">' +
+            '<button class="bb-edit-save" onclick="bbSaveEdit(\'' + category + '\',\'' + id + '\')">Save Changes</button>' +
+            '<button class="bb-edit-delete" onclick="if(confirm(\'Delete this entry?\')){ bbRemove(\'' + category + '\',\'' + id + '\'); document.getElementById(\'bbEditModal\').remove(); }">Delete</button>' +
+            '<button class="bb-edit-cancel" onclick="document.getElementById(\'bbEditModal\').remove()">Cancel</button>' +
+          '</div>' +
+        '</div>';
+      modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+      document.body.appendChild(modal);
+    }
+
+    function bbSaveEdit(category, id) {
+      var bb = bbLoad();
+      var entry = bb[category] ? bb[category].find(function(x) { return x.id === id; }) : null;
+      if (!entry) return;
+
+      var dateEl = document.getElementById('bbEditDate');
+      var timeEl = document.getElementById('bbEditTime');
+      var notesEl = document.getElementById('bbEditNotes');
+      var techEl = document.getElementById('bbEditTech');
+      var statusEl = document.getElementById('bbEditStatus');
+
+      if (dateEl) entry.date = dateEl.value;
+      if (timeEl) entry.time = timeEl.value.trim();
+      if (notesEl) entry.notes = notesEl.value.trim();
+      if (techEl) entry.tech = techEl.value;
+      if (statusEl) entry.status = statusEl.value;
+
+      if (category === 'meetings') {
+        var subjectEl = document.getElementById('bbEditSubject');
+        var locationEl = document.getElementById('bbEditLocation');
+        if (subjectEl) entry.subject = subjectEl.value.trim();
+        if (locationEl) entry.location = locationEl.value.trim();
+      }
+
+      bbSave(bb);
+      document.getElementById('bbEditModal').remove();
+      renderBulletinBoard();
+      renderMgrBulletinBoard();
+
+      // Also update manager calendar if this entry was synced there
+      if (category === 'oneOnOnes' || category === 'rideAlongs') {
+        var calEntry = mgrState.entries.find(function(e) { return e.id === id; });
+        if (calEntry) {
+          if (dateEl) calEntry.date = entry.date;
+          if (techEl) calEntry.tech = entry.tech;
+          if (statusEl) calEntry.status = entry.status;
+          mgrSave();
+          renderManagerTab();
+        }
+      }
+
+      // Toast
+      var toast = document.createElement('div');
+      toast.textContent = '\u2705 Entry updated';
+      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#065f46;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.style.opacity = '0'; }, 2000);
+      setTimeout(function() { toast.remove(); }, 2500);
     }
 
     // ========== CHARTS ==========
