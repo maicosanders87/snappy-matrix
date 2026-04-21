@@ -4418,6 +4418,9 @@ if (typeof Chart !== 'undefined') {
           var cardId = 'rookie-st-' + t.short;
 
           function buildStGrid(nx, pr, mb, sl, label, isWarranty, stObj) {
+            // Live dispatch recalls added on top of baseline ST recalls
+            var liveRecalls = (typeof getRecallCount === 'function') ? getRecallCount(t.short) : 0;
+            var totalRecalls = (pr.recalls || 0) + liveRecalls;
             return `
               <div class="rookie-st-grid">
                 <div class="rookie-st-item">
@@ -4460,8 +4463,8 @@ if (typeof Chart !== 'undefined') {
                   <div class="rookie-st-val">${pr.options_per_opp}</div>
                   <div class="rookie-st-lbl">Opts/Opp</div>
                 </div>
-                <div class="rookie-st-item">
-                  <div class="rookie-st-val">${pr.recalls}</div>
+                <div class="rookie-st-item" title="${pr.recalls} baseline + ${liveRecalls} from dispatch">
+                  <div class="rookie-st-val">${totalRecalls}${liveRecalls > 0 ? '<span style="font-size:11px;color:#FF9800;margin-left:4px;vertical-align:top">+' + liveRecalls + '</span>' : ''}</div>
                   <div class="rookie-st-lbl">Recalls</div>
                 </div>
                 <div class="rookie-st-item">
@@ -8249,9 +8252,10 @@ if (typeof Chart !== 'undefined') {
         if (storageKey === RECALL_STORAGE) SyncEngine.write('recall', data);
         if (storageKey === COMPLAINT_STORAGE) SyncEngine.write('complaint', data);
       }
-      // Re-render tech profiles + overview so recall/complaint counts stay in sync
+      // Re-render tech profiles + overview + rookie cards so recall/complaint counts stay in sync
       try { if (typeof renderProfiles === 'function') renderProfiles(); } catch(e) {}
       try { if (typeof renderOverviewTab === 'function') renderOverviewTab(); } catch(e) {}
+      try { if (typeof renderRookieCards === 'function') renderRookieCards(); } catch(e) {}
     }
 
     function addLogEntry(storageKey, tech) {
