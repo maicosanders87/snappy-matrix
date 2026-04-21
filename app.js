@@ -8263,13 +8263,15 @@ if (typeof Chart !== 'undefined') {
 
     function addLogEntry(storageKey, tech) {
       if (!canEditDispatch()) { alert('Viewing mode \u2014 editing is disabled.'); return; }
+      const isRecall = storageKey === RECALL_STORAGE;
       const date = prompt('Enter date (e.g. 04/19/2026):');
       if (!date || !date.trim()) return;
       const jobNum = prompt('Enter job number:');
       if (!jobNum || !jobNum.trim()) return;
+      const notes = prompt(isRecall ? 'Notes (optional) \u2014 reason for recall, what was missed, etc.' : 'Notes (optional) \u2014 customer complaint, resolution, etc.');
       const data = loadLogData(storageKey);
       if (!data[tech]) data[tech] = [];
-      data[tech].push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date: date.trim(), jobNum: jobNum.trim(), ts: Date.now() });
+      data[tech].push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date: date.trim(), jobNum: jobNum.trim(), notes: (notes || '').trim(), ts: Date.now() });
       saveLogData(storageKey, data);
       renderRecallLog();
       renderComplaintLog();
@@ -8323,12 +8325,14 @@ if (typeof Chart !== 'undefined') {
           // Sort newest first
           const sorted = entries.slice().sort((a,b) => (b.ts||0) - (a.ts||0));
           sorted.forEach(entry => {
-            html += `<div class="disp-log-entry">`;
+            const hasNotes = entry.notes && entry.notes.trim();
+            html += `<div class="disp-log-entry disp-log-entry-clickable" data-logtype="${logType}" data-tech="${tech}" data-entryid="${entry.id}" title="Click to view/edit">`;
             html += `<div class="disp-log-entry-info">`;
             html += `<span class="disp-log-entry-date">${escHtml(entry.date)}</span>`;
             html += `<span class="disp-log-entry-job">Job #${escHtml(entry.jobNum)}</span>`;
+            if (hasNotes) html += `<span class="disp-log-entry-notes-indicator" title="Has notes">\u{1F4DD}</span>`;
             html += `</div>`;
-            html += `<button class="disp-log-delete-btn" data-logtype="${logType}" data-tech="${tech}" data-entryid="${entry.id}" title="Remove">&times;</button>`;
+            html += `<span class="disp-log-entry-chevron">\u203A</span>`;
             html += `</div>`;
           });
           html += `</div>`;
@@ -8346,13 +8350,111 @@ if (typeof Chart !== 'undefined') {
         });
       });
 
-      // Wire up delete buttons
-      container.querySelectorAll('.disp-log-delete-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const sk = btn.dataset.logtype === 'recall' ? RECALL_STORAGE : COMPLAINT_STORAGE;
-          deleteLogEntry(sk, btn.dataset.tech, btn.dataset.entryid);
+      // Wire up entry click → open edit modal
+      container.querySelectorAll('.disp-log-entry-clickable').forEach(row => {
+        row.addEventListener('click', () => {
+          const sk = row.dataset.logtype === 'recall' ? RECALL_STORAGE : COMPLAINT_STORAGE;
+          openLogEntryModal(sk, row.dataset.tech, row.dataset.entryid, row.dataset.logtype);
         });
       });
+    }
+
+    // ========== RECALL/COMPLAINT EDIT MODAL ==========
+    function openLogEntryModal(storageKey, tech, entryId, logType) {
+      const data = loadLogData(storageKey);
+      const entry = (data[tech] || []).find(e => e.id === entryId);
+      if (!entry) return;
+      const isRecall = logType === 'recall';
+      const accent = isRecall ? '#FF9800' : '#EF5350';
+      const accentBg = isRecall ? 'rgba(255,152,0,0.12)' : 'rgba(239,83,80,0.12)';
+      const label = isRecall ? 'Recall' : 'Complaint';
+      const viewerMode = !canEditDispatch();
+
+      // Remove any existing modal
+      const existing = document.getElementById('logEntryModal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'logEntryModal';
+      modal.className = 'log-entry-modal-overlay';
+      modal.innerHTML = `
+        <div class="log-entry-modal" style="border-top:4px solid ${accent}">
+          <div class="log-entry-modal-header">
+            <div class="log-entry-modal-title">
+              <span class="log-entry-modal-badge" style="background:${accentBg};color:${accent}">${label}</span>
+              <span>${escHtml(tech)}</span>
+            </div>
+            <button class="log-entry-modal-close" id="logModalClose">&times;</button>
+          </div>
+          <div class="log-entry-modal-body">
+            <label class="log-entry-field">
+              <span class="log-entry-field-label">Date</span>
+              <input type="text" id="logEditDate" value="${escHtml(entry.date || '')}" ${viewerMode ? 'readonly' : ''} placeholder="MM/DD/YYYY">
+            </label>
+            <label class="log-entry-field">
+              <span class="log-entry-field-label">Job Number</span>
+              <input type="text" id="logEditJob" value="${escHtml(entry.jobNum || '')}" ${viewerMode ? 'readonly' : ''}>
+            </label>
+            <label class="log-entry-field">
+              <span class="log-entry-field-label">Notes ${viewerMode ? '' : '<span style="color:var(--text-muted);font-weight:400">(optional)</span>'}</span>
+              <textarea id="logEditNotes" rows="4" ${viewerMode ? 'readonly' : ''} placeholder="${isRecall ? 'What was the reason for the recall? What did the tech miss?' : 'What was the customer complaint? How was it resolved?'}">${escHtml(entry.notes || '')}</textarea>
+            </label>
+            ${entry.ts ? '<div class="log-entry-meta"></div>' : ''}
+          </div>
+          ${viewerMode ? '' : `
+          <div class="log-entry-modal-footer">
+            <button class="log-entry-btn log-entry-btn-delete" id="logModalDelete">Delete</button>
+            <div class="log-entry-modal-footer-right">
+              <button class="log-entry-btn log-entry-btn-cancel" id="logModalCancel">Cancel</button>
+              <button class="log-entry-btn log-entry-btn-save" id="logModalSave" style="background:${accent}">Save Changes</button>
+            </div>
+          </div>`}
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      // Fix ts display (string concat inside template literal tripped us up)
+      if (entry.ts) {
+        const metaEl = modal.querySelector('.log-entry-meta');
+        if (metaEl) metaEl.textContent = 'Logged ' + new Date(entry.ts).toLocaleString();
+      }
+
+      const close = () => modal.remove();
+      modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+      document.getElementById('logModalClose').addEventListener('click', close);
+
+      if (!viewerMode) {
+        document.getElementById('logModalCancel').addEventListener('click', close);
+        document.getElementById('logModalDelete').addEventListener('click', () => {
+          if (!confirm('Delete this ' + label.toLowerCase() + ' for ' + tech + '?')) return;
+          const d = loadLogData(storageKey);
+          if (d[tech]) {
+            d[tech] = d[tech].filter(e => e.id !== entryId);
+            if (d[tech].length === 0) delete d[tech];
+          }
+          saveLogData(storageKey, d);
+          renderRecallLog();
+          renderComplaintLog();
+          close();
+        });
+        document.getElementById('logModalSave').addEventListener('click', () => {
+          const newDate = document.getElementById('logEditDate').value.trim();
+          const newJob = document.getElementById('logEditJob').value.trim();
+          const newNotes = document.getElementById('logEditNotes').value.trim();
+          if (!newDate || !newJob) { alert('Date and Job Number are required.'); return; }
+          const d = loadLogData(storageKey);
+          const target = (d[tech] || []).find(e => e.id === entryId);
+          if (target) {
+            target.date = newDate;
+            target.jobNum = newJob;
+            target.notes = newNotes;
+          }
+          saveLogData(storageKey, d);
+          renderRecallLog();
+          renderComplaintLog();
+          close();
+        });
+      }
     }
 
     function renderRecallLog() {

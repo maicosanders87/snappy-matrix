@@ -5667,6 +5667,189 @@
     .viewer-mode .disp-log-add-btn { display: none !important; }
     .viewer-mode .disp-log-delete-btn { display: none !important; }
 
+    /* Clickable log entries */
+    .disp-log-entry-clickable {
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .disp-log-entry-clickable:hover {
+      background: rgba(15,23,42,0.9);
+      border-color: rgba(255,152,0,0.35);
+      transform: translateX(2px);
+    }
+    .disp-log-entry-chevron {
+      color: var(--text-muted);
+      font-size: 18px;
+      line-height: 1;
+      opacity: 0.5;
+      transition: all 0.15s;
+    }
+    .disp-log-entry-clickable:hover .disp-log-entry-chevron {
+      opacity: 1;
+      transform: translateX(2px);
+    }
+    .disp-log-entry-notes-indicator {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    /* Recall/Complaint edit modal */
+    .log-entry-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.15s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .log-entry-modal {
+      background: var(--bg-elevated, #1a2234);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .log-entry-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .log-entry-modal-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .log-entry-modal-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 10px;
+    }
+    .log-entry-modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 28px;
+      height: 28px;
+      line-height: 1;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .log-entry-modal-close:hover {
+      background: rgba(239,83,80,0.15);
+      color: #EF5350;
+    }
+    .log-entry-modal-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .log-entry-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .log-entry-field-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+    }
+    .log-entry-field input,
+    .log-entry-field textarea {
+      background: rgba(15,23,42,0.6);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .log-entry-field input:focus,
+    .log-entry-field textarea:focus {
+      outline: none;
+      border-color: rgba(59,130,246,0.5);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+    }
+    .log-entry-field input[readonly],
+    .log-entry-field textarea[readonly] {
+      opacity: 0.7;
+      cursor: default;
+    }
+    .log-entry-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      padding-top: 4px;
+    }
+    .log-entry-modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .log-entry-modal-footer-right {
+      display: flex;
+      gap: 8px;
+    }
+    .log-entry-btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(15,23,42,0.6);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .log-entry-btn-cancel:hover {
+      background: rgba(15,23,42,0.9);
+    }
+    .log-entry-btn-delete {
+      color: #EF5350;
+      border-color: rgba(239,83,80,0.3);
+    }
+    .log-entry-btn-delete:hover {
+      background: rgba(239,83,80,0.15);
+      border-color: #EF5350;
+    }
+    .log-entry-btn-save {
+      color: #fff;
+      border: none;
+      font-weight: 700;
+    }
+    .log-entry-btn-save:hover {
+      filter: brightness(1.1);
+    }
+
     @media (max-width: 600px) {
       .disp-log-cards {
         grid-template-columns: 1fr;
