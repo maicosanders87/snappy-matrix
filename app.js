@@ -2237,7 +2237,7 @@ document.addEventListener('visibilitychange', function() {
           html += '<div class="bb-card">' +
             '<div class="bb-card-actions mgr-only">' +
               '<button class="bb-edit-btn" onclick="event.stopPropagation();bbEditEntry(\'oneOnOnes\',\'' + o.id + '\')" title="Edit">\u270E</button>' +
-              (o.source !== 'mgr' ? '<button class="bb-remove" onclick="bbRemove(\'oneOnOnes\',\'' + o.id + '\')">&times;</button>' : '') +
+              '<button class="bb-remove" onclick="bbRemove(\'oneOnOnes\',\'' + o.id + '\')">&times;</button>' +
             '</div>' +
             '<div class="bb-card-day">' + bbFmtDay(o.date) + '</div>' +
             '<div class="bb-card-title">' + o.tech + '</div>' +
@@ -2279,7 +2279,7 @@ document.addEventListener('visibilitychange', function() {
           html += '<div class="bb-card">' +
             '<div class="bb-card-actions mgr-only">' +
               '<button class="bb-edit-btn" onclick="event.stopPropagation();bbEditEntry(\'rideAlongs\',\'' + r.id + '\')" title="Edit">\u270E</button>' +
-              (r.source !== 'mgr' ? '<button class="bb-remove" onclick="bbRemove(\'rideAlongs\',\'' + r.id + '\')">&times;</button>' : '') +
+              '<button class="bb-remove" onclick="bbRemove(\'rideAlongs\',\'' + r.id + '\')">&times;</button>' +
             '</div>' +
             '<div class="bb-card-day">' + bbFmtDay(r.date) + '</div>' +
             '<div class="bb-card-title">' + r.tech + '</div>' +
@@ -2475,7 +2475,18 @@ document.addEventListener('visibilitychange', function() {
     function bbEditEntry(category, id) {
       var bb = bbLoad();
       var entry = null;
+      var isMgrSource = false;
       if (bb[category]) entry = bb[category].find(function(x) { return x.id === id; });
+      // Fallback: entry may be sourced from manager calendar (not in BB localStorage)
+      if (!entry && mgrState && mgrState.entries) {
+        var mgrEntry = mgrState.entries.find(function(e) { return e.id === id; });
+        if (mgrEntry) {
+          entry = { id: mgrEntry.id, tech: mgrEntry.tech, date: mgrEntry.date, time: mgrEntry.time || '', status: mgrEntry.status || 'planned', notes: mgrEntry.notes || '', source: 'mgr' };
+          if (mgrEntry.subject) entry.subject = mgrEntry.subject;
+          if (mgrEntry.location) entry.location = mgrEntry.location;
+          isMgrSource = true;
+        }
+      }
       if (!entry) return;
 
       var techOpts = '';
@@ -2536,6 +2547,16 @@ document.addEventListener('visibilitychange', function() {
     function bbSaveEdit(category, id) {
       var bb = bbLoad();
       var entry = bb[category] ? bb[category].find(function(x) { return x.id === id; }) : null;
+      var isMgrOnly = false;
+
+      // If not in BB data, check manager calendar (mgr-sourced entry)
+      if (!entry && mgrState && mgrState.entries) {
+        var mgrEntry = mgrState.entries.find(function(e) { return e.id === id; });
+        if (mgrEntry) {
+          entry = mgrEntry;
+          isMgrOnly = true;
+        }
+      }
       if (!entry) return;
 
       var dateEl = document.getElementById('bbEditDate');
@@ -2557,22 +2578,25 @@ document.addEventListener('visibilitychange', function() {
         if (locationEl) entry.location = locationEl.value.trim();
       }
 
-      bbSave(bb);
+      if (!isMgrOnly) bbSave(bb);
       document.getElementById('bbEditModal').remove();
-      renderBulletinBoard();
-      renderMgrBulletinBoard();
 
       // Also update manager calendar if this entry was synced there
       if (category === 'oneOnOnes' || category === 'rideAlongs') {
         var calEntry = mgrState.entries.find(function(e) { return e.id === id; });
         if (calEntry) {
-          if (dateEl) calEntry.date = entry.date;
-          if (techEl) calEntry.tech = entry.tech;
-          if (statusEl) calEntry.status = entry.status;
+          if (dateEl) calEntry.date = dateEl.value;
+          if (techEl) calEntry.tech = techEl.value;
+          if (statusEl) calEntry.status = statusEl.value;
+          if (notesEl) calEntry.notes = notesEl.value.trim();
+          if (timeEl) calEntry.time = timeEl.value.trim();
           mgrSave();
           renderManagerTab();
         }
       }
+
+      renderBulletinBoard();
+      renderMgrBulletinBoard();
 
       // Toast
       var toast = document.createElement('div');
