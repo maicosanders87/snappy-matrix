@@ -5317,6 +5317,7 @@ if (typeof Chart !== 'undefined') {
         { key: 'review_calls', label: 'Review prior day calls, service & installs' },
         { key: 'clear_cases', label: 'Task management — clear ST cases' },
         { key: 'daily_huddle', label: 'Daily huddle with HVAC (Slack)' },
+        { key: 'check_trello', label: 'Check Trello board' },
         { key: 'update_matrix', label: 'Update Matrix' }
       ];
       dailyItems.forEach(function(item) {
