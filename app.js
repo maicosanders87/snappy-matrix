@@ -3363,6 +3363,10 @@ if (typeof Chart !== 'undefined') {
         mtd_service_rev: 3959,
         mtd_installs: 0,
         mtd_on_job_pct: 53,
+        mtd_nexstar: { total_revenue: 7061, avg_sale: 431, conversion_rate: 84, spps_sold: 3, tech_gen_leads: 8, sold_hours: 32.85, flat_rate_tasks: 1.81 },
+        mtd_productivity: { rev_hr: 114, billable_hours: 32.85, sold_hrs_on_job_pct: 53, tasks_per_opp: 2.05, options_per_opp: 2.82, recalls: 0 },
+        mtd_memberships: { total_mem_sold: 3, total_mem_opps: 4, total_mem_pct: 75 },
+        mtd_sales: { close_rate: 84 },
         nexstar: { total_revenue: 25675, avg_sale: 440, conversion_rate: 79, spps_sold: 8, tech_gen_leads: 34, sold_hours: 138.55, tech_sold_hr_eff: 0, flat_rate_tasks: 1.84 },
         overview: { revenue: 25675, total_job_avg: 153, opp_job_avg: 351, opp_conversion: 79, opps: 71, converted_jobs: 56 },
         leads: { opps: 71, leads_set: 34, conv_rate: 48, avg_sale: 440 },
@@ -3377,6 +3381,10 @@ if (typeof Chart !== 'undefined') {
         mtd_service_rev: 4859,
         mtd_installs: 0,
         mtd_on_job_pct: 57,
+        mtd_nexstar: { total_revenue: 7625, avg_sale: 429, conversion_rate: 74, spps_sold: 2, tech_gen_leads: 1, sold_hours: 37.8, flat_rate_tasks: 2.01 },
+        mtd_productivity: { rev_hr: 114, billable_hours: 37.8, sold_hrs_on_job_pct: 57, tasks_per_opp: 2.05, options_per_opp: 1.29, recalls: 1 },
+        mtd_memberships: { total_mem_sold: 2, total_mem_opps: 8, total_mem_pct: 25 },
+        mtd_sales: { close_rate: 74 },
         nexstar: { total_revenue: 18238, avg_sale: 445, conversion_rate: 56, spps_sold: 2, tech_gen_leads: 9, sold_hours: 130.65, tech_sold_hr_eff: 0.28, flat_rate_tasks: 2.17 },
         overview: { revenue: 18238, total_job_avg: 108, opp_job_avg: 260, opp_conversion: 56, opps: 66, converted_jobs: 37 },
         leads: { opps: 66, leads_set: 9, conv_rate: 14, avg_sale: 445 },
@@ -3391,6 +3399,10 @@ if (typeof Chart !== 'undefined') {
         mtd_service_rev: 1913,
         mtd_installs: 0,
         mtd_on_job_pct: 25,
+        mtd_nexstar: { total_revenue: 4707, avg_sale: 513, conversion_rate: 82, spps_sold: 0, tech_gen_leads: 1, sold_hours: 26.25, flat_rate_tasks: 1.78 },
+        mtd_productivity: { rev_hr: 44, billable_hours: 26.25, sold_hrs_on_job_pct: 25, tasks_per_opp: 2.09, options_per_opp: 0.86, recalls: 1 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 2, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 82 },
         nexstar: { total_revenue: 19162, avg_sale: 547, conversion_rate: 64, spps_sold: 4, tech_gen_leads: 5, sold_hours: 120.75, tech_sold_hr_eff: 0, flat_rate_tasks: 2.03 },
         overview: { revenue: 19162, total_job_avg: 121, opp_job_avg: 355, opp_conversion: 64, opps: 53, converted_jobs: 34 },
         leads: { opps: 53, leads_set: 5, conv_rate: 9, avg_sale: 547 },
@@ -3405,6 +3417,10 @@ if (typeof Chart !== 'undefined') {
         mtd_service_rev: 2511,
         mtd_installs: 0,
         mtd_on_job_pct: 53,
+        mtd_nexstar: { total_revenue: 5390, avg_sale: 368, conversion_rate: 58, spps_sold: 4, tech_gen_leads: 5, sold_hours: 40.3, flat_rate_tasks: 1.86 },
+        mtd_productivity: { rev_hr: 71, billable_hours: 40.3, sold_hrs_on_job_pct: 53, tasks_per_opp: 1.58, options_per_opp: 2.11, recalls: 1 },
+        mtd_memberships: { total_mem_sold: 4, total_mem_opps: 7, total_mem_pct: 57 },
+        mtd_sales: { close_rate: 58 },
         nexstar: { total_revenue: 15359, avg_sale: 360, conversion_rate: 55, spps_sold: 6, tech_gen_leads: 26, sold_hours: 127.67, tech_sold_hr_eff: 0, flat_rate_tasks: 1.91 },
         overview: { revenue: 15359, total_job_avg: 86, opp_job_avg: 203, opp_conversion: 55, opps: 73, converted_jobs: 40 },
         leads: { opps: 73, leads_set: 26, conv_rate: 36, avg_sale: 360 },
@@ -3419,6 +3435,10 @@ if (typeof Chart !== 'undefined') {
         mtd_service_rev: 0,
         mtd_installs: 0,
         mtd_on_job_pct: 42,
+        mtd_nexstar: { total_revenue: 1261, avg_sale: 630, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 19.4, flat_rate_tasks: 4.5 },
+        mtd_productivity: { rev_hr: 27, billable_hours: 19.4, sold_hrs_on_job_pct: 42, tasks_per_opp: 5.5, options_per_opp: 2, recalls: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 100 },
         isWarrantyTech: true,
         completedJobs: 113,
         nexstar: { total_revenue: 6416, avg_sale: 562, conversion_rate: 85, spps_sold: 0, tech_gen_leads: 3, sold_hours: 87.35, tech_sold_hr_eff: 0, flat_rate_tasks: 2.65 },
@@ -4187,60 +4207,64 @@ if (typeof Chart !== 'undefined') {
           : tierLower === 'b' ? 'linear-gradient(90deg, #2563EB, #3B82F6)'
           : 'linear-gradient(90deg, #6B7280, #9CA3AF)';
 
-        // Build ST stat rows
+        // Build ST stat rows — uses MTD data for Rookie Cards
         var stRows = '';
         if (st) {
           var isW = st.isWarrantyTech;
+          var mn = st.mtd_nexstar || st.nexstar;
+          var mp = st.mtd_productivity || st.productivity;
+          var mm = st.mtd_memberships || st.memberships;
+          var ms = st.mtd_sales || st.sales;
           stRows = `
             <div class="rookie-st-section">
-              <div class="rookie-st-header">ServiceTitan Performance</div>
+              <div class="rookie-st-header">ServiceTitan Performance <span style="font-size:0.65em;opacity:0.6;font-weight:400;">(Month-to-Date)</span></div>
               <div class="rookie-st-grid">
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">$${st.nexstar.total_revenue.toLocaleString()}</div>
+                  <div class="rookie-st-val">$${mn.total_revenue.toLocaleString()}</div>
                   <div class="rookie-st-lbl">Revenue</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">$${st.nexstar.avg_sale}</div>
+                  <div class="rookie-st-val">$${mn.avg_sale}</div>
                   <div class="rookie-st-lbl">Avg Ticket</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${st.nexstar.conversion_rate}%</div>
+                  <div class="rookie-st-val">${mn.conversion_rate}%</div>
                   <div class="rookie-st-lbl">Conv Rate</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${st.memberships.total_mem_sold}/${st.memberships.total_mem_opps}</div>
+                  <div class="rookie-st-val">${mm.total_mem_sold}/${mm.total_mem_opps}</div>
                   <div class="rookie-st-lbl">Mem Sold</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${st.memberships.total_mem_pct}%</div>
+                  <div class="rookie-st-val">${mm.total_mem_pct}%</div>
                   <div class="rookie-st-lbl">Mem Conv</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${isW ? st.completedJobs : st.nexstar.tech_gen_leads}</div>
+                  <div class="rookie-st-val">${isW ? st.completedJobs : mn.tech_gen_leads}</div>
                   <div class="rookie-st-lbl">${isW ? 'Jobs Done' : 'Leads Set'}</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">$${st.productivity.rev_hr}</div>
+                  <div class="rookie-st-val">$${mp.rev_hr}</div>
                   <div class="rookie-st-lbl">Rev/Hr</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${st.productivity.sold_hrs_on_job_pct}%</div>
+                  <div class="rookie-st-val">${mp.sold_hrs_on_job_pct}%</div>
                   <div class="rookie-st-lbl">Sold Hrs %</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${st.sales.close_rate}%</div>
+                  <div class="rookie-st-val">${ms.close_rate}%</div>
                   <div class="rookie-st-lbl">Close Rate</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${st.productivity.options_per_opp}</div>
+                  <div class="rookie-st-val">${mp.options_per_opp}</div>
                   <div class="rookie-st-lbl">Opts/Opp</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${st.productivity.recalls}</div>
+                  <div class="rookie-st-val">${mp.recalls}</div>
                   <div class="rookie-st-lbl">Recalls</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${st.nexstar.spps_sold}</div>
+                  <div class="rookie-st-val">${mn.spps_sold}</div>
                   <div class="rookie-st-lbl">SPPs Sold</div>
                 </div>
               </div>
@@ -4338,7 +4362,7 @@ if (typeof Chart !== 'undefined') {
                   <div class="rookie-back-area-bar">
                     <div class="rookie-back-area-bar-fill" style="width:${Math.min(tierInfo.efficiencyBonus / 2 * 100, 100)}%;background:${tierInfo.efficiencyBonus >= 1.5 ? '#4ADE80' : tierInfo.efficiencyBonus >= 0.5 ? nextColor : '#EF4444'}"></div>
                   </div>
-                  <div class="rookie-back-area-tip">${tierInfo.efficiencyPct}% on-job (${tierInfo.efficiencyLabel}) — 30%=+0.50 | 40%=+1.00 | 50%=+1.50 | 60%=+2.00</div>
+                  <div class="rookie-back-area-tip">${tierInfo.efficiencyPct}% MTD on-job (${tierInfo.efficiencyLabel}) — 30%=+0.50 | 40%=+1.00 | 50%=+1.50 | 60%=+2.00</div>
                 </div>
               </div>
             </div>
@@ -4597,7 +4621,7 @@ if (typeof Chart !== 'undefined') {
                 <div class="prog-area-bar">
                   <div class="prog-area-bar-fill" style="width:${Math.min(info.efficiencyBonus / 2 * 100, 100)}%;background:${info.efficiencyBonus >= 1.5 ? 'var(--accent-green)' : info.efficiencyBonus >= 0.5 ? 'var(--snappy-blue-light)' : 'var(--accent-red)'}"></div>
                 </div>
-                <div class="prog-area-tip">${info.efficiencyPct}% on-job (${info.efficiencyLabel}) \u2014 &lt;30%=+0 | 30%=+0.50 | 40%=+1.00 | 50%=+1.50 | 60%+=+2.00</div>
+                <div class="prog-area-tip">${info.efficiencyPct}% MTD on-job (${info.efficiencyLabel}) \u2014 &lt;30%=+0 | 30%=+0.50 | 40%=+1.00 | 50%=+1.50 | 60%+=+2.00</div>
               </div>
             </div>
           </div>
