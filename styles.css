@@ -1894,6 +1894,56 @@
       letter-spacing: 0.8px;
       color: rgba(255,255,255,0.35);
       margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    /* MTD / 90-Day toggle pill switch */
+    .rookie-st-toggle {
+      display: inline-flex;
+      background: rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 1px;
+      gap: 0;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .rookie-st-toggle-opt {
+      font-size: 7.5px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 8px;
+      color: rgba(255,255,255,0.3);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .rookie-st-toggle-opt:hover {
+      color: rgba(255,255,255,0.55);
+    }
+    .rookie-st-toggle-opt.is-active {
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.85);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    /* Tier-colored active toggle */
+    .rookie-tier-s .rookie-st-toggle-opt.is-active { background: rgba(255,215,0,0.2); color: #FFD700; box-shadow: 0 0 6px rgba(255,215,0,0.15); }
+    .rookie-tier-a .rookie-st-toggle-opt.is-active { background: rgba(220,38,38,0.2); color: #F87171; box-shadow: 0 0 6px rgba(220,38,38,0.15); }
+    .rookie-tier-b .rookie-st-toggle-opt.is-active { background: rgba(59,130,246,0.2); color: #60A5FA; box-shadow: 0 0 6px rgba(59,130,246,0.15); }
+    .rookie-tier-c .rookie-st-toggle-opt.is-active { background: rgba(148,163,184,0.15); color: #94A3B8; }
+    .rookie-tier-s .rookie-st-toggle { border-color: rgba(255,215,0,0.12); }
+    .rookie-tier-a .rookie-st-toggle { border-color: rgba(220,38,38,0.12); }
+    .rookie-tier-b .rookie-st-toggle { border-color: rgba(59,130,246,0.12); }
+    .rookie-tier-c .rookie-st-toggle { border-color: rgba(148,163,184,0.08); }
+    /* View toggle visibility */
+    .rookie-st-view { display: none; }
+    .rookie-st-view.is-visible { display: block; animation: rookieStFade 0.25s ease; }
+    @keyframes rookieStFade {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .rookie-st-grid {
       display: grid;

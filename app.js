@@ -4207,66 +4207,90 @@ if (typeof Chart !== 'undefined') {
           : tierLower === 'b' ? 'linear-gradient(90deg, #2563EB, #3B82F6)'
           : 'linear-gradient(90deg, #6B7280, #9CA3AF)';
 
-        // Build ST stat rows — uses MTD data for Rookie Cards
+        // Build ST stat rows — MTD / 90-Day toggle
         var stRows = '';
         if (st) {
           var isW = st.isWarrantyTech;
+          // MTD data
           var mn = st.mtd_nexstar || st.nexstar;
           var mp = st.mtd_productivity || st.productivity;
           var mm = st.mtd_memberships || st.memberships;
           var ms = st.mtd_sales || st.sales;
-          stRows = `
-            <div class="rookie-st-section">
-              <div class="rookie-st-header">ServiceTitan Performance <span style="font-size:0.65em;opacity:0.6;font-weight:400;">(Month-to-Date)</span></div>
+          // 90-day data
+          var n90 = st.nexstar;
+          var p90 = st.productivity;
+          var m90 = st.memberships;
+          var s90 = st.sales;
+          var cardId = 'rookie-st-' + t.short;
+
+          function buildStGrid(nx, pr, mb, sl, label, isWarranty, stObj) {
+            return `
               <div class="rookie-st-grid">
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">$${mn.total_revenue.toLocaleString()}</div>
+                  <div class="rookie-st-val">$${nx.total_revenue.toLocaleString()}</div>
                   <div class="rookie-st-lbl">Revenue</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">$${mn.avg_sale}</div>
+                  <div class="rookie-st-val">$${nx.avg_sale}</div>
                   <div class="rookie-st-lbl">Avg Ticket</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${mn.conversion_rate}%</div>
+                  <div class="rookie-st-val">${nx.conversion_rate}%</div>
                   <div class="rookie-st-lbl">Conv Rate</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${mm.total_mem_sold}/${mm.total_mem_opps}</div>
+                  <div class="rookie-st-val">${mb.total_mem_sold}/${mb.total_mem_opps}</div>
                   <div class="rookie-st-lbl">Mem Sold</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${mm.total_mem_pct}%</div>
+                  <div class="rookie-st-val">${mb.total_mem_pct}%</div>
                   <div class="rookie-st-lbl">Mem Conv</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${isW ? st.completedJobs : mn.tech_gen_leads}</div>
-                  <div class="rookie-st-lbl">${isW ? 'Jobs Done' : 'Leads Set'}</div>
+                  <div class="rookie-st-val">${isWarranty ? stObj.completedJobs : nx.tech_gen_leads}</div>
+                  <div class="rookie-st-lbl">${isWarranty ? 'Jobs Done' : 'Leads Set'}</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">$${mp.rev_hr}</div>
+                  <div class="rookie-st-val">$${pr.rev_hr}</div>
                   <div class="rookie-st-lbl">Rev/Hr</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${mp.sold_hrs_on_job_pct}%</div>
+                  <div class="rookie-st-val">${pr.sold_hrs_on_job_pct}%</div>
                   <div class="rookie-st-lbl">Sold Hrs %</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${ms.close_rate}%</div>
+                  <div class="rookie-st-val">${sl.close_rate}%</div>
                   <div class="rookie-st-lbl">Close Rate</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${mp.options_per_opp}</div>
+                  <div class="rookie-st-val">${pr.options_per_opp}</div>
                   <div class="rookie-st-lbl">Opts/Opp</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${mp.recalls}</div>
+                  <div class="rookie-st-val">${pr.recalls}</div>
                   <div class="rookie-st-lbl">Recalls</div>
                 </div>
                 <div class="rookie-st-item">
-                  <div class="rookie-st-val">${mn.spps_sold}</div>
+                  <div class="rookie-st-val">${nx.spps_sold}</div>
                   <div class="rookie-st-lbl">SPPs Sold</div>
                 </div>
+              </div>`;
+          }
+
+          stRows = `
+            <div class="rookie-st-section">
+              <div class="rookie-st-header">
+                ServiceTitan Performance
+                <div class="rookie-st-toggle" onclick="event.stopPropagation();rookieStToggle('${cardId}')">
+                  <span class="rookie-st-toggle-opt is-active" data-view="mtd">MTD</span>
+                  <span class="rookie-st-toggle-opt" data-view="90d">90-Day</span>
+                </div>
+              </div>
+              <div id="${cardId}-mtd" class="rookie-st-view is-visible">
+                ${buildStGrid(mn, mp, mm, ms, 'MTD', isW, st)}
+              </div>
+              <div id="${cardId}-90d" class="rookie-st-view">
+                ${buildStGrid(n90, p90, m90, s90, '90-Day', isW, st)}
               </div>
             </div>
             <div class="rookie-st-section">
@@ -4501,6 +4525,24 @@ if (typeof Chart !== 'undefined') {
       });
 
       document.getElementById('rookieGrid').innerHTML = html;
+    }
+
+    // Toggle MTD / 90-Day view on Rookie Card ST section
+    function rookieStToggle(cardId) {
+      var mtdEl = document.getElementById(cardId + '-mtd');
+      var d90El = document.getElementById(cardId + '-90d');
+      if (!mtdEl || !d90El) return;
+      var isMtd = mtdEl.classList.contains('is-visible');
+      mtdEl.classList.toggle('is-visible', !isMtd);
+      d90El.classList.toggle('is-visible', isMtd);
+      // Update toggle pills
+      var toggle = mtdEl.closest('.rookie-st-section').querySelector('.rookie-st-toggle');
+      if (toggle) {
+        toggle.querySelectorAll('.rookie-st-toggle-opt').forEach(function(opt) {
+          var v = opt.getAttribute('data-view');
+          opt.classList.toggle('is-active', (v === 'mtd' && !isMtd) || (v === '90d' && isMtd));
+        });
+      }
     }
 
     // ========== TIER PROGRESSION ==========
