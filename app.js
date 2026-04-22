@@ -8398,6 +8398,11 @@ if (typeof Chart !== 'undefined') {
     function mgrLibraryView(id) {
       var it = mgrLibraryFind(id);
       if (!it || !it.pdf) { alert('No file attached to this training.'); return; }
+      // Prefer embedded PDF.js canvas renderer — iPad Safari's native PDF iframe
+      // only shows the first page. PDF.js renders ALL pages as canvases.
+      if (typeof PDF_BASE64 !== 'undefined' && PDF_BASE64[it.pdf]) {
+        try { openEmbeddedPDF(it.pdf); return; } catch (e) { /* fall through */ }
+      }
       _mgrLibraryOpenViewer(it);
     }
 
@@ -8439,7 +8444,12 @@ if (typeof Chart !== 'undefined') {
       var it = mgrLibraryFind(id);
       if (!it || !it.pdf) { alert('No file attached to this training.'); return; }
       var a = document.createElement('a');
-      a.href = it.pdf;
+      // Prefer base64 data URL so mobile Safari always gets the full file
+      if (typeof PDF_BASE64 !== 'undefined' && PDF_BASE64[it.pdf]) {
+        a.href = 'data:application/pdf;base64,' + PDF_BASE64[it.pdf];
+      } else {
+        a.href = it.pdf;
+      }
       a.download = it.pdf.split('/').pop();
       document.body.appendChild(a);
       a.click();
