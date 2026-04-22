@@ -8292,3 +8292,120 @@
   border-left: 1px solid rgba(148, 163, 184, 0.22);
   border-top: 1px solid rgba(148, 163, 184, 0.22);
 }
+
+/* ========== SNAPPY SEASONS v82 ========== */
+.season-banner {
+  margin: 0 0 14px 0;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(167,139,250,0.18) 0%, rgba(167,139,250,0.06) 100%);
+  border: 1px solid rgba(167,139,250,0.35);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+.season-banner .sb-emoji { font-size: 22px; line-height: 1; }
+.season-banner .sb-main { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+.season-banner .sb-title { font-weight:700; letter-spacing:0.3px; font-size:13px; }
+.season-banner .sb-sub { font-size:11px; color:rgba(255,255,255,0.7); }
+.season-banner .sb-progress {
+  width: 180px; height: 6px; background: rgba(255,255,255,0.1);
+  border-radius: 4px; overflow: hidden; flex-shrink: 0;
+}
+.season-banner .sb-progress-fill {
+  height: 100%; border-radius: 4px; transition: width 0.8s ease;
+}
+.season-banner .sb-countdown {
+  font-weight:700; font-size:12px; padding:4px 10px;
+  border-radius:6px; background:rgba(0,0,0,0.25); white-space:nowrap;
+}
+@media (max-width: 680px) {
+  .season-banner { flex-wrap: wrap; padding: 10px 12px; gap: 10px; }
+  .season-banner .sb-progress { width: 100%; order: 3; }
+}
+
+/* Season badges on rookie card back */
+.rookie-back-section-title.season-hdr { color: #A78BFA; }
+.season-badges {
+  display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;
+}
+.season-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  padding: 4px 9px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.3px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+}
+.season-badge.tier-S { background: rgba(251,191,36,0.2); border-color:#fbbf24; color:#fde68a; }
+.season-badge.tier-A { background: rgba(59,130,246,0.2); border-color:#60a5fa; color:#bfdbfe; }
+.season-badge.tier-B { background: rgba(52,211,153,0.2); border-color:#34d399; color:#bbf7d0; }
+.season-badge.tier-C { background: rgba(156,163,175,0.2); border-color:#9ca3af; color:#e5e7eb; }
+
+/* MVP Ceremony Modal */
+.mvp-ceremony-overlay {
+  position: fixed; inset: 0; z-index: 10100;
+  background: radial-gradient(ellipse at center, rgba(30,27,75,0.92) 0%, rgba(0,0,0,0.95) 100%);
+  display: flex; align-items: center; justify-content: center;
+  animation: mvpFadeIn 0.4s ease-out;
+}
+@keyframes mvpFadeIn { from { opacity: 0; } to { opacity: 1; } }
+.mvp-ceremony-box {
+  max-width: 520px; width: calc(100% - 32px); max-height: 92vh; overflow-y: auto;
+  background: linear-gradient(135deg, #1e1b4b 0%, #0f0c2e 100%);
+  border: 1px solid rgba(251,191,36,0.4);
+  border-radius: 16px; padding: 28px 24px; text-align: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 60px rgba(251,191,36,0.15);
+  animation: mvpPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+@keyframes mvpPop { from { transform: scale(0.7); opacity:0; } to { transform: scale(1); opacity:1; } }
+.mvp-ceremony-box h2 {
+  margin: 0 0 4px; font-size: 15px; letter-spacing: 3px; color: #A78BFA;
+  text-transform: uppercase; font-weight: 600;
+}
+.mvp-ceremony-box .mvp-season-line {
+  font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 18px;
+}
+.mvp-ceremony-box .mvp-trophy { font-size: 72px; margin: 6px 0 4px; animation: trophyBob 2.5s ease-in-out infinite; }
+@keyframes trophyBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.mvp-ceremony-box .mvp-title { font-size: 13px; color: #fde68a; letter-spacing: 2px; font-weight: 700; margin-bottom: 4px; }
+.mvp-ceremony-box .mvp-name { font-size: 32px; color: #fff; font-weight: 800; margin-bottom: 4px; }
+.mvp-ceremony-box .mvp-score { font-size: 13px; color: rgba(255,255,255,0.75); margin-bottom: 18px; }
+.mvp-roster { display:flex; flex-direction:column; gap:6px; margin: 16px 0 18px; text-align:left; }
+.mvp-roster-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 8px 12px; background: rgba(255,255,255,0.04);
+  border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);
+}
+.mvp-roster-name { font-weight:600; color:#fff; font-size:13px; }
+.mvp-roster-tier { font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; letter-spacing:0.5px; }
+.mvp-ceremony-box .mvp-next-up {
+  background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.3);
+  border-radius: 8px; padding: 10px 14px; margin: 10px 0 18px;
+  font-size: 12px; color: #ddd;
+}
+.mvp-ceremony-box .mvp-dismiss {
+  padding: 11px 28px; border-radius: 8px;
+  background: linear-gradient(135deg, #A78BFA 0%, #7c3aed 100%);
+  color: #fff; border: none; font-weight: 700; font-size: 13px;
+  letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+  box-shadow: 0 8px 20px rgba(124,58,237,0.35);
+  transition: transform 0.15s ease;
+}
+.mvp-ceremony-box .mvp-dismiss:hover { transform: translateY(-1px); }
+
+/* Confetti */
+.confetti-piece {
+  position: fixed; top: -20px; width: 8px; height: 14px;
+  opacity: 0.9; z-index: 10099; pointer-events: none;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0.6; }
+}

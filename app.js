@@ -146,7 +146,8 @@ async function silentSyncOnLogin() {
       'bulletin': 'snappy_bulletin_board',
       'recall': 'snappy_recall_log_v1',
       'complaint': 'snappy_complaint_log_v1',
-      'mgrnotes': 'snappy_mgr_notes_v1'
+      'mgrnotes': 'snappy_mgr_notes_v1',
+      'seasons': 'snappy_seasons_v1'
     };
     var updated = false;
     for (var ck in keyMap) {
@@ -571,7 +572,8 @@ async function initCloudSync(userInitiated) {
     'bulletin': 'snappy_bulletin_board',
     'recall': 'snappy_recall_log_v1',
     'complaint': 'snappy_complaint_log_v1',
-    'mgrnotes': 'snappy_mgr_notes_v1'
+    'mgrnotes': 'snappy_mgr_notes_v1',
+    'seasons': 'snappy_seasons_v1'
   };
 
   // Protect recently-modified local keys from being overwritten by stale cloud data.
@@ -652,8 +654,8 @@ async function manualSync() {
       SyncEngine.write('skills', skillsData.assignments);
       SyncEngine.write('manager', mgrState);
       SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
-      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','daynotes','nexstar','recall','complaint','mgrnotes'];
-      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1'];
+      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons'];
+      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1'];
       dKeys.forEach(function(k, i) {
         var v = localStorage.getItem(dLocalKeys[i]);
         if (v) {
@@ -684,7 +686,8 @@ async function manualSync() {
         'bulletin': 'snappy_bulletin_board',
         'recall': 'snappy_recall_log_v1',
         'complaint': 'snappy_complaint_log_v1',
-        'mgrnotes': 'snappy_mgr_notes_v1'
+        'mgrnotes': 'snappy_mgr_notes_v1',
+        'seasons': 'snappy_seasons_v1'
       };
       for (var ck in keyMap) {
         if (cloudData[ck] !== undefined && cloudData[ck] !== null) {
@@ -814,7 +817,8 @@ async function saveSyncUrl() {
       'bulletin': 'snappy_bulletin_board',
       'recall': 'snappy_recall_log_v1',
       'complaint': 'snappy_complaint_log_v1',
-      'mgrnotes': 'snappy_mgr_notes_v1'
+      'mgrnotes': 'snappy_mgr_notes_v1',
+      'seasons': 'snappy_seasons_v1'
     };
     var payload = {};
     for (var ck in keyMap) {
@@ -837,7 +841,7 @@ async function saveSyncUrl() {
     // Pull cloud data into localStorage for this device (JSONP)
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
-      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1' };
+      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1', 'seasons': 'snappy_seasons_v1' };
       for (var pk in pullKeys) {
         if (pullData.result[pk] !== undefined && pullData.result[pk] !== null) {
           var cv = _extractCloudVal(pullData.result[pk]);
@@ -1260,6 +1264,272 @@ document.addEventListener('visibilitychange', function() {
     //   Aptitude (30%) + ST performance (35%) + Skills Tags (10%) + Manager (10%) + Installs (10%) + Reviews (5%)
     //   Skills = assigned tags / total available tags (52)
 
+    // ========== SNAPPY SEASONS ==========
+    // 4 HVAC-themed seasons per year, 3 months each. Soft reset at each boundary,
+    // recalls/complaints archived, season badges + MVP auto-awarded at season end.
+    const SEASON_STORAGE_KEY = 'snappy_seasons_v1';
+    const SEASON_SOFT_RESET = { S: 4, A: 3, B: 1, C: 0 };
+
+    // Season definitions — month ranges 1-indexed
+    const SEASONS = [
+      { key: 'ice',     name: 'Ice',     label: 'Furnace Grind',    startMonth: 1,  endMonth: 3,  emoji: '\u2744\uFE0F', color: '#7DD3FC' },
+      { key: 'storm',   name: 'Storm',   label: 'Shoulder Season',  startMonth: 4,  endMonth: 6,  emoji: '\u26C8\uFE0F', color: '#A78BFA' },
+      { key: 'heat',    name: 'Heat',    label: 'AC Peak',          startMonth: 7,  endMonth: 9,  emoji: '\u2600\uFE0F', color: '#FB923C' },
+      { key: 'harvest', name: 'Harvest', label: 'Year-End Push',    startMonth: 10, endMonth: 12, emoji: '\ud83c\udf42', color: '#D97706' }
+    ];
+
+    function getSeasonForDate(date) {
+      var m = date.getMonth() + 1; // 1-indexed
+      var y = date.getFullYear();
+      var s = SEASONS.find(function(s){ return m >= s.startMonth && m <= s.endMonth; });
+      if (!s) s = SEASONS[0];
+      return { key: s.key + '_' + y, name: s.name, label: s.label, emoji: s.emoji, color: s.color, year: y,
+        startDate: new Date(y, s.startMonth - 1, 1),
+        endDate: new Date(y, s.endMonth, 0, 23, 59, 59) };
+    }
+
+    function getCurrentSeason() { return getSeasonForDate(new Date()); }
+
+    function getNextSeason() {
+      var now = new Date();
+      var cur = getSeasonForDate(now);
+      var next = new Date(cur.endDate.getTime() + 24 * 60 * 60 * 1000);
+      return getSeasonForDate(next);
+    }
+
+    function getSeasonDaysLeft() {
+      var cur = getCurrentSeason();
+      var ms = cur.endDate - new Date();
+      return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+    }
+
+    function getSeasonProgressPct() {
+      var cur = getCurrentSeason();
+      var total = cur.endDate - cur.startDate;
+      var elapsed = new Date() - cur.startDate;
+      return Math.min(100, Math.max(0, (elapsed / total) * 100));
+    }
+
+    function loadSeasonsData() {
+      try {
+        var raw = localStorage.getItem(SEASON_STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch(e) {}
+      return { currentSeason: null, transitions: [], badges: {}, mvp: {}, archivedRecalls: {}, archivedComplaints: {}, seasonStartedAt: null, pendingCeremony: null };
+    }
+
+    function saveSeasonsData(data) {
+      try {
+        localStorage.setItem(SEASON_STORAGE_KEY, JSON.stringify(data));
+        localStorage.setItem(SEASON_STORAGE_KEY + '_localMod', String(Date.now()));
+        if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured()) SyncEngine.write('seasons', data);
+      } catch(e) { console.warn('saveSeasonsData failed', e); }
+    }
+
+    // Called on app load: detect if season changed since last visit and run transition.
+    function checkSeasonTransition() {
+      var data = loadSeasonsData();
+      var cur = getCurrentSeason();
+      if (!data.currentSeason) {
+        // First run ever — seed current season without reset
+        data.currentSeason = cur.key;
+        data.seasonStartedAt = new Date().toISOString();
+        saveSeasonsData(data);
+        return { transitioned: false, first: true };
+      }
+      if (data.currentSeason === cur.key) {
+        return { transitioned: false };
+      }
+      // Season has changed — run transition for the OLD season
+      var oldKey = data.currentSeason;
+      var techSnapshots = {};
+      var techsArr = (typeof techs !== 'undefined') ? techs : [];
+      var tierScores = [];
+      techsArr.forEach(function(t){
+        try {
+          var info = getTechTier(t);
+          techSnapshots[t.short] = { tier: info.tier, composite: info.composite, tierLabel: info.tierLabel };
+          tierScores.push({ short: t.short, composite: info.composite, tier: info.tier });
+        } catch(e) {}
+      });
+      // Award badges (tier they finished the season in)
+      if (!data.badges) data.badges = {};
+      Object.keys(techSnapshots).forEach(function(short){
+        if (!data.badges[short]) data.badges[short] = [];
+        data.badges[short].push({ season: oldKey, tier: techSnapshots[short].tier, composite: techSnapshots[short].composite, endedAt: new Date().toISOString() });
+      });
+      // Pick MVP (highest composite, tiebreak alphabetical)
+      tierScores.sort(function(a,b){ return b.composite - a.composite || a.short.localeCompare(b.short); });
+      var mvp = tierScores[0] ? tierScores[0].short : null;
+      if (!data.mvp) data.mvp = {};
+      if (mvp) data.mvp[oldKey] = { tech: mvp, composite: tierScores[0].composite, tier: tierScores[0].tier };
+      // Archive recalls + complaints for the ending season
+      try {
+        var recallRaw = localStorage.getItem('snappy_recall_log_v1');
+        var complaintRaw = localStorage.getItem('snappy_complaint_log_v1');
+        if (!data.archivedRecalls) data.archivedRecalls = {};
+        if (!data.archivedComplaints) data.archivedComplaints = {};
+        data.archivedRecalls[oldKey] = recallRaw ? JSON.parse(recallRaw) : {};
+        data.archivedComplaints[oldKey] = complaintRaw ? JSON.parse(complaintRaw) : {};
+        // Reset live logs for the new season
+        localStorage.setItem('snappy_recall_log_v1', '{}');
+        localStorage.setItem('snappy_complaint_log_v1', '{}');
+        localStorage.setItem('snappy_recall_log_v1_localMod', String(Date.now()));
+        localStorage.setItem('snappy_complaint_log_v1_localMod', String(Date.now()));
+        if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured()) {
+          SyncEngine.write('recall', {});
+          SyncEngine.write('complaint', {});
+        }
+      } catch(e) { console.warn('Archive logs failed', e); }
+      // Record transition (including per-tech snapshot for the soft reset calculation)
+      if (!data.transitions) data.transitions = [];
+      data.transitions.push({ from: oldKey, to: cur.key, appliedAt: new Date().toISOString(), techSnapshots: techSnapshots, mvp: mvp });
+      data.currentSeason = cur.key;
+      data.seasonStartedAt = new Date().toISOString();
+      // Stage ceremony for next render cycle
+      data.pendingCeremony = { fromSeason: oldKey, toSeason: cur.key, mvp: mvp, snapshots: techSnapshots };
+      saveSeasonsData(data);
+      return { transitioned: true, fromSeason: oldKey, toSeason: cur.key, mvp: mvp, snapshots: techSnapshots };
+    }
+
+    // Soft reset penalty for current composite (applied inside getTechTier)
+    function getSeasonSoftResetPenalty(techShort) {
+      var data = loadSeasonsData();
+      if (!data.transitions || !data.transitions.length) return 0;
+      var last = data.transitions[data.transitions.length - 1];
+      if (!last || last.to !== getCurrentSeason().key) return 0;
+      var snap = last.techSnapshots && last.techSnapshots[techShort];
+      if (!snap) return 0;
+      return SEASON_SOFT_RESET[snap.tier] || 0;
+    }
+
+    function getTechSeasonBadges(techShort) {
+      var data = loadSeasonsData();
+      return (data.badges && data.badges[techShort]) || [];
+    }
+
+    function getSeasonDisplayName(seasonKey) {
+      if (!seasonKey) return '';
+      var parts = seasonKey.split('_');
+      var name = parts[0];
+      var year = parts[1];
+      var s = SEASONS.find(function(x){ return x.key === name; });
+      return s ? (s.emoji + ' ' + s.name + ' ' + year) : seasonKey;
+    }
+
+    // Expose for debug + rookie card + UI
+    window.getCurrentSeason = getCurrentSeason;
+    window.getSeasonDaysLeft = getSeasonDaysLeft;
+    window.getSeasonProgressPct = getSeasonProgressPct;
+    window.checkSeasonTransition = checkSeasonTransition;
+    window.getSeasonSoftResetPenalty = getSeasonSoftResetPenalty;
+    window.getTechSeasonBadges = getTechSeasonBadges;
+    window.getSeasonDisplayName = getSeasonDisplayName;
+    window.loadSeasonsData = loadSeasonsData;
+    window.saveSeasonsData = saveSeasonsData;
+
+    // ========== SEASON BANNER ==========
+    function renderSeasonBanner() {
+      var el = document.getElementById('seasonBanner');
+      if (!el) return;
+      try {
+        var cur = getCurrentSeason();
+        var days = getSeasonDaysLeft();
+        var pct = getSeasonProgressPct();
+        var next = getNextSeason();
+        var countdownLabel = days === 0 ? 'Ends today' : (days === 1 ? '1 day left' : days + ' days left');
+        el.style.display = 'flex';
+        el.style.background = 'linear-gradient(90deg, ' + cur.color + '2E 0%, ' + cur.color + '10 100%)';
+        el.style.borderColor = cur.color + '80';
+        el.innerHTML =
+          '<span class="sb-emoji">' + cur.emoji + '</span>' +
+          '<div class="sb-main">' +
+            '<div class="sb-title">' + cur.name + ' ' + cur.year + ' &middot; ' + cur.label + '</div>' +
+            '<div class="sb-sub">Next up: ' + next.emoji + ' ' + next.name + '</div>' +
+          '</div>' +
+          '<div class="sb-progress"><div class="sb-progress-fill" style="width:' + pct.toFixed(1) + '%;background:' + cur.color + '"></div></div>' +
+          '<div class="sb-countdown" style="color:' + cur.color + '">' + countdownLabel + '</div>';
+      } catch(e) { console.warn('renderSeasonBanner failed', e); }
+    }
+    window.renderSeasonBanner = renderSeasonBanner;
+
+    // ========== MVP CEREMONY MODAL ==========
+    function _confettiBurst(durationMs) {
+      var colors = ['#fbbf24','#A78BFA','#60a5fa','#34d399','#f472b6','#fb923c','#7DD3FC'];
+      var count = 80;
+      for (var i = 0; i < count; i++) {
+        (function(idx){
+          setTimeout(function(){
+            var p = document.createElement('div');
+            p.className = 'confetti-piece';
+            p.style.left = Math.random() * 100 + 'vw';
+            p.style.background = colors[Math.floor(Math.random()*colors.length)];
+            var dur = 2800 + Math.random() * 2200;
+            p.style.animationDuration = dur + 'ms';
+            p.style.width = (6 + Math.random()*6) + 'px';
+            p.style.height = (10 + Math.random()*10) + 'px';
+            p.style.transform = 'rotate(' + (Math.random()*360) + 'deg)';
+            document.body.appendChild(p);
+            setTimeout(function(){ if (p.parentNode) p.parentNode.removeChild(p); }, dur + 200);
+          }, idx * 30);
+        })(i);
+      }
+    }
+
+    function showMVPCeremony() {
+      try {
+        var data = loadSeasonsData();
+        if (!data || !data.pendingCeremony) return;
+        var ceremony = data.pendingCeremony;
+        var fromName = getSeasonDisplayName(ceremony.fromSeason);
+        var toName = getSeasonDisplayName(ceremony.toSeason);
+        var mvpShort = ceremony.mvp;
+        var mvpTech = null;
+        try { mvpTech = (typeof techs !== 'undefined') ? techs.find(function(t){ return t.short === mvpShort; }) : null; } catch(e){}
+        var mvpName = mvpTech ? mvpTech.name : (mvpShort || 'Unknown');
+        var mvpScore = (data.mvp && data.mvp[ceremony.fromSeason] && data.mvp[ceremony.fromSeason].composite) || 0;
+        var mvpTier = (data.mvp && data.mvp[ceremony.fromSeason] && data.mvp[ceremony.fromSeason].tier) || 'A';
+
+        var rosterRows = '';
+        var snapshots = ceremony.snapshots || {};
+        Object.keys(snapshots).sort(function(a,b){ return snapshots[b].composite - snapshots[a].composite; }).forEach(function(short){
+          var s = snapshots[short];
+          var tierColor = s.tier === 'S' ? '#fbbf24' : s.tier === 'A' ? '#60a5fa' : s.tier === 'B' ? '#34d399' : '#9ca3af';
+          rosterRows += '<div class="mvp-roster-row">' +
+            '<span class="mvp-roster-name">' + short + (short === mvpShort ? ' \u{1F451}' : '') + '</span>' +
+            '<span class="mvp-roster-tier" style="background:' + tierColor + '33;color:' + tierColor + ';border:1px solid ' + tierColor + '">' + s.tier + '-TIER &middot; ' + (s.composite||0).toFixed(1) + '</span>' +
+          '</div>';
+        });
+
+        var overlay = document.createElement('div');
+        overlay.className = 'mvp-ceremony-overlay';
+        overlay.id = 'mvpCeremonyOverlay';
+        overlay.innerHTML =
+          '<div class="mvp-ceremony-box">' +
+            '<h2>Season Complete</h2>' +
+            '<div class="mvp-season-line">' + fromName + ' \u2192 ' + toName + '</div>' +
+            '<div class="mvp-trophy">\u{1F3C6}</div>' +
+            '<div class="mvp-title">SEASON MVP</div>' +
+            '<div class="mvp-name">' + mvpName + '</div>' +
+            '<div class="mvp-score">' + mvpTier + '-Tier &middot; ' + (mvpScore||0).toFixed(1) + ' composite</div>' +
+            '<div class="mvp-roster">' + rosterRows + '</div>' +
+            '<div class="mvp-next-up">A light soft-reset has been applied based on last season\'s finish. Recall &amp; complaint logs are archived. Badges are locked in. Fresh start for ' + toName + '.</div>' +
+            '<button class="mvp-dismiss" id="mvpDismissBtn">Start ' + toName.replace(/^\S+\s/, '') + '</button>' +
+          '</div>';
+        document.body.appendChild(overlay);
+        _confettiBurst(3000);
+        var dismiss = function() {
+          var d = loadSeasonsData();
+          d.pendingCeremony = null;
+          saveSeasonsData(d);
+          overlay.remove();
+        };
+        document.getElementById('mvpDismissBtn').addEventListener('click', dismiss);
+        overlay.addEventListener('click', function(e){ if (e.target === overlay) dismiss(); });
+      } catch(e) { console.warn('showMVPCeremony failed', e); }
+    }
+    window.showMVPCeremony = showMVPCeremony;
+
     function getTechAptitudeScore(tech) {
       const apt = aptitudeTests[tech.short];
       if (!apt) return 50; // default if no test data
@@ -1331,7 +1601,10 @@ document.addEventListener('visibilitychange', function() {
       const efficiencyBonus = effData.bonus;
 
       // Composite: Aptitude 30% + ST 35% + Skills 10% + Manager 10% + Installs 10% + Reviews 5% + Dispatch bonus + Efficiency bonus
-      const composite = aptScore * 0.30 + stScore * 0.35 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus;
+      const compositeRawPreSeason = aptScore * 0.30 + stScore * 0.35 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus;
+      // Season soft reset penalty (carries for current season only)
+      const seasonPenalty = (typeof getSeasonSoftResetPenalty === 'function') ? getSeasonSoftResetPenalty(tech.short) : 0;
+      const composite = Math.max(0, compositeRawPreSeason - seasonPenalty);
 
       let tier, tierLabel;
       if (composite >= 92) { tier = 'S'; tierLabel = 'Elite'; }
@@ -4532,6 +4805,34 @@ if (typeof Chart !== 'undefined') {
         // Top 3 weakest areas for action items
         const topActions = areaScores.slice(0, 3);
 
+        // Season badges (v82) — lifetime record across seasons
+        let seasonBadgesHTML = '';
+        try {
+          const badges = (typeof getTechSeasonBadges === 'function') ? getTechSeasonBadges(t.short) : [];
+          const curSeasonKey = (typeof getCurrentSeason === 'function') ? getCurrentSeason().key : null;
+          // Count by tier
+          const tierCounts = { S:0, A:0, B:0, C:0 };
+          badges.forEach(function(b){ if (tierCounts[b.tier] !== undefined) tierCounts[b.tier]++; });
+          // Current season in-progress badge (live)
+          const curBadge = { season: curSeasonKey, tier: tierInfo.tier, composite: tierInfo.composite, live: true };
+          const allBadges = badges.concat([curBadge]);
+          if (allBadges.length) {
+            const countsLine = ['S','A','B','C'].filter(function(k){ return tierCounts[k] > 0; }).map(function(k){ return k + ':' + tierCounts[k]; }).join(' \u00b7 ');
+            seasonBadgesHTML = `
+              <div class="rookie-back-divider"></div>
+              <div>
+                <div class="rookie-back-section-title season-hdr">Season Record${countsLine ? ' <span style=\"font-size:10px;color:rgba(255,255,255,0.55);font-weight:500;margin-left:6px\">(' + countsLine + ')</span>' : ''}</div>
+                <div class="season-badges">
+                  ${allBadges.map(function(b){
+                    const nm = (typeof getSeasonDisplayName === 'function') ? getSeasonDisplayName(b.season) : b.season;
+                    const liveTag = b.live ? ' &middot; LIVE' : '';
+                    return '<span class="season-badge tier-' + b.tier + '" title="' + nm + ' &mdash; ' + (b.composite||0).toFixed(1) + '">' + nm + ' &middot; ' + b.tier + liveTag + '</span>';
+                  }).join('')}
+                </div>
+              </div>`;
+          }
+        } catch(e) { console.warn('seasonBadgesHTML failed', e); }
+
         const backHTML = next ? `
           <div class="rookie-back-content">
             <div class="rookie-back-header">
@@ -4607,6 +4908,8 @@ if (typeof Chart !== 'undefined') {
               </div>
             </div>
 
+            ${seasonBadgesHTML}
+
             <div class="rookie-back-flip-hint">Tap to flip back</div>
           </div>
         ` : `
@@ -4619,6 +4922,7 @@ if (typeof Chart !== 'undefined') {
               <div class="rookie-back-target-tier" style="color:#fbbf24">S-TIER</div>
               <div class="rookie-back-target-label">Elite — Top Performer</div>
             </div>
+            ${seasonBadgesHTML}
             <div class="rookie-back-flip-hint">Tap to flip back</div>
           </div>
         `;
@@ -8961,6 +9265,20 @@ if (typeof Chart !== 'undefined') {
     })();
 
     // ========== INIT ==========
+    // Snappy Seasons: check transition, render banner, queue ceremony if pending
+    try {
+      checkSeasonTransition();
+      renderSeasonBanner();
+      // Refresh banner countdown every hour
+      setInterval(function(){ try { renderSeasonBanner(); } catch(e){} }, 60 * 60 * 1000);
+      // Show MVP ceremony if one is queued (after a short delay so app paints first)
+      setTimeout(function(){
+        try {
+          var sd = loadSeasonsData();
+          if (sd && sd.pendingCeremony) showMVPCeremony();
+        } catch(e){}
+      }, 800);
+    } catch(e) { console.warn('Seasons init failed', e); }
     renderOverviewTab();
     renderKPIs();
     // Delay radar render to ensure container has dimensions and THREE is loaded
