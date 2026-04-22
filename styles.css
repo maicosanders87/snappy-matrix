@@ -8434,19 +8434,12 @@ body.storm-season { background: linear-gradient(180deg, #0f0a1f 0%, #1a1133 40%,
   to   { transform: translateX(140vw); }
 }
 
-/* Rain — CSS linear gradient streaks */
+/* Rain — actual falling droplets drawn to a canvas (see storm-rain-canvas in JS) */
 .storm-rain {
-  position: absolute; inset: 0; opacity: 0.25;
-  background-image:
-    repeating-linear-gradient(100deg, transparent 0 3px, rgba(167,139,250,0.35) 3px 3.5px, transparent 3.5px 32px),
-    repeating-linear-gradient(102deg, transparent 0 7px, rgba(125,211,252,0.25) 7px 7.5px, transparent 7.5px 46px);
-  animation: stormRainFall 0.9s linear infinite;
-  mix-blend-mode: screen;
+  position: absolute; inset: 0;
+  pointer-events: none;
 }
-@keyframes stormRainFall {
-  from { background-position: 0 0, 0 0; }
-  to   { background-position: 0 128px, 0 184px; }
-}
+.storm-rain canvas { width: 100%; height: 100%; display: block; }
 
 /* Full-screen lightning flash */
 .storm-flash {
@@ -8614,8 +8607,11 @@ body.storm-season .nav-tab.active {
   .storm-flash, .storm-bolt-path { display: none !important; }
 }
 
-/* Keep storm FX behind content but above body background */
-.container, .header, nav.nav-tabs, main, #mainContent { position: relative; z-index: 2; }
+/* Keep storm FX behind content but above body background.
+   IMPORTANT: do NOT change positioning of .nav-tabs here — it’s fixed by default.
+   We only raise z-index via isolation so rain/bolts stay underneath. */
+.container, .header, main, #mainContent { position: relative; z-index: 2; }
+.nav-tabs { z-index: 1000; } /* already fixed; just keep above FX */
 
 /* ========== DELUXE COUNTDOWN v83 ========== */
 .season-banner { min-height: 92px; padding: 12px 18px !important; align-items: center; }

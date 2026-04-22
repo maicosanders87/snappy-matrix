@@ -1598,13 +1598,135 @@ document.addEventListener('visibilitychange', function() {
       }, delay);
     }
 
+    // Canvas rain particles
+    var _rainState = { canvas: null, ctx: null, drops: [], rafId: null };
+
+    function _startRainCanvas() {
+      var container = document.getElementById('stormRain');
+      if (!container) return;
+      container.innerHTML = '';
+      var canvas = document.createElement('canvas');
+      var dpr = window.devicePixelRatio || 1;
+      function resize() {
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+      }
+      resize();
+      container.appendChild(canvas);
+      var ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      _rainState.canvas = canvas;
+      _rainState.ctx = ctx;
+
+      // Initialize drops — density scales with viewport
+      var area = window.innerWidth * window.innerHeight;
+      var targetCount = Math.min(260, Math.max(90, Math.floor(area / 9000)));
+      _rainState.drops = [];
+      for (var i = 0; i < targetCount; i++) {
+        _rainState.drops.push(_makeDrop(true));
+      }
+
+      window.addEventListener('resize', _onRainResize);
+
+      function loop() {
+        if (!_stormFxState.active) return;
+        _tickRain();
+        _rainState.rafId = requestAnimationFrame(loop);
+      }
+      loop();
+    }
+    function _onRainResize() {
+      if (!_rainState.canvas) return;
+      var dpr = window.devicePixelRatio || 1;
+      var w = window.innerWidth, h = window.innerHeight;
+      _rainState.canvas.width = w * dpr;
+      _rainState.canvas.height = h * dpr;
+      _rainState.canvas.style.width = w + 'px';
+      _rainState.canvas.style.height = h + 'px';
+      _rainState.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      _rainState.ctx.scale(dpr, dpr);
+    }
+
+    function _makeDrop(initial) {
+      var w = window.innerWidth, h = window.innerHeight;
+      // Depth: 0=near (bigger, faster), 1=far (smaller, slower)
+      var depth = Math.random();
+      var speed = 14 + (1 - depth) * 18 + Math.random() * 6; // 14-38 px/frame baseline
+      var length = 10 + (1 - depth) * 16 + Math.random() * 6; // 10-32 px streak
+      var opacity = 0.15 + (1 - depth) * 0.55;
+      var thickness = 0.6 + (1 - depth) * 1.4;
+      return {
+        x: Math.random() * (w + 80) - 40,
+        y: initial ? Math.random() * h : -length - Math.random() * 60,
+        vx: -1.8 - (1 - depth) * 1.5, // slight leftward wind
+        vy: speed / 2.2, // per-frame @ ~60fps
+        len: length,
+        op: opacity,
+        th: thickness,
+        hue: Math.random() < 0.12 ? 'cyan' : 'purple'
+      };
+    }
+
+    function _tickRain() {
+      var ctx = _rainState.ctx;
+      var w = window.innerWidth, h = window.innerHeight;
+      ctx.clearRect(0, 0, w, h);
+      var drops = _rainState.drops;
+      for (var i = 0; i < drops.length; i++) {
+        var d = drops[i];
+        // Tail
+        var grad = ctx.createLinearGradient(d.x, d.y, d.x + d.vx * 2, d.y + d.len);
+        if (d.hue === 'cyan') {
+          grad.addColorStop(0, 'rgba(186,230,253,0)');
+          grad.addColorStop(0.5, 'rgba(125,211,252,' + (d.op * 0.9) + ')');
+          grad.addColorStop(1, 'rgba(186,230,253,' + d.op + ')');
+        } else {
+          grad.addColorStop(0, 'rgba(196,181,253,0)');
+          grad.addColorStop(0.5, 'rgba(167,139,250,' + (d.op * 0.9) + ')');
+          grad.addColorStop(1, 'rgba(216,180,254,' + d.op + ')');
+        }
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = d.th;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(d.x, d.y);
+        ctx.lineTo(d.x + d.vx * 2, d.y + d.len);
+        ctx.stroke();
+        // Advance
+        d.x += d.vx;
+        d.y += d.vy;
+        if (d.y > h + d.len || d.x < -60) {
+          drops[i] = _makeDrop(false);
+          drops[i].x = Math.random() * (w + 80) - 20; // respawn anywhere horizontally
+        }
+      }
+    }
+
+    function _stopRainCanvas() {
+      if (_rainState.rafId) cancelAnimationFrame(_rainState.rafId);
+      _rainState.rafId = null;
+      var container = document.getElementById('stormRain');
+      if (container) container.innerHTML = '';
+      _rainState.drops = [];
+      _rainState.canvas = null;
+      _rainState.ctx = null;
+      window.removeEventListener('resize', _onRainResize);
+    }
+
     function applyStormFX(enable) {
       if (enable === _stormFxState.active) return;
       _stormFxState.active = !!enable;
       var layer = document.getElementById('stormFxLayer');
+      var reduced = false;
+      try { reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){}
       if (enable) {
         document.body.classList.add('storm-season');
         if (layer) layer.style.display = 'block';
+        if (!reduced) _startRainCanvas();
         // Kick off an opening strike after 1.5s, then schedule
         setTimeout(function(){
           if (_stormFxState.active) _triggerLightning();
@@ -1613,6 +1735,7 @@ document.addEventListener('visibilitychange', function() {
       } else {
         document.body.classList.remove('storm-season');
         if (layer) layer.style.display = 'none';
+        _stopRainCanvas();
         if (_stormFxState.lightningTimer) {
           clearTimeout(_stormFxState.lightningTimer);
           _stormFxState.lightningTimer = null;
