@@ -3411,9 +3411,8 @@ document.addEventListener('visibilitychange', function() {
         totalMtdInstalls += st.mtd_installs || 0;
         totalMtdInstallRev += st.mtd_install_rev || 0;
       });
-      // Team MTD install totals (all installs incl. Adam)
-      totalMtdInstalls = 5;
-      totalMtdInstallRev = 63246;
+      // Team MTD install totals (sum of techs' mtd_installs + 1 manager-sold install (Adam) = 8, but the
+      // KPI tile shows team tech installs only, so we use the computed sum above.)
 
       try {
         var tfRaw = localStorage.getItem('snappy_tech_files');
@@ -4766,6 +4765,10 @@ if (typeof Chart !== 'undefined') {
                   <div class="st-metric-value">${st.mtd_installs || 0}</div>
                   <div class="st-metric-label">MTD Installs</div>
                 </div>
+                <div class="st-metric">
+                  <div class="st-metric-value">$${(st.mtd_install_rev || 0).toLocaleString()}</div>
+                  <div class="st-metric-label">MTD Install Rev</div>
+                </div>
               </div>
               <div class="st-insight">${stInsights[t.short] || ''}</div>
             </div>
@@ -4922,7 +4925,9 @@ if (typeof Chart !== 'undefined') {
         name: "Dewone",
         color: "#E07B3A",
         mtd_service_rev: 7478,
-        mtd_installs: 0,
+        mtd_installs: 2,
+        mtd_install_rev: 27047,
+        mtd_install_self_sourced: 2,
         mtd_on_job_pct: 52,
         mtd_nexstar: { total_revenue: 7478, avg_sale: 406, conversion_rate: 86, spps_sold: 4, tech_gen_leads: 9, sold_hours: 35.15, flat_rate_tasks: 1.83 },
         mtd_productivity: { rev_hr: 110, billable_hours: 35.15, sold_hrs_on_job_pct: 52, tasks_per_opp: 2.14, options_per_opp: 3, recalls: 1 },
@@ -4940,7 +4945,9 @@ if (typeof Chart !== 'undefined') {
         name: "Benji",
         color: "#5B4A8A",
         mtd_service_rev: 7625,
-        mtd_installs: 0,
+        mtd_installs: 2,
+        mtd_install_rev: 20454,
+        mtd_install_self_sourced: 1,
         mtd_on_job_pct: 57,
         mtd_nexstar: { total_revenue: 7625, avg_sale: 429, conversion_rate: 71, spps_sold: 2, tech_gen_leads: 1, sold_hours: 39.8, flat_rate_tasks: 2.01 },
         mtd_productivity: { rev_hr: 108, billable_hours: 39.8, sold_hrs_on_job_pct: 57, tasks_per_opp: 1.97, options_per_opp: 1.37, recalls: 1 },
@@ -4959,6 +4966,8 @@ if (typeof Chart !== 'undefined') {
         color: "#C47F17",
         mtd_service_rev: 6220,
         mtd_installs: 0,
+        mtd_install_rev: 0,
+        mtd_install_self_sourced: 0,
         mtd_on_job_pct: 28,
         mtd_nexstar: { total_revenue: 6220, avg_sale: 472, conversion_rate: 87, spps_sold: 0, tech_gen_leads: 1, sold_hours: 33.05, flat_rate_tasks: 1.69 },
         mtd_productivity: { rev_hr: 53, billable_hours: 33.05, sold_hrs_on_job_pct: 28, tasks_per_opp: 2.2, options_per_opp: 0.86, recalls: 2 },
@@ -4976,7 +4985,10 @@ if (typeof Chart !== 'undefined') {
         name: "Chris",
         color: "#8B3A3A",
         mtd_service_rev: 5390,
-        mtd_installs: 0,
+        mtd_installs: 2,
+        mtd_install_rev: 29113,
+        mtd_install_self_sourced: 2,
+        mtd_install_tgl_for_others: 1,
         mtd_on_job_pct: 51,
         mtd_nexstar: { total_revenue: 5390, avg_sale: 344, conversion_rate: 60, spps_sold: 4, tech_gen_leads: 5, sold_hours: 40.3, flat_rate_tasks: 1.73 },
         mtd_productivity: { rev_hr: 68, billable_hours: 40.3, sold_hrs_on_job_pct: 51, tasks_per_opp: 1.52, options_per_opp: 2.11, recalls: 1 },
@@ -4994,7 +5006,9 @@ if (typeof Chart !== 'undefined') {
         name: "Dee",
         color: "#2D6A6A",
         mtd_service_rev: 1261,
-        mtd_installs: 0,
+        mtd_installs: 1,
+        mtd_install_rev: 13410,
+        mtd_install_self_sourced: 1,
         mtd_on_job_pct: 37,
         mtd_nexstar: { total_revenue: 1261, avg_sale: 630, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 19.4, flat_rate_tasks: 4.5 },
         mtd_productivity: { rev_hr: 24, billable_hours: 19.4, sold_hrs_on_job_pct: 37, tasks_per_opp: 5.5, options_per_opp: 2, recalls: 0 },
