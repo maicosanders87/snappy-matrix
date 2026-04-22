@@ -1624,7 +1624,7 @@ document.addEventListener('visibilitychange', function() {
 
       // Initialize drops — density scales with viewport
       var area = window.innerWidth * window.innerHeight;
-      var targetCount = Math.min(260, Math.max(90, Math.floor(area / 9000)));
+      var targetCount = Math.min(520, Math.max(180, Math.floor(area / 3600)));
       _rainState.drops = [];
       for (var i = 0; i < targetCount; i++) {
         _rainState.drops.push(_makeDrop(true));
@@ -1653,21 +1653,28 @@ document.addEventListener('visibilitychange', function() {
 
     function _makeDrop(initial) {
       var w = window.innerWidth, h = window.innerHeight;
-      // Depth: 0=near (bigger, faster), 1=far (smaller, slower)
+      // Depth: 0=near (bigger/faster/brighter), 1=far (smaller/slower/fainter)
       var depth = Math.random();
-      var speed = 14 + (1 - depth) * 18 + Math.random() * 6; // 14-38 px/frame baseline
-      var length = 10 + (1 - depth) * 16 + Math.random() * 6; // 10-32 px streak
-      var opacity = 0.15 + (1 - depth) * 0.55;
-      var thickness = 0.6 + (1 - depth) * 1.4;
+      var speed = 11 + (1 - depth) * 14 + Math.random() * 4; // 11-29 px/frame @ 60fps
+      // Shorter streaks so drops read as drops not stripes — longer only for near drops
+      var length = 4 + (1 - depth) * (1 - depth) * 10 + Math.random() * 3; // 4-17 px
+      var opacity = 0.22 + (1 - depth) * 0.55;
+      var thickness = 0.6 + (1 - depth) * 1.2;
+      // Wind varies slightly per-drop so streaks don't perfectly align
+      var wind = -1.4 - (1 - depth) * 1.3 + (Math.random() - 0.5) * 0.6;
+      // Color mix: mostly soft violet with occasional cyan and white
+      var r = Math.random();
+      var hue = r < 0.18 ? 'cyan' : (r < 0.26 ? 'white' : 'purple');
       return {
-        x: Math.random() * (w + 80) - 40,
-        y: initial ? Math.random() * h : -length - Math.random() * 60,
-        vx: -1.8 - (1 - depth) * 1.5, // slight leftward wind
-        vy: speed / 2.2, // per-frame @ ~60fps
+        x: Math.random() * (w + 120) - 60,
+        y: initial ? Math.random() * h : -length - Math.random() * 80,
+        vx: wind,
+        vy: speed / 2.2,
         len: length,
         op: opacity,
         th: thickness,
-        hue: Math.random() < 0.12 ? 'cyan' : 'purple'
+        hue: hue,
+        splash: 0
       };
     }
 
@@ -1675,35 +1682,39 @@ document.addEventListener('visibilitychange', function() {
       var ctx = _rainState.ctx;
       var w = window.innerWidth, h = window.innerHeight;
       ctx.clearRect(0, 0, w, h);
+      ctx.globalCompositeOperation = 'lighter'; // glow-additive for water highlight feel
       var drops = _rainState.drops;
       for (var i = 0; i < drops.length; i++) {
         var d = drops[i];
-        // Tail
-        var grad = ctx.createLinearGradient(d.x, d.y, d.x + d.vx * 2, d.y + d.len);
-        if (d.hue === 'cyan') {
-          grad.addColorStop(0, 'rgba(186,230,253,0)');
-          grad.addColorStop(0.5, 'rgba(125,211,252,' + (d.op * 0.9) + ')');
-          grad.addColorStop(1, 'rgba(186,230,253,' + d.op + ')');
-        } else {
-          grad.addColorStop(0, 'rgba(196,181,253,0)');
-          grad.addColorStop(0.5, 'rgba(167,139,250,' + (d.op * 0.9) + ')');
-          grad.addColorStop(1, 'rgba(216,180,254,' + d.op + ')');
-        }
+        // Tail: start faint at top, brighten at head (where the drop really is)
+        var tailX = d.x - d.vx * (d.len / Math.max(Math.abs(d.vy), 0.1));
+        var tailY = d.y - d.len;
+        var grad = ctx.createLinearGradient(tailX, tailY, d.x, d.y);
+        var col = d.hue === 'cyan' ? '125,211,252' : (d.hue === 'white' ? '226,232,240' : '167,139,250');
+        grad.addColorStop(0, 'rgba(' + col + ',0)');
+        grad.addColorStop(0.6, 'rgba(' + col + ',' + (d.op * 0.35) + ')');
+        grad.addColorStop(1, 'rgba(' + col + ',' + d.op + ')');
         ctx.strokeStyle = grad;
         ctx.lineWidth = d.th;
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(d.x, d.y);
-        ctx.lineTo(d.x + d.vx * 2, d.y + d.len);
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(d.x, d.y);
         ctx.stroke();
+        // Bright head dot — makes it read as a water droplet, not a line
+        ctx.fillStyle = 'rgba(' + col + ',' + Math.min(1, d.op * 1.2) + ')';
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.th * 0.9, 0, Math.PI * 2);
+        ctx.fill();
         // Advance
         d.x += d.vx;
         d.y += d.vy;
-        if (d.y > h + d.len || d.x < -60) {
+        if (d.y > h + d.len || d.x < -80) {
           drops[i] = _makeDrop(false);
-          drops[i].x = Math.random() * (w + 80) - 20; // respawn anywhere horizontally
+          drops[i].x = Math.random() * (w + 120) - 40;
         }
       }
+      ctx.globalCompositeOperation = 'source-over';
     }
 
     function _stopRainCanvas() {
