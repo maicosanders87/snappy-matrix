@@ -1847,6 +1847,10 @@ document.addEventListener('visibilitychange', function() {
             setTimeout(renderRadar, 200);
           }
         }
+        // Re-render rookie cards when switching to rookie tab — picks up latest recalls/complaints from dispatch
+        if (v === 'rookie') {
+          try { renderRookieCards(); } catch(e) { console.warn('renderRookieCards on tab switch failed:', e); }
+        }
       });
     });
 
@@ -4464,8 +4468,8 @@ if (typeof Chart !== 'undefined') {
                   <div class="rookie-st-val">${pr.options_per_opp}</div>
                   <div class="rookie-st-lbl">Opts/Opp</div>
                 </div>
-                <div class="rookie-st-item" title="${pr.recalls} baseline + ${liveRecalls} from dispatch">
-                  <div class="rookie-st-val">${totalRecalls}${liveRecalls > 0 ? '<span style="font-size:11px;color:#FF9800;margin-left:4px;vertical-align:top">+' + liveRecalls + '</span>' : ''}</div>
+                <div class="rookie-st-item" title="${pr.recalls} baseline + ${liveRecalls} from dispatch" style="${liveRecalls > 0 ? 'background:rgba(255,152,0,0.14);border:1px solid rgba(255,152,0,0.5);' : ''}">
+                  <div class="rookie-st-val" style="${liveRecalls > 0 ? 'color:#FF9800;' : ''}">${totalRecalls}${liveRecalls > 0 ? ' <span style="display:inline-block;font-size:10px;font-weight:700;background:#FF9800;color:#fff;padding:1px 6px;border-radius:8px;vertical-align:middle;margin-left:3px;">+' + liveRecalls + ' NEW</span>' : ''}</div>
                   <div class="rookie-st-lbl">Recalls</div>
                 </div>
                 <div class="rookie-st-item">
