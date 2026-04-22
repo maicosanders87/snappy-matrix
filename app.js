@@ -5788,6 +5788,8 @@ if (typeof Chart !== 'undefined') {
             // Live dispatch recalls added on top of baseline ST recalls
             var liveRecalls = (typeof getRecallCount === 'function') ? getRecallCount(t.short) : 0;
             var totalRecalls = (pr.recalls || 0) + liveRecalls;
+            // Live dispatch complaints (no baseline — complaints are tracked only via dispatch log)
+            var liveComplaints = (typeof getComplaintCount === 'function') ? getComplaintCount(t.short) : 0;
             return `
               <div class="rookie-st-grid">
                 <div class="rookie-st-item">
@@ -5837,6 +5839,10 @@ if (typeof Chart !== 'undefined') {
                 <div class="rookie-st-item">
                   <div class="rookie-st-val">${nx.spps_sold}</div>
                   <div class="rookie-st-lbl">SPPs Sold</div>
+                </div>
+                <div class="rookie-st-item" title="${liveComplaints} customer complaint${liveComplaints === 1 ? '' : 's'} from dispatch log" style="grid-column: 1 / -1; ${liveComplaints > 0 ? 'background:rgba(239,83,80,0.14);border:1px solid rgba(239,83,80,0.5);' : 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);'} border-radius:6px; padding:4px 8px;">
+                  <div class="rookie-st-val" style="${liveComplaints > 0 ? 'color:#EF5350;' : 'color:rgba(255,255,255,0.55);'}">${liveComplaints}${liveComplaints > 0 ? ' <span style="display:inline-block;font-size:10px;font-weight:700;background:#EF5350;color:#fff;padding:1px 6px;border-radius:8px;vertical-align:middle;margin-left:4px;">⚠ ' + liveComplaints + ' COMPLAINT' + (liveComplaints === 1 ? '' : 'S') + '</span>' : ''}</div>
+                  <div class="rookie-st-lbl">Customer Complaints</div>
                 </div>
               </div>`;
           }
