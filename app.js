@@ -4909,6 +4909,40 @@ if (typeof Chart !== 'undefined') {
       { key: 'wrapupSummary', label: '   Summary of Findings completed', group: 'Wrap Up' }
     ];
 
+    // NSS "You're Worth It" Greet rubric — 1-5 star grading, 100 pts total
+    const NSS_GREET_RUBRIC = [
+      { key: 'intention', title: 'Intention', max: 5, items: [
+        { key: 'q1', label: 'Arrived with clear INTENTION (Fix it / Sell / Help the Customer) — not just "do the call"' }
+      ]},
+      { key: 'empathy', title: 'Demonstrating Empathy', max: 20, items: [
+        { key: 'q1', label: 'ACTIONS — shoe covers, eye contact, patient body language' },
+        { key: 'q2', label: 'WORDS — acknowledged feelings, mirrored customer language' },
+        { key: 'q3', label: 'CONNECTIONS — found common ground before diagnosis' },
+        { key: 'q4', label: 'Promised a FOLLOW-UP PHONE CALL after the visit' }
+      ]},
+      { key: 'expertise', title: 'Demonstrating Expertise', max: 20, items: [
+        { key: 'q1', label: 'CONFIRMED the reason for the call in customer\'s own words' },
+        { key: 'q2', label: 'Asked BRIEF, targeted questions (kept it short, no interrogation)' },
+        { key: 'q3', label: 'Clarified customer\'s intent for today (repair vs. replace vs. evaluate)' },
+        { key: 'q4', label: 'Checked SPP / membership status and mentioned benefits' }
+      ]},
+      { key: 'agenda', title: 'Visual Agenda (6-Box Script)', max: 30, items: [
+        { key: 'b1', label: 'BOX 1 — Named the issue customer called about' },
+        { key: 'b2', label: 'BOX 2 — Asked permission to do a FULL system evaluation' },
+        { key: 'b3', label: 'BOX 3 — Built OPTIONS (good / better / best) tailored to findings' },
+        { key: 'b4', label: 'BOX 4 — Got JOINT approval / walked options together' },
+        { key: 'b5', label: 'BOX 5 — COMMITTED to next steps & timeline in writing' },
+        { key: 'b6', label: 'BOX 6 — Promised the FIVE-STAR experience explicitly' }
+      ]},
+      { key: 'valueWheel', title: 'Clearing Objections (Value Wheel)', max: 25, items: [
+        { key: 'price', label: 'PRICE — cleared sticker shock, explained value' },
+        { key: 'time', label: 'TIME — handled "not today" / "let me think" objections' },
+        { key: 'reason', label: 'REASON — surfaced WHY they hesitated, addressed it' },
+        { key: 'company', label: 'COMPANY — reinforced trust in Snappy / warranty / team' },
+        { key: 'solution', label: 'SOLUTION — left customer with a clear mind = YES' }
+      ]}
+    ];
+
     let mgrState = {
       entries: [],
       trainings: []
@@ -6218,6 +6252,34 @@ if (typeof Chart !== 'undefined') {
             </div>
           </div>
 
+          <div class="mgr-form-section" id="r_nssGreetSection">
+            <div class="mgr-form-section-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <span>NSS Greet Scorecard <span style="font-weight:500;color:var(--text-muted);font-size:11px;">(optional · 1–5 stars per item)</span></span>
+              <span style="font-size:12px;font-weight:700;color:var(--accent-primary);" id="r_nssGreetGrand">0 / 100</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">Grade each behavior 1 (not done) to 5 (mastered). Click a star to set; click again to clear. Totals auto-calc.</div>
+            ${NSS_GREET_RUBRIC.map(section => `
+              <div class="mgr-nss-section" data-nss-section="${section.key}">
+                <div class="mgr-nss-section-head">
+                  <span class="mgr-nss-section-title">${section.title}</span>
+                  <span class="mgr-nss-section-score" data-section-score="${section.key}">0 / ${section.max}</span>
+                </div>
+                ${section.items.map(it => {
+                  const cur = (data.nssGreetScores && data.nssGreetScores[section.key] && data.nssGreetScores[section.key][it.key]) || 0;
+                  return `
+                    <div class="mgr-nss-row">
+                      <div class="mgr-nss-label">${it.label}</div>
+                      <div class="mgr-nss-stars" data-nss-section-key="${section.key}" data-nss-item-key="${it.key}" data-nss-value="${cur}">
+                        ${[1,2,3,4,5].map(n => `<button type="button" class="mgr-nss-star${n<=cur?' filled':''}" data-nss-star="${n}" aria-label="${n} star">★</button>`).join('')}
+                        <span class="mgr-nss-val">${cur || '—'}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `).join('')}
+          </div>
+
           <div class="mgr-form-section">
             <div class="mgr-form-section-title">Action Items</div>
             <div class="mgr-form-row">
@@ -6239,6 +6301,69 @@ if (typeof Chart !== 'undefined') {
       `;
       document.getElementById('mgrPanelBody').innerHTML = html;
       mgrUpdateRideSuggest();
+      mgrWireNssGreetStars();
+      mgrRecalcNssGreetTotals();
+    }
+
+    function mgrWireNssGreetStars() {
+      const section = document.getElementById('r_nssGreetSection');
+      if (!section) return;
+      section.querySelectorAll('.mgr-nss-stars').forEach(row => {
+        row.querySelectorAll('.mgr-nss-star').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const star = parseInt(btn.getAttribute('data-nss-star'), 10);
+            const current = parseInt(row.getAttribute('data-nss-value') || '0', 10);
+            const next = (star === current) ? 0 : star;
+            row.setAttribute('data-nss-value', String(next));
+            row.querySelectorAll('.mgr-nss-star').forEach(s => {
+              const n = parseInt(s.getAttribute('data-nss-star'), 10);
+              s.classList.toggle('filled', n <= next);
+            });
+            const valEl = row.querySelector('.mgr-nss-val');
+            if (valEl) valEl.textContent = next || '\u2014';
+            mgrRecalcNssGreetTotals();
+          });
+        });
+      });
+    }
+
+    function mgrRecalcNssGreetTotals() {
+      const section = document.getElementById('r_nssGreetSection');
+      if (!section) return;
+      let grand = 0;
+      NSS_GREET_RUBRIC.forEach(s => {
+        let sum = 0;
+        s.items.forEach(it => {
+          const el = section.querySelector('.mgr-nss-stars[data-nss-section-key="'+s.key+'"][data-nss-item-key="'+it.key+'"]');
+          if (el) sum += parseInt(el.getAttribute('data-nss-value') || '0', 10);
+        });
+        grand += sum;
+        const secEl = section.querySelector('[data-section-score="'+s.key+'"]');
+        if (secEl) secEl.textContent = sum + ' / ' + s.max;
+      });
+      const grandEl = document.getElementById('r_nssGreetGrand');
+      if (grandEl) grandEl.textContent = grand + ' / 100';
+    }
+
+    function mgrCollectNssGreetScores() {
+      const section = document.getElementById('r_nssGreetSection');
+      if (!section) return null;
+      const out = { total: 0 };
+      let any = false;
+      NSS_GREET_RUBRIC.forEach(s => {
+        out[s.key] = {};
+        let sum = 0;
+        s.items.forEach(it => {
+          const el = section.querySelector('.mgr-nss-stars[data-nss-section-key="'+s.key+'"][data-nss-item-key="'+it.key+'"]');
+          const v = el ? parseInt(el.getAttribute('data-nss-value') || '0', 10) : 0;
+          out[s.key][it.key] = v;
+          sum += v;
+          if (v > 0) any = true;
+        });
+        out[s.key]._sum = sum;
+        out.total += sum;
+      });
+      return any ? out : null;
     }
 
     function mgrAddCallRow() {
@@ -6295,7 +6420,8 @@ if (typeof Chart !== 'undefined') {
         debriefTechWin: document.getElementById('r_tWin').value,
         observations,
         observationNotes: document.getElementById('r_obsNotes').value,
-        nextSteps: document.getElementById('r_nextSteps').value
+        nextSteps: document.getElementById('r_nextSteps').value,
+        nssGreetScores: mgrCollectNssGreetScores()
       };
       const status = document.querySelector('#mgrRideAlongForm input[name="r_status"]:checked').value;
       const tech = document.getElementById('r_tech').value;
@@ -6472,6 +6598,11 @@ if (typeof Chart !== 'undefined') {
         if (d.debriefManagerWin) html += `<h5>WIN (Manager view)</h5><div>${mgrEscape(d.debriefManagerWin)}</div>`;
         if (d.debriefTechWin) html += `<h5>WIN (Tech view)</h5><div>${mgrEscape(d.debriefTechWin)}</div>`;
         if (d.nextSteps) html += `<h5>Next Steps</h5><div>${mgrEscape(d.nextSteps)}</div>`;
+        if (d.nssGreetScores && d.nssGreetScores.total) {
+          const ng = d.nssGreetScores;
+          const parts = NSS_GREET_RUBRIC.map(s => `${s.title}: <strong>${(ng[s.key]&&ng[s.key]._sum)||0}/${s.max}</strong>`).join(' · ');
+          html += `<h5>NSS Greet Scorecard — ${ng.total}/100</h5><div style="font-size:11px;">${parts}</div>`;
+        }
       }
       html += `<div style="margin-top:10px;"><button class="mgr-btn sm secondary" onclick="mgrEditEntry('${e.id}')">Edit</button> <button class="mgr-btn sm danger" onclick="mgrDeleteEntry('${e.id}')">Delete</button></div>`;
       return html;
