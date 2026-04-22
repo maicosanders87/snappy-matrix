@@ -9990,3 +9990,115 @@ body.rookie-modal-open { overflow: hidden; }
   .rookie-card-modal-close { top: 12px; right: 12px; width: 40px; height: 40px; }
   .rookie-card-modal-hint { font-size: 10.5px; bottom: -34px; }
 }
+
+/* =======================================================================
+   Themed background photo behind rookie-card stats (seasonal cards only)
+   v94 — cinematic atmosphere layer behind the ST stats grid
+   ======================================================================= */
+
+/* Establish stacking context on the stats section so backdrop + content layer cleanly */
+.season-skin .rookie-st-section {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 10px;
+  padding: 10px 10px 8px 10px !important;
+  margin-top: 12px !important;
+  background-color: rgba(8, 10, 18, 0.55);
+  border-top-color: rgba(255,255,255,0.08) !important;
+}
+
+/* The photo backdrop itself — full cover, dimmed so stats remain legible */
+.season-skin .rookie-st-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.55;
+  transition: opacity 0.3s ease, transform 0.6s ease;
+  transform: scale(1.02);
+}
+
+/* Gradient overlay to guarantee contrast on any photo */
+.season-skin .rookie-st-section::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(8, 10, 18, 0.25) 0%,
+    rgba(8, 10, 18, 0.55) 50%,
+    rgba(8, 10, 18, 0.78) 100%);
+}
+
+/* Subtle zoom on hover for extra "dope" factor */
+.season-skin:hover .rookie-st-section::before {
+  opacity: 0.65;
+  transform: scale(1.06);
+}
+
+/* Per-season photo assignments */
+.season-skin[data-season="storm"]   .rookie-st-section::before { background-image: url('season_bg_storm.png'); }
+.season-skin[data-season="ice"]     .rookie-st-section::before { background-image: url('season_bg_ice.png'); }
+.season-skin[data-season="heat"]    .rookie-st-section::before { background-image: url('season_bg_heat.png'); }
+.season-skin[data-season="harvest"] .rookie-st-section::before { background-image: url('season_bg_harvest.png'); }
+
+/* Per-season color tint on the overlay — each season gets its signature color */
+.season-skin[data-season="storm"] .rookie-st-section::after {
+  background: linear-gradient(180deg,
+    rgba(40, 20, 80, 0.30) 0%,
+    rgba(18, 12, 40, 0.55) 50%,
+    rgba(8, 6, 20, 0.82) 100%);
+}
+.season-skin[data-season="ice"] .rookie-st-section::after {
+  background: linear-gradient(180deg,
+    rgba(15, 40, 70, 0.28) 0%,
+    rgba(8, 22, 45, 0.55) 50%,
+    rgba(3, 12, 28, 0.82) 100%);
+}
+.season-skin[data-season="heat"] .rookie-st-section::after {
+  background: linear-gradient(180deg,
+    rgba(80, 30, 10, 0.30) 0%,
+    rgba(50, 15, 8, 0.58) 50%,
+    rgba(20, 8, 4, 0.85) 100%);
+}
+.season-skin[data-season="harvest"] .rookie-st-section::after {
+  background: linear-gradient(180deg,
+    rgba(70, 35, 10, 0.30) 0%,
+    rgba(40, 22, 8, 0.58) 50%,
+    rgba(18, 10, 4, 0.85) 100%);
+}
+
+/* Boost readability of stats atop the photo */
+.season-skin .rookie-st-val {
+  color: #fff !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 8px rgba(0,0,0,0.4);
+}
+.season-skin .rookie-st-lbl {
+  color: rgba(255,255,255,0.72) !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+}
+.season-skin .rookie-st-header {
+  color: #fff !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+.season-skin .rookie-st-toggle {
+  background: rgba(0,0,0,0.45) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+  backdrop-filter: blur(4px);
+}
+.season-skin .rookie-st-toggle-opt {
+  color: rgba(255,255,255,0.65) !important;
+}
+.season-skin .rookie-st-toggle-opt.is-active {
+  color: #fff !important;
+  background: rgba(255,255,255,0.22) !important;
+}
+
+/* Bigger modal version — amp up the backdrop presence */
+.rookie-card-modal-face .season-skin .rookie-st-section::before { opacity: 0.62; }
+.rookie-card-modal-face .season-skin .rookie-st-section { min-height: 140px; }
