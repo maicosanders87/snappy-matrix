@@ -4943,9 +4943,34 @@ if (typeof Chart !== 'undefined') {
       ]}
     ];
 
+    // Training Library seed — built-in entries (not deletable). User-added entries live in mgrState.library
+    const TRAINING_LIBRARY_SEED = [
+      {
+        id: 'nss_greet_instructor',
+        title: 'NSS Greet — Instructor Flight Plan',
+        category: 'NSS · You\'re Worth It',
+        description: 'Instructor edition. 5 sections, dry-erase prompts, pun bank. Pairs with the scorecard.',
+        pdf: 'nss_greet_instructor.pdf',
+        duration: '1hr',
+        tags: ['NSS','Greet','Instructor'],
+        builtin: true
+      },
+      {
+        id: 'nss_greet_scorecard',
+        title: 'NSS Greet — Ride-Along Scorecard',
+        category: 'NSS · You\'re Worth It',
+        description: '100-point printable rubric. 5 sections, 20 items, 1–5 stars. Includes Visual Agenda reference.',
+        pdf: 'nss_greet_scorecard.pdf',
+        duration: '15min',
+        tags: ['NSS','Greet','Scorecard'],
+        builtin: true
+      }
+    ];
+
     let mgrState = {
       entries: [],
-      trainings: []
+      trainings: [],
+      library: []
     };
 
     // ----- Persistence -----
@@ -4956,6 +4981,7 @@ if (typeof Chart !== 'undefined') {
           const parsed = JSON.parse(raw);
           mgrState.entries = Array.isArray(parsed.entries) ? parsed.entries : [];
           mgrState.trainings = Array.isArray(parsed.trainings) ? parsed.trainings : [];
+          mgrState.library = Array.isArray(parsed.library) ? parsed.library : [];
         }
       } catch (e) {
         console.warn('Manager: failed to load storage', e);
@@ -6756,6 +6782,9 @@ if (typeof Chart !== 'undefined') {
           </div>`;
         }).join('');
       }
+
+      // Render Training Library
+      mgrRenderTrainingLibrary();
     }
 
     function mgrAddKeyPoint() {
@@ -6883,6 +6912,197 @@ if (typeof Chart !== 'undefined') {
       document.body.appendChild(toast);
       setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 400); }, 2000);
     }
+
+    // ========== TRAINING LIBRARY ==========
+    function mgrLibraryAllItems() {
+      var userItems = Array.isArray(mgrState.library) ? mgrState.library : [];
+      // Seeds first, then user-added (most recent first)
+      var seeds = TRAINING_LIBRARY_SEED.slice();
+      var user = userItems.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
+      return seeds.concat(user);
+    }
+
+    function mgrRenderTrainingLibrary() {
+      var container = document.getElementById('mgrTrainingLibrary');
+      if (!container) return;
+      var items = mgrLibraryAllItems();
+      if (!items.length) {
+        container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);">No trainings in library yet. Click + Add Training to save one.</div>';
+        return;
+      }
+      container.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">' +
+        items.map(function(it){
+          var tags = (it.tags||[]).map(function(t){ return '<span style="display:inline-block;background:rgba(255,215,0,0.12);color:#fbbf24;font-size:10px;padding:2px 7px;border-radius:10px;margin-right:4px;">'+mgrEscape(t)+'</span>'; }).join('');
+          var dur = it.duration ? '<span style="font-size:11px;color:var(--text-muted);">'+mgrEscape(it.duration)+'</span>' : '';
+          var builtinBadge = it.builtin ? '<span style="display:inline-block;background:rgba(100,180,255,0.15);color:#64b4ff;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:6px;letter-spacing:0.5px;">BUILT-IN</span>' : '';
+          var deleteBtn = it.builtin ? '' :
+            '<button type="button" class="mgr-btn secondary sm" onclick="mgrLibraryDelete(\''+it.id+'\')" style="border-color:rgba(255,100,100,0.4);color:#f87171;">🗑 Delete</button>';
+          return '' +
+            '<div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;">' +
+              '<div>' +
+                '<div style="font-weight:700;font-size:14px;color:var(--text-primary);line-height:1.3;">'+mgrEscape(it.title)+builtinBadge+'</div>' +
+                '<div style="font-size:11px;color:var(--accent);margin-top:3px;">'+mgrEscape(it.category||'')+'</div>' +
+              '</div>' +
+              (it.description ? '<div style="font-size:12px;color:var(--text-muted);line-height:1.4;">'+mgrEscape(it.description)+'</div>' : '') +
+              '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'+tags+dur+'</div>' +
+              '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">' +
+                '<button type="button" class="mgr-btn sm" onclick="mgrLibraryView(\''+it.id+'\')">👁 View</button>' +
+                '<button type="button" class="mgr-btn secondary sm" onclick="mgrLibraryDownload(\''+it.id+'\')">⬇ Download</button>' +
+                '<button type="button" class="mgr-btn secondary sm" onclick="mgrLibraryAddToCalendar(\''+it.id+'\')" style="border-color:rgba(100,180,255,0.4);color:#64b4ff;">📅 Calendar</button>' +
+                '<button type="button" class="mgr-btn secondary sm" onclick="mgrLibraryAddToBB(\''+it.id+'\')" style="border-color:rgba(255,215,0,0.4);color:#fbbf24;">📌 Bulletin</button>' +
+                deleteBtn +
+              '</div>' +
+            '</div>';
+        }).join('') + '</div>';
+    }
+
+    function mgrLibraryFind(id) {
+      return mgrLibraryAllItems().find(function(x){ return x.id === id; });
+    }
+
+    function mgrLibraryToast(msg, color) {
+      var toast = document.createElement('div');
+      toast.textContent = msg;
+      toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:'+(color||'#3b82f6')+';color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+      document.body.appendChild(toast);
+      setTimeout(function(){ toast.style.opacity='0'; setTimeout(function(){ toast.remove(); }, 400); }, 2000);
+    }
+
+    function mgrLibraryView(id) {
+      var it = mgrLibraryFind(id);
+      if (!it || !it.pdf) { alert('No file attached to this training.'); return; }
+      window.open(it.pdf, '_blank');
+    }
+
+    function mgrLibraryDownload(id) {
+      var it = mgrLibraryFind(id);
+      if (!it || !it.pdf) { alert('No file attached to this training.'); return; }
+      var a = document.createElement('a');
+      a.href = it.pdf;
+      a.download = it.pdf.split('/').pop();
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function mgrLibraryDelete(id) {
+      var it = mgrLibraryFind(id);
+      if (!it) return;
+      if (it.builtin) { alert('Built-in trainings cannot be deleted.'); return; }
+      if (!confirm('Delete "'+it.title+'" from the library?')) return;
+      mgrState.library = mgrState.library.filter(function(x){ return x.id !== id; });
+      mgrSave();
+      mgrRenderTrainingLibrary();
+      mgrLibraryToast('🗑 Deleted', '#7f1d1d');
+    }
+
+    function mgrLibraryAddToCalendar(id) {
+      var it = mgrLibraryFind(id);
+      if (!it) return;
+      var today = mgrToday();
+      var weekStart = mgrStartOfWeek(today);
+      var wedDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 3);
+      // If Wed already passed this week, schedule next week's Wed
+      if (wedDate < today) {
+        wedDate.setDate(wedDate.getDate() + 7);
+      }
+      var wedStr = mgrFmtDate(wedDate);
+      var focusLabel = 'Training: ' + it.title + (it.duration ? ' (' + it.duration + ')' : '');
+      mgrState.entries.push({
+        id: mgrUID(), type: 'one-on-one', tech: 'Team', date: wedStr, status: 'planned',
+        data: { housekeeping: {}, housekeepingNotes: '', customFocus: focusLabel, redBarn: { include: false, scenario: '', outcome: '' }, coveredSummary: '', actionItems: '', followUp: '' },
+        createdAt: Date.now(), updatedAt: Date.now()
+      });
+      mgrSave();
+      if (typeof renderManagerCalendar === 'function') renderManagerCalendar();
+      mgrLibraryToast('📅 Added to Calendar (' + wedStr + ')', '#3b82f6');
+    }
+
+    function mgrLibraryAddToBB(id) {
+      var it = mgrLibraryFind(id);
+      if (!it) return;
+      var today = mgrToday();
+      var weekStart = mgrStartOfWeek(today);
+      var wedDate = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 3);
+      if (wedDate < today) { wedDate.setDate(wedDate.getDate() + 7); }
+      var wedStr = mgrFmtDate(wedDate);
+      var notes = (it.description || '') + (it.duration ? (it.description ? ' · ' : '') + 'Duration: ' + it.duration : '');
+      var bb = bbLoad();
+      bb.meetings.push({
+        id: bbUID(), subject: 'Training: ' + it.title, date: wedStr, time: '', location: '', notes: notes, source: 'mgr'
+      });
+      bbSave(bb);
+      if (typeof renderBulletinBoard === 'function') renderBulletinBoard();
+      mgrLibraryToast('📌 Posted to Bulletin Board', '#065f46');
+    }
+
+    function mgrLibraryOpenAddModal() {
+      var old = document.getElementById('mgrLibraryAddModal');
+      if (old) old.remove();
+      var modal = document.createElement('div');
+      modal.id = 'mgrLibraryAddModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML = '' +
+        '<div style="background:var(--panel-bg,#1a1a1a);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,0.6);">' +
+          '<h3 style="margin:0 0 14px 0;color:var(--text-primary);">Add Training to Library</h3>' +
+          '<form id="mgrLibraryAddForm" onsubmit="return mgrLibraryAddSubmit(event);">' +
+            '<div class="mgr-form-row"><label class="mgr-form-label">Title *</label><input type="text" class="mgr-input" id="lib_title" required placeholder="e.g. NSS Agreement Roleplay"></div>' +
+            '<div class="mgr-form-row"><label class="mgr-form-label">Category</label><input type="text" class="mgr-input" id="lib_category" placeholder="e.g. NSS · You\'re Worth It"></div>' +
+            '<div class="mgr-form-row"><label class="mgr-form-label">Description</label><textarea class="mgr-textarea" id="lib_description" rows="2" placeholder="Short summary"></textarea></div>' +
+            '<div class="mgr-form-row"><label class="mgr-form-label">PDF URL</label><input type="text" class="mgr-input" id="lib_pdf" placeholder="https://drive.google.com/... or Dropbox link"><div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Paste a public share link (Google Drive, Dropbox, etc.) so it opens from any device.</div></div>' +
+            '<div class="mgr-form-row"><label class="mgr-form-label">Duration</label>' +
+              '<select class="mgr-select" id="lib_duration">' +
+                '<option value="">—</option>' +
+                '<option value="15min">15 min</option><option value="30min">30 min</option><option value="45min">45 min</option>' +
+                '<option value="1hr" selected>1 hour</option><option value="1.5hr">1.5 hours</option><option value="2hr">2 hours</option>' +
+                '<option value="3hr">3 hours</option><option value="halfday">Half day</option><option value="fullday">Full day</option>' +
+              '</select></div>' +
+            '<div class="mgr-form-row"><label class="mgr-form-label">Tags (comma-separated)</label><input type="text" class="mgr-input" id="lib_tags" placeholder="NSS, Greet, Instructor"></div>' +
+            '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">' +
+              '<button type="button" class="mgr-btn secondary" onclick="document.getElementById(\'mgrLibraryAddModal\').remove()">Cancel</button>' +
+              '<button type="submit" class="mgr-btn gold">Save to Library</button>' +
+            '</div>' +
+          '</form>' +
+        '</div>';
+      document.body.appendChild(modal);
+      setTimeout(function(){ var t = document.getElementById('lib_title'); if (t) t.focus(); }, 50);
+    }
+
+    function mgrLibraryAddSubmit(ev) {
+      ev.preventDefault();
+      var title = document.getElementById('lib_title').value.trim();
+      if (!title) { alert('Title is required.'); return false; }
+      var tagsRaw = document.getElementById('lib_tags').value.trim();
+      var tags = tagsRaw ? tagsRaw.split(',').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+      var entry = {
+        id: 'lib_' + mgrUID(),
+        title: title,
+        category: document.getElementById('lib_category').value.trim(),
+        description: document.getElementById('lib_description').value.trim(),
+        pdf: document.getElementById('lib_pdf').value.trim(),
+        duration: document.getElementById('lib_duration').value,
+        tags: tags,
+        builtin: false,
+        createdAt: Date.now()
+      };
+      if (!Array.isArray(mgrState.library)) mgrState.library = [];
+      mgrState.library.push(entry);
+      mgrSave();
+      var modal = document.getElementById('mgrLibraryAddModal');
+      if (modal) modal.remove();
+      mgrRenderTrainingLibrary();
+      mgrLibraryToast('✅ Added to Library', '#065f46');
+      return false;
+    }
+
+    // Expose library functions
+    window.mgrLibraryView = mgrLibraryView;
+    window.mgrLibraryDownload = mgrLibraryDownload;
+    window.mgrLibraryDelete = mgrLibraryDelete;
+    window.mgrLibraryAddToCalendar = mgrLibraryAddToCalendar;
+    window.mgrLibraryAddToBB = mgrLibraryAddToBB;
+    window.mgrLibraryOpenAddModal = mgrLibraryOpenAddModal;
+    window.mgrLibraryAddSubmit = mgrLibraryAddSubmit;
 
     function _showTrainingCalendarModal(topic, defaultDate, duration) {
       // Remove existing modal if present

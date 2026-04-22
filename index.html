@@ -17,7 +17,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260421v78">
+  <link rel="stylesheet" href="styles.css?v=20260421v79">
 </head>
 <body>
   <!-- Background Grid Effect -->
@@ -572,6 +572,17 @@
           <h3>Past Trainings</h3>
           <div id="mgrPastTrainings" class="mgr-past-list"></div>
         </div>
+
+        <div class="mgr-training-card" style="margin-top:18px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+            <div>
+              <h3 style="margin:0;">Training Library</h3>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Saved trainings · view, download, delete, add to calendar or bulletin board.</div>
+            </div>
+            <button type="button" class="mgr-btn gold sm" onclick="mgrLibraryOpenAddModal()">+ Add Training</button>
+          </div>
+          <div id="mgrTrainingLibrary"></div>
+        </div>
       </div>
     </div>
 
@@ -1041,7 +1052,7 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="score_pdfs.js?v=20260421v78"></script>
-  <script src="app.js?v=20260421v78"></script>
+  <script src="score_pdfs.js?v=20260421v79"></script>
+  <script src="app.js?v=20260421v79"></script>
 </body>
 </html>
