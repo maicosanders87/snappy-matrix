@@ -10104,129 +10104,181 @@ body.rookie-modal-open { overflow: hidden; }
 .rookie-card-modal-face .season-skin .rookie-st-section { min-height: 140px; }
 
 /* =======================================================================
-   v96 — Extend themed backdrop to upper stat panels on seasonal cards
-   Applies to: .rookie-stats, .rookie-composite, .rookie-dispatch-tags
+   v97 — Themed backdrop on seasonal stat panels (iPad Safari safe)
+   NOTES:
+   - Scoped to A/B/C tier cards ONLY (excludes S-tier Mark Sanders'
+     manager card which uses a different layout + flame animations).
+   - Uses a SINGLE box-shadow + background gradient instead of stacked
+     ::before/::after pseudo-elements. Avoids `isolation: isolate` and
+     multiple z-index:-1/-2 layers that crash iPad Safari compositor.
+   - Per-season photo applied via `background-image` on the panel itself
+     (with a blended gradient overlay in the same declaration).
    ======================================================================= */
 
-.season-skin .rookie-stats,
-.season-skin .rookie-composite,
-.season-skin .rookie-dispatch-tags {
+.season-skin.season-seasonal-skin .rookie-tier-a .rookie-stats,
+.season-skin.season-seasonal-skin .rookie-tier-a .rookie-composite,
+.season-skin.season-seasonal-skin .rookie-tier-a .rookie-dispatch-tags,
+.season-skin.season-seasonal-skin .rookie-tier-b .rookie-stats,
+.season-skin.season-seasonal-skin .rookie-tier-b .rookie-composite,
+.season-skin.season-seasonal-skin .rookie-tier-b .rookie-dispatch-tags,
+.season-skin.season-seasonal-skin .rookie-tier-c .rookie-stats,
+.season-skin.season-seasonal-skin .rookie-tier-c .rookie-composite,
+.season-skin.season-seasonal-skin .rookie-tier-c .rookie-dispatch-tags,
+.season-skin:not(:has(.rookie-tier-s)) .rookie-stats,
+.season-skin:not(:has(.rookie-tier-s)) .rookie-composite,
+.season-skin:not(:has(.rookie-tier-s)) .rookie-dispatch-tags {
   position: relative;
-  isolation: isolate;
-  overflow: hidden;
   border-radius: 10px;
-  padding: 8px 10px !important;
-  margin-bottom: 8px !important;
-  background-color: rgba(8, 10, 18, 0.45);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background-color: rgba(8, 10, 18, 0.55);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  background-blend-mode: multiply;
   border: 1px solid rgba(255,255,255,0.06);
 }
 
-/* Photo backdrop layer on each panel */
-.season-skin .rookie-stats::before,
-.season-skin .rookie-composite::before,
-.season-skin .rookie-dispatch-tags::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  opacity: 0.50;
-  transition: opacity 0.3s ease, transform 0.6s ease;
-  transform: scale(1.02);
+/* Per-season photo + tint, using background-image layer (no pseudo-elements) */
+.season-skin[data-season="storm"]:not(:has(.rookie-tier-s)) .rookie-stats,
+.season-skin[data-season="storm"]:not(:has(.rookie-tier-s)) .rookie-composite,
+.season-skin[data-season="storm"]:not(:has(.rookie-tier-s)) .rookie-dispatch-tags {
+  background-image:
+    linear-gradient(135deg, rgba(40,20,80,0.55) 0%, rgba(18,12,40,0.72) 60%, rgba(8,6,20,0.82) 100%),
+    url('season_bg_storm.png');
+}
+.season-skin[data-season="ice"]:not(:has(.rookie-tier-s)) .rookie-stats,
+.season-skin[data-season="ice"]:not(:has(.rookie-tier-s)) .rookie-composite,
+.season-skin[data-season="ice"]:not(:has(.rookie-tier-s)) .rookie-dispatch-tags {
+  background-image:
+    linear-gradient(135deg, rgba(15,40,70,0.55) 0%, rgba(8,22,45,0.72) 60%, rgba(3,12,28,0.85) 100%),
+    url('season_bg_ice.png');
+}
+.season-skin[data-season="heat"]:not(:has(.rookie-tier-s)) .rookie-stats,
+.season-skin[data-season="heat"]:not(:has(.rookie-tier-s)) .rookie-composite,
+.season-skin[data-season="heat"]:not(:has(.rookie-tier-s)) .rookie-dispatch-tags {
+  background-image:
+    linear-gradient(135deg, rgba(80,30,10,0.55) 0%, rgba(50,15,8,0.74) 60%, rgba(20,8,4,0.85) 100%),
+    url('season_bg_heat.png');
+}
+.season-skin[data-season="harvest"]:not(:has(.rookie-tier-s)) .rookie-stats,
+.season-skin[data-season="harvest"]:not(:has(.rookie-tier-s)) .rookie-composite,
+.season-skin[data-season="harvest"]:not(:has(.rookie-tier-s)) .rookie-dispatch-tags {
+  background-image:
+    linear-gradient(135deg, rgba(70,35,10,0.55) 0%, rgba(40,22,8,0.74) 60%, rgba(18,10,4,0.85) 100%),
+    url('season_bg_harvest.png');
 }
 
-/* Gradient wash on each panel */
-.season-skin .rookie-stats::after,
-.season-skin .rookie-composite::after,
-.season-skin .rookie-dispatch-tags::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
+/* iPad Safari fallback (no :has() support on older iPadOS) — apply by
+   explicit tier classes as a redundancy so S-tier is still excluded. */
+@supports not selector(:has(*)) {
+  .season-skin[data-season="storm"] .rookie-tier-a .rookie-stats,
+  .season-skin[data-season="storm"] .rookie-tier-a .rookie-composite,
+  .season-skin[data-season="storm"] .rookie-tier-a .rookie-dispatch-tags,
+  .season-skin[data-season="storm"] .rookie-tier-b .rookie-stats,
+  .season-skin[data-season="storm"] .rookie-tier-b .rookie-composite,
+  .season-skin[data-season="storm"] .rookie-tier-b .rookie-dispatch-tags,
+  .season-skin[data-season="storm"] .rookie-tier-c .rookie-stats,
+  .season-skin[data-season="storm"] .rookie-tier-c .rookie-composite,
+  .season-skin[data-season="storm"] .rookie-tier-c .rookie-dispatch-tags {
+    background-image:
+      linear-gradient(135deg, rgba(40,20,80,0.55) 0%, rgba(18,12,40,0.72) 60%, rgba(8,6,20,0.82) 100%),
+      url('season_bg_storm.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    background-color: rgba(8,10,18,0.55);
+    position: relative;
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .season-skin[data-season="ice"] .rookie-tier-a .rookie-stats,
+  .season-skin[data-season="ice"] .rookie-tier-a .rookie-composite,
+  .season-skin[data-season="ice"] .rookie-tier-a .rookie-dispatch-tags,
+  .season-skin[data-season="ice"] .rookie-tier-b .rookie-stats,
+  .season-skin[data-season="ice"] .rookie-tier-b .rookie-composite,
+  .season-skin[data-season="ice"] .rookie-tier-b .rookie-dispatch-tags,
+  .season-skin[data-season="ice"] .rookie-tier-c .rookie-stats,
+  .season-skin[data-season="ice"] .rookie-tier-c .rookie-composite,
+  .season-skin[data-season="ice"] .rookie-tier-c .rookie-dispatch-tags {
+    background-image:
+      linear-gradient(135deg, rgba(15,40,70,0.55) 0%, rgba(8,22,45,0.72) 60%, rgba(3,12,28,0.85) 100%),
+      url('season_bg_ice.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    background-color: rgba(8,10,18,0.55);
+    position: relative;
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .season-skin[data-season="heat"] .rookie-tier-a .rookie-stats,
+  .season-skin[data-season="heat"] .rookie-tier-a .rookie-composite,
+  .season-skin[data-season="heat"] .rookie-tier-a .rookie-dispatch-tags,
+  .season-skin[data-season="heat"] .rookie-tier-b .rookie-stats,
+  .season-skin[data-season="heat"] .rookie-tier-b .rookie-composite,
+  .season-skin[data-season="heat"] .rookie-tier-b .rookie-dispatch-tags,
+  .season-skin[data-season="heat"] .rookie-tier-c .rookie-stats,
+  .season-skin[data-season="heat"] .rookie-tier-c .rookie-composite,
+  .season-skin[data-season="heat"] .rookie-tier-c .rookie-dispatch-tags {
+    background-image:
+      linear-gradient(135deg, rgba(80,30,10,0.55) 0%, rgba(50,15,8,0.74) 60%, rgba(20,8,4,0.85) 100%),
+      url('season_bg_heat.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    background-color: rgba(8,10,18,0.55);
+    position: relative;
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .season-skin[data-season="harvest"] .rookie-tier-a .rookie-stats,
+  .season-skin[data-season="harvest"] .rookie-tier-a .rookie-composite,
+  .season-skin[data-season="harvest"] .rookie-tier-a .rookie-dispatch-tags,
+  .season-skin[data-season="harvest"] .rookie-tier-b .rookie-stats,
+  .season-skin[data-season="harvest"] .rookie-tier-b .rookie-composite,
+  .season-skin[data-season="harvest"] .rookie-tier-b .rookie-dispatch-tags,
+  .season-skin[data-season="harvest"] .rookie-tier-c .rookie-stats,
+  .season-skin[data-season="harvest"] .rookie-tier-c .rookie-composite,
+  .season-skin[data-season="harvest"] .rookie-tier-c .rookie-dispatch-tags {
+    background-image:
+      linear-gradient(135deg, rgba(70,35,10,0.55) 0%, rgba(40,22,8,0.74) 60%, rgba(18,10,4,0.85) 100%),
+      url('season_bg_harvest.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    background-color: rgba(8,10,18,0.55);
+    position: relative;
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
 }
 
-/* Tinted overlays per season — reuse the same palette as stats */
-.season-skin[data-season="storm"]   .rookie-stats::after,
-.season-skin[data-season="storm"]   .rookie-composite::after,
-.season-skin[data-season="storm"]   .rookie-dispatch-tags::after {
-  background: linear-gradient(135deg,
-    rgba(40, 20, 80, 0.35) 0%,
-    rgba(18, 12, 40, 0.60) 60%,
-    rgba(8, 6, 20, 0.78) 100%);
-}
-.season-skin[data-season="ice"]   .rookie-stats::after,
-.season-skin[data-season="ice"]   .rookie-composite::after,
-.season-skin[data-season="ice"]   .rookie-dispatch-tags::after {
-  background: linear-gradient(135deg,
-    rgba(15, 40, 70, 0.32) 0%,
-    rgba(8, 22, 45, 0.60) 60%,
-    rgba(3, 12, 28, 0.80) 100%);
-}
-.season-skin[data-season="heat"]   .rookie-stats::after,
-.season-skin[data-season="heat"]   .rookie-composite::after,
-.season-skin[data-season="heat"]   .rookie-dispatch-tags::after {
-  background: linear-gradient(135deg,
-    rgba(80, 30, 10, 0.35) 0%,
-    rgba(50, 15, 8, 0.62) 60%,
-    rgba(20, 8, 4, 0.82) 100%);
-}
-.season-skin[data-season="harvest"]   .rookie-stats::after,
-.season-skin[data-season="harvest"]   .rookie-composite::after,
-.season-skin[data-season="harvest"]   .rookie-dispatch-tags::after {
-  background: linear-gradient(135deg,
-    rgba(70, 35, 10, 0.35) 0%,
-    rgba(40, 22, 8, 0.62) 60%,
-    rgba(18, 10, 4, 0.82) 100%);
-}
-
-/* Per-season photo assignments on all panels */
-.season-skin[data-season="storm"] .rookie-stats::before,
-.season-skin[data-season="storm"] .rookie-composite::before,
-.season-skin[data-season="storm"] .rookie-dispatch-tags::before { background-image: url('season_bg_storm.png'); }
-
-.season-skin[data-season="ice"] .rookie-stats::before,
-.season-skin[data-season="ice"] .rookie-composite::before,
-.season-skin[data-season="ice"] .rookie-dispatch-tags::before { background-image: url('season_bg_ice.png'); }
-
-.season-skin[data-season="heat"] .rookie-stats::before,
-.season-skin[data-season="heat"] .rookie-composite::before,
-.season-skin[data-season="heat"] .rookie-dispatch-tags::before { background-image: url('season_bg_heat.png'); }
-
-.season-skin[data-season="harvest"] .rookie-stats::before,
-.season-skin[data-season="harvest"] .rookie-composite::before,
-.season-skin[data-season="harvest"] .rookie-dispatch-tags::before { background-image: url('season_bg_harvest.png'); }
-
-/* Hover amp */
-.season-skin:hover .rookie-stats::before,
-.season-skin:hover .rookie-composite::before,
-.season-skin:hover .rookie-dispatch-tags::before {
-  opacity: 0.60;
-  transform: scale(1.06);
-}
-
-/* Boost text legibility across the panels */
+/* Boost text legibility across the panels (all tiers incl. S still get text contrast) */
 .season-skin .rookie-stat-value,
 .season-skin .rookie-composite-score {
   color: #fff !important;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 8px rgba(0,0,0,0.4);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.4);
 }
 .season-skin .rookie-stat-label,
 .season-skin .rookie-composite-label {
-  color: rgba(255,255,255,0.75) !important;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+  color: rgba(255,255,255,0.78) !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85);
 }
-.season-skin .rookie-dispatch-header {
-  color: #fff !important;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-}
+
+/* Dispatch pills — readable over photo */
 .season-skin .rookie-dispatch-pill {
-  background: rgba(0,0,0,0.40) !important;
-  border-color: rgba(255,255,255,0.20) !important;
+  background: rgba(0,0,0,0.45) !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
   color: #fff !important;
-  backdrop-filter: blur(3px);
   text-shadow: 0 1px 2px rgba(0,0,0,0.8);
 }
 .season-skin .rookie-dispatch-pill.is-premium {
@@ -10244,6 +10296,17 @@ body.rookie-modal-open { overflow: hidden; }
   background: rgba(0,0,0,0.55) !important;
   padding: 2px 7px;
   border-radius: 999px;
-  backdrop-filter: blur(3px);
   text-shadow: none;
+}
+
+/* Explicit S-tier safety net — make sure nothing above accidentally
+   applied padding/borders/backgrounds to Mark's manager card panels. */
+.season-skin .rookie-tier-s .rookie-stats,
+.season-skin .rookie-tier-s .rookie-composite {
+  background-image: none !important;
+  padding: revert !important;
+  border: revert !important;
+  margin-bottom: revert !important;
+  border-radius: revert !important;
+  background-color: revert !important;
 }
