@@ -2497,7 +2497,185 @@ document.addEventListener('visibilitychange', function() {
     var origSwitchView = null;
     document.addEventListener('DOMContentLoaded', function() {
       setTimeout(animateCounters, 500);
+      setTimeout(initTeamPhoto, 200);
     });
+
+    // ========== TEAM PHOTO — seasonal toggle + animated storm FX ==========
+    var TEAM_PHOTO_KEY = 'snappy_team_photo_mode';
+    var _teamRain = { canvas: null, ctx: null, drops: [], rafId: null, ro: null };
+    var _teamLightningTimer = null;
+
+    function initTeamPhoto() {
+      var card = document.getElementById('teamPhotoCard');
+      if (!card) return;
+      var buttons = card.querySelectorAll('.team-toggle-btn');
+      // Decide initial mode: stored preference wins; otherwise default to current season (Storm if storm season active)
+      var stored = null;
+      try { stored = localStorage.getItem(TEAM_PHOTO_KEY); } catch(e){}
+      var season = (typeof _stormFxState !== 'undefined' && _stormFxState.active) ? 'storm' : 'original';
+      var mode = stored === 'original' || stored === 'storm' ? stored : season;
+      _setTeamPhotoMode(mode);
+
+      buttons.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var m = btn.getAttribute('data-mode');
+          _setTeamPhotoMode(m);
+          try { localStorage.setItem(TEAM_PHOTO_KEY, m); } catch(e){}
+        });
+      });
+    }
+
+    function _setTeamPhotoMode(mode) {
+      var card = document.getElementById('teamPhotoCard');
+      if (!card) return;
+      card.setAttribute('data-mode', mode);
+      var buttons = card.querySelectorAll('.team-toggle-btn');
+      buttons.forEach(function(b){
+        var active = b.getAttribute('data-mode') === mode;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      var reduced = false;
+      try { reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){}
+      if (mode === 'storm' && !reduced) {
+        _startTeamRain();
+        _scheduleTeamLightning();
+      } else {
+        _stopTeamRain();
+        if (_teamLightningTimer) { clearTimeout(_teamLightningTimer); _teamLightningTimer = null; }
+      }
+    }
+
+    function _startTeamRain() {
+      var canvas = document.querySelector('#teamPhotoCard .team-rain-canvas');
+      if (!canvas) return;
+      var ctx = canvas.getContext('2d');
+      _teamRain.canvas = canvas;
+      _teamRain.ctx = ctx;
+
+      function resize() {
+        var rect = canvas.getBoundingClientRect();
+        var dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+        canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.scale(dpr, dpr);
+        _teamRain._cssW = rect.width;
+        _teamRain._cssH = rect.height;
+        // Re-seed drops at new size
+        var area = rect.width * rect.height;
+        var count = Math.min(260, Math.max(70, Math.floor(area / 2400)));
+        _teamRain.drops = [];
+        for (var i = 0; i < count; i++) _teamRain.drops.push(_makeTeamDrop(true));
+      }
+      resize();
+
+      // Handle container resize (toggling view, window resize)
+      if (_teamRain.ro) _teamRain.ro.disconnect();
+      if (typeof ResizeObserver !== 'undefined') {
+        _teamRain.ro = new ResizeObserver(function(){ resize(); });
+        _teamRain.ro.observe(canvas);
+      }
+
+      function loop() {
+        var card = document.getElementById('teamPhotoCard');
+        if (!card || card.getAttribute('data-mode') !== 'storm') return;
+        _tickTeamRain();
+        _teamRain.rafId = requestAnimationFrame(loop);
+      }
+      if (_teamRain.rafId) cancelAnimationFrame(_teamRain.rafId);
+      loop();
+    }
+
+    function _makeTeamDrop(initial) {
+      var w = _teamRain._cssW || 800;
+      var h = _teamRain._cssH || 450;
+      var depth = Math.random();
+      var speed = 9 + (1 - depth) * 12 + Math.random() * 3;
+      var length = 3 + (1 - depth) * (1 - depth) * 9 + Math.random() * 2;
+      var opacity = 0.28 + (1 - depth) * 0.6;
+      var thickness = 0.55 + (1 - depth) * 1.1;
+      var wind = -1.1 - (1 - depth) * 1.1 + (Math.random() - 0.5) * 0.5;
+      var r = Math.random();
+      var hue = r < 0.22 ? 'cyan' : (r < 0.30 ? 'white' : 'purple');
+      return {
+        x: Math.random() * (w + 100) - 50,
+        y: initial ? Math.random() * h : -length - Math.random() * 60,
+        vx: wind,
+        vy: speed / 2.2,
+        len: length,
+        op: opacity,
+        th: thickness,
+        hue: hue
+      };
+    }
+
+    function _tickTeamRain() {
+      var ctx = _teamRain.ctx;
+      var w = _teamRain._cssW, h = _teamRain._cssH;
+      if (!ctx || !w || !h) return;
+      ctx.clearRect(0, 0, w, h);
+      ctx.globalCompositeOperation = 'lighter';
+      var drops = _teamRain.drops;
+      for (var i = 0; i < drops.length; i++) {
+        var d = drops[i];
+        var tailX = d.x - d.vx * (d.len / Math.max(Math.abs(d.vy), 0.1));
+        var tailY = d.y - d.len;
+        var grad = ctx.createLinearGradient(tailX, tailY, d.x, d.y);
+        var col = d.hue === 'cyan' ? '125,211,252' : (d.hue === 'white' ? '226,232,240' : '196,181,253');
+        grad.addColorStop(0, 'rgba(' + col + ',0)');
+        grad.addColorStop(0.6, 'rgba(' + col + ',' + (d.op * 0.35) + ')');
+        grad.addColorStop(1, 'rgba(' + col + ',' + d.op + ')');
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = d.th;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(d.x, d.y);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(' + col + ',' + Math.min(1, d.op * 1.2) + ')';
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.th * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+        d.x += d.vx;
+        d.y += d.vy;
+        if (d.y > h + d.len || d.x < -80) {
+          drops[i] = _makeTeamDrop(false);
+          drops[i].x = Math.random() * (w + 120) - 40;
+        }
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    function _stopTeamRain() {
+      if (_teamRain.rafId) cancelAnimationFrame(_teamRain.rafId);
+      _teamRain.rafId = null;
+      if (_teamRain.ro) { _teamRain.ro.disconnect(); _teamRain.ro = null; }
+      if (_teamRain.ctx && _teamRain._cssW) {
+        _teamRain.ctx.clearRect(0, 0, _teamRain._cssW, _teamRain._cssH);
+      }
+      _teamRain.drops = [];
+    }
+
+    function _scheduleTeamLightning() {
+      if (_teamLightningTimer) clearTimeout(_teamLightningTimer);
+      var delay = 3500 + Math.random() * 6500; // 3.5 - 10s between flashes
+      _teamLightningTimer = setTimeout(function(){
+        var card = document.getElementById('teamPhotoCard');
+        if (!card || card.getAttribute('data-mode') !== 'storm') return;
+        _triggerTeamLightning();
+        _scheduleTeamLightning();
+      }, delay);
+    }
+
+    function _triggerTeamLightning() {
+      var flash = document.querySelector('#teamPhotoCard .team-lightning-flash');
+      if (!flash) return;
+      flash.classList.remove('team-flash-on');
+      // Force reflow so animation restarts
+      void flash.offsetWidth;
+      flash.classList.add('team-flash-on');
+    }
 
     // ========== RENDER KPIs ==========
     function renderKPIs() {

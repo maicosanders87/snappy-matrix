@@ -8740,3 +8740,161 @@ body.storm-season .sb-cd-label {
 @media (prefers-reduced-motion: reduce) {
   .sb-cd-num, .sb-cd-sep { animation: none !important; }
 }
+
+/* ============================================================
+   TEAM PHOTO CARD — seasonal toggle with animated storm FX
+   ============================================================ */
+.team-photo-card {
+  position: relative;
+  margin-bottom: 24px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+  border: 1.5px solid var(--border);
+  isolation: isolate;
+  transition: box-shadow .4s ease, border-color .4s ease;
+}
+.team-photo-card[data-mode="storm"] {
+  border-color: rgba(167,139,250,0.55);
+  box-shadow:
+    0 4px 20px rgba(0,0,0,0.25),
+    0 0 40px rgba(139,92,246,0.25),
+    inset 0 0 40px rgba(88,28,135,0.18);
+}
+.team-photo-stack {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1456 / 816; /* matches our generated images */
+  overflow: hidden;
+}
+.team-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transition: opacity .55s ease, transform .7s ease, filter .55s ease;
+  will-change: opacity, transform;
+}
+.team-photo-original { opacity: 1; transform: scale(1); z-index: 1; }
+.team-photo-storm    { opacity: 0; transform: scale(1.03); z-index: 2; }
+
+.team-photo-card[data-mode="storm"] .team-photo-original { opacity: 0; transform: scale(1.02); }
+.team-photo-card[data-mode="storm"] .team-photo-storm    { opacity: 1; transform: scale(1); }
+
+/* Storm FX overlay layer */
+.team-storm-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .5s ease;
+}
+.team-photo-card[data-mode="storm"] .team-storm-fx { opacity: 1; }
+
+.team-rain-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.team-lightning-flash {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 28% 18%, rgba(216,180,254,0.95), rgba(167,139,250,0.4) 30%, transparent 55%),
+    radial-gradient(ellipse at 72% 12%, rgba(125,211,252,0.8), rgba(99,102,241,0.25) 40%, transparent 65%),
+    rgba(255,255,255,0.55);
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+}
+.team-lightning-flash.team-flash-on {
+  animation: teamLightningFlash 820ms cubic-bezier(.2,.7,.2,1) 1;
+}
+@keyframes teamLightningFlash {
+  0%   { opacity: 0; }
+  5%   { opacity: 0.95; }
+  10%  { opacity: 0.25; }
+  15%  { opacity: 0.85; }
+  22%  { opacity: 0.15; }
+  30%  { opacity: 0.60; }
+  55%  { opacity: 0.10; }
+  100% { opacity: 0; }
+}
+.team-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 55%, rgba(30,10,60,0.45) 100%),
+    linear-gradient(to bottom, rgba(30,20,70,0.15), transparent 30%, transparent 70%, rgba(10,5,30,0.35));
+  pointer-events: none;
+}
+
+/* Toggle pill */
+.team-photo-toggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  background: rgba(15, 10, 35, 0.72);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  border: 1px solid rgba(167,139,250,0.35);
+  border-radius: 999px;
+  box-shadow:
+    0 4px 14px rgba(0,0,0,0.35),
+    0 0 20px rgba(139,92,246,0.25);
+}
+.team-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  background: transparent;
+  color: rgba(226,232,240,0.72);
+  border: 0;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background .25s ease, color .25s ease, box-shadow .25s ease, transform .15s ease;
+  font-family: inherit;
+}
+.team-toggle-btn:hover { color: #fff; background: rgba(167,139,250,0.14); }
+.team-toggle-btn:active { transform: scale(0.97); }
+.team-toggle-btn.active {
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  color: #fff;
+  box-shadow:
+    0 0 14px rgba(167,139,250,0.55),
+    inset 0 0 0 1px rgba(255,255,255,0.18);
+}
+.team-toggle-btn[data-mode="original"].active {
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+  box-shadow:
+    0 0 14px rgba(56,189,248,0.45),
+    inset 0 0 0 1px rgba(255,255,255,0.22);
+}
+.team-toggle-btn svg { flex: 0 0 auto; }
+
+/* Reduced motion: keep toggle functional but drop animations */
+@media (prefers-reduced-motion: reduce) {
+  .team-photo, .team-storm-fx { transition: opacity 0s; }
+  .team-lightning-flash.team-flash-on { animation: none; opacity: 0; }
+  .team-rain-canvas { display: none; }
+}
+
+/* Mobile: slightly smaller toggle */
+@media (max-width: 560px) {
+  .team-photo-toggle { top: 10px; right: 10px; padding: 3px; }
+  .team-toggle-btn { padding: 6px 10px; font-size: 11px; }
+  .team-toggle-btn svg { width: 12px; height: 12px; }
+}

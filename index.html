@@ -17,7 +17,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260421v85">
+  <link rel="stylesheet" href="styles.css?v=20260421v86">
 </head>
 <body>
   <!-- Background Grid Effect -->
@@ -132,9 +132,28 @@
     <!-- OVERVIEW TAB -->
     <div id="view-overview" class="view-section active">
 
-      <!-- Team Banner -->
-      <div style="margin-bottom:24px;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1);border:1.5px solid var(--border);">
-        <img src="snappy_team.png" alt="Snappy Services Team" style="width:100%;display:block;">
+      <!-- Team Banner (with seasonal toggle) -->
+      <div id="teamPhotoCard" class="team-photo-card" data-mode="storm">
+        <div class="team-photo-stack">
+          <img class="team-photo team-photo-original" src="snappy_team.png" alt="Snappy Services Team">
+          <img class="team-photo team-photo-storm" src="snappy_team_storm.png" alt="Snappy Services Team — Storm Season">
+          <!-- Storm effects overlay (only visible in storm mode) -->
+          <div class="team-storm-fx" aria-hidden="true">
+            <canvas class="team-rain-canvas"></canvas>
+            <div class="team-lightning-flash"></div>
+            <div class="team-vignette"></div>
+          </div>
+        </div>
+        <div class="team-photo-toggle" role="tablist" aria-label="Team photo mode">
+          <button type="button" class="team-toggle-btn" data-mode="original" role="tab" aria-selected="false">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+            Original
+          </button>
+          <button type="button" class="team-toggle-btn active" data-mode="storm" role="tab" aria-selected="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="currentColor"/></svg>
+            Storm
+          </button>
+        </div>
       </div>
 
       <!-- KPIs (skills-based) -->
@@ -1071,7 +1090,7 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="score_pdfs.js?v=20260421v85"></script>
-  <script src="app.js?v=20260421v85"></script>
+  <script src="score_pdfs.js?v=20260421v86"></script>
+  <script src="app.js?v=20260421v86"></script>
 </body>
 </html>
