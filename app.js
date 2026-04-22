@@ -7434,6 +7434,7 @@ if (typeof Chart !== 'undefined') {
       const housekeeping = data.housekeeping || {};
       const redBarn = data.redBarn || {};
 
+      const existingTime = existing && existing.time ? existing.time : (data.time || '');
       const html = `
         <form id="mgrOneOnOneForm" onsubmit="return mgrSubmitOneOnOne(event, '${existing ? existing.id : ''}', '${dateStr}');">
           <div class="mgr-form-section">
@@ -7445,12 +7446,26 @@ if (typeof Chart !== 'undefined') {
               </select>
             </div>
             <div class="mgr-form-row">
+              <label class="mgr-form-label">Date${existing ? ' (reschedule)' : ''}</label>
+              <input type="date" class="mgr-input" id="f_date" value="${dateStr}">
+            </div>
+            <div class="mgr-form-row">
+              <label class="mgr-form-label">Time <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(optional)</span></label>
+              <input type="text" class="mgr-input" id="f_time" value="${mgrEscape(existingTime)}" placeholder="e.g. 2:00 PM">
+            </div>
+            <div class="mgr-form-row">
               <label class="mgr-form-label">Status</label>
               <div class="mgr-radio-group">
                 <label class="mgr-radio"><input type="radio" name="f_status" value="planned" ${status==='planned'?'checked':''}> Planned</label>
                 <label class="mgr-radio"><input type="radio" name="f_status" value="completed" ${status==='completed'?'checked':''}> Completed</label>
+                <label class="mgr-radio"><input type="radio" name="f_status" value="rescheduled" ${status==='rescheduled'?'checked':''}> Rescheduled</label>
+                <label class="mgr-radio"><input type="radio" name="f_status" value="cancelled" ${status==='cancelled'?'checked':''}> Cancelled</label>
               </div>
             </div>
+            ${existing ? `<div class="mgr-form-row">
+              <label class="mgr-form-label">Reason <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(optional — family emergency, illness, etc.)</span></label>
+              <input type="text" class="mgr-input" id="f_reason" value="${mgrEscape(data.rescheduleReason||'')}" placeholder="e.g. Death in family — rescheduled to next week">
+            </div>` : ''}
           </div>
 
           <div class="mgr-form-section">
@@ -7552,6 +7567,13 @@ if (typeof Chart !== 'undefined') {
       document.querySelectorAll('#mgrOneOnOneForm [data-hk]').forEach(cb => {
         housekeeping[cb.dataset.hk] = cb.checked;
       });
+      // Pull new date/time/reason from the form (if changed)
+      var dateEl = document.getElementById('f_date');
+      var timeEl = document.getElementById('f_time');
+      var reasonEl = document.getElementById('f_reason');
+      var newDate = (dateEl && dateEl.value) ? dateEl.value : dateStr;
+      var newTime = (timeEl && timeEl.value) ? timeEl.value.trim() : '';
+      var newReason = (reasonEl && reasonEl.value) ? reasonEl.value.trim() : '';
       const data = {
         housekeeping,
         housekeepingNotes: document.getElementById('f_hkNotes').value,
@@ -7563,16 +7585,19 @@ if (typeof Chart !== 'undefined') {
         },
         coveredSummary: document.getElementById('f_coveredSummary').value,
         actionItems: document.getElementById('f_actionItems').value,
-        followUp: document.getElementById('f_followUp').value
+        followUp: document.getElementById('f_followUp').value,
+        time: newTime,
+        rescheduleReason: newReason
       };
       const status = document.querySelector('#mgrOneOnOneForm input[name="f_status"]:checked').value;
       const tech = document.getElementById('f_tech').value;
 
       var isNew = !existingId;
+      var dateChanged = existingId && newDate !== dateStr;
       if (existingId) {
         const idx = mgrState.entries.findIndex(e => e.id === existingId);
         if (idx >= 0) {
-          mgrState.entries[idx] = { ...mgrState.entries[idx], tech, status, data, updatedAt: Date.now() };
+          mgrState.entries[idx] = { ...mgrState.entries[idx], tech, status, data, date: newDate, time: newTime, updatedAt: Date.now() };
         }
         // Update bulletin board entry if editing
         var bbOOEdit = bbLoad();
@@ -7580,6 +7605,8 @@ if (typeof Chart !== 'undefined') {
         if (ooIdx >= 0) {
           bbOOEdit.oneOnOnes[ooIdx].tech = tech;
           bbOOEdit.oneOnOnes[ooIdx].status = status;
+          bbOOEdit.oneOnOnes[ooIdx].date = newDate;
+          bbOOEdit.oneOnOnes[ooIdx].time = newTime;
           bbOOEdit.oneOnOnes[ooIdx].notes = data.customFocus || '';
           bbSave(bbOOEdit);
         }
@@ -7588,14 +7615,25 @@ if (typeof Chart !== 'undefined') {
         mgrState.entries.push({
           id: newOOId,
           type: 'one-on-one',
-          tech, date: dateStr, status, data,
+          tech, date: newDate, time: newTime, status, data,
           createdAt: Date.now(), updatedAt: Date.now()
         });
       }
       mgrSave();
       renderManagerTab();
       renderBulletinBoard();
-      mgrOpenDayPanel(dateStr);
+      mgrOpenDayPanel(newDate);
+      if (dateChanged) {
+        // Toast so user sees confirmation of reschedule
+        try {
+          var toast = document.createElement('div');
+          toast.textContent = '\u2705 Rescheduled ' + tech + ' 1-on-1 \u2192 ' + newDate;
+          toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#065f46;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+          document.body.appendChild(toast);
+          setTimeout(function(){toast.style.opacity='0';},2200);
+          setTimeout(function(){toast.remove();},2700);
+        } catch(_) {}
+      }
 
       // Show bulletin board prompt for new entries
       if (isNew) {
@@ -7613,6 +7651,7 @@ if (typeof Chart !== 'undefined') {
       const calls = data.calls && data.calls.length ? data.calls : [''];
       const obs = data.observations || {};
 
+      const existingRTime = existing && existing.time ? existing.time : (data.time || '');
       const html = `
         <form id="mgrRideAlongForm" onsubmit="return mgrSubmitRideAlong(event, '${existing ? existing.id : ''}', '${dateStr}');">
           <div class="mgr-form-section">
@@ -7624,12 +7663,26 @@ if (typeof Chart !== 'undefined') {
               </select>
             </div>
             <div class="mgr-form-row">
+              <label class="mgr-form-label">Date${existing ? ' (reschedule)' : ''}</label>
+              <input type="date" class="mgr-input" id="r_date" value="${dateStr}">
+            </div>
+            <div class="mgr-form-row">
+              <label class="mgr-form-label">Time <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(optional)</span></label>
+              <input type="text" class="mgr-input" id="r_time" value="${mgrEscape(existingRTime)}" placeholder="e.g. 9:00 AM">
+            </div>
+            <div class="mgr-form-row">
               <label class="mgr-form-label">Status</label>
               <div class="mgr-radio-group">
                 <label class="mgr-radio"><input type="radio" name="r_status" value="planned" ${status==='planned'?'checked':''}> Planned</label>
                 <label class="mgr-radio"><input type="radio" name="r_status" value="completed" ${status==='completed'?'checked':''}> Completed</label>
+                <label class="mgr-radio"><input type="radio" name="r_status" value="rescheduled" ${status==='rescheduled'?'checked':''}> Rescheduled</label>
+                <label class="mgr-radio"><input type="radio" name="r_status" value="cancelled" ${status==='cancelled'?'checked':''}> Cancelled</label>
               </div>
             </div>
+            ${existing ? `<div class="mgr-form-row">
+              <label class="mgr-form-label">Reason <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(optional)</span></label>
+              <input type="text" class="mgr-input" id="r_reason" value="${mgrEscape(data.rescheduleReason||'')}" placeholder="Why rescheduled / cancelled">
+            </div>` : ''}
           </div>
 
           <div class="mgr-form-section">
@@ -7866,6 +7919,13 @@ if (typeof Chart !== 'undefined') {
       document.querySelectorAll('#mgrRideAlongForm [data-obs]').forEach(cb => {
         observations[cb.dataset.obs] = cb.checked;
       });
+      // Reschedule: pull date/time/reason
+      var rDateEl = document.getElementById('r_date');
+      var rTimeEl = document.getElementById('r_time');
+      var rReasonEl = document.getElementById('r_reason');
+      var newRDate = (rDateEl && rDateEl.value) ? rDateEl.value : dateStr;
+      var newRTime = (rTimeEl && rTimeEl.value) ? rTimeEl.value.trim() : '';
+      var newRReason = (rReasonEl && rReasonEl.value) ? rReasonEl.value.trim() : '';
       const data = {
         ackObservation: document.getElementById('r_ackObs').checked,
         calls,
@@ -7880,16 +7940,19 @@ if (typeof Chart !== 'undefined') {
         observations,
         observationNotes: document.getElementById('r_obsNotes').value,
         nextSteps: document.getElementById('r_nextSteps').value,
-        nssGreetScores: mgrCollectNssGreetScores()
+        nssGreetScores: mgrCollectNssGreetScores(),
+        time: newRTime,
+        rescheduleReason: newRReason
       };
       const status = document.querySelector('#mgrRideAlongForm input[name="r_status"]:checked').value;
       const tech = document.getElementById('r_tech').value;
 
       var isNew = !existingId;
+      var rDateChanged = existingId && newRDate !== dateStr;
       if (existingId) {
         const idx = mgrState.entries.findIndex(e => e.id === existingId);
         if (idx >= 0) {
-          mgrState.entries[idx] = { ...mgrState.entries[idx], tech, status, data, updatedAt: Date.now() };
+          mgrState.entries[idx] = { ...mgrState.entries[idx], tech, status, data, date: newRDate, time: newRTime, updatedAt: Date.now() };
         }
         // Update bulletin board entry if editing
         var bbRAEdit = bbLoad();
@@ -7897,6 +7960,8 @@ if (typeof Chart !== 'undefined') {
         if (raIdx >= 0) {
           bbRAEdit.rideAlongs[raIdx].tech = tech;
           bbRAEdit.rideAlongs[raIdx].status = status;
+          bbRAEdit.rideAlongs[raIdx].date = newRDate;
+          bbRAEdit.rideAlongs[raIdx].time = newRTime;
           bbRAEdit.rideAlongs[raIdx].notes = data.observationNotes || '';
           bbSave(bbRAEdit);
         }
@@ -7905,14 +7970,24 @@ if (typeof Chart !== 'undefined') {
         mgrState.entries.push({
           id: newRAId,
           type: 'ride-along',
-          tech, date: dateStr, status, data,
+          tech, date: newRDate, time: newRTime, status, data,
           createdAt: Date.now(), updatedAt: Date.now()
         });
       }
       mgrSave();
       renderManagerTab();
       renderBulletinBoard();
-      mgrOpenDayPanel(dateStr);
+      mgrOpenDayPanel(newRDate);
+      if (rDateChanged) {
+        try {
+          var rtoast = document.createElement('div');
+          rtoast.textContent = '\u2705 Rescheduled ' + tech + ' Ride-Along \u2192 ' + newRDate;
+          rtoast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#065f46;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:opacity 0.4s;';
+          document.body.appendChild(rtoast);
+          setTimeout(function(){rtoast.style.opacity='0';},2200);
+          setTimeout(function(){rtoast.remove();},2700);
+        } catch(_) {}
+      }
 
       // Show bulletin board prompt for new entries
       if (isNew) {

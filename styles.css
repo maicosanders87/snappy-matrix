@@ -4716,6 +4716,8 @@
     }
     .mgr-entry-status.completed { background: var(--accent-green-light); color: var(--accent-green); }
     .mgr-entry-status.planned { background: rgba(30,41,59,0.8); color: var(--text-muted); border: 1px solid var(--border); }
+    .mgr-entry-status.rescheduled { background: rgba(251,191,36,0.18); color: #fbbf24; border: 1px solid rgba(251,191,36,0.45); }
+    .mgr-entry-status.cancelled { background: rgba(239,83,80,0.18); color: #ef5350; border: 1px solid rgba(239,83,80,0.45); text-decoration: line-through; }
     .mgr-entry-tech { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-top: 4px; }
     .mgr-entry-summary { font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
 
