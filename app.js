@@ -6971,7 +6971,41 @@ if (typeof Chart !== 'undefined') {
     function mgrLibraryView(id) {
       var it = mgrLibraryFind(id);
       if (!it || !it.pdf) { alert('No file attached to this training.'); return; }
-      window.open(it.pdf, '_blank');
+      _mgrLibraryOpenViewer(it);
+    }
+
+    function _mgrLibraryOpenViewer(it) {
+      var old = document.getElementById('mgrLibraryViewerModal');
+      if (old) old.remove();
+      var modal = document.createElement('div');
+      modal.id = 'mgrLibraryViewerModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;';
+      var safePdf = String(it.pdf).replace(/"/g,'&quot;');
+      var safeTitle = mgrEscape(it.title || 'Training');
+      modal.innerHTML = '' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:#111;border-bottom:1px solid var(--border);flex-shrink:0;">' +
+          '<div style="font-weight:700;font-size:14px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + safeTitle + '</div>' +
+          '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+            '<a href="' + safePdf + '" target="_blank" rel="noopener" class="mgr-btn secondary sm" style="text-decoration:none;">↗ New Tab</a>' +
+            '<button type="button" class="mgr-btn secondary sm" onclick="_mgrLibraryCloseViewer()" style="border-color:rgba(255,100,100,0.5);color:#f87171;">✕ Close</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="flex:1;overflow:hidden;background:#222;">' +
+          '<iframe src="' + safePdf + '" style="width:100%;height:100%;border:0;" title="' + safeTitle + '"></iframe>' +
+        '</div>';
+      document.body.appendChild(modal);
+      // ESC to close
+      document.addEventListener('keydown', _mgrLibraryViewerKeyHandler);
+    }
+
+    function _mgrLibraryCloseViewer() {
+      var modal = document.getElementById('mgrLibraryViewerModal');
+      if (modal) modal.remove();
+      document.removeEventListener('keydown', _mgrLibraryViewerKeyHandler);
+    }
+
+    function _mgrLibraryViewerKeyHandler(e) {
+      if (e.key === 'Escape') _mgrLibraryCloseViewer();
     }
 
     function mgrLibraryDownload(id) {
@@ -7103,6 +7137,7 @@ if (typeof Chart !== 'undefined') {
     window.mgrLibraryAddToBB = mgrLibraryAddToBB;
     window.mgrLibraryOpenAddModal = mgrLibraryOpenAddModal;
     window.mgrLibraryAddSubmit = mgrLibraryAddSubmit;
+    window._mgrLibraryCloseViewer = _mgrLibraryCloseViewer;
 
     function _showTrainingCalendarModal(topic, defaultDate, duration) {
       // Remove existing modal if present
