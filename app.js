@@ -6122,23 +6122,53 @@ if (typeof Chart !== 'undefined') {
       document.getElementById('rookieGrid').innerHTML = html;
     }
 
-    // Toggle MTD / 90-Day view on Rookie Card ST section
-    function rookieStToggle(cardId) {
-      var mtdEl = document.getElementById(cardId + '-mtd');
-      var d90El = document.getElementById(cardId + '-90d');
-      if (!mtdEl || !d90El) return;
-      var isMtd = mtdEl.classList.contains('is-visible');
-      mtdEl.classList.toggle('is-visible', !isMtd);
-      d90El.classList.toggle('is-visible', isMtd);
-      // Update toggle pills
-      var toggle = mtdEl.closest('.rookie-st-section').querySelector('.rookie-st-toggle');
+    // Toggle MTD / 90-Day view on Rookie Card ST section.
+    // Accepts a cardId (legacy — uses getElementById) OR a DOM element (scoped).
+    // Always prefers scope-based lookup when the cardId lookup finds the wrong element
+    // (e.g. when cards are cloned into seasonal grid + modal, IDs duplicate across the DOM).
+    function rookieStToggle(cardIdOrEvent) {
+      var section = null;
+      // If invoked from inline onclick with the toggle element as context, find section directly
+      if (cardIdOrEvent && cardIdOrEvent.nodeType === 1) {
+        section = cardIdOrEvent.closest('.rookie-st-section');
+      } else if (typeof cardIdOrEvent === 'string') {
+        // Try scope first via the triggering click event (if set on window._lastStToggleClick)
+        var trigger = window._lastStToggleTrigger;
+        if (trigger && trigger.nodeType === 1) {
+          section = trigger.closest('.rookie-st-section');
+        }
+        if (!section) {
+          // Fall back to ID-based lookup
+          var mtdEl = document.getElementById(cardIdOrEvent + '-mtd');
+          if (mtdEl) section = mtdEl.closest('.rookie-st-section');
+        }
+      }
+      if (!section) return;
+
+      var mtdView = section.querySelector('.rookie-st-view.is-visible + .rookie-st-view, .rookie-st-view:nth-of-type(1)');
+      // Simpler: grab both views by order
+      var views = section.querySelectorAll('.rookie-st-view');
+      if (views.length < 2) return;
+      var first = views[0];   // MTD
+      var second = views[1];  // 90-Day
+      var isMtdVisible = first.classList.contains('is-visible');
+      first.classList.toggle('is-visible', !isMtdVisible);
+      second.classList.toggle('is-visible', isMtdVisible);
+
+      var toggle = section.querySelector('.rookie-st-toggle');
       if (toggle) {
         toggle.querySelectorAll('.rookie-st-toggle-opt').forEach(function(opt) {
           var v = opt.getAttribute('data-view');
-          opt.classList.toggle('is-active', (v === 'mtd' && !isMtd) || (v === '90d' && isMtd));
+          opt.classList.toggle('is-active', (v === 'mtd' && !isMtdVisible) || (v === '90d' && isMtdVisible));
         });
       }
     }
+    // Capture the click target before inline onclick runs, so scope lookup works even
+    // when rookieStToggle is called by a legacy inline handler with just the cardId.
+    document.addEventListener('click', function(ev) {
+      var t = ev.target.closest && ev.target.closest('.rookie-st-toggle, .rookie-st-toggle-opt');
+      if (t) window._lastStToggleTrigger = t;
+    }, true);
 
     // ========== TIER PROGRESSION ==========
     function renderProgression() {
