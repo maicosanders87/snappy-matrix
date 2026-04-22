@@ -1832,6 +1832,300 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('showMVPCeremony failed', e); }
     }
     window.showMVPCeremony = showMVPCeremony;
+    // ========== SEASON BADGE UNIVERSE + SEASONS SUB-TAB ==========
+    // Renders:
+    //   1. #seasonBadgeUniverse  — all 16 possible badges (4 seasons x 4 tiers) + MVP
+    //   2. #seasonHeroCard       — current season hero card
+    //   3. #compositeExplainer   — composite score weights + tier thresholds
+    //   4. #rookieGridSeasonal   — season-themed rookie cards (re-skin of rookie cards)
+    //   5. #earnedBadgesGallery  — per-tech earned badges
+    // Requires getCurrentSeason, SEASONS, loadSeasonsData, getTechTier, techs, getSeasonDisplayName
+
+    // Helper — season metadata by key
+    function _getAllSeasons() {
+      try { return (typeof SEASONS !== 'undefined') ? SEASONS : []; }
+      catch(e) { return []; }
+    }
+
+    function _monthRangeLabel(s) {
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return months[s.startMonth - 1] + '-' + months[s.endMonth - 1];
+    }
+
+    // ---------- 1. Badge Universe (on overview, below team photo) ----------
+    function renderSeasonBadgeUniverse() {
+      var el = document.getElementById('seasonBadgeUniverse');
+      if (!el) return;
+      try {
+        var seasons = _getAllSeasons();
+        if (!seasons.length) { el.style.display = 'none'; return; }
+        var cur = (typeof getCurrentSeason === 'function') ? getCurrentSeason() : null;
+        var curName = cur ? cur.name : '';
+
+        var tiers = [
+          { key: 'S', label: 'Elite',    color: '#FFD700', desc: '92+' },
+          { key: 'A', label: 'Advanced', color: '#EF4444', desc: '85-91' },
+          { key: 'B', label: 'Solid',    color: '#60A5FA', desc: '78-84' },
+          { key: 'C', label: 'Rising',   color: '#94A3B8', desc: '<78' }
+        ];
+
+        var legendHTML = tiers.map(function(t) {
+          return '<span class="sbu-legend-item"><span class="sbu-legend-dot" style="background:' + t.color + ';color:' + t.color + '"></span>' + t.key + '-TIER &middot; ' + t.label + '</span>';
+        }).join('');
+
+        var seasonsHTML = seasons.map(function(s) {
+          var isCurrent = (s.name === curName);
+          var badgesHTML = tiers.map(function(t) {
+            return '<div class="sbu-badge tier-' + t.key.toLowerCase() + '" title="' + s.name + ' \u2014 ' + t.key + '-Tier (' + t.label + ')">' +
+              '<div class="sbu-badge-tier">' + t.key + '</div>' +
+              '<div class="sbu-badge-emoji">' + s.emoji + '</div>' +
+              '<div class="sbu-badge-season-label">' + s.name + '</div>' +
+            '</div>';
+          }).join('');
+          return '<div class="sbu-season-col' + (isCurrent ? ' current' : '') + '">' +
+            '<div class="sbu-season-head">' +
+              '<span class="sbu-season-emoji">' + s.emoji + '</span>' +
+              '<span class="sbu-season-name">' + s.name + (isCurrent ? ' \u2605' : '') + '</span>' +
+              '<span class="sbu-season-months">' + _monthRangeLabel(s) + '</span>' +
+            '</div>' +
+            '<div class="sbu-season-label">' + s.label + '</div>' +
+            '<div class="sbu-badges-row">' + badgesHTML + '</div>' +
+          '</div>';
+        }).join('');
+
+        el.innerHTML =
+          '<div class="sbu-head">' +
+            '<span class="sbu-title">\ud83c\udfc6 Season Badge Universe</span>' +
+            '<span class="sbu-subtitle">Finish a season in tier &rarr; claim the badge forever</span>' +
+          '</div>' +
+          '<div class="sbu-legend">' + legendHTML + '</div>' +
+          '<div class="sbu-seasons-grid">' + seasonsHTML + '</div>' +
+          '<div class="sbu-mvp-row">' +
+            '<span class="sbu-mvp-trophy">\ud83c\udfc6</span>' +
+            '<div class="sbu-mvp-text">' +
+              '<div class="sbu-mvp-title">Season MVP Badge \u2014 1 per season</div>' +
+              '<div class="sbu-mvp-desc">Awarded to the highest composite score when a season ends. Only one per three months \u2014 the most coveted collectible.</div>' +
+            '</div>' +
+          '</div>';
+      } catch(e) { console.warn('renderSeasonBadgeUniverse failed', e); }
+    }
+    window.renderSeasonBadgeUniverse = renderSeasonBadgeUniverse;
+
+    // ---------- 2. Current Season Hero Card ----------
+    function renderSeasonHeroCard() {
+      var el = document.getElementById('seasonHeroCard');
+      if (!el) return;
+      try {
+        var cur = getCurrentSeason();
+        var days = getSeasonDaysLeft();
+        var pct = getSeasonProgressPct();
+        var data = loadSeasonsData();
+
+        // Compute current projected MVP based on live composites
+        var leader = null;
+        try {
+          var ranked = techs.map(function(t) {
+            try { var info = getTechTier(t); return { short: t.short, name: t.name, tier: info.tier, composite: info.composite }; }
+            catch(e) { return null; }
+          }).filter(Boolean).sort(function(a,b) { return b.composite - a.composite; });
+          leader = ranked[0];
+        } catch(e) {}
+
+        var totalBadgesAwarded = 0;
+        if (data.badges) {
+          Object.keys(data.badges).forEach(function(k) { totalBadgesAwarded += (data.badges[k] || []).length; });
+        }
+
+        var countdownLabel = days === 0 ? 'Ends today' : (days === 1 ? '1 day left' : days + ' days left');
+
+        el.innerHTML =
+          '<div class="season-hero-card" style="--season-color:' + cur.color + '">' +
+            '<div class="season-hero-grid">' +
+              '<div class="season-hero-left">' +
+                '<div class="season-hero-emoji-big">' + cur.emoji + '</div>' +
+                '<div class="season-hero-title">' + cur.name + ' ' + cur.year + ' \u2014 ' + cur.label + '</div>' +
+                '<div class="season-hero-sub">A badge is forged when this season ends. Finish in tier, keep the medal. Top composite claims the MVP trophy.</div>' +
+                '<div class="season-hero-stats">' +
+                  '<div class="sh-stat"><div class="sh-stat-lbl">Countdown</div><div class="sh-stat-val">' + countdownLabel + '</div></div>' +
+                  '<div class="sh-stat"><div class="sh-stat-lbl">Progress</div><div class="sh-stat-val">' + pct.toFixed(0) + '%</div></div>' +
+                  (leader ?
+                    '<div class="sh-stat"><div class="sh-stat-lbl">Projected MVP</div><div class="sh-stat-val">' + leader.name + ' \u2022 ' + leader.composite + '</div></div>'
+                    : '') +
+                  '<div class="sh-stat"><div class="sh-stat-lbl">Badges Forged</div><div class="sh-stat-val">' + totalBadgesAwarded + '</div></div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="season-hero-right">' +
+                '<div class="season-hero-badge-preview">' +
+                  '<div class="sbu-badge tier-s">' +
+                    '<div class="sbu-badge-tier">S</div>' +
+                    '<div class="sbu-badge-emoji">' + cur.emoji + '</div>' +
+                    '<div class="sbu-badge-season-label">' + cur.name + '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="sh-preview-caption">S-Tier Preview</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+      } catch(e) { console.warn('renderSeasonHeroCard failed', e); }
+    }
+    window.renderSeasonHeroCard = renderSeasonHeroCard;
+
+    // ---------- 3. Composite Score Explainer ----------
+    function renderCompositeExplainer() {
+      var el = document.getElementById('compositeExplainer');
+      if (!el) return;
+      try {
+        var weights = [
+          { pct: '35%', label: 'ServiceTitan',    desc: 'Jobs, conversion, flat rate, callbacks, billable hours, tasks', color: '#20808D' },
+          { pct: '30%', label: 'Aptitude Test',   desc: '100-pt written test across 5 sections', color: '#7A39BB' },
+          { pct: '10%', label: 'Skills Matrix',   desc: '48-skill ServiceTitan tag system (1-5 rating per skill)', color: '#DA7101' },
+          { pct: '10%', label: 'Manager Review',  desc: 'Monthly manager scoring across 9 areas', color: '#4F98A3' },
+          { pct: '10%', label: 'Install Revenue', desc: '90-day equipment sales revenue + install count', color: '#437A22' },
+          { pct: '5%',  label: 'Google Reviews',  desc: '5-star customer reviews tied back to the tech', color: '#D19900' }
+        ];
+        var weightsHTML = weights.map(function(w) {
+          return '<div class="ce-weight" style="--ce-color:' + w.color + '">' +
+            '<div class="ce-weight-pct" style="color:' + w.color + '">' + w.pct + '</div>' +
+            '<div class="ce-weight-lbl">' + w.label + '</div>' +
+            '<div class="ce-weight-desc">' + w.desc + '</div>' +
+          '</div>';
+        }).join('');
+
+        var tiers = [
+          { key: 'S', label: 'Elite',    color: '#FFD700', bg: 'linear-gradient(135deg,#FFD700,#E08A3A)', range: '92+' },
+          { key: 'A', label: 'Advanced', color: '#EF4444', bg: 'linear-gradient(135deg,#EF4444,#7F1D1D)', range: '85-91' },
+          { key: 'B', label: 'Solid',    color: '#60A5FA', bg: 'linear-gradient(135deg,#60A5FA,#1E3A8A)', range: '78-84' },
+          { key: 'C', label: 'Rising',   color: '#94A3B8', bg: 'linear-gradient(135deg,#94A3B8,#475569)', range: '<78' }
+        ];
+        var tiersHTML = tiers.map(function(t) {
+          return '<span class="ce-tier" style="background:' + t.bg + '">' + t.key + '-TIER <span class="ce-tier-val">&middot; ' + t.range + '</span></span>';
+        }).join('');
+
+        el.innerHTML =
+          '<div class="composite-explainer">' +
+            '<div class="ce-title">How Composite Score Works</div>' +
+            '<div class="ce-subtitle">Composite score (0-100) is the weighted average across six dimensions, plus dispatch and efficiency bonuses. Your finishing tier at season end determines the badge you collect. Every new season applies a small soft reset so improvement is rewarded.</div>' +
+            '<div class="ce-weights">' + weightsHTML + '</div>' +
+            '<div class="ce-tiers">' + tiersHTML + '</div>' +
+            '<div class="ce-bonus-note">+ Dispatch bonus: premium tags +1.0 each, standard tags +0.25. + Efficiency MTD bonus tiered off billable-hour performance. \u2014 Season soft reset: S-4, A-3, B-1, C-0 applied at the start of a new season.</div>' +
+          '</div>';
+      } catch(e) { console.warn('renderCompositeExplainer failed', e); }
+    }
+    window.renderCompositeExplainer = renderCompositeExplainer;
+
+    // ---------- 4. Season-themed Rookie Cards ----------
+    // Reuses the main rookieGrid HTML then re-skins with a ribbon and accent
+    function renderSeasonalRookieCards() {
+      var el = document.getElementById('rookieGridSeasonal');
+      if (!el) return;
+      try {
+        var source = document.getElementById('rookieGrid');
+        if (!source || !source.innerHTML) {
+          // Make sure main cards are rendered first
+          try { renderRookieCards(); } catch(e) {}
+          source = document.getElementById('rookieGrid');
+        }
+        if (!source) return;
+        var cur = getCurrentSeason();
+        var ribbonText = cur.emoji + ' ' + cur.name.toUpperCase() + ' \u2022 ' + cur.year;
+        // Clone source markup but tag each flip container with season class + inject ribbon
+        el.innerHTML = source.innerHTML;
+        var containers = el.querySelectorAll('.rookie-flip-container');
+        containers.forEach(function(c) {
+          c.classList.add('season-' + cur.name.toLowerCase());
+          var card = c.querySelector('.rookie-card');
+          if (card && !card.querySelector('.season-badge-ribbon')) {
+            var ribbon = document.createElement('div');
+            ribbon.className = 'season-badge-ribbon';
+            ribbon.textContent = ribbonText;
+            card.appendChild(ribbon);
+          }
+        });
+      } catch(e) { console.warn('renderSeasonalRookieCards failed', e); }
+    }
+    window.renderSeasonalRookieCards = renderSeasonalRookieCards;
+
+    // ---------- 5. Earned Badges Gallery ----------
+    function renderEarnedBadgesGallery() {
+      var el = document.getElementById('earnedBadgesGallery');
+      if (!el) return;
+      try {
+        var data = loadSeasonsData();
+        var allBadges = data.badges || {};
+        var rows = techs.map(function(t) {
+          var list = allBadges[t.short] || [];
+          var avatarSrc = t.short.toLowerCase() + '_avatar.png';
+          // Maico avatar fallback
+          if (t.short === 'Maico' || t.short === 'Mark') avatarSrc = 'maico_avatar.png';
+          var badgesHTML;
+          if (!list.length) {
+            badgesHTML = '<div class="eg-empty">No badges yet \u2014 finish the current season to claim the first one.</div>';
+          } else {
+            badgesHTML = list.map(function(b) {
+              var seasonKey = (b.season || '').split('_')[0];
+              var s = _getAllSeasons().find(function(x) { return x.key === seasonKey; });
+              var year = (b.season || '').split('_')[1] || '';
+              var tierColors = {
+                'S': 'linear-gradient(135deg,#FFD700,#E08A3A)',
+                'A': 'linear-gradient(135deg,#EF4444,#7F1D1D)',
+                'B': 'linear-gradient(135deg,#60A5FA,#1E3A8A)',
+                'C': 'linear-gradient(135deg,#94A3B8,#475569)'
+              };
+              var grad = tierColors[b.tier] || tierColors.C;
+              var title = (s ? s.name : seasonKey) + ' ' + year + ' \u2014 ' + (b.tier || '?') + '-Tier';
+              return '<div class="eg-badge" style="background:' + grad + '" title="' + title + '">' +
+                (b.tier || '?') +
+              '</div>';
+            }).join('');
+          }
+          return '<div class="eg-row">' +
+            '<div class="eg-tech-head">' +
+              '<img class="eg-avatar" src="' + avatarSrc + '" alt="' + t.name + '">' +
+              '<div>' +
+                '<div class="eg-tech-name">' + t.name + '</div>' +
+                '<div class="eg-tech-sub">' + (list.length || 0) + ' badge' + (list.length === 1 ? '' : 's') + ' earned</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + badgesHTML + '</div>' +
+          '</div>';
+        }).join('');
+
+        el.innerHTML = '<div class="earned-gallery">' + rows + '</div>';
+      } catch(e) { console.warn('renderEarnedBadgesGallery failed', e); }
+    }
+    window.renderEarnedBadgesGallery = renderEarnedBadgesGallery;
+
+    // ---------- Combined refresh ----------
+    function renderSeasonsHub() {
+      try { renderSeasonBadgeUniverse(); } catch(e) {}
+      try { renderSeasonHeroCard(); } catch(e) {}
+      try { renderCompositeExplainer(); } catch(e) {}
+      try { renderSeasonalRookieCards(); } catch(e) {}
+      try { renderEarnedBadgesGallery(); } catch(e) {}
+    }
+    window.renderSeasonsHub = renderSeasonsHub;
+
+    // ---------- Sub-nav wiring (Cards / Seasons within Rookie tab) ----------
+    document.addEventListener('click', function(ev) {
+      var btn = ev.target.closest && ev.target.closest('.rookie-subnav-btn');
+      if (!btn) return;
+      var view = btn.dataset.subview;
+      var nav = btn.closest('.rookie-subnav');
+      if (!nav) return;
+      nav.querySelectorAll('.rookie-subnav-btn').forEach(function(b) {
+        b.classList.toggle('active', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+      });
+      var root = document.getElementById('view-rookie');
+      if (!root) return;
+      root.querySelectorAll('.rookie-sub-section').forEach(function(sec) {
+        sec.classList.toggle('active', sec.dataset.subview === view);
+      });
+      if (view === 'seasons') {
+        renderSeasonsHub();
+      }
+    });
+
 
     function getTechAptitudeScore(tech) {
       const apt = aptitudeTests[tech.short];
@@ -2426,6 +2720,11 @@ document.addEventListener('visibilitychange', function() {
         // Re-render rookie cards when switching to rookie tab — picks up latest recalls/complaints from dispatch
         if (v === 'rookie') {
           try { renderRookieCards(); } catch(e) { console.warn('renderRookieCards on tab switch failed:', e); }
+          // Also refresh seasonal views if the Seasons sub-tab is active
+          try {
+            var active = document.querySelector('#view-rookie .rookie-subnav-btn.active');
+            if (active && active.dataset.subview === 'seasons') renderSeasonsHub();
+          } catch(e) {}
         }
       });
     });
@@ -9771,6 +10070,8 @@ if (typeof Chart !== 'undefined') {
     renderAptitudeSkills();
     renderProfiles();
     renderRookieCards();
+    // Render season badge universe on overview + pre-render seasonal content so it's ready on first sub-tab click
+    try { renderSeasonBadgeUniverse(); } catch(e) { console.warn('renderSeasonBadgeUniverse init failed', e); }
     renderProgression();
     renderSTKPIs();
     renderSTTables();

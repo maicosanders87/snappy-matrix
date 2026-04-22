@@ -17,7 +17,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260421v90">
+  <link rel="stylesheet" href="styles.css?v=20260421v91">
 </head>
 <body>
   <!-- Background Grid Effect -->
@@ -155,6 +155,9 @@
           </button>
         </div>
       </div>
+
+      <!-- Season Badge Universe — all possible badges to earn -->
+      <div id="seasonBadgeUniverse" class="sbu-card"></div>
 
       <!-- KPIs (skills-based) -->
       <div class="kpi-row" id="kpi-row"></div>
@@ -312,11 +315,46 @@
         <div class="section-header">
           <div class="section-title">Rookie Trading Cards</div>
         </div>
+        <!-- Sub-nav: Cards / Seasons -->
+        <div class="rookie-subnav" role="tablist" aria-label="Rookie card section">
+          <button type="button" class="rookie-subnav-btn active" data-subview="cards" role="tab" aria-selected="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="18" rx="2"/><rect x="7" y="1" width="14" height="18" rx="2"/></svg>
+            Cards
+          </button>
+          <button type="button" class="rookie-subnav-btn" data-subview="seasons" role="tab" aria-selected="false">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            Seasons
+          </button>
+        </div>
+      </div>
+
+      <!-- Sub-section: Cards (default) -->
+      <div class="rookie-sub-section active" data-subview="cards">
         <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px; max-width:720px;">
           Collectible-style trading cards for each technician. Tier ranking, key stats, and composite score at a glance.
         </p>
+        <div class="rookie-grid" id="rookieGrid"></div>
       </div>
-      <div class="rookie-grid" id="rookieGrid"></div>
+
+      <!-- Sub-section: Seasons -->
+      <div class="rookie-sub-section" data-subview="seasons">
+        <div id="seasonHeroCard"></div>
+        <div id="compositeExplainer"></div>
+        <div class="section" style="margin-top:28px;">
+          <div class="section-header"><div class="section-title">Season-Themed Rookie Cards</div></div>
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px; max-width:720px;">
+            Current-season re-skin of every tech's rookie card with the active season's accent, icon, and ribbon.
+          </p>
+        </div>
+        <div class="rookie-grid" id="rookieGridSeasonal"></div>
+        <div class="section" style="margin-top:28px;">
+          <div class="section-header"><div class="section-title">Earned Badges Gallery</div></div>
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px; max-width:720px;">
+            Every badge each tech has claimed from completed seasons. Awarded automatically at season end based on finishing tier.
+          </p>
+        </div>
+        <div id="earnedBadgesGallery"></div>
+      </div>
     </div>
 
     <!-- TIER PROGRESSION TAB -->
@@ -1090,7 +1128,7 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="score_pdfs.js?v=20260421v90"></script>
-  <script src="app.js?v=20260421v90"></script>
+  <script src="score_pdfs.js?v=20260421v91"></script>
+  <script src="app.js?v=20260421v91"></script>
 </body>
 </html>
