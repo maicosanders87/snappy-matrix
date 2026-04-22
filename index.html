@@ -17,7 +17,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260421v91">
+  <link rel="stylesheet" href="styles.css?v=20260421v92">
 </head>
 <body>
   <!-- Background Grid Effect -->
@@ -343,10 +343,11 @@
         <div class="section" style="margin-top:28px;">
           <div class="section-header"><div class="section-title">Season-Themed Rookie Cards</div></div>
           <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px; max-width:720px;">
-            Current-season re-skin of every tech's rookie card with the active season's accent, icon, and ribbon.
+            Full themed re-skin of every tech's rookie card with the active season's weather, border, and accent. Tap a card to pop up a larger view and flip to see the back.
           </p>
         </div>
-        <div class="rookie-grid" id="rookieGridSeasonal"></div>
+        <div id="seasonSelector" class="season-selector"></div>
+        <div class="rookie-grid rookie-grid-seasonal" id="rookieGridSeasonal"></div>
         <div class="section" style="margin-top:28px;">
           <div class="section-header"><div class="section-title">Earned Badges Gallery</div></div>
           <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px; max-width:720px;">
@@ -1128,7 +1129,7 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="score_pdfs.js?v=20260421v91"></script>
-  <script src="app.js?v=20260421v91"></script>
+  <script src="score_pdfs.js?v=20260421v92"></script>
+  <script src="app.js?v=20260421v92"></script>
 </body>
 </html>

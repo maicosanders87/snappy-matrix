@@ -2013,37 +2013,345 @@ document.addEventListener('visibilitychange', function() {
     }
     window.renderCompositeExplainer = renderCompositeExplainer;
 
-    // ---------- 4. Season-themed Rookie Cards ----------
-    // Reuses the main rookieGrid HTML then re-skins with a ribbon and accent
+    // ---------- 4. Season-themed Rookie Cards (FULL FX + MODAL) ----------
+    //
+    // Renders a fully re-skinned rookie card grid for a chosen season.
+    // Each card: base rookie-card wrapped in .season-skin[data-season="X"]
+    //   + .season-skin-fx layers (rain, flash, bolt | frost, snow, flake | haze, embers, sun | warm, leaves, leaf)
+    //   + .season-skin-frame (animated border)
+    //   + .season-skin-chrome (top banner)
+    //   + .season-skin-sigil (corner icon SVG)
+    //   + .season-skin-ribbon (diagonal top-right ribbon)
+    //
+    // In-place flipping is DISABLED for seasonal cards. Clicks open a center-screen
+    // modal (openRookieCardModal) with the same FX applied on both front and back.
+
+    // Currently viewed season key ('ice'|'storm'|'heat'|'harvest'). Defaults to current.
+    var SEASONAL_VIEW_SEASON = null;
+
+    function getSeasonalViewSeason() {
+      if (SEASONAL_VIEW_SEASON) return SEASONAL_VIEW_SEASON;
+      var cur = getCurrentSeason();
+      SEASONAL_VIEW_SEASON = cur.name.toLowerCase();
+      return SEASONAL_VIEW_SEASON;
+    }
+
+    // SVG sigils per season
+    function getSeasonSigilSVG(seasonKey) {
+      switch (seasonKey) {
+        case 'storm':
+          return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>';
+        case 'ice':
+          return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 2v20M2 12h20M4.5 4.5l15 15M19.5 4.5l-15 15M12 6l-2 2M12 6l2 2M12 18l-2-2M12 18l2-2M6 12l2-2M6 12l2 2M18 12l-2-2M18 12l-2 2"/></svg>';
+        case 'heat':
+          return '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+        case 'harvest':
+          return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 8C13 8 10 11 9 14c-.3 1 .3 2 1.3 2 3 .3 6-2.3 7-5.3.3-1-.3-2-1.3-2zM8 14C6 14 4 16 4 18c0 1 .8 1.8 1.8 1.8 2 0 4-2 4-4 0-1-.8-1.8-1.8-1.8z"/><path d="M12 12s2-4 6-6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>';
+      }
+      return '';
+    }
+
+    function getSeasonFXLayersHTML(seasonKey) {
+      switch (seasonKey) {
+        case 'storm':
+          return '<div class="season-skin-fx"><div class="skin-fx-rain"></div><div class="skin-fx-flash"></div></div>' +
+                 '<svg class="skin-fx-bolt" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>';
+        case 'ice':
+          return '<div class="season-skin-fx"><div class="skin-fx-frost"></div><div class="skin-fx-snow"></div></div>';
+        case 'heat':
+          return '<div class="season-skin-fx"><div class="skin-fx-haze"></div><div class="skin-fx-embers"></div></div>';
+        case 'harvest':
+          return '<div class="season-skin-fx"><div class="skin-fx-warm"></div><div class="skin-fx-leaves"></div></div>';
+      }
+      return '';
+    }
+
+    // Wrap a clone of one rookie-card element with the full seasonal skin.
+    // Returns an HTMLElement (.season-skin[data-season="X"]).
+    function buildSeasonSkin(cardEl, seasonKey, seasonMeta, tierLabel, techName) {
+      var skin = document.createElement('div');
+      skin.className = 'season-skin';
+      skin.setAttribute('data-season', seasonKey);
+
+      // Chrome banner — just season name on left; right side empty so the diagonal ribbon is the focus
+      var chrome = document.createElement('div');
+      chrome.className = 'season-skin-chrome';
+      chrome.innerHTML =
+        '<span class="skin-chrome-left"><span class="skin-chrome-emoji">' + seasonMeta.emoji + '</span>' + seasonMeta.name.toUpperCase() + ' \u2022 ' + seasonMeta.year + '</span>' +
+        '<span class="skin-chrome-right"></span>';
+
+      // Sigil — omitted when chrome banner already shows the season emoji
+      var sigil = null;
+
+      // Frame (animated border)
+      var frame = document.createElement('div');
+      frame.className = 'season-skin-frame';
+
+      // Ribbon
+      var ribbon = document.createElement('div');
+      ribbon.className = 'season-skin-ribbon';
+      ribbon.textContent = seasonMeta.label || seasonMeta.name;
+
+      // FX layers
+      var fxContainer = document.createElement('div');
+      fxContainer.innerHTML = getSeasonFXLayersHTML(seasonKey);
+
+      skin.appendChild(cardEl);
+      skin.appendChild(chrome);
+      if (sigil) skin.appendChild(sigil);
+      skin.appendChild(frame);
+      skin.appendChild(ribbon);
+      while (fxContainer.firstChild) skin.appendChild(fxContainer.firstChild);
+
+      return skin;
+    }
+
+    // Returns the set of past seasons that are "available" to view.
+    // A past season is available if the user has any badges recorded for it
+    // OR it's the current season.
+    function getAvailableSeasons() {
+      var data = loadSeasonsData();
+      var badges = data.badges || {};
+      var available = {};
+      // Always include current
+      var cur = getCurrentSeason();
+      available[cur.name.toLowerCase()] = true;
+      // Scan all badge rows for prior season keys (e.g. 'storm_2025')
+      Object.keys(badges).forEach(function(tech) {
+        (badges[tech] || []).forEach(function(b) {
+          if (b && b.seasonKey) {
+            var key = b.seasonKey.split('_')[0];
+            if (key) available[key] = true;
+          }
+        });
+      });
+      return available;
+    }
+
+    function getSeasonMetaFor(seasonKey) {
+      var s = SEASONS.find(function(x){ return x.key === seasonKey; });
+      if (!s) return null;
+      return {
+        key: s.key,
+        name: s.name,
+        label: s.label,
+        emoji: s.emoji,
+        color: s.color,
+        year: new Date().getFullYear()
+      };
+    }
+
+    // ---------- Season Selector ----------
+    function renderSeasonSelector() {
+      var container = document.getElementById('seasonSelector');
+      if (!container) return;
+      var available = getAvailableSeasons();
+      var current = getCurrentSeason();
+      var currentKey = current.name.toLowerCase();
+      var viewing = getSeasonalViewSeason();
+
+      var html = '<span class="season-selector-label">View Season</span>';
+      SEASONS.forEach(function(s) {
+        var isAvailable = !!available[s.key];
+        var isCurrent = s.key === currentKey;
+        var isActive = s.key === viewing;
+        var classes = ['ss-chip'];
+        if (isAvailable) {
+          if (isCurrent) classes.push('current');
+          if (isActive) classes.push('active');
+        } else {
+          classes.push('disabled');
+        }
+        var tag = '';
+        if (isCurrent) tag = '<span class="ss-chip-tag">CURRENT</span>';
+        else if (!isAvailable) tag = '<span class="ss-chip-tag">LOCKED</span>';
+        else tag = '<span class="ss-chip-tag">PAST</span>';
+        html += '<button type="button" class="' + classes.join(' ') + '" data-season="' + s.key + '"' +
+                (isAvailable ? '' : ' disabled') + '>' +
+                '<span class="ss-chip-emoji">' + s.emoji + '</span>' +
+                s.name + ' ' + new Date().getFullYear() +
+                tag + '</button>';
+      });
+      container.innerHTML = html;
+
+      // Wire click
+      container.querySelectorAll('.ss-chip').forEach(function(btn) {
+        if (btn.classList.contains('disabled')) return;
+        btn.addEventListener('click', function() {
+          var season = btn.dataset.season;
+          if (!season) return;
+          SEASONAL_VIEW_SEASON = season;
+          renderSeasonSelector();
+          renderSeasonalRookieCards();
+        });
+      });
+    }
+    window.renderSeasonSelector = renderSeasonSelector;
+
+    // ---------- Seasonal Rookie Cards (full themed rebuild) ----------
     function renderSeasonalRookieCards() {
       var el = document.getElementById('rookieGridSeasonal');
       if (!el) return;
       try {
+        // Ensure base rookie grid exists first (we pull card HTML from it)
         var source = document.getElementById('rookieGrid');
         if (!source || !source.innerHTML) {
-          // Make sure main cards are rendered first
           try { renderRookieCards(); } catch(e) {}
           source = document.getElementById('rookieGrid');
         }
         if (!source) return;
-        var cur = getCurrentSeason();
-        var ribbonText = cur.emoji + ' ' + cur.name.toUpperCase() + ' \u2022 ' + cur.year;
-        // Clone source markup but tag each flip container with season class + inject ribbon
-        el.innerHTML = source.innerHTML;
-        var containers = el.querySelectorAll('.rookie-flip-container');
-        containers.forEach(function(c) {
-          c.classList.add('season-' + cur.name.toLowerCase());
-          var card = c.querySelector('.rookie-card');
-          if (card && !card.querySelector('.season-badge-ribbon')) {
-            var ribbon = document.createElement('div');
-            ribbon.className = 'season-badge-ribbon';
-            ribbon.textContent = ribbonText;
-            card.appendChild(ribbon);
-          }
+
+        var seasonKey = getSeasonalViewSeason();
+        var seasonMeta = getSeasonMetaFor(seasonKey);
+        if (!seasonMeta) return;
+
+        el.classList.add('rookie-grid-seasonal');
+        el.setAttribute('data-season', seasonKey);
+        el.innerHTML = '';
+
+        // Clone each rookie-flip-container and rebuild with seasonal skin
+        var sourceContainers = source.querySelectorAll('.rookie-flip-container');
+        sourceContainers.forEach(function(srcContainer, idx) {
+          // Extract the front card element
+          var frontCard = srcContainer.querySelector('.rookie-flip-front .rookie-card');
+          var backCard  = srcContainer.querySelector('.rookie-flip-back .rookie-card');
+          if (!frontCard) return;
+
+          // Derive tier from class
+          var tierLabel = 'B-TIER';
+          ['s','a','b','c'].forEach(function(t) {
+            if (frontCard.classList.contains('rookie-tier-' + t)) tierLabel = t.toUpperCase() + '-TIER';
+          });
+
+          // Extract tech name from overlay
+          var nameEl = frontCard.querySelector('.rookie-name-overlay');
+          var techName = nameEl ? nameEl.textContent.trim() : ('Tech ' + (idx + 1));
+
+          // Build clickable wrapper (no in-place flip — opens modal)
+          var wrapper = document.createElement('div');
+          wrapper.className = 'rookie-flip-container season-seasonal';
+          wrapper.setAttribute('data-tech-idx', String(idx));
+          wrapper.setAttribute('role', 'button');
+          wrapper.setAttribute('tabindex', '0');
+          wrapper.setAttribute('aria-label', 'View ' + techName + ' seasonal card');
+
+          var frontClone = frontCard.cloneNode(true);
+          // Hide the legacy flip hint on the in-grid view (modal has its own)
+          var inlineHint = frontClone.querySelector('.rookie-flip-hint');
+          if (inlineHint) inlineHint.style.display = 'none';
+
+          var skin = buildSeasonSkin(frontClone, seasonKey, seasonMeta, tierLabel, techName);
+          wrapper.appendChild(skin);
+
+          // Click → open modal
+          var frontHTMLForModal = frontCard.outerHTML;
+          var backHTMLForModal  = backCard ? backCard.outerHTML : '';
+          wrapper.addEventListener('click', function() {
+            openRookieCardModal(frontHTMLForModal, backHTMLForModal, seasonKey, seasonMeta, tierLabel, techName);
+          });
+          wrapper.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              openRookieCardModal(frontHTMLForModal, backHTMLForModal, seasonKey, seasonMeta, tierLabel, techName);
+            }
+          });
+
+          el.appendChild(wrapper);
         });
+
+        // Always render selector too (stays in sync with viewing state)
+        renderSeasonSelector();
       } catch(e) { console.warn('renderSeasonalRookieCards failed', e); }
     }
     window.renderSeasonalRookieCards = renderSeasonalRookieCards;
+
+    // ---------- Center-screen Modal ----------
+    function ensureRookieModal() {
+      var m = document.getElementById('rookieCardModal');
+      if (m) return m;
+      m = document.createElement('div');
+      m.id = 'rookieCardModal';
+      m.className = 'rookie-card-modal';
+      m.innerHTML =
+        '<button type="button" class="rookie-card-modal-close" aria-label="Close">' +
+          '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+        '</button>' +
+        '<div class="rookie-card-modal-stage">' +
+          '<div class="rookie-card-modal-inner">' +
+            '<div class="rookie-card-modal-face front"></div>' +
+            '<div class="rookie-card-modal-face back"></div>' +
+          '</div>' +
+          '<div class="rookie-card-modal-hint">' +
+            '<svg viewBox="0 0 24 24"><path d="M9 3l-5 5 5 5M15 3l5 5-5 5"/></svg>' +
+            'Tap card to flip' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(m);
+
+      // Close on backdrop click
+      m.addEventListener('click', function(e) {
+        if (e.target === m) closeRookieCardModal();
+      });
+      // Close on X click
+      m.querySelector('.rookie-card-modal-close').addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeRookieCardModal();
+      });
+      // Flip on stage click
+      var stage = m.querySelector('.rookie-card-modal-stage');
+      stage.addEventListener('click', function(e) {
+        if (e.target.closest('.rookie-card-modal-close')) return;
+        m.classList.toggle('flipped');
+      });
+      // ESC to close
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && m.classList.contains('open')) closeRookieCardModal();
+      });
+      return m;
+    }
+
+    function openRookieCardModal(frontHTML, backHTML, seasonKey, seasonMeta, tierLabel, techName) {
+      var m = ensureRookieModal();
+      var frontFace = m.querySelector('.rookie-card-modal-face.front');
+      var backFace  = m.querySelector('.rookie-card-modal-face.back');
+
+      // Build front skinned card
+      var frontHolder = document.createElement('div');
+      frontHolder.innerHTML = frontHTML;
+      var frontCard = frontHolder.firstElementChild;
+      var frontHint = frontCard ? frontCard.querySelector('.rookie-flip-hint') : null;
+      if (frontHint) frontHint.style.display = 'none';
+      var frontSkin = buildSeasonSkin(frontCard, seasonKey, seasonMeta, tierLabel, techName);
+      frontFace.innerHTML = '';
+      frontFace.appendChild(frontSkin);
+
+      // Build back skinned card
+      backFace.innerHTML = '';
+      if (backHTML) {
+        var backHolder = document.createElement('div');
+        backHolder.innerHTML = backHTML;
+        var backCard = backHolder.firstElementChild;
+        var backSkin = buildSeasonSkin(backCard, seasonKey, seasonMeta, tierLabel, techName);
+        backFace.appendChild(backSkin);
+      }
+
+      // Reset flip state, then open
+      m.classList.remove('flipped');
+      document.body.classList.add('rookie-modal-open');
+      requestAnimationFrame(function() {
+        m.classList.add('open');
+      });
+    }
+    window.openRookieCardModal = openRookieCardModal;
+
+    function closeRookieCardModal() {
+      var m = document.getElementById('rookieCardModal');
+      if (!m) return;
+      m.classList.remove('open');
+      m.classList.remove('flipped');
+      document.body.classList.remove('rookie-modal-open');
+    }
+    window.closeRookieCardModal = closeRookieCardModal;
 
     // ---------- 5. Earned Badges Gallery ----------
     function renderEarnedBadgesGallery() {
@@ -2100,6 +2408,7 @@ document.addEventListener('visibilitychange', function() {
       try { renderSeasonBadgeUniverse(); } catch(e) {}
       try { renderSeasonHeroCard(); } catch(e) {}
       try { renderCompositeExplainer(); } catch(e) {}
+      try { renderSeasonSelector(); } catch(e) {}
       try { renderSeasonalRookieCards(); } catch(e) {}
       try { renderEarnedBadgesGallery(); } catch(e) {}
     }
