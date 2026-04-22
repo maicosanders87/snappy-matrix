@@ -1303,6 +1303,16 @@ document.addEventListener('visibilitychange', function() {
       return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
     }
 
+    function getSeasonTimeRemaining() {
+      var cur = getCurrentSeason();
+      var ms = Math.max(0, cur.endDate - new Date());
+      var days = Math.floor(ms / (1000 * 60 * 60 * 24));
+      var hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+      var minutes = Math.floor((ms / (1000 * 60)) % 60);
+      var seconds = Math.floor((ms / 1000) % 60);
+      return { days: days, hours: hours, minutes: minutes, seconds: seconds, totalMs: ms };
+    }
+
     function getSeasonProgressPct() {
       var cur = getCurrentSeason();
       var total = cur.endDate - cur.startDate;
@@ -1438,20 +1448,179 @@ document.addEventListener('visibilitychange', function() {
         var pct = getSeasonProgressPct();
         var next = getNextSeason();
         var countdownLabel = days === 0 ? 'Ends today' : (days === 1 ? '1 day left' : days + ' days left');
+        var isStorm = cur.key.indexOf('storm_') === 0;
         el.style.display = 'flex';
         el.style.background = 'linear-gradient(90deg, ' + cur.color + '2E 0%, ' + cur.color + '10 100%)';
         el.style.borderColor = cur.color + '80';
+        var boltSvg = '<svg viewBox="0 0 24 36" fill="currentColor"><path d="M14 0 L2 20 L10 20 L6 36 L22 14 L14 14 Z"/></svg>';
+        var stormTitle = isStorm
+          ? 'STORM ' + cur.year + ' &middot; SUMMER RAMP UP <span class="storm-ramp-chip">\u26A1 Ramp Up</span>'
+          : cur.name + ' ' + cur.year + ' &middot; ' + cur.label;
+        var stormSub = isStorm
+          ? 'AC systems firing up &middot; Storm demand surge &middot; Next up: ' + next.emoji + ' ' + next.name
+          : 'Next up: ' + next.emoji + ' ' + next.name;
+        var t = getSeasonTimeRemaining();
+        var countdownHTML =
+          '<div class="sb-countdown-deluxe" style="--sb-color:' + cur.color + '">' +
+            '<div class="sb-cd-label">\u26A1 Season Ends In</div>' +
+            '<div class="sb-cd-units">' +
+              '<div class="sb-cd-unit"><div class="sb-cd-num" data-unit="days">' + String(t.days).padStart(2,"0") + '</div><div class="sb-cd-ulbl">DAYS</div></div>' +
+              '<span class="sb-cd-sep">:</span>' +
+              '<div class="sb-cd-unit"><div class="sb-cd-num" data-unit="hours">' + String(t.hours).padStart(2,"0") + '</div><div class="sb-cd-ulbl">HRS</div></div>' +
+              '<span class="sb-cd-sep">:</span>' +
+              '<div class="sb-cd-unit"><div class="sb-cd-num" data-unit="minutes">' + String(t.minutes).padStart(2,"0") + '</div><div class="sb-cd-ulbl">MIN</div></div>' +
+              '<span class="sb-cd-sep">:</span>' +
+              '<div class="sb-cd-unit"><div class="sb-cd-num sb-cd-secs" data-unit="seconds">' + String(t.seconds).padStart(2,"0") + '</div><div class="sb-cd-ulbl">SEC</div></div>' +
+            '</div>' +
+          '</div>';
         el.innerHTML =
+          (isStorm ? '<span class="storm-banner-bolt left">' + boltSvg + '</span>' : '') +
           '<span class="sb-emoji">' + cur.emoji + '</span>' +
           '<div class="sb-main">' +
-            '<div class="sb-title">' + cur.name + ' ' + cur.year + ' &middot; ' + cur.label + '</div>' +
-            '<div class="sb-sub">Next up: ' + next.emoji + ' ' + next.name + '</div>' +
+            '<div class="sb-title">' + stormTitle + '</div>' +
+            '<div class="sb-sub">' + stormSub + '</div>' +
+            '<div class="sb-progress"><div class="sb-progress-fill" style="width:' + pct.toFixed(1) + '%;background:' + cur.color + '"></div></div>' +
           '</div>' +
-          '<div class="sb-progress"><div class="sb-progress-fill" style="width:' + pct.toFixed(1) + '%;background:' + cur.color + '"></div></div>' +
-          '<div class="sb-countdown" style="color:' + cur.color + '">' + countdownLabel + '</div>';
+          countdownHTML +
+          (isStorm ? '<span class="storm-banner-bolt right">' + boltSvg + '</span>' : '');
+        // Start live ticker
+        _startCountdownTicker();
+        // Toggle the global storm FX layer + body class
+        applyStormFX(isStorm);
       } catch(e) { console.warn('renderSeasonBanner failed', e); }
     }
     window.renderSeasonBanner = renderSeasonBanner;
+
+    // Live per-second countdown ticker — updates only the numbers in place
+    var _countdownTickerInterval = null;
+    function _startCountdownTicker() {
+      if (_countdownTickerInterval) return;
+      _countdownTickerInterval = setInterval(function() {
+        try {
+          var el = document.getElementById('seasonBanner');
+          if (!el || el.style.display === 'none') return;
+          var t = getSeasonTimeRemaining();
+          var nums = el.querySelectorAll('.sb-cd-num');
+          nums.forEach(function(n) {
+            var unit = n.getAttribute('data-unit');
+            var val = String(t[unit]).padStart(2, '0');
+            if (n.textContent !== val) {
+              n.textContent = val;
+              // Flicker animation on change
+              n.classList.remove('sb-cd-flip');
+              void n.offsetWidth;
+              n.classList.add('sb-cd-flip');
+            }
+          });
+        } catch(e) {}
+      }, 1000);
+    }
+    window.getSeasonTimeRemaining = getSeasonTimeRemaining;
+
+    // ========== STORM SEASON FX ==========
+    var _stormFxState = { active: false, lightningTimer: null };
+
+    function _generateStormBoltPath() {
+      // Build a jagged top-to-bottom bolt with 5-7 segments
+      var startX = 200 + Math.random() * 1520;
+      var y = 0;
+      var path = 'M ' + startX + ' ' + y;
+      var segments = 5 + Math.floor(Math.random() * 3);
+      var segLen = 1080 / segments;
+      var x = startX;
+      for (var i = 0; i < segments; i++) {
+        y += segLen;
+        x += (Math.random() - 0.5) * 220;
+        path += ' L ' + x.toFixed(0) + ' ' + y.toFixed(0);
+        // Occasional fork
+        if (Math.random() < 0.35 && i < segments - 1) {
+          var forkX = x + (Math.random() - 0.5) * 180;
+          var forkY = y + segLen * (0.3 + Math.random() * 0.5);
+          path += ' M ' + x.toFixed(0) + ' ' + y.toFixed(0) + ' L ' + forkX.toFixed(0) + ' ' + forkY.toFixed(0) + ' M ' + x.toFixed(0) + ' ' + y.toFixed(0);
+        }
+      }
+      return path;
+    }
+
+    function _triggerLightning() {
+      var flash = document.getElementById('stormFlash');
+      var svg = document.getElementById('stormBoltOverlay');
+      if (!flash || !svg) return;
+      // Flash
+      flash.classList.remove('storm-flash-strike');
+      void flash.offsetWidth;
+      flash.classList.add('storm-flash-strike');
+      // Bolt
+      var d = _generateStormBoltPath();
+      // Remove any existing bolts
+      var existing = svg.querySelectorAll('.storm-bolt-path');
+      existing.forEach(function(p){ p.remove(); });
+      var glow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      glow.setAttribute('d', d);
+      glow.setAttribute('class', 'storm-bolt-path storm-bolt-glow-bg storm-bolt-strike');
+      var bolt = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      bolt.setAttribute('d', d);
+      bolt.setAttribute('class', 'storm-bolt-path storm-bolt-strike');
+      svg.appendChild(glow);
+      svg.appendChild(bolt);
+      // Optional distant thunder cue via subtle camera shake
+      try {
+        var c = document.querySelector('.container');
+        if (c) {
+          c.style.transition = 'transform 0.08s';
+          c.style.transform = 'translate(1px, -1px)';
+          setTimeout(function(){ c.style.transform = 'translate(-1px, 1px)'; }, 80);
+          setTimeout(function(){ c.style.transform = ''; }, 160);
+        }
+      } catch(e){}
+      // Cleanup bolt after animation
+      setTimeout(function(){
+        glow.remove();
+        bolt.remove();
+      }, 1200);
+    }
+
+    function _scheduleNextLightning() {
+      if (!_stormFxState.active) return;
+      var reduced = false;
+      try { reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){}
+      if (reduced) return;
+      // Random 8-22s between strikes
+      var delay = 8000 + Math.random() * 14000;
+      _stormFxState.lightningTimer = setTimeout(function(){
+        if (!_stormFxState.active) return;
+        _triggerLightning();
+        // Sometimes a quick double strike
+        if (Math.random() < 0.3) {
+          setTimeout(_triggerLightning, 400 + Math.random() * 600);
+        }
+        _scheduleNextLightning();
+      }, delay);
+    }
+
+    function applyStormFX(enable) {
+      if (enable === _stormFxState.active) return;
+      _stormFxState.active = !!enable;
+      var layer = document.getElementById('stormFxLayer');
+      if (enable) {
+        document.body.classList.add('storm-season');
+        if (layer) layer.style.display = 'block';
+        // Kick off an opening strike after 1.5s, then schedule
+        setTimeout(function(){
+          if (_stormFxState.active) _triggerLightning();
+        }, 1500);
+        _scheduleNextLightning();
+      } else {
+        document.body.classList.remove('storm-season');
+        if (layer) layer.style.display = 'none';
+        if (_stormFxState.lightningTimer) {
+          clearTimeout(_stormFxState.lightningTimer);
+          _stormFxState.lightningTimer = null;
+        }
+      }
+    }
+    window.applyStormFX = applyStormFX;
+    window._triggerLightning = _triggerLightning; // expose for debug
 
     // ========== MVP CEREMONY MODAL ==========
     function _confettiBurst(durationMs) {

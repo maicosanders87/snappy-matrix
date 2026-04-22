@@ -8409,3 +8409,338 @@
   0% { transform: translateY(0) rotate(0deg); opacity: 1; }
   100% { transform: translateY(110vh) rotate(720deg); opacity: 0.6; }
 }
+
+/* ========== STORM SEASON FX v83 ========== */
+/* Entire layer is fixed & full-viewport, non-interactive */
+.storm-fx-layer {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  overflow: hidden;
+}
+body.storm-season { background: linear-gradient(180deg, #0f0a1f 0%, #1a1133 40%, #0a0518 100%) !important; }
+
+/* Storm clouds — slow drift across top */
+.storm-clouds { position: absolute; top: 0; left: 0; right: 0; height: 260px; opacity: 0.55; }
+.storm-cloud {
+  position: absolute; top: -40px; width: 520px; height: 220px;
+  background: radial-gradient(ellipse at center, rgba(55, 48, 85, 0.85) 0%, rgba(30, 27, 75, 0.6) 40%, transparent 70%);
+  filter: blur(24px);
+  animation: stormCloudDrift linear infinite;
+}
+.storm-cloud-1 { left: -20%; animation-duration: 95s; animation-delay: -10s; }
+.storm-cloud-2 { left: -60%; top: -80px; width: 680px; opacity: 0.75; animation-duration: 130s; animation-delay: -50s; }
+.storm-cloud-3 { left: -40%; top: 40px; width: 420px; opacity: 0.5; animation-duration: 110s; animation-delay: -25s; }
+@keyframes stormCloudDrift {
+  from { transform: translateX(0); }
+  to   { transform: translateX(140vw); }
+}
+
+/* Rain — CSS linear gradient streaks */
+.storm-rain {
+  position: absolute; inset: 0; opacity: 0.25;
+  background-image:
+    repeating-linear-gradient(100deg, transparent 0 3px, rgba(167,139,250,0.35) 3px 3.5px, transparent 3.5px 32px),
+    repeating-linear-gradient(102deg, transparent 0 7px, rgba(125,211,252,0.25) 7px 7.5px, transparent 7.5px 46px);
+  animation: stormRainFall 0.9s linear infinite;
+  mix-blend-mode: screen;
+}
+@keyframes stormRainFall {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 0 128px, 0 184px; }
+}
+
+/* Full-screen lightning flash */
+.storm-flash {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 30% 20%, rgba(240, 230, 255, 0.9) 0%, rgba(167, 139, 250, 0.45) 25%, transparent 55%);
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+.storm-flash.storm-flash-strike {
+  animation: stormFlashSeq 1.1s ease-out;
+}
+@keyframes stormFlashSeq {
+  0%   { opacity: 0; }
+  2%   { opacity: 0.95; }
+  6%   { opacity: 0.2; }
+  9%   { opacity: 0.85; }
+  14%  { opacity: 0.1; }
+  18%  { opacity: 0.55; }
+  30%  { opacity: 0.05; }
+  100% { opacity: 0; }
+}
+
+/* SVG lightning bolt overlay */
+.storm-bolt-overlay {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none;
+}
+.storm-bolt-path {
+  stroke: #F3E8FF;
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 8px #C084FC) drop-shadow(0 0 16px #A78BFA);
+  opacity: 0;
+}
+.storm-bolt-path.storm-bolt-strike {
+  animation: stormBoltStrike 900ms ease-out forwards;
+}
+.storm-bolt-path.storm-bolt-glow-bg {
+  stroke-width: 10;
+  stroke: rgba(167,139,250,0.55);
+  filter: blur(6px);
+}
+@keyframes stormBoltStrike {
+  0%   { opacity: 0; stroke-dashoffset: 400; }
+  8%   { opacity: 1; stroke-dashoffset: 0; }
+  20%  { opacity: 0.3; }
+  30%  { opacity: 1; }
+  55%  { opacity: 0.15; }
+  70%  { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+/* Banner: storm mode enhancements */
+body.storm-season .season-banner {
+  background: linear-gradient(90deg, rgba(30,27,75,0.9) 0%, rgba(80,50,150,0.55) 50%, rgba(30,27,75,0.9) 100%) !important;
+  border-color: rgba(167,139,250,0.7) !important;
+  box-shadow: 0 0 24px rgba(167,139,250,0.22), inset 0 0 40px rgba(167,139,250,0.08);
+  position: relative;
+  overflow: hidden;
+}
+body.storm-season .season-banner::before {
+  content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(167,139,250,0.25), transparent);
+  animation: stormBannerSweep 4s ease-in-out infinite;
+}
+@keyframes stormBannerSweep {
+  0%, 100% { left: -100%; }
+  50%      { left: 100%; }
+}
+body.storm-season .season-banner .sb-title {
+  text-shadow: 0 0 10px rgba(167,139,250,0.7), 0 0 2px rgba(255,255,255,0.4);
+  letter-spacing: 0.5px;
+}
+body.storm-season .season-banner .sb-emoji {
+  filter: drop-shadow(0 0 8px rgba(167,139,250,0.9)) drop-shadow(0 0 16px rgba(167,139,250,0.5));
+  animation: stormEmojiPulse 2.2s ease-in-out infinite;
+}
+@keyframes stormEmojiPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+body.storm-season .season-banner .sb-progress-fill {
+  background: linear-gradient(90deg, #A78BFA 0%, #C084FC 50%, #F3E8FF 100%) !important;
+  box-shadow: 0 0 10px #A78BFA, 0 0 20px rgba(167,139,250,0.6);
+}
+
+/* Storm banner corner bolts */
+.storm-banner-bolt {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 34px; color: #F3E8FF;
+  filter: drop-shadow(0 0 8px #C084FC) drop-shadow(0 0 14px rgba(167,139,250,0.8));
+  animation: stormBoltFlicker 2.8s ease-in-out infinite;
+}
+.storm-banner-bolt.left { left: 14px; }
+.storm-banner-bolt.right { right: 14px; animation-delay: 1.4s; }
+@keyframes stormBoltFlicker {
+  0%, 90%, 100% { opacity: 0.95; }
+  92%           { opacity: 0.3; }
+  94%           { opacity: 1; }
+  96%           { opacity: 0.4; }
+}
+
+/* Electric glow on KPI cards during storm */
+body.storm-season .kpi-card {
+  border-color: rgba(167,139,250,0.35) !important;
+  box-shadow: 0 0 0 1px rgba(167,139,250,0.15), 0 4px 14px rgba(30,27,75,0.4);
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+body.storm-season .kpi-card:hover {
+  box-shadow: 0 0 0 1px rgba(167,139,250,0.5), 0 0 24px rgba(167,139,250,0.35), 0 6px 18px rgba(30,27,75,0.55);
+  transform: translateY(-2px);
+}
+
+/* Electric purple on tier S/A badges during storm */
+body.storm-season .rookie-tier-s .rookie-tier-badge,
+body.storm-season .rookie-tier-a .rookie-tier-badge {
+  box-shadow: 0 0 12px rgba(167,139,250,0.55), 0 0 24px rgba(167,139,250,0.25);
+}
+
+/* Section headers get a subtle electric underline */
+body.storm-season .section-title,
+body.storm-season h2,
+body.storm-season .panel-title {
+  position: relative;
+}
+body.storm-season .section-title::after,
+body.storm-season .panel-title::after {
+  content: ''; position: absolute; left: 0; bottom: -4px;
+  width: 40px; height: 2px;
+  background: linear-gradient(90deg, #A78BFA, transparent);
+  box-shadow: 0 0 6px #A78BFA;
+}
+
+/* Badges & buttons: storm glow */
+body.storm-season .badge,
+body.storm-season .nav-tab.active {
+  box-shadow: 0 0 10px rgba(167,139,250,0.35), inset 0 0 12px rgba(167,139,250,0.08);
+}
+body.storm-season .nav-tab.active {
+  border-color: rgba(167,139,250,0.6) !important;
+}
+
+/* Storm label chip inside the banner */
+.storm-ramp-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  background: linear-gradient(90deg, #F59E0B 0%, #EF4444 100%);
+  color: #fff; font-size: 10px; font-weight: 800; letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow: 0 0 10px rgba(239,68,68,0.4);
+  margin-left: 8px; vertical-align: middle;
+  animation: stormRampPulse 2s ease-in-out infinite;
+}
+@keyframes stormRampPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+  50%      { transform: scale(1.06); box-shadow: 0 0 16px rgba(239,68,68,0.65); }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .storm-cloud, .storm-rain, .storm-banner-bolt, .storm-ramp-chip,
+  .season-banner::before, .sb-emoji { animation: none !important; }
+  .storm-flash, .storm-bolt-path { display: none !important; }
+}
+
+/* Keep storm FX behind content but above body background */
+.container, .header, nav.nav-tabs, main, #mainContent { position: relative; z-index: 2; }
+
+/* ========== DELUXE COUNTDOWN v83 ========== */
+.season-banner { min-height: 92px; padding: 12px 18px !important; align-items: center; }
+.season-banner .sb-progress {
+  width: 100% !important; height: 4px; margin-top: 8px;
+}
+
+/* The countdown block */
+.sb-countdown-deluxe {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  flex-shrink: 0; min-width: 280px;
+  padding: 8px 14px; border-radius: 10px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(20,10,45,0.5) 100%);
+  border: 1px solid rgba(167,139,250,0.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 20px rgba(167,139,250,0.12);
+  position: relative;
+}
+.sb-countdown-deluxe::before {
+  content: ''; position: absolute; inset: 0; border-radius: 10px;
+  background: radial-gradient(ellipse at top, rgba(167,139,250,0.18) 0%, transparent 60%);
+  pointer-events: none;
+}
+.sb-cd-label {
+  font-size: 9.5px; font-weight: 800; letter-spacing: 2.5px;
+  color: var(--sb-color, #A78BFA);
+  text-transform: uppercase;
+  text-shadow: 0 0 8px var(--sb-color, #A78BFA);
+  opacity: 0.85;
+}
+
+.sb-cd-units {
+  display: flex; align-items: flex-end; gap: 2px;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+.sb-cd-unit {
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 52px; padding: 0 4px;
+}
+
+.sb-cd-num {
+  font-size: 30px; font-weight: 800;
+  color: #F3E8FF;
+  line-height: 1;
+  letter-spacing: 1px;
+  text-shadow:
+    0 0 6px var(--sb-color, #A78BFA),
+    0 0 14px var(--sb-color, #A78BFA),
+    0 0 24px rgba(167,139,250,0.55);
+  font-variant-numeric: tabular-nums;
+  animation: sbCdGlow 2.8s ease-in-out infinite;
+}
+@keyframes sbCdGlow {
+  0%, 100% { text-shadow: 0 0 6px var(--sb-color,#A78BFA), 0 0 14px var(--sb-color,#A78BFA), 0 0 24px rgba(167,139,250,0.55); }
+  50%      { text-shadow: 0 0 10px var(--sb-color,#A78BFA), 0 0 22px var(--sb-color,#A78BFA), 0 0 36px rgba(167,139,250,0.75); }
+}
+
+.sb-cd-num.sb-cd-flip {
+  animation: sbCdFlip 0.4s ease-out, sbCdGlow 2.8s ease-in-out infinite;
+}
+@keyframes sbCdFlip {
+  0%   { transform: scale(1); filter: brightness(1); }
+  20%  { transform: scale(1.18) translateY(-2px); filter: brightness(1.6); }
+  60%  { transform: scale(0.95); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+.sb-cd-ulbl {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 2px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 3px;
+}
+
+.sb-cd-sep {
+  font-size: 26px; font-weight: 700; color: var(--sb-color, #A78BFA);
+  padding-bottom: 18px;
+  text-shadow: 0 0 8px var(--sb-color, #A78BFA);
+  animation: sbCdSepBlink 1s ease-in-out infinite;
+}
+@keyframes sbCdSepBlink {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0.3; }
+}
+
+/* Seconds digit — subtle pulse on every tick */
+.sb-cd-secs {
+  color: #FDE68A;
+  text-shadow: 0 0 8px #F59E0B, 0 0 16px rgba(245,158,11,0.55);
+}
+
+/* Storm-mode countdown upgrade */
+body.storm-season .sb-countdown-deluxe {
+  background: linear-gradient(180deg, rgba(15,10,30,0.75) 0%, rgba(40,20,80,0.55) 100%);
+  border-color: rgba(167,139,250,0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 0 30px rgba(167,139,250,0.25),
+    0 0 50px rgba(167,139,250,0.12);
+}
+body.storm-season .sb-cd-num {
+  color: #FFF;
+  text-shadow:
+    0 0 8px #C084FC,
+    0 0 20px #A78BFA,
+    0 0 36px rgba(167,139,250,0.9);
+}
+body.storm-season .sb-cd-label {
+  background: linear-gradient(90deg, #F59E0B 0%, #EF4444 50%, #A78BFA 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: none;
+  opacity: 1;
+}
+
+/* Mobile: stack countdown below main, keep it big */
+@media (max-width: 780px) {
+  .season-banner { flex-wrap: wrap; }
+  .sb-countdown-deluxe { order: 3; margin-top: 10px; width: 100%; min-width: 0; }
+  .sb-cd-num { font-size: 26px; }
+  .sb-cd-unit { min-width: 46px; }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .sb-cd-num, .sb-cd-sep { animation: none !important; }
+}

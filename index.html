@@ -17,11 +17,27 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260421v82">
+  <link rel="stylesheet" href="styles.css?v=20260421v83">
 </head>
 <body>
   <!-- Background Grid Effect -->
   <div class="bg-grid-effect"></div>
+
+  <!-- Storm Season FX (toggled by renderSeasonBanner when active) -->
+  <div id="stormFxLayer" class="storm-fx-layer" style="display:none">
+    <div class="storm-clouds">
+      <div class="storm-cloud storm-cloud-1"></div>
+      <div class="storm-cloud storm-cloud-2"></div>
+      <div class="storm-cloud storm-cloud-3"></div>
+    </div>
+    <div class="storm-rain" id="stormRain"></div>
+    <div class="storm-flash" id="stormFlash"></div>
+    <svg class="storm-bolt-overlay" id="stormBoltOverlay" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <filter id="storm-bolt-glow"><feGaussianBlur stdDeviation="4"/></filter>
+      </defs>
+    </svg>
+  </div>
 
   <!-- Sidebar Toggle -->
   <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Toggle sidebar">
@@ -1055,7 +1071,7 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="score_pdfs.js?v=20260421v82"></script>
-  <script src="app.js?v=20260421v82"></script>
+  <script src="score_pdfs.js?v=20260421v83"></script>
+  <script src="app.js?v=20260421v83"></script>
 </body>
 </html>
