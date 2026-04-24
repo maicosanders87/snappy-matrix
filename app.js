@@ -1384,24 +1384,16 @@ document.addEventListener('visibilitychange', function() {
       var mvp = tierScores[0] ? tierScores[0].short : null;
       if (!data.mvp) data.mvp = {};
       if (mvp) data.mvp[oldKey] = { tech: mvp, composite: tierScores[0].composite, tier: tierScores[0].tier };
-      // Archive recalls + complaints for the ending season
+      // Snapshot recalls + complaints for the ending season (do NOT wipe live logs)
       try {
         var recallRaw = localStorage.getItem('snappy_recall_log_v1');
         var complaintRaw = localStorage.getItem('snappy_complaint_log_v1');
         if (!data.archivedRecalls) data.archivedRecalls = {};
         if (!data.archivedComplaints) data.archivedComplaints = {};
-        data.archivedRecalls[oldKey] = recallRaw ? JSON.parse(recallRaw) : {};
-        data.archivedComplaints[oldKey] = complaintRaw ? JSON.parse(complaintRaw) : {};
-        // Reset live logs for the new season
-        localStorage.setItem('snappy_recall_log_v1', '{}');
-        localStorage.setItem('snappy_complaint_log_v1', '{}');
-        localStorage.setItem('snappy_recall_log_v1_localMod', String(Date.now()));
-        localStorage.setItem('snappy_complaint_log_v1_localMod', String(Date.now()));
-        if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured()) {
-          SyncEngine.write('recall', {});
-          SyncEngine.write('complaint', {});
-        }
-      } catch(e) { console.warn('Archive logs failed', e); }
+        // Save a snapshot under the ending season key for historical reference, but keep live logs intact
+        if (!data.archivedRecalls[oldKey]) data.archivedRecalls[oldKey] = recallRaw ? JSON.parse(recallRaw) : {};
+        if (!data.archivedComplaints[oldKey]) data.archivedComplaints[oldKey] = complaintRaw ? JSON.parse(complaintRaw) : {};
+      } catch(e) { console.warn('Snapshot logs failed', e); }
       // Record transition (including per-tech snapshot for the soft reset calculation)
       if (!data.transitions) data.transitions = [];
       data.transitions.push({ from: oldKey, to: cur.key, appliedAt: new Date().toISOString(), techSnapshots: techSnapshots, mvp: mvp });
@@ -10719,6 +10711,46 @@ if (typeof Chart !== 'undefined') {
     })();
 
     // ========== INIT ==========
+    // One-time recovery: restore archived recalls/complaints back into live logs.
+    // The pre-v124 season transition wiped live logs and moved entries into archivedRecalls/archivedComplaints.
+    // Merge them back so they show up again. Runs at most once per device.
+    try {
+      var RECOVERY_FLAG = 'snappy_recall_complaint_recovered_v1';
+      if (!localStorage.getItem(RECOVERY_FLAG)) {
+        var sd = loadSeasonsData();
+        function _mergeArchivedIntoLive(archive, liveKey, syncKey) {
+          if (!archive || typeof archive !== 'object') return false;
+          var liveRaw = localStorage.getItem(liveKey);
+          var live = {};
+          try { live = liveRaw ? JSON.parse(liveRaw) : {}; } catch(e) { live = {}; }
+          var changed = false;
+          Object.keys(archive).forEach(function(seasonKey) {
+            var seasonEntries = archive[seasonKey] || {};
+            Object.keys(seasonEntries).forEach(function(tech) {
+              var entries = seasonEntries[tech] || [];
+              if (!Array.isArray(entries) || entries.length === 0) return;
+              if (!live[tech]) live[tech] = [];
+              var existingIds = {};
+              live[tech].forEach(function(e) { if (e && e.id) existingIds[e.id] = 1; });
+              entries.forEach(function(e) {
+                if (e && e.id && !existingIds[e.id]) { live[tech].push(e); changed = true; }
+              });
+            });
+          });
+          if (changed) {
+            localStorage.setItem(liveKey, JSON.stringify(live));
+            localStorage.setItem(liveKey + '_localMod', String(Date.now()));
+            if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured()) SyncEngine.write(syncKey, live);
+          }
+          return changed;
+        }
+        var rc = _mergeArchivedIntoLive(sd && sd.archivedRecalls, 'snappy_recall_log_v1', 'recall');
+        var cc = _mergeArchivedIntoLive(sd && sd.archivedComplaints, 'snappy_complaint_log_v1', 'complaint');
+        if (rc || cc) console.log('Recovered archived recalls/complaints into live logs.');
+        localStorage.setItem(RECOVERY_FLAG, String(Date.now()));
+      }
+    } catch(e) { console.warn('Recall/complaint recovery failed', e); }
+
     // Snappy Seasons: check transition, render banner, queue ceremony if pending
     try {
       checkSeasonTransition();
