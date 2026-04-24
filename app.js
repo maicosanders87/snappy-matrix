@@ -5113,8 +5113,8 @@ if (typeof Chart !== 'undefined') {
         name: "Chris",
         color: "#8B3A3A",
         mtd_service_rev: 6585,
-        mtd_installs: 2,
-        mtd_install_rev: 29113,
+        mtd_installs: 3,
+        mtd_install_rev: 37485,
         mtd_install_self_sourced: 2,
         mtd_install_tgl_for_others: 1,
         mtd_on_job_pct: 51,
@@ -5596,8 +5596,8 @@ if (typeof Chart !== 'undefined') {
       const totalSales = stData.reduce((s,t) => s + t.sales.total_sales, 0);
       const totalInstalls = stData.reduce((s,t) => s + t.installs.count, 0);
       const totalInstallRev = stData.reduce((s,t) => s + t.installs.total_revenue, 0);
-      const totalMtdInst = 5; // Team MTD installs incl. Adam
-      const totalMtdInstRev = 63246;
+      const totalMtdInst = 9; // Team MTD installs incl. Adam (8 techs + 1 Adam)
+      const totalMtdInstRev = 112935;
       const topRev = stData.reduce((best, t) => t.nexstar.total_revenue > best.nexstar.total_revenue ? t : best);
 
       document.getElementById('st-kpi-row').innerHTML = `
