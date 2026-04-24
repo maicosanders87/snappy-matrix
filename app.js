@@ -6248,7 +6248,7 @@ if (typeof Chart !== 'undefined') {
         `;
 
         html += `
-          <div class="rookie-flip-container" onclick="this.classList.toggle('flipped')">
+          <div class="rookie-flip-container" tabindex="0" role="button" aria-label="View ${t.name} rookie card">
             <div class="rookie-flip-inner">
               <div class="rookie-flip-front">
                 <div class="rookie-card rookie-tier-${tierLower}">
@@ -6362,6 +6362,50 @@ if (typeof Chart !== 'undefined') {
       });
 
       document.getElementById('rookieGrid').innerHTML = html;
+
+      // Wire delegated click handler → open center-screen modal (replaces inline flip)
+      var grid = document.getElementById('rookieGrid');
+      if (grid && !grid._rookieModalWired) {
+        grid._rookieModalWired = true;
+        grid.addEventListener('click', function(e) {
+          // Ignore clicks on inner editable stats / inline-onclick stat tiles
+          if (e.target.closest('.mgr-stat-editable')) return;
+          if (e.target.closest('.rookie-stat[onclick]')) return;
+          if (e.target.closest('.rookie-st-toggle')) return;
+          if (e.target.closest('button')) return;
+          var container = e.target.closest('.rookie-flip-container');
+          if (!container) return;
+          var front = container.querySelector('.rookie-flip-front');
+          var back  = container.querySelector('.rookie-flip-back');
+          var frontInner = front ? front.querySelector('.rookie-card') : null;
+          var backInner  = back  ? back.querySelector('.rookie-card')  : null;
+          if (!frontInner) return;
+          // Resolve tech name + tier for skin labeling
+          var techName = (container.getAttribute('aria-label') || '').replace(/^View /, '').replace(/ rookie card$/, '') || '';
+          var tierBadgeEl = frontInner.querySelector('.rookie-tier-badge');
+          var tierLabel = tierBadgeEl ? (tierBadgeEl.textContent || '').trim().replace(/-TIER$/i, '') : '';
+          var seasonKey = (typeof getCurrentSeason === 'function') ? (getCurrentSeason().key || null) : null;
+          var seasonMeta = (typeof getCurrentSeason === 'function') ? getCurrentSeason() : null;
+          if (typeof window.openRookieCardModal === 'function') {
+            window.openRookieCardModal(
+              frontInner.outerHTML,
+              backInner ? backInner.outerHTML : '',
+              seasonKey,
+              seasonMeta,
+              tierLabel,
+              techName
+            );
+          }
+        });
+        // Keyboard support (Enter / Space on focused container)
+        grid.addEventListener('keydown', function(e) {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          var container = e.target.closest && e.target.closest('.rookie-flip-container');
+          if (!container) return;
+          e.preventDefault();
+          container.click();
+        });
+      }
     }
 
     // Toggle MTD / 90-Day view on Rookie Card ST section.
