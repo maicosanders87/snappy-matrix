@@ -8725,14 +8725,38 @@ if (typeof Chart !== 'undefined') {
           var builtinBadge = it.builtin ? '<span style="display:inline-block;background:rgba(100,180,255,0.15);color:#64b4ff;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:6px;letter-spacing:0.5px;">BUILT-IN</span>' : '';
           var deleteBtn = it.builtin ? '' :
             '<button type="button" class="mgr-btn secondary sm" onclick="mgrLibraryDelete(\''+it.id+'\')" style="border-color:rgba(255,100,100,0.4);color:#f87171;">🗑 Delete</button>';
+
+          // Category color chip (uses categoryKey if available, falls back to label-based color)
+          var catMeta = it.categoryKey ? mgrLibraryCategoryByKey(it.categoryKey) : null;
+          var catColor = (catMeta && catMeta.color) || it.categoryColor || '#a3a3a3';
+          var catLabel = (catMeta && catMeta.label) || it.category || '';
+          var catChip = catLabel
+            ? '<span style="display:inline-block;background:'+catColor+'22;color:'+catColor+';border:1px solid '+catColor+'44;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;letter-spacing:0.3px;">'+mgrEscape(catLabel)+'</span>'
+            : '';
+
+          // "Uploaded by" + date metadata footer
+          var metaParts = [];
+          if (it.uploadedBy) metaParts.push('👤 '+mgrEscape(it.uploadedBy));
+          if (it.uploadedAt) metaParts.push(mgrLibraryFmtDate(it.uploadedAt));
+          else if (it.createdAt && !it.builtin) metaParts.push(mgrLibraryFmtDate(it.createdAt));
+          var metaFooter = metaParts.length
+            ? '<div style="font-size:10px;color:var(--text-muted);margin-top:4px;border-top:1px dashed rgba(255,255,255,0.08);padding-top:6px;">'+metaParts.join(' · ')+'</div>'
+            : '';
+
+          // File source indicator (☁ Drive uploaded vs 🔗 external link vs builtin)
+          var sourceIcon = '';
+          if (it.builtin) sourceIcon = '';
+          else if (it.hasFile) sourceIcon = '<span title="Uploaded to Drive — syncs across devices" style="font-size:10px;color:#34d399;margin-left:6px;">☁ Drive</span>';
+          else if (it.pdf) sourceIcon = '<span title="External link" style="font-size:10px;color:#94a3b8;margin-left:6px;">🔗 Link</span>';
+
           return '' +
-            '<div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;">' +
+            '<div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-left:3px solid '+catColor+';border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;">' +
               '<div>' +
-                '<div style="font-weight:700;font-size:14px;color:var(--text-primary);line-height:1.3;">'+mgrEscape(it.title)+builtinBadge+'</div>' +
-                '<div style="font-size:11px;color:var(--accent);margin-top:3px;">'+mgrEscape(it.category||'')+'</div>' +
+                '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:5px;">'+catChip+sourceIcon+builtinBadge+'</div>' +
+                '<div style="font-weight:700;font-size:14px;color:var(--text-primary);line-height:1.3;">'+mgrEscape(it.title)+'</div>' +
               '</div>' +
               (it.description ? '<div style="font-size:12px;color:var(--text-muted);line-height:1.4;">'+mgrEscape(it.description)+'</div>' : '') +
-              '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'+tags+dur+'</div>' +
+              (tags || dur ? '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'+tags+dur+'</div>' : '') +
               '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">' +
                 '<button type="button" class="mgr-btn sm" onclick="mgrLibraryView(\''+it.id+'\')">👁 View</button>' +
                 '<button type="button" class="mgr-btn secondary sm" onclick="mgrLibraryDownload(\''+it.id+'\')">⬇ Download</button>' +
@@ -8740,6 +8764,7 @@ if (typeof Chart !== 'undefined') {
                 '<button type="button" class="mgr-btn secondary sm" onclick="mgrLibraryAddToBB(\''+it.id+'\')" style="border-color:rgba(255,215,0,0.4);color:#fbbf24;">📌 Bulletin</button>' +
                 deleteBtn +
               '</div>' +
+              metaFooter +
             '</div>';
         }).join('') + '</div>';
     }
@@ -8756,11 +8781,47 @@ if (typeof Chart !== 'undefined') {
       setTimeout(function(){ toast.style.opacity='0'; setTimeout(function(){ toast.remove(); }, 400); }, 2000);
     }
 
-    function mgrLibraryView(id) {
+    // Get a usable URL/dataURL for an uploaded library file. Tries:
+    //   1. localStorage (instant, only on the device that uploaded)
+    //   2. Drive via tfDriveMap (works across devices)
+    // Returns a Promise resolving to a data URL or string href, or null.
+    async function mgrLibraryResolveUploadedFile(it) {
+      if (!it) return null;
+      // 1. Local cache
+      try {
+        var local = localStorage.getItem('snappy_lib_localfile_' + it.id);
+        if (local) return local;
+      } catch (e) {}
+      // 2. Drive map (shared across all devices once Drive upload completes)
+      try {
+        if (typeof tfDriveMap !== 'undefined' && tfDriveMap[it.id]) {
+          var data = await _tfFetchFromDrive(tfDriveMap[it.id]);
+          if (data) {
+            try { localStorage.setItem('snappy_lib_localfile_' + it.id, data); } catch (e) {}
+            return data;
+          }
+        }
+      } catch (e) { console.warn('Drive fetch for library file failed:', e); }
+      return null;
+    }
+
+    async function mgrLibraryView(id) {
       var it = mgrLibraryFind(id);
-      if (!it || !it.pdf) { alert('No file attached to this training.'); return; }
-      // Prefer embedded PDF.js canvas renderer — iPad Safari's native PDF iframe
-      // only shows the first page. PDF.js renders ALL pages as canvases.
+      if (!it) return;
+      // 1. Direct uploaded file → resolve from local cache or Drive
+      if (it.hasFile) {
+        mgrLibraryToast('☁ Loading file…', '#1e40af');
+        var dataUrl = await mgrLibraryResolveUploadedFile(it);
+        if (!dataUrl) {
+          alert('Could not load this file. It may still be syncing to Drive — try again in a few seconds, or refresh the page.');
+          return;
+        }
+        // Show in viewer modal using the data URL
+        _mgrLibraryOpenViewer({ pdf: dataUrl, title: it.title });
+        return;
+      }
+      // 2. External link / built-in PDF base64 lookup
+      if (!it.pdf) { alert('No file attached to this training.'); return; }
       if (typeof PDF_BASE64 !== 'undefined' && PDF_BASE64[it.pdf]) {
         try { openEmbeddedPDF(it.pdf); return; } catch (e) { /* fall through */ }
       }
@@ -8801,17 +8862,35 @@ if (typeof Chart !== 'undefined') {
       if (e.key === 'Escape') _mgrLibraryCloseViewer();
     }
 
-    function mgrLibraryDownload(id) {
+    async function mgrLibraryDownload(id) {
       var it = mgrLibraryFind(id);
-      if (!it || !it.pdf) { alert('No file attached to this training.'); return; }
-      var a = document.createElement('a');
-      // Prefer base64 data URL so mobile Safari always gets the full file
-      if (typeof PDF_BASE64 !== 'undefined' && PDF_BASE64[it.pdf]) {
-        a.href = 'data:application/pdf;base64,' + PDF_BASE64[it.pdf];
+      if (!it) return;
+      var href = '';
+      var fileName = '';
+
+      if (it.hasFile) {
+        // Resolve uploaded file from cache or Drive
+        mgrLibraryToast('☁ Preparing download…', '#1e40af');
+        var dataUrl = await mgrLibraryResolveUploadedFile(it);
+        if (!dataUrl) { alert('Could not load this file. It may still be syncing to Drive — try again shortly.'); return; }
+        href = dataUrl;
+        fileName = it.fileName || (it.title ? (it.title + '.pdf') : 'download.pdf');
+      } else if (it.pdf) {
+        if (typeof PDF_BASE64 !== 'undefined' && PDF_BASE64[it.pdf]) {
+          href = 'data:application/pdf;base64,' + PDF_BASE64[it.pdf];
+          fileName = (it.title || 'download') + '.pdf';
+        } else {
+          href = it.pdf;
+          fileName = it.pdf.split('/').pop().split('?')[0] || 'download';
+        }
       } else {
-        a.href = it.pdf;
+        alert('No file attached to this training.');
+        return;
       }
-      a.download = it.pdf.split('/').pop();
+
+      var a = document.createElement('a');
+      a.href = href;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -8868,20 +8947,128 @@ if (typeof Chart !== 'undefined') {
       mgrLibraryToast('📌 Posted to Bulletin Board', '#065f46');
     }
 
+    // Standard training categories — color-coded for visual scanning
+    var LIBRARY_CATEGORIES = [
+      { key: 'refrigeration', label: 'Refrigeration',      color: '#60a5fa' },
+      { key: 'electrical',    label: 'Electrical',         color: '#fbbf24' },
+      { key: 'airflow',       label: 'Airflow',            color: '#34d399' },
+      { key: 'heating',       label: 'Heating',            color: '#f87171' },
+      { key: 'cooling',       label: 'Cooling',            color: '#22d3ee' },
+      { key: 'install',       label: 'Install',            color: '#a78bfa' },
+      { key: 'diagnostics',   label: 'Diagnostics',        color: '#fb923c' },
+      { key: 'customer',      label: 'Customer / NSS',     color: '#f472b6' },
+      { key: 'sales',         label: 'Sales / SPP',        color: '#facc15' },
+      { key: 'safety',        label: 'Safety',             color: '#ef4444' },
+      { key: 'professionalism', label: 'Professionalism',  color: '#94a3b8' },
+      { key: 'leadership',    label: 'Leadership',         color: '#c084fc' },
+      { key: 'other',         label: 'Other',              color: '#64748b' }
+    ];
+    function mgrLibraryCategoryByKey(k) {
+      for (var i = 0; i < LIBRARY_CATEGORIES.length; i++) {
+        if (LIBRARY_CATEGORIES[i].key === k) return LIBRARY_CATEGORIES[i];
+      }
+      return null;
+    }
+    // Auto-suggest category from title/description text (best-effort)
+    function mgrLibraryAutoCategory(text) {
+      if (!text) return '';
+      var t = String(text).toLowerCase();
+      var rules = [
+        ['refrigeration', /refriger|superheat|subcool|saturation|txv|piston|metering|charge|r-?410|r-?22|r-?32/],
+        ['electrical',   /electric|voltage|capacitor|contactor|ohm|amp|circuit|fuse|relay|wiring|schematic/],
+        ['airflow',      /airflow|static.?press|duct|cfm|blower|filter|return|supply.?air/],
+        ['heating',      /furnace|heat.?exchanger|gas.?valve|flue|ignit|burner|combustion|heating/],
+        ['cooling',      /cool|condenser|evap.?coil|a\/?c\b|air.?cond/],
+        ['install',      /install|change.?out|replacement|line.?set|braz|vacuum|nitrog/],
+        ['diagnostics',  /diagnos|troubleshoot|callback|fault|symptom|a\/b\/c.?chart/],
+        ['customer',     /nss|greet|customer|communic|present|wow|review|five.?star|home.?advisor/],
+        ['sales',        /sales|spp|service.?partner|membership|club|club.?member|tgl|conversion|closing/],
+        ['safety',       /safety|ppe|ladder|lockout|tagout|harness|fall.?protect/],
+        ['professionalism', /uniform|grooming|appear|professional|odor/],
+        ['leadership',   /leader|coaching|huddle|1.?on.?1|ride.?along|team.?build/]
+      ];
+      for (var i = 0; i < rules.length; i++) {
+        if (rules[i][1].test(t)) return rules[i][0];
+      }
+      return '';
+    }
+    // Resolve who is currently "uploading" — prefer Manager > Editor > Coach > Anonymous
+    function mgrLibraryWhoAmI() {
+      try {
+        if (typeof isManagerMode !== 'undefined' && isManagerMode) return 'Mark Sanders';
+        if (typeof isEditorMode  !== 'undefined' && isEditorMode  && editorName) return editorName;
+        if (typeof isCoachMode   !== 'undefined' && isCoachMode   && coachName)  return coachName;
+      } catch (e) {}
+      return 'Team';
+    }
+    // Format a friendly date label (e.g. "Apr 24, 2026")
+    function mgrLibraryFmtDate(ts) {
+      try {
+        if (!ts) return '';
+        var d = new Date(ts);
+        var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+      } catch (e) { return ''; }
+    }
+
+    // Read a File object as a base64 data URL
+    function mgrLibraryReadFile(file) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload  = function() { resolve(reader.result); };
+        reader.onerror = function() { reject(new Error('File read error')); };
+        reader.readAsDataURL(file);
+      });
+    }
+    // Upload an uploaded library file to Drive (reuses Tech Files Drive infrastructure).
+    // Returns the driveFileId (best-effort — fire-and-forget on no-cors).
+    function mgrLibraryUploadToDrive(entryId, fileName, fileDataUrl) {
+      try {
+        if (!SyncEngine.isConfigured() || !fileDataUrl) return;
+        var payload = JSON.stringify({
+          _action: 'uploadFile',
+          techName: 'Library',           // routes into the same Drive folder, prefixed "Library_"
+          fileEntryId: entryId,          // shared drive map keyed by entry id
+          fileName: fileName,
+          fileData: fileDataUrl
+        });
+        fetch(SYNC_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: payload
+        }).catch(function(err) { console.warn('Library Drive upload failed:', err); });
+      } catch (e) { console.warn('Library Drive upload error:', e); }
+    }
+
     function mgrLibraryOpenAddModal() {
       var old = document.getElementById('mgrLibraryAddModal');
       if (old) old.remove();
       var modal = document.createElement('div');
       modal.id = 'mgrLibraryAddModal';
       modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px;';
+      var catOpts = LIBRARY_CATEGORIES.map(function(c){
+        return '<option value="'+c.key+'" data-color="'+c.color+'">'+c.label+'</option>';
+      }).join('');
       modal.innerHTML = '' +
-        '<div style="background:var(--panel-bg,#1a1a1a);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,0.6);">' +
-          '<h3 style="margin:0 0 14px 0;color:var(--text-primary);">Add Training to Library</h3>' +
+        '<div style="background:var(--panel-bg,#1a1a1a);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,0.6);">' +
+          '<h3 style="margin:0 0 4px 0;color:var(--text-primary);">Add Training to Library</h3>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;">Uploads sync across all devices via Google Drive.</div>' +
           '<form id="mgrLibraryAddForm" onsubmit="return mgrLibraryAddSubmit(event);">' +
-            '<div class="mgr-form-row"><label class="mgr-form-label">Title *</label><input type="text" class="mgr-input" id="lib_title" required placeholder="e.g. NSS Agreement Roleplay"></div>' +
-            '<div class="mgr-form-row"><label class="mgr-form-label">Category</label><input type="text" class="mgr-input" id="lib_category" placeholder="e.g. NSS · You\'re Worth It"></div>' +
-            '<div class="mgr-form-row"><label class="mgr-form-label">Description</label><textarea class="mgr-textarea" id="lib_description" rows="2" placeholder="Short summary"></textarea></div>' +
-            '<div class="mgr-form-row"><label class="mgr-form-label">PDF URL</label><input type="text" class="mgr-input" id="lib_pdf" placeholder="https://drive.google.com/... or Dropbox link"><div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Paste a public share link (Google Drive, Dropbox, etc.) so it opens from any device.</div></div>' +
+            '<div class="mgr-form-row"><label class="mgr-form-label">Title *</label><input type="text" class="mgr-input" id="lib_title" required placeholder="e.g. Refrigeration Cycle Fundamentals" oninput="mgrLibrarySuggestCategory()"></div>' +
+            '<div class="mgr-form-row"><label class="mgr-form-label">Category *</label>' +
+              '<select class="mgr-select" id="lib_category_key" required>' +
+                '<option value="">— Select a category —</option>' + catOpts +
+              '</select>' +
+              '<div id="lib_category_hint" style="font-size:10px;color:var(--text-muted);margin-top:4px;display:none;">💡 Auto-suggested from title — change if needed.</div>' +
+            '</div>' +
+            '<div class="mgr-form-row"><label class="mgr-form-label">Description</label><textarea class="mgr-textarea" id="lib_description" rows="2" placeholder="Short summary" oninput="mgrLibrarySuggestCategory()"></textarea></div>' +
+            '<div class="mgr-form-row"><label class="mgr-form-label">📎 Upload PDF (optional)</label>' +
+              '<input type="file" id="lib_file" accept="application/pdf,image/*" class="mgr-input" style="padding:6px;">' +
+              '<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Pick a file from this device. It uploads to Google Drive so the team can view it from any device.</div>' +
+            '</div>' +
+            '<div style="text-align:center;font-size:10px;color:var(--text-muted);margin:8px 0;">— OR —</div>' +
+            '<div class="mgr-form-row"><label class="mgr-form-label">Paste a Link</label><input type="text" class="mgr-input" id="lib_pdf" placeholder="https://drive.google.com/... or Dropbox link"><div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Use this if the file already lives on Drive / Dropbox / SharePoint.</div></div>' +
             '<div class="mgr-form-row"><label class="mgr-form-label">Duration</label>' +
               '<select class="mgr-select" id="lib_duration">' +
                 '<option value="">—</option>' +
@@ -8892,38 +9079,96 @@ if (typeof Chart !== 'undefined') {
             '<div class="mgr-form-row"><label class="mgr-form-label">Tags (comma-separated)</label><input type="text" class="mgr-input" id="lib_tags" placeholder="NSS, Greet, Instructor"></div>' +
             '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">' +
               '<button type="button" class="mgr-btn secondary" onclick="document.getElementById(\'mgrLibraryAddModal\').remove()">Cancel</button>' +
-              '<button type="submit" class="mgr-btn gold">Save to Library</button>' +
+              '<button type="submit" class="mgr-btn gold" id="lib_submit_btn">Save to Library</button>' +
             '</div>' +
           '</form>' +
         '</div>';
       document.body.appendChild(modal);
       setTimeout(function(){ var t = document.getElementById('lib_title'); if (t) t.focus(); }, 50);
     }
+    // Live category suggestion based on Title + Description text
+    function mgrLibrarySuggestCategory() {
+      try {
+        var sel = document.getElementById('lib_category_key');
+        if (!sel || sel.value) return; // don't override a manual choice
+        var title = (document.getElementById('lib_title')||{}).value || '';
+        var desc  = (document.getElementById('lib_description')||{}).value || '';
+        var key = mgrLibraryAutoCategory(title + ' ' + desc);
+        if (key) {
+          sel.value = key;
+          var hint = document.getElementById('lib_category_hint');
+          if (hint) hint.style.display = 'block';
+        }
+      } catch (e) {}
+    }
+    window.mgrLibrarySuggestCategory = mgrLibrarySuggestCategory;
 
-    function mgrLibraryAddSubmit(ev) {
+    async function mgrLibraryAddSubmit(ev) {
       ev.preventDefault();
       var title = document.getElementById('lib_title').value.trim();
       if (!title) { alert('Title is required.'); return false; }
+      var categoryKey = document.getElementById('lib_category_key').value;
+      if (!categoryKey) { alert('Please choose a category.'); return false; }
+      var fileEl = document.getElementById('lib_file');
+      var pickedFile = fileEl && fileEl.files && fileEl.files[0] ? fileEl.files[0] : null;
+      var pastedUrl  = document.getElementById('lib_pdf').value.trim();
+      if (!pickedFile && !pastedUrl) {
+        if (!confirm('No file or link attached. Save the entry anyway?')) return false;
+      }
+
+      var submitBtn = document.getElementById('lib_submit_btn');
+      var origLabel = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = pickedFile ? 'Uploading…' : 'Saving…'; }
+
       var tagsRaw = document.getElementById('lib_tags').value.trim();
       var tags = tagsRaw ? tagsRaw.split(',').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+      var catMeta = mgrLibraryCategoryByKey(categoryKey);
+      var entryId = 'lib_' + mgrUID();
+
       var entry = {
-        id: 'lib_' + mgrUID(),
+        id: entryId,
         title: title,
-        category: document.getElementById('lib_category').value.trim(),
+        categoryKey: categoryKey,
+        category: catMeta ? catMeta.label : '',          // back-compat (old field used by rendering)
+        categoryColor: catMeta ? catMeta.color : '#64748b',
         description: document.getElementById('lib_description').value.trim(),
-        pdf: document.getElementById('lib_pdf').value.trim(),
+        pdf: pastedUrl,                                  // external link (if any)
+        fileName: pickedFile ? pickedFile.name : '',
+        fileSize: pickedFile ? pickedFile.size : 0,
+        hasFile: !!pickedFile,                           // true if uploaded directly
         duration: document.getElementById('lib_duration').value,
         tags: tags,
         builtin: false,
+        uploadedBy: mgrLibraryWhoAmI(),
+        uploadedAt: Date.now(),
         createdAt: Date.now()
       };
+
+      // If a file was picked, read as base64 and upload to Drive (cross-device).
+      if (pickedFile) {
+        try {
+          var dataUrl = await mgrLibraryReadFile(pickedFile);
+          // Stash locally so author can view immediately even before Drive responds
+          try {
+            var localKey = 'snappy_lib_localfile_' + entryId;
+            localStorage.setItem(localKey, dataUrl);
+          } catch (e) { /* quota — fine, Drive copy still works */ }
+          // Fire upload to Drive (background)
+          mgrLibraryUploadToDrive(entryId, pickedFile.name, dataUrl);
+        } catch (e) {
+          alert('Could not read the file: ' + e.message);
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origLabel; }
+          return false;
+        }
+      }
+
       if (!Array.isArray(mgrState.library)) mgrState.library = [];
       mgrState.library.push(entry);
       mgrSave();
       var modal = document.getElementById('mgrLibraryAddModal');
       if (modal) modal.remove();
       mgrRenderTrainingLibrary();
-      mgrLibraryToast('✅ Added to Library', '#065f46');
+      mgrLibraryToast(pickedFile ? '☁ Uploaded & saved — syncing to team' : '✅ Added to Library', '#065f46');
       return false;
     }
 
