@@ -10044,10 +10044,10 @@ body.rookie-modal-open { overflow: hidden; }
 }
 
 /* Per-season photo assignments */
-.season-skin[data-season="storm"]   .rookie-st-section::before { background-image: url('season_bg_storm.png'); }
-.season-skin[data-season="ice"]     .rookie-st-section::before { background-image: url('season_bg_ice.png'); }
-.season-skin[data-season="heat"]    .rookie-st-section::before { background-image: url('season_bg_heat.png'); }
-.season-skin[data-season="harvest"] .rookie-st-section::before { background-image: url('season_bg_harvest.png'); }
+.season-skin[data-season="storm"]   .rookie-st-section::before { background-image: url('season_bg_storm.jpg'); }
+.season-skin[data-season="ice"]     .rookie-st-section::before { background-image: url('season_bg_ice.jpg'); }
+.season-skin[data-season="heat"]    .rookie-st-section::before { background-image: url('season_bg_heat.jpg'); }
+.season-skin[data-season="harvest"] .rookie-st-section::before { background-image: url('season_bg_harvest.jpg'); }
 
 /* Per-season color tint on the overlay — each season gets its signature color */
 .season-skin[data-season="storm"] .rookie-st-section::after {
@@ -10147,28 +10147,28 @@ body.rookie-modal-open { overflow: hidden; }
 .season-skin[data-season="storm"]:not(:has(.rookie-tier-s)) .rookie-dispatch-tags {
   background-image:
     linear-gradient(135deg, rgba(40,20,80,0.55) 0%, rgba(18,12,40,0.72) 60%, rgba(8,6,20,0.82) 100%),
-    url('season_bg_storm.png');
+    url('season_bg_storm.jpg');
 }
 .season-skin[data-season="ice"]:not(:has(.rookie-tier-s)) .rookie-stats,
 .season-skin[data-season="ice"]:not(:has(.rookie-tier-s)) .rookie-composite,
 .season-skin[data-season="ice"]:not(:has(.rookie-tier-s)) .rookie-dispatch-tags {
   background-image:
     linear-gradient(135deg, rgba(15,40,70,0.55) 0%, rgba(8,22,45,0.72) 60%, rgba(3,12,28,0.85) 100%),
-    url('season_bg_ice.png');
+    url('season_bg_ice.jpg');
 }
 .season-skin[data-season="heat"]:not(:has(.rookie-tier-s)) .rookie-stats,
 .season-skin[data-season="heat"]:not(:has(.rookie-tier-s)) .rookie-composite,
 .season-skin[data-season="heat"]:not(:has(.rookie-tier-s)) .rookie-dispatch-tags {
   background-image:
     linear-gradient(135deg, rgba(80,30,10,0.55) 0%, rgba(50,15,8,0.74) 60%, rgba(20,8,4,0.85) 100%),
-    url('season_bg_heat.png');
+    url('season_bg_heat.jpg');
 }
 .season-skin[data-season="harvest"]:not(:has(.rookie-tier-s)) .rookie-stats,
 .season-skin[data-season="harvest"]:not(:has(.rookie-tier-s)) .rookie-composite,
 .season-skin[data-season="harvest"]:not(:has(.rookie-tier-s)) .rookie-dispatch-tags {
   background-image:
     linear-gradient(135deg, rgba(70,35,10,0.55) 0%, rgba(40,22,8,0.74) 60%, rgba(18,10,4,0.85) 100%),
-    url('season_bg_harvest.png');
+    url('season_bg_harvest.jpg');
 }
 
 /* iPad Safari fallback (no :has() support on older iPadOS) — apply by
@@ -10185,7 +10185,7 @@ body.rookie-modal-open { overflow: hidden; }
   .season-skin[data-season="storm"] .rookie-tier-c .rookie-dispatch-tags {
     background-image:
       linear-gradient(135deg, rgba(40,20,80,0.55) 0%, rgba(18,12,40,0.72) 60%, rgba(8,6,20,0.82) 100%),
-      url('season_bg_storm.png');
+      url('season_bg_storm.jpg');
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center;
@@ -10207,7 +10207,7 @@ body.rookie-modal-open { overflow: hidden; }
   .season-skin[data-season="ice"] .rookie-tier-c .rookie-dispatch-tags {
     background-image:
       linear-gradient(135deg, rgba(15,40,70,0.55) 0%, rgba(8,22,45,0.72) 60%, rgba(3,12,28,0.85) 100%),
-      url('season_bg_ice.png');
+      url('season_bg_ice.jpg');
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center;
@@ -10229,7 +10229,7 @@ body.rookie-modal-open { overflow: hidden; }
   .season-skin[data-season="heat"] .rookie-tier-c .rookie-dispatch-tags {
     background-image:
       linear-gradient(135deg, rgba(80,30,10,0.55) 0%, rgba(50,15,8,0.74) 60%, rgba(20,8,4,0.85) 100%),
-      url('season_bg_heat.png');
+      url('season_bg_heat.jpg');
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center;
@@ -10251,7 +10251,7 @@ body.rookie-modal-open { overflow: hidden; }
   .season-skin[data-season="harvest"] .rookie-tier-c .rookie-dispatch-tags {
     background-image:
       linear-gradient(135deg, rgba(70,35,10,0.55) 0%, rgba(40,22,8,0.74) 60%, rgba(18,10,4,0.85) 100%),
-      url('season_bg_harvest.png');
+      url('season_bg_harvest.jpg');
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center;
@@ -10311,4 +10311,188 @@ body.rookie-modal-open { overflow: hidden; }
   margin-bottom: revert !important;
   border-radius: revert !important;
   background-color: revert !important;
+}
+
+/* ===== SKILL UNLOCK LOG (Overview + Rookie cards) ===== */
+.ov-skill-log {
+  margin-top: 18px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+}
+.ov-skill-log-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.ov-skill-log-header svg {
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+.ov-skill-log-title {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  flex: 1;
+}
+.ov-skill-log-count {
+  background: #1e40af;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 22px;
+  text-align: center;
+}
+.ov-skill-log-empty {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 18px 10px;
+  font-style: italic;
+}
+.ov-skill-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.ov-skill-log-list::-webkit-scrollbar { width: 6px; }
+.ov-skill-log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.ov-skill-log-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ov-skill-log-item:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.15);
+}
+.ov-skill-log-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+}
+.ov-skill-log-avatar-fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1e40af;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.ov-skill-log-body {
+  flex: 1;
+  min-width: 0;
+}
+.ov-skill-log-line1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 3px;
+}
+.ov-skill-log-tech {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.ov-skill-log-earned {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.ov-skill-log-skill-id {
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+}
+.ov-skill-log-skill-name {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.ov-skill-log-line2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+}
+.ov-skill-log-cat {
+  font-size: 11px;
+  font-weight: 600;
+}
+.ov-skill-log-time {
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+/* Rookie card per-tech recent skills */
+.rookie-recent-skills {
+  margin: 6px 0;
+  padding: 6px 8px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.rookie-recent-skills-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 4px;
+}
+.rookie-recent-skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.rookie-recent-skill-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1.5px solid;
+  background: rgba(0,0,0,0.25);
+  line-height: 1.2;
+  letter-spacing: 0.3px;
+  font-family: 'Courier New', monospace;
+}
+.rookie-recent-skill-time {
+  font-size: 8px;
+  font-weight: 500;
+  opacity: 0.75;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 0.2px;
+  font-family: inherit;
 }

@@ -72,12 +72,13 @@ function shareMatrix() {
 const MGR_PIN = 'sanders';
 const COACH_PINS = {
   'Nexstar': 'Jay / Greg',
-  'AdamB': 'Adam'
+  'AdamB': 'Adam',
+  'BOND': 'Brayden'
 };
 const EDITOR_PINS = {
   'OPM': 'Judah'
 };
-let isManagerMode = localStorage.getItem('snappy_mgr_mode') === 'true';
+let isManagerMode = true; // forced for testing
 let isCoachMode = localStorage.getItem('snappy_coach_mode') === 'true';
 let isEditorMode = localStorage.getItem('snappy_editor_mode') === 'true';
 let coachName = localStorage.getItem('snappy_coach_name') || '';
@@ -141,13 +142,15 @@ async function silentSyncOnLogin() {
       'dispatch': 'snappy_dispatch_v1',
       'dailyduties': 'snappy_daily_duties',
       'mgrstats': 'snappy_mgr_stats',
+      'braydenstats': 'snappy_brayden_stats',
       'daynotes': 'snappy_day_notes',
       'nexstar': 'snappy_nexstar',
       'bulletin': 'snappy_bulletin_board',
       'recall': 'snappy_recall_log_v1',
       'complaint': 'snappy_complaint_log_v1',
       'mgrnotes': 'snappy_mgr_notes_v1',
-      'seasons': 'snappy_seasons_v1'
+      'seasons': 'snappy_seasons_v1',
+      'skilllog': 'snappy_skill_log_v1'
     };
     var updated = false;
     for (var ck in keyMap) {
@@ -211,6 +214,7 @@ function openViewSwitcher() {
     { id: 'editor', label: 'Editor (Judah)', icon: '\u270F', desc: 'Dispatch edit access', name: 'Judah' },
     { id: 'coach-jg', label: 'Coach (Jay / Greg)', icon: '\uD83D\uDC53', desc: 'View-only', name: 'Jay / Greg' },
     { id: 'coach-adam', label: 'Coach (Adam)', icon: '\uD83D\uDC53', desc: 'View-only', name: 'Adam' },
+    { id: 'coach-brayden', label: 'Coach (Brayden)', icon: '\uD83D\uDC53', desc: 'View-only', name: 'Brayden' },
     { id: 'viewer', label: 'Viewer', icon: '\uD83D\uDD12', desc: 'Locked / public view' }
   ];
   var html = '<div class="vs-header">Switch View</div>';
@@ -220,6 +224,7 @@ function openViewSwitcher() {
     else if (v.id === 'editor' && currentView === 'editor') active = ' vs-active';
     else if (v.id === 'coach-jg' && currentView === 'coach' && coachName === 'Jay / Greg') active = ' vs-active';
     else if (v.id === 'coach-adam' && currentView === 'coach' && coachName === 'Adam') active = ' vs-active';
+    else if (v.id === 'coach-brayden' && currentView === 'coach' && coachName === 'Brayden') active = ' vs-active';
     else if (v.id === 'viewer' && currentView === 'viewer') active = ' vs-active';
     var mode = v.id.startsWith('coach') ? 'coach' : v.id;
     var nameAttr = v.name ? v.name : '';
@@ -567,13 +572,15 @@ async function initCloudSync(userInitiated) {
     'dispatch': 'snappy_dispatch_v1',
     'dailyduties': 'snappy_daily_duties',
     'mgrstats': 'snappy_mgr_stats',
+      'braydenstats': 'snappy_brayden_stats',
     'daynotes': 'snappy_day_notes',
     'nexstar': 'snappy_nexstar',
     'bulletin': 'snappy_bulletin_board',
     'recall': 'snappy_recall_log_v1',
     'complaint': 'snappy_complaint_log_v1',
     'mgrnotes': 'snappy_mgr_notes_v1',
-    'seasons': 'snappy_seasons_v1'
+    'seasons': 'snappy_seasons_v1',
+    'skilllog': 'snappy_skill_log_v1'
   };
 
   // Protect recently-modified local keys from being overwritten by stale cloud data.
@@ -654,8 +661,8 @@ async function manualSync() {
       SyncEngine.write('skills', skillsData.assignments);
       SyncEngine.write('manager', mgrState);
       SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
-      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons'];
-      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1'];
+      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons'];
+      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1'];
       dKeys.forEach(function(k, i) {
         var v = localStorage.getItem(dLocalKeys[i]);
         if (v) {
@@ -681,6 +688,7 @@ async function manualSync() {
         'dispatch': 'snappy_dispatch_v1',
         'dailyduties': 'snappy_daily_duties',
         'mgrstats': 'snappy_mgr_stats',
+      'braydenstats': 'snappy_brayden_stats',
         'daynotes': 'snappy_day_notes',
         'nexstar': 'snappy_nexstar',
         'bulletin': 'snappy_bulletin_board',
@@ -812,6 +820,7 @@ async function saveSyncUrl() {
       'dispatch': 'snappy_dispatch_v1',
       'dailyduties': 'snappy_daily_duties',
       'mgrstats': 'snappy_mgr_stats',
+      'braydenstats': 'snappy_brayden_stats',
       'daynotes': 'snappy_day_notes',
       'nexstar': 'snappy_nexstar',
       'bulletin': 'snappy_bulletin_board',
@@ -841,7 +850,8 @@ async function saveSyncUrl() {
     // Pull cloud data into localStorage for this device (JSONP)
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
-      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1', 'seasons': 'snappy_seasons_v1' };
+      var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats',
+      'braydenstats': 'snappy_brayden_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1', 'seasons': 'snappy_seasons_v1' };
       for (var pk in pullKeys) {
         if (pullData.result[pk] !== undefined && pullData.result[pk] !== null) {
           var cv = _extractCloudVal(pullData.result[pk]);
@@ -1148,12 +1158,13 @@ document.addEventListener('visibilitychange', function() {
 
     // ========== TECH AVATARS ==========
     const techAvatars = {
-      "Dewone": "dewone_avatar.png",
+      "Dewone": "dewone_avatar.jpg",
       "Benji": "benji_avatar.png",
       "Chris": "chris_avatar.png",
-      "Dee": "dee_avatar.png",
+      "Dee": "dee_avatar.jpg",
       "Daniel": "daniel_avatar.png",
-      "Maico": "maico_avatar.png"
+      "Maico": "maico_avatar.png",
+      "Brayden": "brayden_avatar.png"
     };
 
     // ========== APTITUDE TEST DATA ==========
@@ -2388,7 +2399,7 @@ document.addEventListener('visibilitychange', function() {
           }
           return '<div class="eg-row">' +
             '<div class="eg-tech-head">' +
-              '<img class="eg-avatar" src="' + avatarSrc + '" alt="' + t.name + '">' +
+              '<img loading="lazy" decoding="async" class="eg-avatar" src="' + avatarSrc + '" alt="' + t.name + '">' +
               '<div>' +
                 '<div class="eg-tech-name">' + t.name + '</div>' +
                 '<div class="eg-tech-sub">' + (list.length || 0) + ' badge' + (list.length === 1 ? '' : 's') + ' earned</div>' +
@@ -2932,6 +2943,78 @@ document.addEventListener('visibilitychange', function() {
       } catch (e) { /* localStorage full or unavailable */ }
     }
 
+    // ========== SKILL UNLOCK LOG (localStorage + SyncEngine) ==========
+    // Writes a history entry every time a skill is newly checked off for a tech.
+    // Stored as array of { tech, skillId, skillName, cat, ts } newest-first.
+    const SKILL_LOG_KEY = 'snappy_skill_log_v1';
+    const SKILL_LOG_MAX = 200; // hard cap on history length
+    function skillLogLoad() {
+      try {
+        const raw = localStorage.getItem(SKILL_LOG_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) { return []; }
+    }
+    function skillLogSave(arr) {
+      try {
+        const trimmed = arr.slice(0, SKILL_LOG_MAX);
+        localStorage.setItem(SKILL_LOG_KEY, JSON.stringify(trimmed));
+        try { localStorage.setItem(SKILL_LOG_KEY + '_localMod', Date.now().toString()); } catch(e) {}
+        if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured()) {
+          try { SyncEngine.write('skilllog', trimmed); } catch(e) {}
+        }
+      } catch (e) { /* quota */ }
+    }
+    function skillLogLookup(skillId) {
+      // Returns { name, cat, color } for a given skill id, or {} if not found.
+      const cats = skillsData.categories || {};
+      for (const k in cats) {
+        const match = (cats[k].skills || []).find(s => s.id === skillId);
+        if (match) return { name: match.name, cat: k, color: cats[k].color };
+      }
+      return { name: skillId, cat: '', color: '#64748b' };
+    }
+    function logSkillUnlock(tech, skillId) {
+      const info = skillLogLookup(skillId);
+      const entry = {
+        tech: tech,
+        skillId: skillId,
+        skillName: info.name,
+        cat: info.cat,
+        ts: Date.now()
+      };
+      const arr = skillLogLoad();
+      arr.unshift(entry);
+      skillLogSave(arr);
+    }
+    function getRecentSkillUnlocks(limit, forTech) {
+      const arr = skillLogLoad();
+      const filtered = forTech ? arr.filter(e => e.tech === forTech) : arr;
+      return filtered.slice(0, limit || 20);
+    }
+    function fmtSkillLogTime(ts) {
+      if (!ts) return '';
+      const now = Date.now();
+      const diff = Math.max(0, now - ts);
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      const days = Math.floor(hrs / 24);
+      if (days < 7) return days + 'd ago';
+      const d = new Date(ts);
+      return (d.getMonth() + 1) + '/' + d.getDate();
+    }
+    // Expose for cross-module access
+    window.SkillLog = {
+      log: logSkillUnlock,
+      recent: getRecentSkillUnlocks,
+      fmtTime: fmtSkillLogTime,
+      lookup: skillLogLookup
+    };
+
     function toggleSkill(tech, skillId) {
       if (!requireManager()) return;
       const arr = skillsData.assignments[tech];
@@ -2941,6 +3024,8 @@ document.addEventListener('visibilitychange', function() {
       } else {
         arr.push(skillId); // add
         arr.sort(); // keep sorted by ID
+        // Log newly-earned skill to history (only on add, never on remove)
+        try { logSkillUnlock(tech, skillId); } catch(e) { console.warn('logSkillUnlock failed:', e); }
       }
       saveSkillAssignments();
       renderSkillsTags(); // re-render all sub-tabs reactively
@@ -3467,7 +3552,7 @@ document.addEventListener('visibilitychange', function() {
         var st = stData.find(function(s) { return s.name === t.short; });
         var gr = googleReviews[t.short];
         var avatarEl = techAvatars[t.short]
-          ? '<img class="ov-snap-avatar" src="' + techAvatars[t.short] + '" alt="' + t.name + '">'
+          ? '<img loading="lazy" decoding="async" class="ov-snap-avatar" src="' + techAvatars[t.short] + '" alt="' + t.name + '">'
           : '<div class="ov-snap-initials" style="background:' + t.color + '">' + t.initials + '</div>';
 
         var rankIcon = idx === 0 ? '\uD83D\uDC51' : idx === 1 ? '\uD83E\uDD48' : idx === 2 ? '\uD83E\uDD49' : '#' + (idx + 1);
@@ -3510,6 +3595,49 @@ document.addEventListener('visibilitychange', function() {
         '</div>';
       });
       document.getElementById('ov-snapshot-grid').innerHTML = snapHTML;
+
+      // ---- 2b. RECENT SKILLS UNLOCKED (global log) ----
+      var skillLogEl = document.getElementById('ov-skill-log');
+      if (skillLogEl) {
+        var recent = getRecentSkillUnlocks(20);
+        var logHTML = '';
+        logHTML += '<div class="ov-skill-log-header">';
+        logHTML += '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.8 5.8 21 7 14 2 9.3 9 8.5 12 2"/></svg>';
+        logHTML += '<span class="ov-skill-log-title">Recent Skills Unlocked</span>';
+        logHTML += '<span class="ov-skill-log-count">' + recent.length + '</span>';
+        logHTML += '</div>';
+        if (!recent.length) {
+          logHTML += '<div class="ov-skill-log-empty">No new skills yet — check off a skill in the Skills tab to add one here.</div>';
+        } else {
+          logHTML += '<div class="ov-skill-log-list">';
+          recent.forEach(function(entry) {
+            var info = skillLogLookup(entry.skillId);
+            var color = info.color || '#64748b';
+            var catName = (skillsData.categories[entry.cat] && skillsData.categories[entry.cat].name) || '';
+            var avatarSrc = techAvatars[entry.tech];
+            var avatarHTML = avatarSrc
+              ? '<img loading="lazy" decoding="async" class="ov-skill-log-avatar" src="' + avatarSrc + '" alt="' + entry.tech + '">'
+              : '<div class="ov-skill-log-avatar-fallback">' + (entry.tech ? entry.tech.charAt(0) : '?') + '</div>';
+            logHTML += '<div class="ov-skill-log-item">' +
+              avatarHTML +
+              '<div class="ov-skill-log-body">' +
+                '<div class="ov-skill-log-line1">' +
+                  '<span class="ov-skill-log-tech">' + entry.tech + '</span>' +
+                  '<span class="ov-skill-log-earned">earned</span>' +
+                  '<span class="ov-skill-log-skill-id" style="background:' + color + '">' + entry.skillId + '</span>' +
+                  '<span class="ov-skill-log-skill-name">' + entry.skillName + '</span>' +
+                '</div>' +
+                '<div class="ov-skill-log-line2">' +
+                  (catName ? '<span class="ov-skill-log-cat" style="color:' + color + '">● ' + catName + '</span>' : '') +
+                  '<span class="ov-skill-log-time">' + fmtSkillLogTime(entry.ts) + '</span>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          });
+          logHTML += '</div>';
+        }
+        skillLogEl.innerHTML = logHTML;
+      }
 
       // ---- 3. BULLETIN BOARD ----
       renderBulletinBoard();
@@ -4237,7 +4365,7 @@ if (typeof Chart !== 'undefined') {
     function renderMatrix() {
       let html = `<thead><tr>
         <th style="min-width:160px">Skill</th>
-        ${techs.map(t => `<th style="text-align:center">${techAvatars[t.short] ? `<img src="${techAvatars[t.short]}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid ${t.color};display:block;margin:0 auto 4px">` : ''}${t.short}</th>`).join('')}
+        ${techs.map(t => `<th style="text-align:center">${techAvatars[t.short] ? `<img loading="lazy" decoding="async" src="${techAvatars[t.short]}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid ${t.color};display:block;margin:0 auto 4px">` : ''}${t.short}</th>`).join('')}
         <th style="text-align:center">Team Avg</th>
       </tr></thead><tbody>`;
 
@@ -4315,7 +4443,7 @@ if (typeof Chart !== 'undefined') {
           <div class="apt-leader-card" style="border-top:3px solid ${d.tech.color}">
             <div class="rank-badge ${rankClass}">${i+1}</div>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-              ${techAvatars[d.tech.short] ? `<img src="${techAvatars[d.tech.short]}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${d.tech.color}">` : ''}
+              ${techAvatars[d.tech.short] ? `<img loading="lazy" decoding="async" src="${techAvatars[d.tech.short]}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${d.tech.color}">` : ''}
               <div>
                 <div class="apt-leader-name">${d.tech.name}</div>
                 <div class="apt-leader-date">${d.apt ? d.apt.date : 'No test'}</div>
@@ -4454,7 +4582,7 @@ if (typeof Chart !== 'undefined') {
         compHtml += `
           <div class="comp-card">
             <div class="comp-card-header">
-              ${techAvatars[t.short] ? `<img src="${techAvatars[t.short]}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${t.color}">` : `<div class="tech-detail-avatar" style="background:${t.color};width:36px;height:36px;font-size:13px">${t.initials}</div>`}
+              ${techAvatars[t.short] ? `<img loading="lazy" decoding="async" src="${techAvatars[t.short]}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${t.color}">` : `<div class="tech-detail-avatar" style="background:${t.color};width:36px;height:36px;font-size:13px">${t.initials}</div>`}
               <div>
                 <div style="font-weight:700;font-size:14px">${t.name}</div>
                 <div style="font-size:11px;color:var(--text-muted)">Aptitude: ${apt ? apt.totalScore + '/' + apt.maxScore + ' (' + Math.round(apt.totalScore/apt.maxScore*100) + '%)' : 'No test'} &middot; Self-Eval: ${(techOverallAvg(t)/5*100).toFixed(0)}%</div>
@@ -4588,7 +4716,7 @@ if (typeof Chart !== 'undefined') {
         html += `
           <div class="tech-detail-card">
             <div class="tech-detail-header">
-              ${techAvatars[t.short] ? `<img src="${techAvatars[t.short]}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:3px solid ${t.color}" alt="${t.name}">` : `<div class="tech-detail-avatar" style="background:${t.color}">${t.initials}</div>`}
+              ${techAvatars[t.short] ? `<img loading="lazy" decoding="async" src="${techAvatars[t.short]}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:3px solid ${t.color}" alt="${t.name}">` : `<div class="tech-detail-avatar" style="background:${t.color}">${t.initials}</div>`}
               <div style="flex:1">
                 <div class="tech-detail-name">${t.name}</div>
                 <div class="tech-detail-meta">${t.position} — ${t.years} yrs experience</div>
@@ -5674,6 +5802,28 @@ if (typeof Chart !== 'undefined') {
       }
     }
 
+    // Brayden (HVAC Sales) rookie card stats — editable, persisted, synced
+    const BRAYDEN_STATS_KEY = 'snappy_brayden_stats';
+    function braydenLoadStats() {
+      try { return JSON.parse(localStorage.getItem(BRAYDEN_STATS_KEY)) || {}; } catch(e) { return {}; }
+    }
+    function braydenSaveStats(stats) {
+      localStorage.setItem(BRAYDEN_STATS_KEY, JSON.stringify(stats));
+      if (SyncEngine.isConfigured()) SyncEngine.write('braydenstats', stats);
+    }
+    function braydenEditStat(key, label, currentVal) {
+      if (!requireManager()) return;
+      var newVal = prompt('Update ' + label + ':', currentVal || '');
+      if (newVal !== null && newVal.trim() !== '') {
+        var stats = braydenLoadStats();
+        stats[key] = newVal.trim();
+        braydenSaveStats(stats);
+        renderRookieCards();
+      }
+    }
+    window.braydenEditStat = braydenEditStat;
+    window.braydenLoadStats = braydenLoadStats;
+
     function renderRookieCards() {
       let html = '';
 
@@ -5691,7 +5841,7 @@ if (typeof Chart !== 'undefined') {
                 <div class="rookie-card-border tier-s"></div>
                 <div class="rookie-tier-badge tier-s">S-TIER</div>
                 <div class="rookie-avatar-wrap">
-                  <img src="maico_avatar.png" alt="Mark Sanders">
+                  <img loading="lazy" decoding="async" src="maico_avatar.png" alt="Mark Sanders">
                   <div class="s-tier-flames">
                     <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
                     <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
@@ -5742,6 +5892,75 @@ if (typeof Chart !== 'undefined') {
                     <div class="rookie-composite-score" style="color:#fbbf24">S</div>
                   </div>
                   <div class="rookie-certs"><span class="rookie-cert">Service Manager</span><span class="rookie-cert">Team Lead</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Sales card — Brayden Bond, S-Tier (no flip, metrics TBD)
+      const bbStats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : { mtd_revenue: '', mtd_closed: '', close_rate: '', avg_ticket: '' };
+      const bbCompBarColor = 'linear-gradient(90deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF)';
+      html += `
+        <div class="rookie-flip-container no-flip">
+          <div class="rookie-flip-inner">
+            <div class="rookie-flip-front">
+              <div class="rookie-card rookie-tier-s">
+                <div class="rookie-card-border tier-s"></div>
+                <div class="rookie-tier-badge tier-s">S-TIER</div>
+                <div class="rookie-avatar-wrap">
+                  <img loading="lazy" decoding="async" src="brayden_avatar.png" alt="Brayden Bond">
+                  <div class="s-tier-flames">
+                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
+                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
+                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
+                    <div class="s-flame"></div>
+                  </div>
+                  <div class="s-tier-sparkles">
+                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
+                  </div>
+                  <div class="s-tier-color-cycle"></div>
+                  <div class="rookie-label">
+                    <span class="rookie-tag">Snappy Services</span>
+                    <div class="rookie-name-overlay">Brayden Bond</div>
+                    <div class="rookie-meta-overlay">HVAC Sales &bull; Elite</div>
+                  </div>
+                </div>
+                <div class="rookie-info">
+                  <div class="rookie-stats">
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('mtd_revenue','MTD Equipment Revenue ($)','${bbStats.mtd_revenue||''}')">
+                      <div class="rookie-stat-value">${bbStats.mtd_revenue ? '$'+Number(bbStats.mtd_revenue).toLocaleString() : '—'}</div>
+                      <div class="rookie-stat-label">MTD Revenue</div>
+                      <div class="rookie-stat-period">equipment sales</div>
+                    </div>
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('close_rate','Close Rate % (MTD)','${bbStats.close_rate||''}')">
+                      <div class="rookie-stat-value">${bbStats.close_rate ? bbStats.close_rate+'%' : '—'}</div>
+                      <div class="rookie-stat-label">Close Rate</div>
+                      <div class="rookie-stat-period">MTD</div>
+                    </div>
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('mtd_closed','Deals Closed (MTD)','${bbStats.mtd_closed||''}')">
+                      <div class="rookie-stat-value">${bbStats.mtd_closed || '—'}</div>
+                      <div class="rookie-stat-label">Deals Closed</div>
+                      <div class="rookie-stat-period">MTD</div>
+                    </div>
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('avg_ticket','Average Ticket ($)','${bbStats.avg_ticket||''}')">
+                      <div class="rookie-stat-value">${bbStats.avg_ticket ? '$'+Number(bbStats.avg_ticket).toLocaleString() : '—'}</div>
+                      <div class="rookie-stat-label">Avg Ticket</div>
+                      <div class="rookie-stat-period">per close</div>
+                    </div>
+                  </div>
+                  <div class="rookie-composite">
+                    <div class="rookie-composite-label">Composite</div>
+                    <div class="rookie-composite-bar">
+                      <div class="rookie-composite-bar-fill" style="width:100%;background:${bbCompBarColor}"></div>
+                    </div>
+                    <div class="rookie-composite-score" style="color:#fbbf24">S</div>
+                  </div>
+                  <div class="rookie-certs"><span class="rookie-cert">HVAC Sales</span><span class="rookie-cert">In-Home Sales</span><span class="rookie-cert">Metrics TBD</span></div>
                 </div>
               </div>
             </div>
@@ -6045,7 +6264,7 @@ if (typeof Chart !== 'undefined') {
                   <div class="rookie-tier-badge tier-${tierLower}">${tierInfo.tier}-TIER</div>
                   <div class="rookie-avatar-wrap">
                     ${techAvatars[t.short]
-                      ? `<img src="${techAvatars[t.short]}" alt="${t.name}">`
+                      ? `<img loading="lazy" decoding="async" src="${techAvatars[t.short]}" alt="${t.name}">`
                       : `<div class="initials-circle" style="background:${t.color}">${t.initials}</div>`
                     }
                     ${tierLower === 's' ? `
@@ -6119,6 +6338,17 @@ if (typeof Chart !== 'undefined') {
                     </div>
 
                     ${stRows}
+
+                    ${(() => {
+                      const techRecent = getRecentSkillUnlocks(5, t.short);
+                      if (!techRecent.length) return '';
+                      const chips = techRecent.map(e => {
+                        const c = (skillsData.categories[e.cat] && skillsData.categories[e.cat].color) || '#64748b';
+                        const tip = e.skillName + ' \u2014 ' + fmtSkillLogTime(e.ts);
+                        return `<span class="rookie-recent-skill-item" style="border-color:${c};color:${c}" title="${tip.replace(/"/g, '&quot;')}">${e.skillId}<span class="rookie-recent-skill-time">${fmtSkillLogTime(e.ts)}</span></span>`;
+                      }).join('');
+                      return `<div class="rookie-recent-skills"><div class="rookie-recent-skills-label">Recent Skills</div><div class="rookie-recent-skills-list">${chips}</div></div>`;
+                    })()}
 
                     ${apt && apt.certs.length ? `<div class="rookie-certs">${apt.certs.map(c => `<span class="rookie-cert">${c}</span>`).join('')}</div>` : ''}
                   </div>
@@ -6214,7 +6444,7 @@ if (typeof Chart !== 'undefined') {
           <div class="rpg-node-threshold">${i === 0 ? '<78' : threshold + '+ pts'}</div>
           <div class="rpg-node-avatars">${techsInTier.map(t => 
             techAvatars[t.short] 
-              ? '<img class="rpg-mini-avatar" src="' + techAvatars[t.short] + '" title="' + t.short + '">' 
+              ? '<img loading="lazy" decoding="async" class="rpg-mini-avatar" src="' + techAvatars[t.short] + '" title="' + t.short + '">' 
               : '<span class="rpg-mini-avatar-ph" style="background:' + t.color + '" title="' + t.short + '">' + t.initials + '</span>'
           ).join('')}</div>
         </div>`;
@@ -6247,7 +6477,7 @@ if (typeof Chart !== 'undefined') {
         areaScores.sort((a, b) => b.potential - a.potential);
 
         const avatarHTML = techAvatars[t.short]
-          ? `<img class="prog-avatar" src="${techAvatars[t.short]}" alt="${t.name}">`
+          ? `<img loading="lazy" decoding="async" class="prog-avatar" src="${techAvatars[t.short]}" alt="${t.name}">`
           : `<div class="prog-avatar-placeholder" style="background:${t.color}">${t.initials}</div>`;
 
         const badges = getAchievements(t);
@@ -10013,7 +10243,7 @@ if (typeof Chart !== 'undefined') {
       });
 
       // Tech avatars map
-      const avatarMap = { Chris: 'chris_avatar.png', Dewone: 'dewone_avatar.png', Benji: 'benji_avatar.png', Daniel: 'daniel_avatar.png', Dee: 'dee_avatar.png' };
+      const avatarMap = { Chris: 'chris_avatar.png', Dewone: 'dewone_avatar.jpg', Benji: 'benji_avatar.png', Daniel: 'daniel_avatar.png', Dee: 'dee_avatar.jpg' };
       const dispTierColors = { S: 'linear-gradient(135deg,#ff6ec4,#7873f5,#4adede)', A: '#7C3AED', B: '#3B82F6', C: '#94A3B8' };
 
       // Render tech cards
@@ -10030,7 +10260,7 @@ if (typeof Chart !== 'undefined') {
 
         cardsHtml += `<div class="disp-tech-card" data-tech="${tech}">`;
         cardsHtml += `<div class="disp-tech-header">`;
-        cardsHtml += `<img class="disp-tech-avatar" src="${avatarMap[tech]}" alt="${tech}">`;
+        cardsHtml += `<img loading="lazy" decoding="async" class="disp-tech-avatar" src="${avatarMap[tech]}" alt="${tech}">`;
         cardsHtml += `<div><div class="disp-tech-name">${tech}</div></div>`;
         cardsHtml += `<span class="disp-tech-tier" style="${tierStyle}">${tier}-Tier</span>`;
         cardsHtml += `</div>`;
@@ -10213,7 +10443,7 @@ if (typeof Chart !== 'undefined') {
       if (!container) return;
       const data = loadLogData(storageKey);
       const techOrder = ['Chris','Dewone','Benji','Daniel','Dee'];
-      const avatarMap = { Chris: 'chris_avatar.png', Dewone: 'dewone_avatar.png', Benji: 'benji_avatar.png', Daniel: 'daniel_avatar.png', Dee: 'dee_avatar.png' };
+      const avatarMap = { Chris: 'chris_avatar.png', Dewone: 'dewone_avatar.jpg', Benji: 'benji_avatar.png', Daniel: 'daniel_avatar.png', Dee: 'dee_avatar.jpg' };
       const dispTierColors = { S: 'linear-gradient(135deg,#ff6ec4,#7873f5,#4adede)', A: '#7C3AED', B: '#3B82F6', C: '#94A3B8' };
       const typeColors = logType === 'recall'
         ? { cardBorder: '#FF9800', badge: '#FF9800', badgeBg: 'rgba(255,152,0,0.12)', addBtn: '#FF9800', addBtnHover: '#F57C00' }
@@ -10230,7 +10460,7 @@ if (typeof Chart !== 'undefined') {
 
         html += `<div class="disp-log-card" style="border-top:3px solid ${typeColors.cardBorder}">`;
         html += `<div class="disp-log-card-header">`;
-        html += `<img class="disp-tech-avatar" src="${avatarMap[tech]}" alt="${tech}">`;
+        html += `<img loading="lazy" decoding="async" class="disp-tech-avatar" src="${avatarMap[tech]}" alt="${tech}">`;
         html += `<div class="disp-log-card-name">${tech}</div>`;
         html += `<span class="disp-log-count-badge" style="background:${typeColors.badgeBg};color:${typeColors.badge}">${count}</span>`;
         html += `<button class="disp-log-add-btn" data-logtype="${logType}" data-tech="${tech}" style="background:${typeColors.addBtn}" onmouseover="this.style.background='${typeColors.addBtnHover}'" onmouseout="this.style.background='${typeColors.addBtn}'">+ Add</button>`;
