@@ -5942,15 +5942,15 @@ if (typeof Chart !== 'undefined') {
                       <div class="rookie-stat-label">Close Rate</div>
                       <div class="rookie-stat-period">MTD</div>
                     </div>
-                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('mtd_closed','Deals Closed (MTD)','${bbStats.mtd_closed||''}')">
-                      <div class="rookie-stat-value">${bbStats.mtd_closed || '—'}</div>
-                      <div class="rookie-stat-label">Deals Closed</div>
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('flipped_close_rate','Flipped Close % (MTD)','${bbStats.flipped_close_rate||''}')">
+                      <div class="rookie-stat-value">${bbStats.flipped_close_rate ? bbStats.flipped_close_rate+'%' : '—'}</div>
+                      <div class="rookie-stat-label">Flipped Close %</div>
                       <div class="rookie-stat-period">MTD</div>
                     </div>
-                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('avg_ticket','Average Ticket ($)','${bbStats.avg_ticket||''}')">
-                      <div class="rookie-stat-value">${bbStats.avg_ticket ? '$'+Number(bbStats.avg_ticket).toLocaleString() : '—'}</div>
-                      <div class="rookie-stat-label">Avg Ticket</div>
-                      <div class="rookie-stat-period">per close</div>
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('inbound_close_rate','Inbound Close % (MTD)','${bbStats.inbound_close_rate||''}')">
+                      <div class="rookie-stat-value">${bbStats.inbound_close_rate ? bbStats.inbound_close_rate+'%' : '—'}</div>
+                      <div class="rookie-stat-label">Inbound Close %</div>
+                      <div class="rookie-stat-period">MTD</div>
                     </div>
                   </div>
                   <div class="rookie-composite">
