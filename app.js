@@ -151,7 +151,8 @@ async function silentSyncOnLogin() {
       'mgrnotes': 'snappy_mgr_notes_v1',
       'seasons': 'snappy_seasons_v1',
       'skilllog': 'snappy_skill_log_v1',
-      'techprofiles': 'snappy_tech_profiles'
+      'techprofiles': 'snappy_tech_profiles',
+      'techscores': 'snappy_tech_score_overrides'
     };
     var updated = false;
     for (var ck in keyMap) {
@@ -582,7 +583,8 @@ async function initCloudSync(userInitiated) {
     'mgrnotes': 'snappy_mgr_notes_v1',
     'seasons': 'snappy_seasons_v1',
     'skilllog': 'snappy_skill_log_v1',
-    'techprofiles': 'snappy_tech_profiles'
+    'techprofiles': 'snappy_tech_profiles',
+      'techscores': 'snappy_tech_score_overrides'
   };
 
   // Protect recently-modified local keys from being overwritten by stale cloud data.
@@ -663,8 +665,8 @@ async function manualSync() {
       SyncEngine.write('skills', skillsData.assignments);
       SyncEngine.write('manager', mgrState);
       SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
-      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons','techprofiles'];
-      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1','snappy_tech_profiles'];
+      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons','techprofiles','techscores'];
+      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1','snappy_tech_profiles','snappy_tech_score_overrides'];
       dKeys.forEach(function(k, i) {
         var v = localStorage.getItem(dLocalKeys[i]);
         if (v) {
@@ -698,7 +700,8 @@ async function manualSync() {
         'complaint': 'snappy_complaint_log_v1',
         'mgrnotes': 'snappy_mgr_notes_v1',
         'seasons': 'snappy_seasons_v1',
-        'techprofiles': 'snappy_tech_profiles'
+        'techprofiles': 'snappy_tech_profiles',
+      'techscores': 'snappy_tech_score_overrides'
       };
       for (var ck in keyMap) {
         if (cloudData[ck] !== undefined && cloudData[ck] !== null) {
@@ -831,7 +834,8 @@ async function saveSyncUrl() {
       'complaint': 'snappy_complaint_log_v1',
       'mgrnotes': 'snappy_mgr_notes_v1',
       'seasons': 'snappy_seasons_v1',
-      'techprofiles': 'snappy_tech_profiles'
+      'techprofiles': 'snappy_tech_profiles',
+      'techscores': 'snappy_tech_score_overrides'
     };
     var payload = {};
     for (var ck in keyMap) {
@@ -855,7 +859,7 @@ async function saveSyncUrl() {
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
       var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats',
-      'braydenstats': 'snappy_brayden_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1', 'seasons': 'snappy_seasons_v1', 'techprofiles': 'snappy_tech_profiles' };
+      'braydenstats': 'snappy_brayden_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1', 'seasons': 'snappy_seasons_v1', 'techprofiles': 'snappy_tech_profiles', 'techscores': 'snappy_tech_score_overrides' };
       for (var pk in pullKeys) {
         if (pullData.result[pk] !== undefined && pullData.result[pk] !== null) {
           var cv = _extractCloudVal(pullData.result[pk]);
@@ -11243,6 +11247,111 @@ function openEmbeddedPDF(filename) {
   }
   profilesLoad();
 
+  // ----- Score / strengths overrides (delta layer applied to in-memory techs[]) -----
+  const SCORES_KEY = 'snappy_tech_score_overrides';
+  let scoreOverrides = {}; // { [short]: { scores: {cat:{sub:val}}, strengths: [], weaknesses: [] } }
+  function scoresLoad() {
+    try {
+      const raw = localStorage.getItem(SCORES_KEY);
+      if (raw) scoreOverrides = JSON.parse(raw) || {};
+    } catch (e) { scoreOverrides = {}; }
+  }
+  function scoresSave() {
+    try {
+      localStorage.setItem(SCORES_KEY, JSON.stringify(scoreOverrides));
+      localStorage.setItem(SCORES_KEY + '_localMod', String(Date.now()));
+      if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
+        SyncEngine.write('techscores', scoreOverrides);
+      }
+    } catch (e) { console.warn('Score overrides save failed', e); }
+  }
+  function applyOverridesToTechs() {
+    if (typeof techs === 'undefined' || !Array.isArray(techs)) return;
+    techs.forEach(function(t) {
+      var ov = scoreOverrides[t.short];
+      if (!ov) return;
+      if (ov.scores) {
+        Object.keys(ov.scores).forEach(function(cat) {
+          if (!t.scores[cat]) t.scores[cat] = {};
+          Object.keys(ov.scores[cat]).forEach(function(sub) {
+            t.scores[cat][sub] = ov.scores[cat][sub];
+          });
+        });
+      }
+      if (Array.isArray(ov.strengths)) t.strengths = ov.strengths.slice();
+      if (Array.isArray(ov.weaknesses)) t.weaknesses = ov.weaknesses.slice();
+    });
+  }
+  scoresLoad();
+  applyOverridesToTechs();
+  if (typeof window !== 'undefined') {
+    window.__scoresApplyPull = function(remote) {
+      if (!remote || typeof remote !== 'object') return;
+      scoreOverrides = remote;
+      try { localStorage.setItem(SCORES_KEY, JSON.stringify(scoreOverrides)); } catch (e) {}
+      applyOverridesToTechs();
+    };
+  }
+
+  function setScore(short, category, subKey, value) {
+    var v = parseFloat(value);
+    if (isNaN(v)) return;
+    v = Math.max(0, Math.min(5, v));
+    if (!scoreOverrides[short]) scoreOverrides[short] = {};
+    if (!scoreOverrides[short].scores) scoreOverrides[short].scores = {};
+    if (!scoreOverrides[short].scores[category]) scoreOverrides[short].scores[category] = {};
+    scoreOverrides[short].scores[category][subKey] = v;
+    // Also mutate live techs[] so other views pick it up immediately
+    if (typeof techs !== 'undefined') {
+      var t = techs.find(function(x) { return x.short === short; });
+      if (t) {
+        if (!t.scores[category]) t.scores[category] = {};
+        t.scores[category][subKey] = v;
+      }
+    }
+    scoresSave();
+  }
+  function setStrengths(short, list) {
+    if (!scoreOverrides[short]) scoreOverrides[short] = {};
+    scoreOverrides[short].strengths = list.slice();
+    if (typeof techs !== 'undefined') {
+      var t = techs.find(function(x) { return x.short === short; });
+      if (t) t.strengths = list.slice();
+    }
+    scoresSave();
+  }
+
+  // ----- Skill / dispatch tag toggles (reuse existing systems) -----
+  function toggleSkill(short, skillId, on) {
+    if (typeof skillsData === 'undefined') return;
+    if (!skillsData.assignments[short]) skillsData.assignments[short] = [];
+    var arr = skillsData.assignments[short];
+    var idx = arr.indexOf(skillId);
+    if (on && idx === -1) arr.push(skillId);
+    if (!on && idx !== -1) arr.splice(idx, 1);
+    if (typeof saveSkillAssignments === 'function') saveSkillAssignments();
+    else {
+      try {
+        localStorage.setItem('snappy_skills_assignments', JSON.stringify(skillsData.assignments));
+        if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) SyncEngine.write('skills', skillsData.assignments);
+      } catch (e) {}
+    }
+  }
+  function toggleDispatchTag(short, tag, on) {
+    if (typeof dispLoad !== 'function' || typeof dispSave !== 'function') return;
+    var d = dispLoad();
+    if (!d.assignments[short]) d.assignments[short] = [];
+    var arr = d.assignments[short];
+    var idx = arr.indexOf(tag);
+    if (on && idx === -1) {
+      // Premium tags first, others appended
+      if (typeof DISP_PREMIUM_TAGS !== 'undefined' && DISP_PREMIUM_TAGS.includes(tag)) arr.unshift(tag);
+      else arr.push(tag);
+    }
+    if (!on && idx !== -1) arr.splice(idx, 1);
+    dispSave(d);
+  }
+
   // ----- Roster (techs + Mark + Brayden) -----
   function buildProfileRoster() {
     var list = [];
@@ -11490,44 +11599,83 @@ function openEmbeddedPDF(filename) {
         '</div>' +
       '</div>';
 
-      // 3) Skill scores by category (read-only summary)
+      // 3) EDITABLE Skill scores by category — every sub-skill is an editable 0-5 number input
       if (t.scores) {
-        var rows = '';
+        html += '<div class="pm-section"><h4>Skill Scores (Editable · 0-5 scale)</h4>';
         Object.keys(t.scores).forEach(function(cat) {
-          var sub = t.scores[cat];
+          var sub = t.scores[cat] || {};
+          var subKeys = Object.keys(sub);
+          if (!subKeys.length) return;
           var vals = Object.values(sub);
-          if (!vals.length) return;
-          var avg = (vals.reduce(function(a,b){return a+b;},0) / vals.length).toFixed(1);
-          rows += '<div class="pm-score-row"><span class="label">' + cat + '</span><span class="value">' + avg + '/5</span></div>';
+          var avg = (vals.reduce(function(a,b){return a+(typeof b==='number'?b:0);},0) / vals.length).toFixed(1);
+          html += '<div class="pm-cat-block">';
+          html += '<div class="pm-cat-head"><span class="pm-cat-name">' + cat + '</span><span class="pm-cat-avg">avg ' + avg + '/5</span></div>';
+          html += '<div class="pm-cat-subs">';
+          subKeys.forEach(function(sk) {
+            var v = sub[sk];
+            html += '<div class="pm-sub-row">' +
+              '<label class="pm-sub-label">' + escapeHtml(sk.replace(/_/g, ' ')) + '</label>' +
+              '<input type="number" min="0" max="5" step="0.5" class="pm-sub-input" data-score-cat="' + escapeHtml(cat) + '" data-score-sub="' + escapeHtml(sk) + '" value="' + (v != null ? v : '') + '">' +
+              '</div>';
+          });
+          html += '</div></div>';
         });
-        html += '<div class="pm-section"><h4>Skill Scores (Manager Matrix)</h4>' +
-          '<div class="pm-score-grid">' + rows + '</div></div>';
+        html += '</div>';
       }
 
-      // 4) Strengths
-      var strengths = t.strengths || [];
-      html += '<div class="pm-section"><h4>Strengths</h4>' +
-        (strengths.length
-          ? '<div class="pm-tags">' + strengths.map(function(s) { return '<span class="pm-tag strength">' + escapeHtml(s) + '</span>'; }).join('') + '</div>'
-          : '<div class="pm-empty">None recorded.</div>') +
-        '</div>';
+      // 4) EDITABLE Strengths — chip list with add input + remove on click
+      var strengths = (t.strengths || []).slice();
+      html += '<div class="pm-section"><h4>Strengths (click to remove)</h4>' +
+        '<div class="pm-tags" id="pmStrengthsList">' +
+          strengths.map(function(s, i) { return '<span class="pm-tag strength removable" data-strength-idx="' + i + '" title="Click to remove">' + escapeHtml(s) + ' ×</span>'; }).join('') +
+        '</div>' +
+        '<div class="pm-add-row">' +
+          '<input type="text" id="pmStrengthInput" placeholder="Add a strength and press Enter" class="pm-sub-input" style="flex:1">' +
+          '<button class="pm-btn gold" id="pmStrengthAdd">+ Add</button>' +
+        '</div>' +
+      '</div>';
 
-      // 5) Skill tags (ServiceTitan)
-      var skills = getSkills(short);
-      html += '<div class="pm-section"><h4>ServiceTitan Skill Tags · ' + skills.length + '</h4>' +
-        (skills.length
-          ? '<div class="pm-tags">' + skills.map(function(s) { return '<span class="pm-tag skill">' + escapeHtml(s) + '</span>'; }).join('') + '</div>'
-          : '<div class="pm-empty">No skill tags assigned.</div>') +
-        '<div style="margin-top:8px"><button class="pm-btn" onclick="mgrCloseProfileModal();switchTab(\'skills\')">Edit in Skills tab →</button></div>' +
-        '</div>';
+      // 5) EDITABLE ServiceTitan Skill Tags — full master list with checkboxes
+      var assignedSkills = getSkills(short);
+      html += '<div class="pm-section"><h4>ServiceTitan Skill Tags · ' + assignedSkills.length + ' assigned</h4>';
+      if (typeof skillsData !== 'undefined' && skillsData.categories) {
+        Object.keys(skillsData.categories).forEach(function(catKey) {
+          var cat = skillsData.categories[catKey];
+          html += '<div class="pm-skill-cat">';
+          html += '<div class="pm-skill-cat-head" style="color:' + (cat.color || '#fbbf24') + ';">' + escapeHtml(catKey) + ' — ' + escapeHtml(cat.name || '') + '</div>';
+          html += '<div class="pm-skill-grid">';
+          (cat.skills || []).forEach(function(sk) {
+            var on = assignedSkills.indexOf(sk.id) !== -1;
+            html += '<label class="pm-skill-chip' + (on ? ' on' : '') + '" title="' + escapeHtml(sk.desc || '') + '">' +
+              '<input type="checkbox" data-skill-id="' + escapeHtml(sk.id) + '"' + (on ? ' checked' : '') + '>' +
+              '<span class="pm-skill-id">' + escapeHtml(sk.id) + '</span>' +
+              '<span class="pm-skill-name">' + escapeHtml(sk.name) + '</span>' +
+            '</label>';
+          });
+          html += '</div></div>';
+        });
+      }
+      html += '</div>';
 
-      // 6) Dispatch tags
-      var dtags = getDispatchTags(short);
-      html += '<div class="pm-section"><h4>Dispatch Tags · ' + dtags.length + '</h4>' +
-        (dtags.length
-          ? '<div class="pm-tags">' + dtags.map(function(d) { return '<span class="pm-tag">' + escapeHtml(d) + '</span>'; }).join('') + '</div>'
-          : '<div class="pm-empty">No dispatch tags assigned.</div>') +
-        '</div>';
+      // 6) EDITABLE Dispatch tags — full pool with toggleable chips
+      var dtagsAssigned = getDispatchTags(short);
+      var dtagsPool = [];
+      try {
+        var dd = dispLoad();
+        dtagsPool = (dd && dd.tags) ? dd.tags.slice() : [];
+      } catch (e) {}
+      html += '<div class="pm-section"><h4>Dispatch Tags · ' + dtagsAssigned.length + ' assigned</h4>' +
+        '<div class="pm-tags" id="pmDispList">' +
+          dtagsPool.map(function(tag) {
+            var on = dtagsAssigned.indexOf(tag) !== -1;
+            var prem = (typeof DISP_PREMIUM_TAGS !== 'undefined' && DISP_PREMIUM_TAGS.indexOf(tag) !== -1);
+            return '<label class="pm-disp-chip' + (on ? ' on' : '') + (prem ? ' premium' : '') + '">' +
+              '<input type="checkbox" data-disp-tag="' + escapeHtml(tag) + '"' + (on ? ' checked' : '') + '>' +
+              escapeHtml(tag) + (prem ? ' ★' : '') +
+            '</label>';
+          }).join('') +
+        '</div>' +
+      '</div>';
 
       // 7) MTD service stats
       var st = getStData(short);
@@ -11597,6 +11745,97 @@ function openEmbeddedPDF(filename) {
       var ev = (el.tagName === 'TEXTAREA') ? 'blur' : 'change';
       el.addEventListener('blur', function() { setField(short, field, el.value); });
       el.addEventListener('change', function() { setField(short, field, el.value); });
+    });
+
+    // Wire score inputs (auto-save on change/blur, refresh category avg)
+    bodyEl.querySelectorAll('[data-score-cat]').forEach(function(inp) {
+      var saveScore = function() {
+        var cat = inp.getAttribute('data-score-cat');
+        var sub = inp.getAttribute('data-score-sub');
+        setScore(short, cat, sub, inp.value);
+        flashSaved();
+        // Update the category average label live
+        var block = inp.closest('.pm-cat-block');
+        if (block) {
+          var allInputs = block.querySelectorAll('[data-score-sub]');
+          var sum = 0, n = 0;
+          allInputs.forEach(function(i) {
+            var v = parseFloat(i.value);
+            if (!isNaN(v)) { sum += v; n++; }
+          });
+          var avgEl = block.querySelector('.pm-cat-avg');
+          if (avgEl && n) avgEl.textContent = 'avg ' + (sum / n).toFixed(1) + '/5';
+        }
+      };
+      inp.addEventListener('change', saveScore);
+      inp.addEventListener('blur', saveScore);
+    });
+
+    // Wire strengths add/remove
+    var strengthsList = document.getElementById('pmStrengthsList');
+    var strengthInput = document.getElementById('pmStrengthInput');
+    var strengthAdd = document.getElementById('pmStrengthAdd');
+    function refreshStrengthsUI() {
+      if (!strengthsList) return;
+      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
+      var arr = (t2 && t2.strengths) ? t2.strengths : [];
+      strengthsList.innerHTML = arr.map(function(s, i) {
+        return '<span class="pm-tag strength removable" data-strength-idx="' + i + '" title="Click to remove">' + escapeHtml(s) + ' ×</span>';
+      }).join('');
+    }
+    function addStrength() {
+      if (!strengthInput) return;
+      var v = (strengthInput.value || '').trim();
+      if (!v) return;
+      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
+      var arr = (t2 && t2.strengths) ? t2.strengths.slice() : [];
+      if (arr.indexOf(v) === -1) arr.push(v);
+      setStrengths(short, arr);
+      strengthInput.value = '';
+      refreshStrengthsUI();
+      flashSaved();
+    }
+    if (strengthAdd) strengthAdd.addEventListener('click', addStrength);
+    if (strengthInput) strengthInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); addStrength(); }
+    });
+    if (strengthsList) strengthsList.addEventListener('click', function(e) {
+      var chip = e.target.closest('[data-strength-idx]');
+      if (!chip) return;
+      var idx = parseInt(chip.getAttribute('data-strength-idx'), 10);
+      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
+      var arr = (t2 && t2.strengths) ? t2.strengths.slice() : [];
+      if (idx >= 0 && idx < arr.length) {
+        arr.splice(idx, 1);
+        setStrengths(short, arr);
+        refreshStrengthsUI();
+        flashSaved();
+      }
+    });
+
+    // Wire skill checkboxes
+    bodyEl.querySelectorAll('[data-skill-id]').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        var sid = cb.getAttribute('data-skill-id');
+        toggleSkill(short, sid, cb.checked);
+        var lbl = cb.closest('.pm-skill-chip');
+        if (lbl) lbl.classList.toggle('on', cb.checked);
+        // Update header count
+        var header = bodyEl.querySelector('.pm-section h4');
+        // (Skip header update; section count is for-info only)
+        flashSaved();
+      });
+    });
+
+    // Wire dispatch tag checkboxes
+    bodyEl.querySelectorAll('[data-disp-tag]').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        var tag = cb.getAttribute('data-disp-tag');
+        toggleDispatchTag(short, tag, cb.checked);
+        var lbl = cb.closest('.pm-disp-chip');
+        if (lbl) lbl.classList.toggle('on', cb.checked);
+        flashSaved();
+      });
     });
 
     // Photo upload
