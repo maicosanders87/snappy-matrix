@@ -22,7 +22,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260424v127">
+  <link rel="stylesheet" href="styles.css?v=20260424v128">
 </head>
 <body>
   <!-- Background Grid Effect -->
@@ -65,7 +65,7 @@
       </div>
       <div class="header-right">
         <span class="badge">5 Technicians</span>
-        <span class="badge badge-date">Updated 4/24/2026 &middot; v127</span>
+        <span class="badge badge-date">Updated 4/24/2026 &middot; v128</span>
         <button class="share-matrix-btn" onclick="shareMatrix()" title="Share Matrix"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share</button>
         <button id="syncNowBtn" class="sync-now-btn mgr-only" onclick="manualSync()" title="Sync Now">&#x1f504;</button>
         <span id="syncStatusIndicator" class="sync-indicator sync-idle mgr-only" onclick="openSyncSetup()" title="Cloud Sync Settings">☁ Cloud</span>
@@ -484,6 +484,7 @@
         <button class="nav-tab" data-mgr="training">Training Planner</button>
         <button class="nav-tab" data-mgr="techfiles">Tech Files</button>
         <button class="nav-tab" data-mgr="forms">Forms (PDF)</button>
+        <button class="nav-tab" data-mgr="profiles">Profiles</button>
       </div>
 
       <!-- Today Section -->
@@ -667,6 +668,33 @@
           <div id="mgrTrainingLibrary"></div>
         </div>
       </div>
+
+      <!-- Profiles Section -->
+      <div id="mgr-profiles" class="mgr-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+          <div>
+            <h2 style="margin:0;font-size:22px;color:var(--text);">Team Profiles</h2>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Tap any profile to view and edit all matrix data tied to that person. Edits auto-sync across devices.</div>
+          </div>
+        </div>
+        <div id="mgrProfilesGrid" class="mgr-profiles-grid"></div>
+      </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div class="profile-modal-overlay" id="profileModalOverlay" onclick="mgrCloseProfileModal()"></div>
+    <div class="profile-modal" id="profileModal" role="dialog" aria-hidden="true">
+      <div class="profile-modal-header">
+        <div class="profile-modal-title-wrap">
+          <div class="profile-modal-avatar" id="profileModalAvatar"></div>
+          <div>
+            <div class="profile-modal-title" id="profileModalTitle">Tech</div>
+            <div class="profile-modal-subtitle" id="profileModalSubtitle"></div>
+          </div>
+        </div>
+        <button class="profile-modal-close" onclick="mgrCloseProfileModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="profile-modal-body" id="profileModalBody"></div>
     </div>
 
     <!-- Manager side panel (shared overlay/panel) -->
@@ -1264,7 +1292,7 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="score_pdfs.js?v=20260424v127"></script>
-  <script src="app.js?v=20260424v127"></script>
+  <script src="score_pdfs.js?v=20260424v128"></script>
+  <script src="app.js?v=20260424v128"></script>
 </body>
 </html>

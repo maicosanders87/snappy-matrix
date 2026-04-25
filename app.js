@@ -150,7 +150,8 @@ async function silentSyncOnLogin() {
       'complaint': 'snappy_complaint_log_v1',
       'mgrnotes': 'snappy_mgr_notes_v1',
       'seasons': 'snappy_seasons_v1',
-      'skilllog': 'snappy_skill_log_v1'
+      'skilllog': 'snappy_skill_log_v1',
+      'techprofiles': 'snappy_tech_profiles'
     };
     var updated = false;
     for (var ck in keyMap) {
@@ -580,7 +581,8 @@ async function initCloudSync(userInitiated) {
     'complaint': 'snappy_complaint_log_v1',
     'mgrnotes': 'snappy_mgr_notes_v1',
     'seasons': 'snappy_seasons_v1',
-    'skilllog': 'snappy_skill_log_v1'
+    'skilllog': 'snappy_skill_log_v1',
+    'techprofiles': 'snappy_tech_profiles'
   };
 
   // Protect recently-modified local keys from being overwritten by stale cloud data.
@@ -661,8 +663,8 @@ async function manualSync() {
       SyncEngine.write('skills', skillsData.assignments);
       SyncEngine.write('manager', mgrState);
       SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
-      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons'];
-      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1'];
+      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons','techprofiles'];
+      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1','snappy_tech_profiles'];
       dKeys.forEach(function(k, i) {
         var v = localStorage.getItem(dLocalKeys[i]);
         if (v) {
@@ -695,7 +697,8 @@ async function manualSync() {
         'recall': 'snappy_recall_log_v1',
         'complaint': 'snappy_complaint_log_v1',
         'mgrnotes': 'snappy_mgr_notes_v1',
-        'seasons': 'snappy_seasons_v1'
+        'seasons': 'snappy_seasons_v1',
+        'techprofiles': 'snappy_tech_profiles'
       };
       for (var ck in keyMap) {
         if (cloudData[ck] !== undefined && cloudData[ck] !== null) {
@@ -827,7 +830,8 @@ async function saveSyncUrl() {
       'recall': 'snappy_recall_log_v1',
       'complaint': 'snappy_complaint_log_v1',
       'mgrnotes': 'snappy_mgr_notes_v1',
-      'seasons': 'snappy_seasons_v1'
+      'seasons': 'snappy_seasons_v1',
+      'techprofiles': 'snappy_tech_profiles'
     };
     var payload = {};
     for (var ck in keyMap) {
@@ -851,7 +855,7 @@ async function saveSyncUrl() {
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
       var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats',
-      'braydenstats': 'snappy_brayden_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1', 'seasons': 'snappy_seasons_v1' };
+      'braydenstats': 'snappy_brayden_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1', 'seasons': 'snappy_seasons_v1', 'techprofiles': 'snappy_tech_profiles' };
       for (var pk in pullKeys) {
         if (pullData.result[pk] !== undefined && pullData.result[pk] !== null) {
           var cv = _extractCloudVal(pullData.result[pk]);
@@ -9585,6 +9589,7 @@ if (typeof Chart !== 'undefined') {
           document.querySelectorAll('.mgr-section').forEach(s => s.classList.remove('active'));
           tab.classList.add('active');
           document.getElementById('mgr-' + tab.dataset.mgr).classList.add('active');
+          if (tab.dataset.mgr === 'profiles' && typeof renderMgrProfiles === 'function') renderMgrProfiles();
         });
       });
 
@@ -9631,6 +9636,7 @@ if (typeof Chart !== 'undefined') {
       if (btn) btn.classList.add('active');
       var sec = document.getElementById('mgr-' + tabName);
       if (sec) sec.classList.add('active');
+      if (tabName === 'profiles' && typeof renderMgrProfiles === 'function') renderMgrProfiles();
       // Scroll to top of manager tab
       sec && sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -11187,3 +11193,475 @@ function openEmbeddedPDF(filename) {
     loadingEl.style.color = '#ff6b6b';
   });
 }
+
+/* ==========================================================
+   PROFILES TAB (Manager view) — v128
+   ========================================================== */
+(function() {
+  // ----- Storage / sync -----
+  const PROFILES_KEY = 'snappy_tech_profiles';
+  let techProfiles = {}; // { [techShort]: { realPhoto, photoFileId, address, phone, email, hireDate, emergencyContact, notes } }
+
+  function profilesLoad() {
+    try {
+      const raw = localStorage.getItem(PROFILES_KEY);
+      if (raw) techProfiles = JSON.parse(raw) || {};
+    } catch (e) { techProfiles = {}; }
+  }
+  function profilesSave() {
+    try {
+      localStorage.setItem(PROFILES_KEY, JSON.stringify(techProfiles));
+      if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
+        // Strip realPhoto data URL for sync (large) — store via Drive instead, ref by id
+        var lite = {};
+        Object.keys(techProfiles).forEach(function(k) {
+          var p = techProfiles[k] || {};
+          lite[k] = {
+            address: p.address || '',
+            phone: p.phone || '',
+            email: p.email || '',
+            hireDate: p.hireDate || '',
+            emergencyContact: p.emergencyContact || '',
+            notes: p.notes || '',
+            photoFileId: p.photoFileId || ''
+            // realPhoto data URL kept locally only (Drive serves cross-device)
+          };
+        });
+        SyncEngine.write('techprofiles', lite);
+      }
+    } catch (e) { console.warn('Profiles save failed', e); }
+  }
+  // Hook pull: when SyncEngine pulls 'techprofiles', merge into local
+  if (typeof window !== 'undefined') {
+    window.__profilesApplyPull = function(remote) {
+      if (!remote || typeof remote !== 'object') return;
+      Object.keys(remote).forEach(function(k) {
+        techProfiles[k] = Object.assign({}, techProfiles[k] || {}, remote[k] || {});
+      });
+      try { localStorage.setItem(PROFILES_KEY, JSON.stringify(techProfiles)); } catch (e) {}
+    };
+  }
+  profilesLoad();
+
+  // ----- Roster (techs + Mark + Brayden) -----
+  function buildProfileRoster() {
+    var list = [];
+    if (typeof techs !== 'undefined' && Array.isArray(techs)) {
+      techs.forEach(function(t) {
+        list.push({
+          name: t.name, short: t.short, initials: t.initials,
+          color: t.color, position: t.position || 'Technician',
+          role: 'tech', source: t
+        });
+      });
+    }
+    list.push({
+      name: 'Mark Sanders', short: 'Maico', initials: 'MS',
+      color: '#1e40af', position: 'Service Manager', role: 'mgr', source: null
+    });
+    list.push({
+      name: 'Brayden Bond', short: 'Brayden', initials: 'BB',
+      color: '#a78bfa', position: 'Sales Advisor', role: 'sales', source: null
+    });
+    return list;
+  }
+
+  function avatarSrc(short) {
+    return (typeof techAvatars !== 'undefined' && techAvatars[short]) ? techAvatars[short] : '';
+  }
+
+  // ----- Render avatar grid -----
+  window.renderMgrProfiles = function renderMgrProfiles() {
+    var grid = document.getElementById('mgrProfilesGrid');
+    if (!grid) return;
+    var roster = buildProfileRoster();
+    grid.innerHTML = '';
+    roster.forEach(function(p) {
+      var card = document.createElement('div');
+      card.className = 'mgr-profile-card';
+      card.setAttribute('data-short', p.short);
+      var src = avatarSrc(p.short);
+      var avatarInner = src
+        ? '<img src="' + src + '" alt="' + p.name + '">'
+        : '<div class="mgr-profile-avatar-initials" style="background:' + p.color + ';width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' + p.initials + '</div>';
+      var badgeClass = p.role === 'mgr' ? 'mgr' : (p.role === 'sales' ? 'sales' : 'tech');
+      var badgeText = p.role === 'mgr' ? 'Manager' : (p.role === 'sales' ? 'Sales' : 'Tech');
+      card.innerHTML =
+        '<div class="mgr-profile-badge ' + badgeClass + '">' + badgeText + '</div>' +
+        '<div class="mgr-profile-avatar">' + avatarInner + '</div>' +
+        '<div class="mgr-profile-name">' + p.name + '</div>' +
+        '<div class="mgr-profile-role">' + p.position + '</div>';
+      card.addEventListener('click', function() { mgrOpenProfileModal(p.short); });
+      grid.appendChild(card);
+    });
+  };
+
+  // ----- Modal helpers -----
+  function flashSaved() {
+    var el = document.getElementById('pmSavedFlash');
+    if (!el) return;
+    el.classList.add('show');
+    clearTimeout(flashSaved._t);
+    flashSaved._t = setTimeout(function() { el.classList.remove('show'); }, 1400);
+  }
+
+  function getProfile(short) {
+    if (!techProfiles[short]) techProfiles[short] = {};
+    return techProfiles[short];
+  }
+
+  function setField(short, field, value) {
+    var p = getProfile(short);
+    p[field] = value;
+    profilesSave();
+    flashSaved();
+  }
+
+  function readFileAsDataURL(file) {
+    return new Promise(function(resolve, reject) {
+      var r = new FileReader();
+      r.onload = function() { resolve(r.result); };
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function uploadPhotoToDrive(short, fileName, dataUrl) {
+    if (typeof _tfUploadToDrive !== 'function') return null;
+    try {
+      var fileId = 'profile_' + short + '_' + Date.now();
+      var driveId = await _tfUploadToDrive({
+        techName: 'Profiles',
+        fileEntryId: fileId,
+        fileName: fileName,
+        fileData: dataUrl
+      });
+      return driveId || null;
+    } catch (e) {
+      console.warn('Profile photo upload failed', e);
+      return null;
+    }
+  }
+
+  window.mgrCloseProfileModal = function mgrCloseProfileModal() {
+    var ov = document.getElementById('profileModalOverlay');
+    var md = document.getElementById('profileModal');
+    if (ov) ov.classList.remove('active');
+    if (md) { md.classList.remove('active'); md.setAttribute('aria-hidden', 'true'); }
+  };
+
+  function getStData(short) {
+    if (typeof stData === 'undefined') return null;
+    return stData.find(function(t) { return t.short === short; }) || null;
+  }
+  function getInstallData(short) {
+    if (typeof stInstallData === 'undefined') return null;
+    if (Array.isArray(stInstallData)) return stInstallData.find(function(t) { return t.short === short; }) || null;
+    if (stInstallData && stInstallData[short]) return stInstallData[short];
+    return null;
+  }
+  function getDispatchTags(short) {
+    try {
+      if (typeof dispLoad !== 'function') return [];
+      var d = dispLoad();
+      return (d && d.assignments && d.assignments[short]) || [];
+    } catch (e) { return []; }
+  }
+  function getSkills(short) {
+    try {
+      if (typeof skillsData === 'undefined') return [];
+      return (skillsData.assignments && skillsData.assignments[short]) || [];
+    } catch (e) { return []; }
+  }
+  function getRecallCount(short) {
+    try {
+      var raw = localStorage.getItem('snappy_recall_log_v1');
+      if (!raw) return 0;
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return 0;
+      return arr.filter(function(r) { return r && (r.tech === short || r.techShort === short); }).length;
+    } catch (e) { return 0; }
+  }
+  function getComplaintCount(short) {
+    try {
+      var raw = localStorage.getItem('snappy_complaint_log_v1');
+      if (!raw) return 0;
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return 0;
+      return arr.filter(function(c) { return c && (c.tech === short || c.techShort === short); }).length;
+    } catch (e) { return 0; }
+  }
+  function getAptitude(short) {
+    try {
+      if (typeof aptitudeTests === 'undefined') return null;
+      return aptitudeTests[short] || null;
+    } catch (e) { return null; }
+  }
+  function getMgrEntries(short) {
+    try {
+      if (typeof mgrState === 'undefined' || !mgrState || !Array.isArray(mgrState.entries)) return [];
+      return mgrState.entries.filter(function(e) { return e && (e.tech === short || e.techShort === short); });
+    } catch (e) { return []; }
+  }
+
+  function avgScore(scores) {
+    if (!scores) return null;
+    var vals = [];
+    Object.keys(scores).forEach(function(cat) {
+      Object.keys(scores[cat] || {}).forEach(function(k) {
+        var v = scores[cat][k];
+        if (typeof v === 'number') vals.push(v);
+      });
+    });
+    if (!vals.length) return null;
+    var sum = vals.reduce(function(a, b) { return a + b; }, 0);
+    return (sum / vals.length).toFixed(2);
+  }
+
+  // ----- Modal builder -----
+  window.mgrOpenProfileModal = function mgrOpenProfileModal(short) {
+    var roster = buildProfileRoster();
+    var person = roster.find(function(r) { return r.short === short; });
+    if (!person) return;
+    var profile = getProfile(short);
+
+    var ov = document.getElementById('profileModalOverlay');
+    var md = document.getElementById('profileModal');
+    var titleEl = document.getElementById('profileModalTitle');
+    var subEl = document.getElementById('profileModalSubtitle');
+    var avatarEl = document.getElementById('profileModalAvatar');
+    var bodyEl = document.getElementById('profileModalBody');
+    if (!md || !bodyEl) return;
+
+    titleEl.textContent = person.name;
+    subEl.textContent = person.position + (person.short !== person.name ? ' · ' + person.short : '');
+    var src = avatarSrc(person.short);
+    avatarEl.innerHTML = src
+      ? '<img src="' + src + '" alt="' + person.name + '">'
+      : '<div class="profile-modal-avatar-initials" style="background:' + person.color + ';width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' + person.initials + '</div>';
+
+    // Build body sections
+    var html = '';
+
+    // 1) Real photo + contact info
+    var photoHtml = '';
+    if (profile.realPhoto) {
+      photoHtml = '<img src="' + profile.realPhoto + '" alt="Real photo">';
+    } else {
+      photoHtml = '<div class="empty">No real photo<br>uploaded yet</div>';
+    }
+    html += '<div class="pm-section">' +
+      '<h4>Identity & Contact</h4>' +
+      '<div class="pm-photo-row">' +
+      '<div class="pm-photo-thumb" id="pmPhotoThumb">' + photoHtml + '</div>' +
+      '<div class="pm-photo-actions">' +
+        '<input type="file" id="pmPhotoInput" accept="image/*" style="display:none">' +
+        '<button class="pm-btn gold" onclick="document.getElementById(\'pmPhotoInput\').click()">Upload real photo</button>' +
+        (profile.realPhoto ? '<button class="pm-btn danger" id="pmPhotoRemove">Remove photo</button>' : '') +
+        '<div style="font-size:10px;color:#64748b;">Used to create the avatar. Synced via Drive.</div>' +
+      '</div>' +
+      '</div>' +
+      '<div class="pm-grid">' +
+        pmField('Name', 'name', person.name, true) +
+        pmField('Address', 'address', profile.address || '', false, 'text') +
+        pmField('Phone', 'phone', profile.phone || '', false, 'tel') +
+        pmField('Email', 'email', profile.email || '', false, 'email') +
+        pmField('Hire Date', 'hireDate', profile.hireDate || (person.source && person.source.date) || '', false, 'text') +
+        pmField('Emergency Contact', 'emergencyContact', profile.emergencyContact || '', false, 'text') +
+      '</div>' +
+      '<div class="pm-field" style="margin-top:10px">' +
+        '<label>Manager Notes</label>' +
+        '<textarea data-field="notes" rows="2">' + escapeHtml(profile.notes || '') + '</textarea>' +
+      '</div>' +
+    '</div>';
+
+    // Tech-only sections (skills/scores/dispatch/MTD/etc)
+    if (person.role === 'tech' && person.source) {
+      var t = person.source;
+
+      // 2) Career snapshot (years, position, color)
+      html += '<div class="pm-section">' +
+        '<h4>Career Snapshot</h4>' +
+        '<div class="pm-stat-row">' +
+          statPill('Years', (t.years != null ? t.years : '—')) +
+          statPill('Position', t.position || '—') +
+          statPill('Initials', t.initials || '—') +
+          statPill('Avg Score', avgScore(t.scores) || '—') +
+        '</div>' +
+      '</div>';
+
+      // 3) Skill scores by category (read-only summary)
+      if (t.scores) {
+        var rows = '';
+        Object.keys(t.scores).forEach(function(cat) {
+          var sub = t.scores[cat];
+          var vals = Object.values(sub);
+          if (!vals.length) return;
+          var avg = (vals.reduce(function(a,b){return a+b;},0) / vals.length).toFixed(1);
+          rows += '<div class="pm-score-row"><span class="label">' + cat + '</span><span class="value">' + avg + '/5</span></div>';
+        });
+        html += '<div class="pm-section"><h4>Skill Scores (Manager Matrix)</h4>' +
+          '<div class="pm-score-grid">' + rows + '</div></div>';
+      }
+
+      // 4) Strengths
+      var strengths = t.strengths || [];
+      html += '<div class="pm-section"><h4>Strengths</h4>' +
+        (strengths.length
+          ? '<div class="pm-tags">' + strengths.map(function(s) { return '<span class="pm-tag strength">' + escapeHtml(s) + '</span>'; }).join('') + '</div>'
+          : '<div class="pm-empty">None recorded.</div>') +
+        '</div>';
+
+      // 5) Skill tags (ServiceTitan)
+      var skills = getSkills(short);
+      html += '<div class="pm-section"><h4>ServiceTitan Skill Tags · ' + skills.length + '</h4>' +
+        (skills.length
+          ? '<div class="pm-tags">' + skills.map(function(s) { return '<span class="pm-tag skill">' + escapeHtml(s) + '</span>'; }).join('') + '</div>'
+          : '<div class="pm-empty">No skill tags assigned.</div>') +
+        '<div style="margin-top:8px"><button class="pm-btn" onclick="mgrCloseProfileModal();switchTab(\'skills\')">Edit in Skills tab →</button></div>' +
+        '</div>';
+
+      // 6) Dispatch tags
+      var dtags = getDispatchTags(short);
+      html += '<div class="pm-section"><h4>Dispatch Tags · ' + dtags.length + '</h4>' +
+        (dtags.length
+          ? '<div class="pm-tags">' + dtags.map(function(d) { return '<span class="pm-tag">' + escapeHtml(d) + '</span>'; }).join('') + '</div>'
+          : '<div class="pm-empty">No dispatch tags assigned.</div>') +
+        '</div>';
+
+      // 7) MTD service stats
+      var st = getStData(short);
+      if (st) {
+        var ytd = st.productivity || {};
+        var mtd = st.mtd_productivity || {};
+        html += '<div class="pm-section"><h4>Service Performance (MTD)</h4>' +
+          '<div class="pm-stat-row">' +
+            statPill('Rev/Hr', '$' + (mtd.rev_hr != null ? mtd.rev_hr : '—')) +
+            statPill('Billable Hrs', mtd.billable_hours != null ? mtd.billable_hours : '—') +
+            statPill('Sold Hrs %', (mtd.sold_hrs_on_job_pct != null ? mtd.sold_hrs_on_job_pct + '%' : '—')) +
+            statPill('Tasks/Opp', mtd.tasks_per_opp != null ? mtd.tasks_per_opp : '—') +
+            statPill('Options/Opp', mtd.options_per_opp != null ? mtd.options_per_opp : '—') +
+            statPill('Recalls', mtd.recalls != null ? mtd.recalls : '—') +
+          '</div>' +
+          '<div style="font-size:10px;color:#64748b;margin-top:6px;">YTD avg rev/hr: $' + (ytd.rev_hr != null ? ytd.rev_hr : '—') + ' · Total billable hrs: ' + (ytd.billable_hours != null ? ytd.billable_hours : '—') + '</div>' +
+          '</div>';
+      }
+
+      // 8) Recalls / complaints (live logs)
+      var recalls = getRecallCount(short);
+      var complaints = getComplaintCount(short);
+      html += '<div class="pm-section"><h4>Quality Issues (Live)</h4>' +
+        '<div class="pm-stat-row">' +
+          statPill('Recalls', recalls) +
+          statPill('Complaints', complaints) +
+        '</div></div>';
+
+      // 9) Aptitude / certifications
+      var apt = getAptitude(short);
+      if (apt) {
+        html += '<div class="pm-section"><h4>Aptitude & Certifications</h4>' +
+          '<div class="pm-stat-row">' +
+            statPill('Aptitude', (apt.totalScore != null ? apt.totalScore + '/' + (apt.maxScore || 50) : '—')) +
+            statPill('Test Date', apt.date || '—') +
+          '</div>' +
+          (apt.certs && apt.certs.length
+            ? '<div class="pm-tags" style="margin-top:8px">' + apt.certs.map(function(c) { return '<span class="pm-tag cert">' + escapeHtml(c) + '</span>'; }).join('') + '</div>'
+            : '') +
+          '</div>';
+      }
+
+      // 10) Coaching entries
+      var entries = getMgrEntries(short);
+      var oneOnOnes = entries.filter(function(e) { return e.type === '1on1' || e.type === 'one_on_one' || e.type === 'oneonone'; });
+      var rideAlongs = entries.filter(function(e) { return e.type === 'ridealong' || e.type === 'ride_along'; });
+      html += '<div class="pm-section"><h4>Coaching History</h4>' +
+        '<div class="pm-stat-row">' +
+          statPill('1-on-1s', oneOnOnes.length) +
+          statPill('Ride-Alongs', rideAlongs.length) +
+          statPill('Total entries', entries.length) +
+        '</div></div>';
+    }
+
+    // Save bar
+    html += '<div class="pm-save-bar">' +
+      '<span class="pm-saved-flash" id="pmSavedFlash">✓ Saved</span>' +
+      '<button class="pm-btn gold" onclick="mgrCloseProfileModal()">Done</button>' +
+    '</div>';
+
+    bodyEl.innerHTML = html;
+
+    // Wire field changes (auto-save on blur/change)
+    bodyEl.querySelectorAll('[data-field]').forEach(function(el) {
+      var field = el.getAttribute('data-field');
+      if (!field || field === 'name') return;
+      var ev = (el.tagName === 'TEXTAREA') ? 'blur' : 'change';
+      el.addEventListener('blur', function() { setField(short, field, el.value); });
+      el.addEventListener('change', function() { setField(short, field, el.value); });
+    });
+
+    // Photo upload
+    var fi = document.getElementById('pmPhotoInput');
+    if (fi) {
+      fi.addEventListener('change', async function() {
+        var file = fi.files && fi.files[0];
+        if (!file) return;
+        try {
+          var dataUrl = await readFileAsDataURL(file);
+          var p = getProfile(short);
+          p.realPhoto = dataUrl;
+          // Upload to Drive (best-effort) for cross-device
+          var driveId = await uploadPhotoToDrive(short, file.name || (short + '.jpg'), dataUrl);
+          if (driveId) p.photoFileId = driveId;
+          profilesSave();
+          flashSaved();
+          // Re-open modal to refresh photo display
+          mgrOpenProfileModal(short);
+        } catch (e) {
+          console.warn('Photo upload error', e);
+          alert('Could not upload photo. Try a smaller image.');
+        }
+      });
+    }
+    var rm = document.getElementById('pmPhotoRemove');
+    if (rm) {
+      rm.addEventListener('click', function() {
+        if (!confirm('Remove the real photo for ' + person.name + '?')) return;
+        var p = getProfile(short);
+        delete p.realPhoto;
+        delete p.photoFileId;
+        profilesSave();
+        flashSaved();
+        mgrOpenProfileModal(short);
+      });
+    }
+
+    // Open modal
+    if (ov) ov.classList.add('active');
+    md.classList.add('active');
+    md.setAttribute('aria-hidden', 'false');
+  };
+
+  // ----- Helpers -----
+  function pmField(label, key, value, readOnly, type) {
+    type = type || 'text';
+    var v = value == null ? '' : value;
+    var ro = readOnly ? ' readonly style="opacity:0.7;"' : '';
+    return '<div class="pm-field"><label>' + escapeHtml(label) + '</label>' +
+      '<input type="' + type + '" data-field="' + escapeHtml(key) + '" value="' + escapeHtml(String(v)) + '"' + ro + '></div>';
+  }
+  function statPill(lbl, val) {
+    return '<div class="pm-stat-pill"><span class="lbl">' + escapeHtml(lbl) + '</span><span class="val">' + escapeHtml(String(val)) + '</span></div>';
+  }
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ESC to close
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      var md = document.getElementById('profileModal');
+      if (md && md.classList.contains('active')) mgrCloseProfileModal();
+    }
+  });
+})();
