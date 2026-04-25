@@ -2005,27 +2005,26 @@ document.addEventListener('visibilitychange', function() {
     // ============================================================
     var WEEKLY_KEY = 'snappy_weekly_data';
     var WEEKLY_VIEW_KEY = 'snappy_weekly_active_week';
-    var WEEKLY_SEEDED_KEY = 'snappy_weekly_seeded_v144';
+    var WEEKLY_SEEDED_KEY = 'snappy_weekly_seeded_v145';
 
-    // v144: One-time seed of the week of Apr 20, 2026 from ServiceTitan exports.
-    // Service rev (image 0178) + Install sold-by rev (image 0180) + Mem count (image 0179).
+    // v145: One-time seed of the week of Apr 20, 2026 from ServiceTitan exports.
+    // Schema: { service, installCount, installRev, memSold, memOpps }
+    // Service rev (image 0178) + Install count/rev (image 0180) + Mem sold/offered (image 0179).
     function _wlbSeedWeekIfNeeded() {
       try {
         if (localStorage.getItem(WEEKLY_SEEDED_KEY) === '1') return;
         var d = _wlbLoad();
         var WEEK = '2026-04-20';
-        if (!d[WEEK]) {
-          d[WEEK] = {
-            'Dewone': { service: 3107,    install: 13417.31, memberships: 2 },
-            'Benji':  { service: 813,     install: 5581,     memberships: 1 },
-            'Daniel': { service: 3264,    install: 0,        memberships: 0 },
-            'Dee':    { service: 1900,    install: 0,        memberships: 0 },
-            'Chris':  { service: 1274,    install: 22688.60, memberships: 0 }
-          };
-          _wlbSave(d);
-          // Point the leaderboard at this week so the user sees the seed immediately
-          try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
-        }
+        // Always overwrite for v145 since the schema changed
+        d[WEEK] = {
+          'Dewone': { service: 3107, installCount: 1, installRev: 13417.31, memSold: 2, memOpps: 3 },
+          'Benji':  { service: 813,  installCount: 1, installRev: 5581,     memSold: 1, memOpps: 2 },
+          'Daniel': { service: 3264, installCount: 0, installRev: 0,        memSold: 0, memOpps: 3 },
+          'Dee':    { service: 1900, installCount: 0, installRev: 0,        memSold: 0, memOpps: 0 },
+          'Chris':  { service: 1274, installCount: 1, installRev: 22688.60, memSold: 0, memOpps: 0 }
+        };
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
         localStorage.setItem(WEEKLY_SEEDED_KEY, '1');
       } catch(e) { console.warn('_wlbSeedWeekIfNeeded failed', e); }
     }
@@ -2080,16 +2079,68 @@ document.addEventListener('visibilitychange', function() {
       return '$' + Math.round(n);
     }
 
-    // v144: per-tech weekly entry can be either a number (legacy) or
-    // { service, install, memberships }. _wlbReadEntry normalizes both.
+    // v145: per-tech weekly entry schema is { service, installCount, installRev, memSold, memOpps }.
+    // Backward-compat: accepts legacy number, or v144 { service, install, memberships }.
     function _wlbReadEntry(weekData, short) {
       var v = weekData[short];
       if (v == null) return null;
-      if (typeof v === 'number') return { service: v, install: 0, memberships: 0, total: v, _legacy: true };
+      if (typeof v === 'number') {
+        return { service: v, installCount: 0, installRev: 0, memSold: 0, memOpps: 0, total: v, _legacy: true };
+      }
       var svc = (typeof v.service === 'number') ? v.service : 0;
-      var inst = (typeof v.install === 'number') ? v.install : 0;
-      var mem  = (typeof v.memberships === 'number') ? v.memberships : 0;
-      return { service: svc, install: inst, memberships: mem, total: svc + inst };
+      // v144 had { install: $rev, memberships: count }; map both legacy + v145 fields
+      var instCount = (typeof v.installCount === 'number') ? v.installCount : 0;
+      var instRev   = (typeof v.installRev === 'number') ? v.installRev
+                    : ((typeof v.install === 'number') ? v.install : 0);
+      // If we have legacy install rev but no count, infer 1 install for any nonzero rev
+      if (!instCount && instRev > 0 && typeof v.installCount === 'undefined') instCount = 1;
+      var memSold = (typeof v.memSold === 'number') ? v.memSold
+                  : ((typeof v.memberships === 'number') ? v.memberships : 0);
+      var memOpps = (typeof v.memOpps === 'number') ? v.memOpps : 0;
+      return {
+        service: svc,
+        installCount: instCount,
+        installRev: instRev,
+        memSold: memSold,
+        memOpps: memOpps,
+        total: svc + instRev
+      };
+    }
+
+    // v145: Point system
+    // Revenue: 1 point per $1k of service revenue (continuous; not tiered)
+    // Installs (count): S=4+ (10pts), A=2-3 (7pts), B=1 (4pts), 0=0
+    // Mem conv %: S=70%+ (10pts), A=50-69% (7pts), B=30-49% (4pts), C=1-29% (1pt), 0% or no opps=0
+    function _wlbPoints(entry) {
+      if (!entry) return null;
+      // Revenue points: 1 per $1k, continuous (e.g. $3,107 -> 3.1)
+      var revPts = Math.round((entry.service / 1000) * 10) / 10;
+      // Install points by count
+      var ic = entry.installCount || 0;
+      var instPts = 0, instTier = '\u2013';
+      if (ic >= 4)      { instPts = 10; instTier = 'S'; }
+      else if (ic >= 2) { instPts = 7;  instTier = 'A'; }
+      else if (ic >= 1) { instPts = 4;  instTier = 'B'; }
+      else              { instPts = 0;  instTier = '0'; }
+      // Mem points by conversion %
+      var memPct = null, memPts = 0, memTier = '\u2013';
+      if (entry.memOpps > 0) {
+        memPct = (entry.memSold / entry.memOpps) * 100;
+        if (memPct >= 70)      { memPts = 10; memTier = 'S'; }
+        else if (memPct >= 50) { memPts = 7;  memTier = 'A'; }
+        else if (memPct >= 30) { memPts = 4;  memTier = 'B'; }
+        else if (memPct >= 1)  { memPts = 1;  memTier = 'C'; }
+        else                   { memPts = 0;  memTier = '0'; }
+      } else {
+        memTier = '\u2013'; // no opps tracked
+      }
+      var total = Math.round((revPts + instPts + memPts) * 10) / 10;
+      return {
+        revPts: revPts,
+        instPts: instPts, instTier: instTier,
+        memPts: memPts, memTier: memTier, memPct: memPct,
+        total: total
+      };
     }
 
     function renderWeeklyLeaderboard() {
@@ -2105,10 +2156,12 @@ document.addEventListener('visibilitychange', function() {
         var weekData = data[activeWeek] || {};
         var prevData = data[prevWeek] || {};
 
-        // Build ranking rows
+        // Build ranking rows (v145: rank by total points)
         var rows = roster.map(function(t) {
           var entry = _wlbReadEntry(weekData, t.short);
           var prevEntry = _wlbReadEntry(prevData, t.short);
+          var pts = entry ? _wlbPoints(entry) : null;
+          var prevPts = prevEntry ? _wlbPoints(prevEntry) : null;
           var tier = 'C';
           try { var info = (typeof getTechTier === 'function') ? getTechTier(t) : null; if (info && info.tier) tier = info.tier; } catch(e) {}
           return {
@@ -2119,31 +2172,39 @@ document.addEventListener('visibilitychange', function() {
             tier: tier,
             entry: entry,
             prevEntry: prevEntry,
+            pts: pts,
+            prevPts: prevPts,
             rev: entry ? entry.total : null,
-            prevRev: prevEntry ? prevEntry.total : null
+            prevRev: prevEntry ? prevEntry.total : null,
+            score: pts ? pts.total : null
           };
         });
 
-        var hasAny = rows.some(function(r) { return r.rev !== null; });
+        var hasAny = rows.some(function(r) { return r.score !== null; });
 
-        // Sort: entries first by rev desc, no-data rows last alpha
+        // Sort by total points desc; tiebreak by service rev desc; no-data last
         rows.sort(function(a, b) {
-          var av = a.rev === null ? -Infinity : a.rev;
-          var bv = b.rev === null ? -Infinity : b.rev;
+          var av = a.score === null ? -Infinity : a.score;
+          var bv = b.score === null ? -Infinity : b.score;
           if (bv !== av) return bv - av;
+          var ar = a.entry ? a.entry.service : -Infinity;
+          var br = b.entry ? b.entry.service : -Infinity;
+          if (br !== ar) return br - ar;
           return a.name.localeCompare(b.name);
         });
 
-        // Compute prior-week ranks for delta arrows
+        // Compute prior-week ranks for delta arrows (by points)
         var prevRanked = roster.map(function(t) {
-          return { short: t.short, rev: (typeof prevData[t.short] === 'number') ? prevData[t.short] : null };
-        }).filter(function(r) { return r.rev !== null; })
-          .sort(function(a,b) { return b.rev - a.rev; });
+          var pe = _wlbReadEntry(prevData, t.short);
+          var pp = pe ? _wlbPoints(pe) : null;
+          return { short: t.short, score: pp ? pp.total : null };
+        }).filter(function(r) { return r.score !== null; })
+          .sort(function(a,b) { return b.score - a.score; });
         var prevRankBy = {};
         prevRanked.forEach(function(r, i) { prevRankBy[r.short] = i + 1; });
 
         var totalRev = rows.reduce(function(s, r) { return s + (r.rev || 0); }, 0);
-        var topEarner = rows.find(function(r) { return r.rev !== null; });
+        var topEarner = rows.find(function(r) { return r.score !== null; });
 
         // Header
         var headHTML =
@@ -2171,37 +2232,71 @@ document.addEventListener('visibilitychange', function() {
             '</div>';
         } else {
           rowsHTML = '<div class="wlb-rows">' + rows.map(function(r, i) {
-            if (r.rev === null) return ''; // skip techs with no entry this week
+            if (r.score === null) return ''; // skip techs with no entry this week
             var rank = i + 1;
             var prevRank = prevRankBy[r.short];
             var delta = '';
             if (prevRank) {
-              var diff = prevRank - rank; // positive = moved up
+              var diff = prevRank - rank;
               if (diff > 0) delta = '<span class="wlb-delta up" title="Up ' + diff + ' from last week">\u25b2 ' + diff + '</span>';
               else if (diff < 0) delta = '<span class="wlb-delta down" title="Down ' + (-diff) + ' from last week">\u25bc ' + (-diff) + '</span>';
               else delta = '<span class="wlb-delta same" title="Same rank">\u2013</span>';
             } else {
               delta = '<span class="wlb-delta new" title="New entry this week">NEW</span>';
             }
-            var revDelta = '';
-            if (r.prevRev !== null && r.prevRev !== undefined) {
-              var d = r.rev - r.prevRev;
-              if (d > 0) revDelta = '<span class="wlb-rev-delta up">+' + _wlbFmtMoney(d) + '</span>';
-              else if (d < 0) revDelta = '<span class="wlb-rev-delta down">\u2212' + _wlbFmtMoney(Math.abs(d)) + '</span>';
+            // Pts delta vs last week
+            var ptsDelta = '';
+            if (r.prevPts) {
+              var dp = Math.round((r.score - r.prevPts.total) * 10) / 10;
+              if (dp > 0) ptsDelta = '<span class="wlb-rev-delta up">+' + dp + ' pts</span>';
+              else if (dp < 0) ptsDelta = '<span class="wlb-rev-delta down">\u2212' + Math.abs(dp) + ' pts</span>';
             }
             var medal = rank === 1 ? '\ud83e\udd47' : (rank === 2 ? '\ud83e\udd48' : (rank === 3 ? '\ud83e\udd49' : ''));
             var avatar = r.avatar
               ? '<img class="wlb-avatar" src="' + r.avatar + '" alt="">'
               : '<div class="wlb-avatar wlb-avatar-fallback">' + r.initials + '</div>';
 
-            // v144: 3-stream breakdown chips
-            var streamHTML = '';
-            if (r.entry) {
-              var chips = [];
-              if (r.entry.service > 0) chips.push('<span class="wlb-stream svc" title="Service revenue"><span class="wlb-stream-label">SVC</span> ' + _wlbFmtMoney(r.entry.service) + '</span>');
-              if (r.entry.install > 0) chips.push('<span class="wlb-stream inst" title="Install sold-by revenue"><span class="wlb-stream-label">INST</span> ' + _wlbFmtMoney(r.entry.install) + '</span>');
-              if (r.entry.memberships > 0) chips.push('<span class="wlb-stream mem" title="Memberships sold"><span class="wlb-stream-label">MEM</span> \u00d7' + r.entry.memberships + '</span>');
-              streamHTML = chips.length ? '<div class="wlb-streams">' + chips.join('') + '</div>' : '';
+            // v145: Point breakdown pills (one per stream)
+            var pillsHTML = '';
+            if (r.entry && r.pts) {
+              var p = r.pts, e = r.entry;
+              var pills = [];
+              // SVC pill: $x · y pts
+              pills.push(
+                '<span class="wlb-pt-pill svc" title="Service revenue: 1 pt per $1k">' +
+                  '<span class="wlb-pt-label">SVC</span>' +
+                  '<span class="wlb-pt-raw">' + _wlbFmtMoney(e.service) + '</span>' +
+                  '<span class="wlb-pt-val">' + p.revPts + ' pts</span>' +
+                '</span>'
+              );
+              // INST pill: count · tier · pts
+              var instRaw = e.installCount + (e.installCount === 1 ? ' install' : ' installs');
+              pills.push(
+                '<span class="wlb-pt-pill inst" title="Installs sold: 4+ S, 2-3 A, 1 B">' +
+                  '<span class="wlb-pt-label">INST</span>' +
+                  '<span class="wlb-pt-raw">' + instRaw + '</span>' +
+                  '<span class="wlb-pt-tier tier-' + p.instTier + '">' + p.instTier + '</span>' +
+                  '<span class="wlb-pt-val">' + p.instPts + ' pts</span>' +
+                '</span>'
+              );
+              // MEM pill: sold/opps · % · tier · pts
+              var memRaw, memTitle;
+              if (e.memOpps > 0) {
+                memRaw = e.memSold + '/' + e.memOpps + ' \u00b7 ' + Math.round(p.memPct) + '%';
+                memTitle = 'Membership conversion: 70%+ S, 50-69% A, 30-49% B, 1-29% C';
+              } else {
+                memRaw = 'no opps';
+                memTitle = 'No membership opportunities offered';
+              }
+              pills.push(
+                '<span class="wlb-pt-pill mem" title="' + memTitle + '">' +
+                  '<span class="wlb-pt-label">MEM</span>' +
+                  '<span class="wlb-pt-raw">' + memRaw + '</span>' +
+                  (p.memTier !== '\u2013' ? '<span class="wlb-pt-tier tier-' + p.memTier + '">' + p.memTier + '</span>' : '') +
+                  '<span class="wlb-pt-val">' + p.memPts + ' pts</span>' +
+                '</span>'
+              );
+              pillsHTML = '<div class="wlb-pt-pills">' + pills.join('') + '</div>';
             }
 
             return '<div class="wlb-row tier-' + r.tier + ' rank-' + rank + '">' +
@@ -2210,29 +2305,32 @@ document.addEventListener('visibilitychange', function() {
               '<div class="wlb-name-block">' +
                 '<div class="wlb-name">' + r.name + '</div>' +
                 '<div class="wlb-meta"><span class="wlb-tier-pill tier-' + r.tier + '">' + r.tier + '-Tier</span> ' + delta + '</div>' +
-                streamHTML +
+                pillsHTML +
               '</div>' +
               '<div class="wlb-rev-block">' +
-                '<div class="wlb-rev">' + _wlbFmtMoney(r.rev) + '</div>' +
-                (revDelta ? '<div class="wlb-rev-sub">' + revDelta + ' vs last wk</div>' : '<div class="wlb-rev-sub">total</div>') +
+                '<div class="wlb-rev wlb-pts-total">' + r.score + '<span class="wlb-pts-unit"> pts</span></div>' +
+                (ptsDelta ? '<div class="wlb-rev-sub">' + ptsDelta + '</div>' : '<div class="wlb-rev-sub">' + _wlbFmtMoney(r.rev) + ' total</div>') +
               '</div>' +
             '</div>';
           }).join('') + '</div>';
 
           // Aggregate streams for footer
-          var totalSvc = rows.reduce(function(s, r) { return s + (r.entry ? r.entry.service : 0); }, 0);
-          var totalInst = rows.reduce(function(s, r) { return s + (r.entry ? r.entry.install : 0); }, 0);
-          var totalMem = rows.reduce(function(s, r) { return s + (r.entry ? r.entry.memberships : 0); }, 0);
+          var totalSvc  = rows.reduce(function(s, r) { return s + (r.entry ? r.entry.service : 0); }, 0);
+          var totalInst = rows.reduce(function(s, r) { return s + (r.entry ? r.entry.installRev : 0); }, 0);
+          var totalInstCount = rows.reduce(function(s, r) { return s + (r.entry ? r.entry.installCount : 0); }, 0);
+          var totalMem  = rows.reduce(function(s, r) { return s + (r.entry ? r.entry.memSold : 0); }, 0);
+          var totalPts  = rows.reduce(function(s, r) { return s + (r.score || 0); }, 0);
+          totalPts = Math.round(totalPts * 10) / 10;
 
           // Summary footer
           rowsHTML += '<div class="wlb-foot">' +
-            '<span><b>Team total:</b> ' + _wlbFmtMoney(totalRev) + '</span>' +
+            '<span><b>Team points:</b> ' + totalPts + '</span>' +
             '<span class="wlb-foot-streams">' +
               '<span class="wlb-stream svc"><span class="wlb-stream-label">SVC</span> ' + _wlbFmtMoney(totalSvc) + '</span>' +
-              '<span class="wlb-stream inst"><span class="wlb-stream-label">INST</span> ' + _wlbFmtMoney(totalInst) + '</span>' +
+              '<span class="wlb-stream inst"><span class="wlb-stream-label">INST</span> \u00d7' + totalInstCount + ' (' + _wlbFmtMoney(totalInst) + ')</span>' +
               '<span class="wlb-stream mem"><span class="wlb-stream-label">MEM</span> \u00d7' + totalMem + '</span>' +
             '</span>' +
-            (topEarner ? '<span><b>Top earner:</b> ' + topEarner.name + ' \u2014 ' + _wlbFmtMoney(topEarner.rev) + '</span>' : '') +
+            (topEarner ? '<span><b>Top:</b> ' + topEarner.name + ' \u2014 ' + topEarner.score + ' pts</span>' : '') +
           '</div>';
         }
 
@@ -2270,30 +2368,30 @@ document.addEventListener('visibilitychange', function() {
         overlay.className = 'wlb-modal-overlay';
 
         var rowsHTML = roster.map(function(t) {
-          // Read existing entry (legacy number or object)
-          var raw = weekData[t.short];
-          var svc = '', inst = '', mem = '';
-          if (typeof raw === 'number') { svc = raw; }
-          else if (raw && typeof raw === 'object') {
-            if (typeof raw.service === 'number') svc = raw.service;
-            if (typeof raw.install === 'number') inst = raw.install;
-            if (typeof raw.memberships === 'number') mem = raw.memberships;
-          }
-          return '<div class="wlb-edit-row v144">' +
+          // Read existing entry (legacy number, v144 object, or v145 object)
+          var entry = _wlbReadEntry(weekData, t.short);
+          var svc      = entry ? (entry.service      || '') : '';
+          var instCnt  = entry ? (entry.installCount || '') : '';
+          var memSold  = entry ? (entry.memSold      || '') : '';
+          var memOpps  = entry ? (entry.memOpps      || '') : '';
+          return '<div class="wlb-edit-row v145">' +
             '<label>' + t.name + '</label>' +
-            '<div class="wlb-edit-input-wrap money" title="Service revenue">' +
-              '<span class="wlb-edit-mini-label">SVC</span>' +
+            '<div class="wlb-edit-input-wrap money" title="Service revenue (1 pt per $1k)">' +
+              '<span class="wlb-edit-mini-label">SVC $</span>' +
               '<span class="wlb-edit-prefix">$</span>' +
               '<input type="number" inputmode="decimal" step="0.01" min="0" data-short="' + t.short + '" data-field="service" value="' + svc + '" placeholder="0">' +
             '</div>' +
-            '<div class="wlb-edit-input-wrap money" title="Install sold-by revenue">' +
-              '<span class="wlb-edit-mini-label">INST</span>' +
-              '<span class="wlb-edit-prefix">$</span>' +
-              '<input type="number" inputmode="decimal" step="0.01" min="0" data-short="' + t.short + '" data-field="install" value="' + inst + '" placeholder="0">' +
+            '<div class="wlb-edit-input-wrap count" title="Installs sold (count)">' +
+              '<span class="wlb-edit-mini-label">INST #</span>' +
+              '<input type="number" inputmode="numeric" step="1" min="0" data-short="' + t.short + '" data-field="installCount" value="' + instCnt + '" placeholder="0">' +
             '</div>' +
-            '<div class="wlb-edit-input-wrap count" title="Memberships sold (count)">' +
-              '<span class="wlb-edit-mini-label">MEM</span>' +
-              '<input type="number" inputmode="numeric" step="1" min="0" data-short="' + t.short + '" data-field="memberships" value="' + mem + '" placeholder="0">' +
+            '<div class="wlb-edit-input-wrap count" title="Memberships sold">' +
+              '<span class="wlb-edit-mini-label">MEM Sold</span>' +
+              '<input type="number" inputmode="numeric" step="1" min="0" data-short="' + t.short + '" data-field="memSold" value="' + memSold + '" placeholder="0">' +
+            '</div>' +
+            '<div class="wlb-edit-input-wrap count" title="Membership opportunities (offered)">' +
+              '<span class="wlb-edit-mini-label">MEM Opps</span>' +
+              '<input type="number" inputmode="numeric" step="1" min="0" data-short="' + t.short + '" data-field="memOpps" value="' + memOpps + '" placeholder="0">' +
             '</div>' +
           '</div>';
         }).join('');
@@ -2310,8 +2408,8 @@ document.addEventListener('visibilitychange', function() {
             '<div class="wlb-modal-body">' +
               '<div class="wlb-edit-list">' + rowsHTML + '</div>' +
               '<div class="wlb-paste-block">' +
-                '<div class="wlb-paste-label">Or paste CSV / TSV \u2014 Name, Service $, Install $, Mem count</div>' +
-                '<textarea id="wlbPasteArea" placeholder="Ben Tinahui,813,5581,1&#10;Chris Monahan,1274,22688.60,0&#10;Dewone Martin,3107,13417.31,2&#10;Daniel Gazaway,3264,0,0&#10;Dee Williams,1900,0,0"></textarea>' +
+                '<div class="wlb-paste-label">Or paste CSV / TSV \u2014 Name, Service $, Install Count, Mem Sold, Mem Opps</div>' +
+                '<textarea id="wlbPasteArea" placeholder="Ben Tinahui,813,1,1,2&#10;Chris Monahan,1274,1,0,0&#10;Dewone Martin,3107,1,2,3&#10;Daniel Gazaway,3264,0,0,3&#10;Dee Williams,1900,0,0,0"></textarea>' +
                 '<button type="button" class="wlb-paste-btn" id="wlbApplyPaste">Apply Paste</button>' +
               '</div>' +
             '</div>' +
@@ -2332,28 +2430,33 @@ document.addEventListener('visibilitychange', function() {
           lines.forEach(function(ln) {
             ln = ln.trim();
             if (!ln) return;
-            // Split on tab, comma, or 2+ spaces
             var parts = ln.split(/\t|,|\s{2,}/).map(function(s) { return s.trim(); });
             if (parts.length < 2) return;
             var name = parts[0];
-            // v144: support 4-column rows: name, service, install, memberships
-            // Also support legacy 2-column: name, total (goes into service field)
-            var svc = parseFloat(String(parts[1] || '').replace(/[$,\s]/g, ''));
-            var inst = parseFloat(String(parts[2] || '').replace(/[$,\s]/g, ''));
-            var mem  = parseFloat(String(parts[3] || '').replace(/[$,\s]/g, ''));
-            if (isNaN(svc)) svc = null;
-            if (isNaN(inst)) inst = null;
-            if (isNaN(mem)) mem = null;
-            // match by short or first name (case-insensitive)
+            // v145: 5-column: name, service $, install count, mem sold, mem opps
+            var svc     = parseFloat(String(parts[1] || '').replace(/[$,\s]/g, ''));
+            var instCnt = parseFloat(String(parts[2] || '').replace(/[$,\s]/g, ''));
+            var memSold = parseFloat(String(parts[3] || '').replace(/[$,\s]/g, ''));
+            var memOpps = parseFloat(String(parts[4] || '').replace(/[$,\s]/g, ''));
+            if (isNaN(svc))     svc     = null;
+            if (isNaN(instCnt)) instCnt = null;
+            if (isNaN(memSold)) memSold = null;
+            if (isNaN(memOpps)) memOpps = null;
             var match = roster.find(function(t) {
               return t.short.toLowerCase() === name.toLowerCase()
                   || (t.name && t.name.toLowerCase().split(' ')[0] === name.toLowerCase())
                   || (t.name && t.name.toLowerCase() === name.toLowerCase());
             });
             if (match) {
-              if (svc !== null)  { var i1 = overlay.querySelector('input[data-short="' + match.short + '"][data-field="service"]');     if (i1) i1.value = svc; }
-              if (inst !== null) { var i2 = overlay.querySelector('input[data-short="' + match.short + '"][data-field="install"]');     if (i2) i2.value = inst; }
-              if (mem !== null)  { var i3 = overlay.querySelector('input[data-short="' + match.short + '"][data-field="memberships"]'); if (i3) i3.value = mem; }
+              var setField = function(field, val) {
+                if (val === null) return;
+                var inp = overlay.querySelector('input[data-short="' + match.short + '"][data-field="' + field + '"]');
+                if (inp) inp.value = val;
+              };
+              setField('service', svc);
+              setField('installCount', instCnt);
+              setField('memSold', memSold);
+              setField('memOpps', memOpps);
             }
           });
         };
@@ -2374,13 +2477,22 @@ document.addEventListener('visibilitychange', function() {
             var v = parseFloat(inp.value);
             if (isNaN(v) || v < 0) return;
             var k = inp.dataset.short;
-            if (!entries[k]) entries[k] = { service: 0, install: 0, memberships: 0 };
+            if (!entries[k]) entries[k] = { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
             entries[k][inp.dataset.field] = v;
           });
-          // Drop techs with all zeros
+          // Preserve installRev from existing data (we don't edit it in v145 modal)
+          var existing = d[weekKey] || {};
+          Object.keys(entries).forEach(function(k) {
+            var prev = existing[k];
+            if (prev && typeof prev === 'object') {
+              if (typeof prev.installRev === 'number') entries[k].installRev = prev.installRev;
+              else if (typeof prev.install === 'number') entries[k].installRev = prev.install;
+            }
+          });
+          // Drop techs with no data at all
           Object.keys(entries).forEach(function(k) {
             var e = entries[k];
-            if (!e.service && !e.install && !e.memberships) delete entries[k];
+            if (!e.service && !e.installCount && !e.memSold && !e.memOpps) delete entries[k];
           });
           if (Object.keys(entries).length === 0) {
             delete d[weekKey];

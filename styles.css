@@ -12190,6 +12190,14 @@ body.rookie-modal-open { overflow: hidden; }
   gap: 8px;
   align-items: center;
 }
+
+/* v145 Editor: 5-column row (label + 4 inputs) */
+.wlb-edit-row.v145 {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) 120px 90px 100px 100px;
+  gap: 8px;
+  align-items: center;
+}
 .wlb-edit-input-wrap.money input { padding-left: 22px; }
 .wlb-edit-input-wrap.count input  { padding-left: 8px; text-align: center; }
 .wlb-edit-mini-label {
@@ -12209,6 +12217,12 @@ body.rookie-modal-open { overflow: hidden; }
 .wlb-edit-input-wrap:nth-of-type(3) .wlb-edit-mini-label { color: #93c5fd; }
 .wlb-edit-input-wrap.count .wlb-edit-mini-label { color: #c4b5fd; }
 
+/* v145: per-stream colors override the generic count color */
+.wlb-edit-row.v145 .wlb-edit-input-wrap:nth-of-type(2) .wlb-edit-mini-label { color: #4ade80; } /* SVC */
+.wlb-edit-row.v145 .wlb-edit-input-wrap:nth-of-type(3) .wlb-edit-mini-label { color: #93c5fd; } /* INST # */
+.wlb-edit-row.v145 .wlb-edit-input-wrap:nth-of-type(4) .wlb-edit-mini-label { color: #c4b5fd; } /* MEM Sold */
+.wlb-edit-row.v145 .wlb-edit-input-wrap:nth-of-type(5) .wlb-edit-mini-label { color: #c4b5fd; } /* MEM Opps */
+
 @media (max-width: 600px) {
   .wlb-edit-row.v144 {
     grid-template-columns: 1fr 1fr 1fr;
@@ -12217,4 +12231,96 @@ body.rookie-modal-open { overflow: hidden; }
     grid-column: 1 / -1;
     margin-bottom: -4px;
   }
+  .wlb-edit-row.v145 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .wlb-edit-row.v145 label {
+    grid-column: 1 / -1;
+    margin-bottom: -4px;
+  }
+}
+
+/* ============================================================ */
+/* v145 — Point system pills + total                            */
+/* ============================================================ */
+.wlb-pt-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.wlb-pt-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #cbd5e1;
+  white-space: nowrap;
+}
+.wlb-pt-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.06);
+  color: #94a3b8;
+}
+.wlb-pt-raw {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+.wlb-pt-tier {
+  font-size: 10px;
+  font-weight: 800;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  color: #cbd5e1;
+}
+.wlb-pt-tier.tier-S { background: rgba(251,191,36,0.20); color: #fbbf24; }
+.wlb-pt-tier.tier-A { background: rgba(248,113,113,0.20); color: #fca5a5; }
+.wlb-pt-tier.tier-B { background: rgba(96,165,250,0.20);  color: #93c5fd; }
+.wlb-pt-tier.tier-C { background: rgba(148,163,184,0.20); color: #cbd5e1; }
+.wlb-pt-tier.tier-0 { background: rgba(100,116,139,0.15); color: #64748b; }
+.wlb-pt-val {
+  color: #fbbf24;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+/* Per-stream pill accents */
+.wlb-pt-pill.svc  { border-color: rgba(74,222,128,0.25); }
+.wlb-pt-pill.svc  .wlb-pt-label { background: rgba(74,222,128,0.18); color: #4ade80; }
+.wlb-pt-pill.inst { border-color: rgba(96,165,250,0.25); }
+.wlb-pt-pill.inst .wlb-pt-label { background: rgba(96,165,250,0.18); color: #93c5fd; }
+.wlb-pt-pill.mem  { border-color: rgba(167,139,250,0.25); }
+.wlb-pt-pill.mem  .wlb-pt-label { background: rgba(167,139,250,0.18); color: #c4b5fd; }
+
+/* Big points total in rev block */
+.wlb-rev.wlb-pts-total {
+  color: #fbbf24;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.wlb-pts-unit {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fcd34d;
+  margin-left: 2px;
+}
+
+@media (max-width: 600px) {
+  .wlb-pt-pill { font-size: 10px; padding: 2px 6px; }
+  .wlb-pt-label { font-size: 8px; }
+  .wlb-rev.wlb-pts-total { font-size: 18px; }
 }
