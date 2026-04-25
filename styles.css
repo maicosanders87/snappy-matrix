@@ -11541,30 +11541,33 @@ body.rookie-modal-open { overflow: hidden; }
   color: #94a3b8 !important;
 }
 
-/* --- 2. GLOBAL HOVER LIFT for major cards --- */
-.kpi-card.v140,
-.ov-snap-card.v140,
-.tech-detail-card.v139,
-.ov-kpi-card,
-.rookie-card,
-.bb-card,
-.mgr-profile-card {
+/* --- 2. GLOBAL HOVER LIFT for major cards ---
+   v141.1: only promote to GPU layer DURING hover, not always.
+   Setting will-change globally caused tab-switch jank. */
+.kpi-card.v140:hover,
+.ov-snap-card.v140:hover,
+.tech-detail-card.v139:hover,
+.ov-kpi-card:hover,
+.rookie-card:hover,
+.bb-card:hover,
+.mgr-profile-card:hover {
   will-change: transform;
 }
 
-/* --- 3. ANIMATED SHINE on S-tier profile hero --- */
+/* --- 3. ANIMATED SHINE on S-tier profile hero ---
+   v141.1: only animate when card is in view (not all profiles offscreen). */
 @keyframes tdv2-shine-sweep {
   0%   { transform: translateX(-120%) rotate(8deg); opacity: 0; }
   15%  { opacity: 1; }
   60%  { opacity: 1; }
   100% { transform: translateX(320%) rotate(8deg); opacity: 0; }
 }
-.tech-detail-card.v139 .tdv2-hero::after {
-  animation: tdv2-shine-sweep 9s ease-in-out infinite;
+/* Only S-tier gets the shine — keeps it premium and cuts background load */
+.tech-detail-card.v139.tier-S .tdv2-hero::after {
+  animation: tdv2-shine-sweep 6s ease-in-out infinite;
   animation-delay: 2s;
 }
 .tech-detail-card.v139.tier-S .tdv2-hero::after {
-  animation-duration: 5s; /* S-tier shines more often */
   background: linear-gradient(115deg, transparent 35%, rgba(255,230,140,0.28) 50%, transparent 65%);
 }
 .tech-detail-card.v139.tier-A .tdv2-hero::after {
@@ -11574,15 +11577,9 @@ body.rookie-modal-open { overflow: hidden; }
   background: linear-gradient(115deg, transparent 35%, rgba(170,210,255,0.2) 50%, transparent 65%);
 }
 
-/* --- 4. GENTLE PULSE on composite ring when rendering --- */
-@keyframes tdv2-ring-pulse {
-  0%   { stroke-dashoffset: 0; opacity: 0.8; }
-  50%  { opacity: 1; }
-  100% { stroke-dashoffset: 0; opacity: 0.8; }
-}
-.tech-detail-card.v139 .tdv2-ring .ring-fill {
-  animation: tdv2-ring-pulse 3.5s ease-in-out infinite;
-}
+/* --- 4. GENTLE PULSE on composite ring — v141.1: removed.
+   Animating opacity on every profile ring at all times caused tab-switch lag.
+   Static ring is cleaner anyway. */
 
 /* --- 5. KPI HERO: animated gradient shine on hero tile --- */
 @keyframes kpi-hero-shine {
@@ -11594,13 +11591,12 @@ body.rookie-modal-open { overflow: hidden; }
   animation-delay: 1.5s;
 }
 
-/* --- 6. RANK BADGES on Team Snapshot: subtle pulse for #1 --- */
-@keyframes rank-gold-pulse {
-  0%, 100% { box-shadow: 0 6px 20px -8px rgba(251,191,36,0.35), 0 0 0 1px rgba(251,191,36,0.2) inset; }
-  50%      { box-shadow: 0 8px 28px -6px rgba(251,191,36,0.55), 0 0 0 1px rgba(251,191,36,0.35) inset; }
-}
+/* --- 6. RANK BADGES on Team Snapshot — v141.1:
+   Static gold glow instead of animated pulse. Animating box-shadow forces
+   repaints every frame which compounded with other animations. */
 .ov-snap-card.v140.rank-gold {
-  animation: rank-gold-pulse 4s ease-in-out infinite;
+  box-shadow: 0 8px 28px -6px rgba(251,191,36,0.45),
+              0 0 0 1px rgba(251,191,36,0.3) inset;
 }
 
 /* --- 7. UNIFORM CARD RADIUS across main app surfaces (was inconsistent 8/10/12/14) --- */
@@ -11660,10 +11656,15 @@ body.rookie-modal-open { overflow: hidden; }
 
 /* --- 11. Reduce motion respect --- */
 @media (prefers-reduced-motion: reduce) {
-  .tech-detail-card.v139 .tdv2-hero::after,
-  .tech-detail-card.v139 .tdv2-ring .ring-fill,
-  .kpi-card.kpi-hero.v140::after,
-  .ov-snap-card.v140.rank-gold {
+  .tech-detail-card.v139.tier-S .tdv2-hero::after,
+  .kpi-card.kpi-hero.v140::after {
     animation: none !important;
   }
+}
+
+/* --- 12. PAUSE animations on hidden views ---
+   When a .view-section isn't .active, freeze any infinite animations inside
+   it so the compositor doesn't waste cycles on offscreen content. */
+.view-section:not(.active) * {
+  animation-play-state: paused !important;
 }
