@@ -11013,3 +11013,249 @@ body.rookie-modal-open { overflow: hidden; }
 @media (max-width: 640px) {
   .app-version-badge { font-size: 9px; padding: 2px 6px; top: 6px; left: 6px; }
 }
+
+/* ============================================================
+   v139 — S-TIER PROFILE CARDS
+   Hero banner (tier-colored gradient) → floating avatar → name
+   → composite score ring. Tightens hierarchy on detail sections.
+   ============================================================ */
+
+/* Outer card gets tier aura glow + removes old left border stripe */
+.tech-detail-card.v139 {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(15,23,42,0.55) 0%, rgba(15,23,42,0.92) 100%);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.tech-detail-card.v139:hover {
+  transform: translateY(-3px);
+}
+
+/* Tier aura rings (subtle colored outline glow) */
+.tech-detail-card.v139.tier-S { border-color: rgba(251,191,36,0.45); box-shadow: 0 8px 28px -10px rgba(251,191,36,0.35), 0 0 0 1px rgba(251,191,36,0.18) inset; }
+.tech-detail-card.v139.tier-S:hover { box-shadow: 0 14px 40px -10px rgba(251,191,36,0.55), 0 0 0 1px rgba(251,191,36,0.3) inset; }
+.tech-detail-card.v139.tier-A { border-color: rgba(248,113,113,0.4); box-shadow: 0 8px 28px -10px rgba(220,38,38,0.32), 0 0 0 1px rgba(248,113,113,0.15) inset; }
+.tech-detail-card.v139.tier-A:hover { box-shadow: 0 14px 40px -10px rgba(220,38,38,0.5), 0 0 0 1px rgba(248,113,113,0.28) inset; }
+.tech-detail-card.v139.tier-B { border-color: rgba(96,165,250,0.4); box-shadow: 0 8px 28px -10px rgba(59,130,246,0.32), 0 0 0 1px rgba(96,165,250,0.15) inset; }
+.tech-detail-card.v139.tier-B:hover { box-shadow: 0 14px 40px -10px rgba(59,130,246,0.5), 0 0 0 1px rgba(96,165,250,0.28) inset; }
+.tech-detail-card.v139.tier-C { border-color: rgba(148,163,184,0.35); box-shadow: 0 8px 24px -10px rgba(100,116,139,0.32), 0 0 0 1px rgba(148,163,184,0.12) inset; }
+.tech-detail-card.v139.tier-C:hover { box-shadow: 0 14px 36px -10px rgba(100,116,139,0.5), 0 0 0 1px rgba(148,163,184,0.25) inset; }
+
+/* HERO banner — tier-tinted gradient w/ diagonal shine */
+.tdv2-hero {
+  position: relative;
+  height: 120px;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.tdv2-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.9;
+}
+.tier-S .tdv2-hero::before { background: radial-gradient(120% 140% at 20% 0%, rgba(251,191,36,0.55), transparent 55%), linear-gradient(135deg, #7c5a0b 0%, #b47608 40%, #3a2a06 100%); }
+.tier-A .tdv2-hero::before { background: radial-gradient(120% 140% at 20% 0%, rgba(248,113,113,0.5), transparent 55%), linear-gradient(135deg, #7f1d1d 0%, #b91c1c 40%, #2c0a0a 100%); }
+.tier-B .tdv2-hero::before { background: radial-gradient(120% 140% at 20% 0%, rgba(96,165,250,0.5), transparent 55%), linear-gradient(135deg, #1e3a8a 0%, #2563eb 40%, #0a1230 100%); }
+.tier-C .tdv2-hero::before { background: radial-gradient(120% 140% at 20% 0%, rgba(148,163,184,0.4), transparent 55%), linear-gradient(135deg, #334155 0%, #475569 40%, #0f172a 100%); }
+
+/* Diagonal shine */
+.tdv2-hero::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  left: -30%;
+  width: 60%;
+  height: 220%;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.12) 50%, transparent 65%);
+  transform: rotate(8deg);
+  pointer-events: none;
+}
+
+/* Tier badge, top-right of hero */
+.tdv2-tier-badge {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(15,23,42,0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.18);
+  z-index: 3;
+  color: #fff;
+}
+.tier-S .tdv2-tier-badge { color: #fde68a; border-color: rgba(251,191,36,0.6); box-shadow: 0 0 14px rgba(251,191,36,0.4); }
+.tier-A .tdv2-tier-badge { color: #fecaca; border-color: rgba(248,113,113,0.6); }
+.tier-B .tdv2-tier-badge { color: #bfdbfe; border-color: rgba(96,165,250,0.6); }
+.tier-C .tdv2-tier-badge { color: #e2e8f0; border-color: rgba(148,163,184,0.5); }
+
+/* Identity row — sits on top of hero bottom and spills below */
+.tdv2-identity {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 0 22px;
+  margin-top: -54px;
+  z-index: 2;
+}
+.tdv2-avatar-wrap {
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  padding: 3px;
+  background: linear-gradient(135deg, var(--tier-color, #1e40af), rgba(15,23,42,0.9));
+  box-shadow: 0 10px 30px -8px rgba(0,0,0,0.6);
+  flex-shrink: 0;
+}
+.tier-S .tdv2-avatar-wrap { background: linear-gradient(135deg, #fbbf24, #7c5a0b); }
+.tier-A .tdv2-avatar-wrap { background: linear-gradient(135deg, #f87171, #7f1d1d); }
+.tier-B .tdv2-avatar-wrap { background: linear-gradient(135deg, #60a5fa, #1e3a8a); }
+.tier-C .tdv2-avatar-wrap { background: linear-gradient(135deg, #94a3b8, #334155); }
+.tdv2-avatar-wrap img, .tdv2-avatar-wrap .tdv2-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 800;
+  font-size: 28px;
+  border: 3px solid #0f172a;
+}
+
+.tdv2-identity-text {
+  flex: 1;
+  padding-bottom: 6px;
+  min-width: 0;
+}
+.tdv2-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: #f8fafc;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.tdv2-sub {
+  font-size: 12.5px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+.tdv2-sub .tdv2-dot { opacity: 0.5; margin: 0 6px; }
+
+/* Composite score ring (right side of identity row) */
+.tdv2-ring {
+  flex-shrink: 0;
+  width: 78px;
+  height: 78px;
+  position: relative;
+  margin-bottom: 6px;
+}
+.tdv2-ring svg { transform: rotate(-90deg); }
+.tdv2-ring .ring-track { stroke: rgba(148,163,184,0.2); }
+.tier-S .tdv2-ring .ring-fill { stroke: #fbbf24; filter: drop-shadow(0 0 6px rgba(251,191,36,0.6)); }
+.tier-A .tdv2-ring .ring-fill { stroke: #f87171; filter: drop-shadow(0 0 6px rgba(248,113,113,0.6)); }
+.tier-B .tdv2-ring .ring-fill { stroke: #60a5fa; filter: drop-shadow(0 0 6px rgba(96,165,250,0.6)); }
+.tier-C .tdv2-ring .ring-fill { stroke: #94a3b8; filter: drop-shadow(0 0 4px rgba(148,163,184,0.5)); }
+.tdv2-ring-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+  font-size: 20px;
+  color: #f8fafc;
+  line-height: 1;
+}
+.tdv2-ring-num .ring-label {
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.1em;
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+/* Score factor chips row */
+.tdv2-factors {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  padding: 14px 22px 8px;
+  margin-top: 10px;
+}
+.tdv2-factor {
+  text-align: center;
+  padding: 8px 4px;
+  background: rgba(30,41,59,0.5);
+  border-radius: 8px;
+  border: 1px solid rgba(51,65,85,0.5);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  cursor: pointer;
+}
+.tdv2-factor:hover {
+  background: rgba(30,41,59,0.8);
+  border-color: rgba(96,165,250,0.4);
+  transform: translateY(-1px);
+}
+.tdv2-factor-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.tdv2-factor-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+
+/* Inner content wrapper — gives all detail sections consistent padding */
+.tdv2-body {
+  padding: 14px 22px 22px;
+}
+.tdv2-body > * { margin-bottom: 14px; }
+.tdv2-body > *:last-child { margin-bottom: 0; }
+
+/* Tighten uppercase section titles throughout the v2 card */
+.tech-detail-card.v139 .aptitude-title,
+.tech-detail-card.v139 .st-profile-title,
+.tech-detail-card.v139 .google-reviews-title,
+.tech-detail-card.v139 .manager-notes-title {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* Responsive: stack factor chips on narrow screens */
+@media (max-width: 640px) {
+  .tdv2-factors { grid-template-columns: repeat(3, 1fr); padding: 12px 14px 6px; }
+  .tdv2-identity { padding: 0 14px; }
+  .tdv2-body { padding: 12px 14px 18px; }
+  .tdv2-avatar-wrap { width: 92px; height: 92px; }
+  .tdv2-name { font-size: 19px; }
+  .tdv2-ring { width: 68px; height: 68px; }
+  .tdv2-ring-num { font-size: 18px; }
+}

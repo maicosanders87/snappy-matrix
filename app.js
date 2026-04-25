@@ -4735,32 +4735,44 @@ if (typeof Chart !== 'undefined') {
         const st = stData.find(s => s.name === t.short);
 
         const tierInfo = getTechTier(t);
+        // v139: S-tier hero — gradient banner, floating avatar, composite ring
+        const _tierClass = 'tier-' + (tierInfo.tier || 'C');
+        const _compPct = Math.max(0, Math.min(100, Number(tierInfo.composite) || 0));
+        const _ringCirc = 2 * Math.PI * 32; // r=32
+        const _ringDash = (_compPct / 100) * _ringCirc;
+        const _avatarImg = techAvatars[t.short]
+          ? `<img loading="lazy" decoding="async" src="${techAvatars[t.short]}" alt="${t.name}">`
+          : `<div class="tdv2-avatar-fallback" style="background:${t.color}">${t.initials}</div>`;
         html += `
-          <div class="tech-detail-card">
-            <div class="tech-detail-header">
-              ${techAvatars[t.short] ? `<img loading="lazy" decoding="async" src="${techAvatars[t.short]}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:3px solid ${t.color}" alt="${t.name}">` : `<div class="tech-detail-avatar" style="background:${t.color}">${t.initials}</div>`}
-              <div style="flex:1">
-                <div class="tech-detail-name">${t.name}</div>
-                <div class="tech-detail-meta">${t.position} — ${t.years} yrs experience</div>
+          <div class="tech-detail-card v139 ${_tierClass}">
+            <div class="tdv2-hero">
+              <div class="tdv2-tier-badge">${tierInfo.tier}-TIER</div>
+            </div>
+            <div class="tdv2-identity">
+              <div class="tdv2-avatar-wrap">${_avatarImg}</div>
+              <div class="tdv2-identity-text">
+                <div class="tdv2-name">${t.name}</div>
+                <div class="tdv2-sub">${t.position}<span class="tdv2-dot">•</span>${t.years} yrs<span class="tdv2-dot">•</span>${tierInfo.tierLabel}</div>
               </div>
-              <div style="text-align:center">
-                ${tierBadgeHTML(tierInfo.tier)}
-                <div class="tier-label">${tierInfo.tierLabel}</div>
+              <div class="tdv2-ring" title="Composite Score">
+                <svg width="78" height="78" viewBox="0 0 78 78">
+                  <circle class="ring-track" cx="39" cy="39" r="32" stroke-width="6" fill="none"/>
+                  <circle class="ring-fill" cx="39" cy="39" r="32" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="${_ringDash.toFixed(1)} ${_ringCirc.toFixed(1)}"/>
+                </svg>
+                <div class="tdv2-ring-num">${tierInfo.composite}<span class="ring-label">Comp</span></div>
               </div>
             </div>
 
-            <div class="tier-section">
-              <div class="tier-breakdown">
-                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('aptitude-skills','')" title="Go to Aptitude & Skills">Aptitude<br><span class="tier-factor-value">${tierInfo.aptScore}</span></div>
-                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('skills-tags','')" title="Go to Skills Tags">Skills<br><span class="tier-factor-value">${tierInfo.skillScore}</span></div>
-                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('scorecards','overview')" title="Go to ST Scorecards">ST Perf<br><span class="tier-factor-value">${tierInfo.stScore}</span></div>
-                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('scorecards','installs')" title="Go to ST Installs">Installs<br><span class="tier-factor-value">${tierInfo.installScore}</span></div>
-                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('manager','')" title="Go to Manager Hub">Mgr Score<br><span class="tier-factor-value">${tierInfo.mgrScore}</span></div>
-                <div class="tier-factor tier-factor-link" onclick="navigateToKpi('scorecards','overview')" title="Go to Reviews">Reviews<br><span class="tier-factor-value">${tierInfo.reviewScore}</span></div>
-                <div class="tier-factor" style="border-left:2px solid var(--border-subtle);padding-left:12px">Composite<br><span class="tier-factor-value" style="font-size:16px">${tierInfo.composite}</span></div>
-              </div>
+            <div class="tdv2-factors">
+              <div class="tdv2-factor" onclick="navigateToKpi('aptitude-skills','')" title="Aptitude & Skills"><div class="tdv2-factor-label">Apt</div><div class="tdv2-factor-val">${tierInfo.aptScore}</div></div>
+              <div class="tdv2-factor" onclick="navigateToKpi('skills-tags','')" title="Skills Tags"><div class="tdv2-factor-label">Skills</div><div class="tdv2-factor-val">${tierInfo.skillScore}</div></div>
+              <div class="tdv2-factor" onclick="navigateToKpi('scorecards','overview')" title="ST Scorecards"><div class="tdv2-factor-label">ST</div><div class="tdv2-factor-val">${tierInfo.stScore}</div></div>
+              <div class="tdv2-factor" onclick="navigateToKpi('scorecards','installs')" title="ST Installs"><div class="tdv2-factor-label">Install</div><div class="tdv2-factor-val">${tierInfo.installScore}</div></div>
+              <div class="tdv2-factor" onclick="navigateToKpi('manager','')" title="Manager Hub"><div class="tdv2-factor-label">Mgr</div><div class="tdv2-factor-val">${tierInfo.mgrScore}</div></div>
+              <div class="tdv2-factor" onclick="navigateToKpi('scorecards','overview')" title="Reviews"><div class="tdv2-factor-label">Rev</div><div class="tdv2-factor-val">${tierInfo.reviewScore}</div></div>
             </div>
 
+            <div class="tdv2-body">
             ${renderXPBar(t, '')}
 
             ${(typeof TECH_SCORE_PDFS !== 'undefined' && TECH_SCORE_PDFS[t.short]) ? `<button class="score-pdf-btn" onclick="downloadScorePDF('${t.short}')" title="Download Score Breakdown PDF"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg> Score Breakdown</button>` : ''}
@@ -5024,6 +5036,7 @@ if (typeof Chart !== 'undefined') {
                 ${t.holding_back ? `<div><strong>Holding back:</strong> ${t.holding_back}</div>` : ''}
               </div>
             </div>` : ''}
+            </div><!-- /tdv2-body -->
           </div>
         `;
       }
