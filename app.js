@@ -11332,6 +11332,7 @@ function openEmbeddedPDF(filename) {
       }
     }
     scoresSave();
+    notifyDataChanged();
   }
   function setStrengths(short, list) {
     if (!scoreOverrides[short]) scoreOverrides[short] = {};
@@ -11341,6 +11342,7 @@ function openEmbeddedPDF(filename) {
       if (t) t.strengths = list.slice();
     }
     scoresSave();
+    notifyDataChanged();
   }
   function setWeaknesses(short, list) {
     if (!scoreOverrides[short]) scoreOverrides[short] = {};
@@ -11350,6 +11352,7 @@ function openEmbeddedPDF(filename) {
       if (t) t.weaknesses = list.slice();
     }
     scoresSave();
+    notifyDataChanged();
   }
   // Base fields (years, position, hireDate, color, growth, training, holding_back)
   function setBaseField(short, key, val) {
@@ -11364,6 +11367,7 @@ function openEmbeddedPDF(filename) {
       }
     }
     scoresSave();
+    notifyDataChanged();
   }
   // Manager tags (array of {label, type})
   function setManagerTags(short, list) {
@@ -11374,6 +11378,7 @@ function openEmbeddedPDF(filename) {
       if (t) t.managerTags = list.slice();
     }
     scoresSave();
+    notifyDataChanged();
   }
   // Recall / complaint manual overrides
   function setRecallOverride(short, val) {
@@ -11381,13 +11386,58 @@ function openEmbeddedPDF(filename) {
     if (val === '' || val == null) delete scoreOverrides[short].recallOverride;
     else scoreOverrides[short].recallOverride = parseInt(val, 10);
     scoresSave();
+    notifyDataChanged();
   }
   function setComplaintOverride(short, val) {
     if (!scoreOverrides[short]) scoreOverrides[short] = {};
     if (val === '' || val == null) delete scoreOverrides[short].complaintOverride;
     else scoreOverrides[short].complaintOverride = parseInt(val, 10);
     scoresSave();
+    notifyDataChanged();
   }
+
+  // ----- Central refresh: re-render whatever view is currently visible after any edit -----
+  // Debounced so a flurry of edits triggers one re-render
+  var __refreshTimer = null;
+  function notifyDataChanged() {
+    if (__refreshTimer) clearTimeout(__refreshTimer);
+    __refreshTimer = setTimeout(function() {
+      __refreshTimer = null;
+      try {
+        // Re-apply overrides so any in-memory mutation already done is consistent
+        applyOverridesToTechs();
+        if (typeof applyStOverridesToStData === 'function') applyStOverridesToStData();
+        if (typeof applyAptOverrides === 'function') applyAptOverrides();
+        if (typeof applyMgrScoreOverrides === 'function') applyMgrScoreOverrides();
+      } catch (e) {}
+      // Identify currently active main view
+      var active = document.querySelector('.view-section.active');
+      var view = active ? (active.id || '').replace(/^view-/, '') : '';
+      // Always-safe: KPI tiles + overview bulletin
+      try { if (typeof renderKPIs === 'function') renderKPIs(); } catch(e) {}
+      try { if (typeof renderBulletinBoard === 'function') renderBulletinBoard(); } catch(e) {}
+      // View-specific
+      try {
+        if (view === 'overview' && typeof renderOverviewTab === 'function') renderOverviewTab();
+      } catch(e) { console.warn('refresh overview', e); }
+      try {
+        if (view === 'matrix' && typeof renderMatrix === 'function') renderMatrix();
+      } catch(e) { console.warn('refresh matrix', e); }
+      try {
+        if (view === 'rookie' && typeof renderRookieCards === 'function') renderRookieCards();
+      } catch(e) { console.warn('refresh rookie', e); }
+      try {
+        if (view === 'skills-tags' && typeof renderSkillsTags === 'function') renderSkillsTags();
+      } catch(e) { console.warn('refresh skills', e); }
+      try {
+        if (view === 'manager' && typeof renderManagerTab === 'function') renderManagerTab();
+      } catch(e) { console.warn('refresh manager', e); }
+      // Notify any other listeners
+      try { document.dispatchEvent(new CustomEvent('snappy:data-changed', { detail: { view: view } })); } catch(e) {}
+    }, 120);
+  }
+  // Make available globally so other modules can also trigger refresh
+  if (typeof window !== 'undefined') window.snappyNotifyDataChanged = notifyDataChanged;
 
   // ----- Manager Score override (1–10 scale) -----
   const MGR_SCORE_KEY = 'snappy_mgr_score_overrides';
@@ -11440,6 +11490,7 @@ function openEmbeddedPDF(filename) {
       if (typeof window !== 'undefined' && window.managerScores) window.managerScores[short] = v;
     }
     mgrScoreSave();
+    notifyDataChanged();
   }
 
   // Apply baseFields + managerTags + weaknesses to live techs[] on init
@@ -11513,6 +11564,7 @@ function openEmbeddedPDF(filename) {
       }
     }
     stOvSave();
+    notifyDataChanged();
   }
 
   // ----- Aptitude override layer -----
@@ -11568,6 +11620,7 @@ function openEmbeddedPDF(filename) {
       aptitudeTests[short][key] = aptOverrides[short][key];
     }
     aptOvSave();
+    notifyDataChanged();
   }
   function setAptSection(short, idx, sub, val) {
     if (!aptOverrides[short]) aptOverrides[short] = {};
@@ -11581,12 +11634,14 @@ function openEmbeddedPDF(filename) {
     aptOverrides[short].sections = baseSections;
     if (live) live.sections = baseSections.slice();
     aptOvSave();
+    notifyDataChanged();
   }
   function setAptCerts(short, list) {
     if (!aptOverrides[short]) aptOverrides[short] = {};
     aptOverrides[short].certs = list.slice();
     if (typeof aptitudeTests !== 'undefined' && aptitudeTests[short]) aptitudeTests[short].certs = list.slice();
     aptOvSave();
+    notifyDataChanged();
   }
 
   // ----- Skill / dispatch tag toggles (reuse existing systems) -----
@@ -11604,6 +11659,7 @@ function openEmbeddedPDF(filename) {
         if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) SyncEngine.write('skills', skillsData.assignments);
       } catch (e) {}
     }
+    notifyDataChanged();
   }
   function toggleDispatchTag(short, tag, on) {
     if (typeof dispLoad !== 'function' || typeof dispSave !== 'function') return;
@@ -11618,6 +11674,7 @@ function openEmbeddedPDF(filename) {
     }
     if (!on && idx !== -1) arr.splice(idx, 1);
     dispSave(d);
+    notifyDataChanged();
   }
 
   // ----- Roster (techs + Mark + Brayden) -----
@@ -11692,6 +11749,7 @@ function openEmbeddedPDF(filename) {
     p[field] = value;
     profilesSave();
     flashSaved();
+    notifyDataChanged();
   }
 
   function readFileAsDataURL(file) {
