@@ -3604,7 +3604,7 @@ document.addEventListener('visibilitychange', function() {
         var badges = getAchievements(t);
         var earnedCount = badges.filter(function(b) { return b.earned; }).length;
 
-        snapHTML += '<div class="ov-snap-card leaderboard-card card-animate" style="animation-delay:' + (idx * 0.08) + 's">' +
+        snapHTML += '<div class="ov-snap-card leaderboard-card card-animate v140 tier-' + tierInfo.tier + ' ' + rankClass + '" style="animation-delay:' + (idx * 0.08) + 's">' +
           '<div class="leaderboard-rank ' + rankClass + '">' + rankIcon + '</div>' +
           avatarEl +
           '<div class="ov-snap-body">' +
@@ -5635,28 +5635,37 @@ if (typeof Chart !== 'undefined') {
       const totalMtdInstRev = 112935;
       const topRev = stData.reduce((best, t) => t.nexstar.total_revenue > best.nexstar.total_revenue ? t : best);
 
+      // v140: Hero tile + 4 satellites, branded accents
+      var topRevName = topRev ? topRev.name : '\u2014';
       document.getElementById('st-kpi-row').innerHTML = `
-        <div class="kpi-card">
-          <div class="kpi-label">Team Revenue</div>
-          <div class="kpi-value" style="color:var(--accent-teal)">${fmt$(totalRev)}</div>
-          <div class="kpi-sub">Last 90 days</div>
+        <div class="kpi-card kpi-hero v140">
+          <div class="kpi-hero-top">
+            <div class="kpi-hero-icon">\ud83d\udcb0</div>
+            <div class="kpi-hero-label">Team Revenue \u2014 Last 90 Days</div>
+          </div>
+          <div class="kpi-hero-value">${fmt$(totalRev)}</div>
+          <div class="kpi-hero-sub"><span class="kpi-hero-highlight">\u25B2 Top earner:</span> ${topRevName} \u2014 ${fmt$(topRev.nexstar.total_revenue)}</div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card v140" data-accent="conv">
+          <div class="kpi-accent"></div>
           <div class="kpi-label">Avg Conversion</div>
           <div class="kpi-value">${avgConv}<span style="font-size:14px;color:var(--text-muted);font-weight:400">%</span></div>
           <div class="kpi-sub">Opportunity to close</div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card v140" data-accent="leads">
+          <div class="kpi-accent"></div>
           <div class="kpi-label">Tech-Gen Leads</div>
           <div class="kpi-value">${totalLeads}</div>
           <div class="kpi-sub">Combined lead generation</div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card v140" data-accent="sales">
+          <div class="kpi-accent"></div>
           <div class="kpi-label">Total Sales</div>
-          <div class="kpi-value" style="color:var(--accent-green)">${fmt$(totalSales)}</div>
+          <div class="kpi-value">${fmt$(totalSales)}</div>
           <div class="kpi-sub">All technicians combined</div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card v140" data-accent="installs">
+          <div class="kpi-accent"></div>
           <div class="kpi-label">MTD Installs</div>
           <div class="kpi-value">${totalMtdInst}</div>
           <div class="kpi-sub">${fmt$(totalMtdInstRev)} install revenue</div>
@@ -5665,16 +5674,44 @@ if (typeof Chart !== 'undefined') {
     }
 
     function buildSTTable(id, cols) {
+      // v140: Winner highlight per column + avatar dot next to tech name
+      // Pre-compute winners per column (highest numeric value)
+      var colWinners = cols.map(function(c) {
+        var maxVal = -Infinity, winner = null;
+        stData.forEach(function(t) {
+          var v = Number(c.get(t));
+          if (!isNaN(v) && v > maxVal) { maxVal = v; winner = t.name; }
+        });
+        return winner;
+      });
+
       let html = '<thead><tr>';
-      html += '<th style="min-width:100px">Technician</th>';
+      html += '<th style="min-width:140px">Technician</th>';
       cols.forEach(c => html += `<th style="text-align:center">${c.label}</th>`);
       html += '</tr></thead><tbody>';
       stData.forEach(t => {
-        html += `<tr><td style="font-weight:600">${t.name}</td>`;
-        cols.forEach(c => {
+        // Find matching tech object for avatar/tier color
+        var techObj = techs.find(function(x) { return x.short === t.name; });
+        var avatarHTML = '';
+        if (techObj && techAvatars[techObj.short]) {
+          avatarHTML = '<img loading="lazy" decoding="async" class="st-row-avatar" src="' + techAvatars[techObj.short] + '" alt="' + t.name + '">';
+        } else {
+          var bg = techObj ? techObj.color : '#64748b';
+          var initials = techObj ? techObj.initials : (t.name[0] || '?');
+          avatarHTML = '<div class="st-row-avatar st-row-avatar-fallback" style="background:' + bg + '">' + initials + '</div>';
+        }
+        var tierCls = '';
+        if (techObj) {
+          try { tierCls = ' tier-' + getTechTier(techObj).tier; } catch(_) {}
+        }
+        html += '<tr class="st-row v140' + tierCls + '">';
+        html += '<td class="st-row-name"><div class="st-row-ident">' + avatarHTML + '<span>' + t.name + '</span></div></td>';
+        cols.forEach(function(c, i) {
           const val = c.get(t);
           const display = c.fmt ? c.fmt(val) : val;
-          html += `<td class="score-cell"><span class="avg-pill">${display}</span></td>`;
+          var isWinner = colWinners[i] === t.name;
+          var pillCls = 'avg-pill' + (isWinner ? ' winner-pill' : '');
+          html += '<td class="score-cell"><span class="' + pillCls + '">' + display + (isWinner ? ' <span class="winner-star">\u2605</span>' : '') + '</span></td>';
         });
         html += '</tr>';
       });

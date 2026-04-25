@@ -11259,3 +11259,207 @@ body.rookie-modal-open { overflow: hidden; }
   .tdv2-ring { width: 68px; height: 68px; }
   .tdv2-ring-num { font-size: 18px; }
 }
+
+/* ============================================================
+   v140 — S-TIER KPI PAGE + TEAM SNAPSHOT CARDS
+   ============================================================ */
+
+/* --- KPI tiles: hero + satellites --- */
+#st-kpi-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 1100px) {
+  #st-kpi-row { grid-template-columns: 1fr 1fr; }
+  #st-kpi-row .kpi-hero { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  #st-kpi-row { grid-template-columns: 1fr 1fr; }
+}
+
+.kpi-card.v140 {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(30,41,59,0.6) 0%, rgba(15,23,42,0.85) 100%);
+  border: 1px solid rgba(51,65,85,0.7);
+  padding: 18px 18px 16px;
+  box-shadow: 0 6px 24px -12px rgba(0,0,0,0.5);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.kpi-card.v140:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 36px -14px rgba(0,0,0,0.6);
+  border-color: rgba(96,165,250,0.4);
+}
+
+/* Top accent bar (color-coded per metric type) */
+.kpi-card.v140 .kpi-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #60a5fa;
+}
+.kpi-card.v140[data-accent="conv"]    .kpi-accent { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+.kpi-card.v140[data-accent="leads"]   .kpi-accent { background: linear-gradient(90deg, #a78bfa, #8b5cf6); }
+.kpi-card.v140[data-accent="sales"]   .kpi-accent { background: linear-gradient(90deg, #34d399, #10b981); }
+.kpi-card.v140[data-accent="installs"].kpi-accent,
+.kpi-card.v140[data-accent="installs"] .kpi-accent { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+
+/* Hero tile (Team Revenue) */
+.kpi-card.kpi-hero.v140 {
+  background:
+    radial-gradient(120% 160% at 15% 0%, rgba(251,191,36,0.25), transparent 55%),
+    linear-gradient(135deg, #1e3a8a 0%, #0f172a 60%, #0a1230 100%);
+  border: 1px solid rgba(251,191,36,0.35);
+  box-shadow: 0 10px 32px -12px rgba(251,191,36,0.22), 0 0 0 1px rgba(251,191,36,0.12) inset;
+  padding: 22px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 148px;
+}
+.kpi-card.kpi-hero.v140::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  right: -40%;
+  width: 60%;
+  height: 220%;
+  background: linear-gradient(115deg, transparent 35%, rgba(251,191,36,0.12) 50%, transparent 65%);
+  transform: rotate(8deg);
+  pointer-events: none;
+}
+.kpi-hero-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.kpi-hero-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.kpi-hero-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fde68a;
+}
+.kpi-hero-value {
+  font-family: 'JetBrains Mono', 'Orbitron', monospace;
+  font-size: 42px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 16px rgba(251,191,36,0.35);
+  margin-bottom: 4px;
+}
+.kpi-hero-sub {
+  font-size: 12.5px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+.kpi-hero-highlight {
+  color: #fbbf24;
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+/* --- ST TABLE ROWS --- */
+.st-row.v140 {
+  transition: background 0.15s;
+}
+.st-row.v140:hover {
+  background: rgba(96,165,250,0.06) !important;
+}
+.st-row.v140 .st-row-name { padding: 10px 12px; }
+.st-row-ident {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.st-row-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(15,23,42,0.8);
+  flex-shrink: 0;
+}
+.st-row-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+/* Tier-left stripe */
+.st-row.v140.tier-S .st-row-name { box-shadow: inset 3px 0 0 #fbbf24; }
+.st-row.v140.tier-A .st-row-name { box-shadow: inset 3px 0 0 #f87171; }
+.st-row.v140.tier-B .st-row-name { box-shadow: inset 3px 0 0 #60a5fa; }
+.st-row.v140.tier-C .st-row-name { box-shadow: inset 3px 0 0 #94a3b8; }
+
+/* Winner pill highlight (gold) */
+.avg-pill.winner-pill {
+  background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(245,158,11,0.15)) !important;
+  color: #fde68a !important;
+  border: 1px solid rgba(251,191,36,0.55) !important;
+  font-weight: 800 !important;
+  box-shadow: 0 0 10px rgba(251,191,36,0.25);
+}
+.winner-star {
+  font-size: 9px;
+  color: #fbbf24;
+  vertical-align: middle;
+  filter: drop-shadow(0 0 3px rgba(251,191,36,0.6));
+  margin-left: 2px;
+}
+
+/* --- TEAM SNAPSHOT CARDS (Overview) --- */
+.ov-snap-card.v140 {
+  position: relative;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.ov-snap-card.v140:hover {
+  transform: translateY(-2px);
+}
+/* Tier aura on snapshot cards */
+.ov-snap-card.v140.tier-S { border-color: rgba(251,191,36,0.5) !important; box-shadow: 0 6px 20px -8px rgba(251,191,36,0.35), 0 0 0 1px rgba(251,191,36,0.2) inset; }
+.ov-snap-card.v140.tier-A { border-color: rgba(248,113,113,0.5) !important; box-shadow: 0 6px 20px -8px rgba(220,38,38,0.32), 0 0 0 1px rgba(248,113,113,0.18) inset; }
+.ov-snap-card.v140.tier-B { border-color: rgba(96,165,250,0.5) !important; box-shadow: 0 6px 20px -8px rgba(59,130,246,0.32), 0 0 0 1px rgba(96,165,250,0.18) inset; }
+.ov-snap-card.v140.tier-C { border-color: rgba(148,163,184,0.4) !important; box-shadow: 0 6px 18px -8px rgba(100,116,139,0.28), 0 0 0 1px rgba(148,163,184,0.12) inset; }
+
+/* Rank-colored top bar (runs across whole card, not just the badge) */
+.ov-snap-card.v140::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 12px 12px 0 0;
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+.ov-snap-card.v140.rank-gold::before   { background: linear-gradient(90deg, #fbbf24, #fde68a, #fbbf24); opacity: 1; }
+.ov-snap-card.v140.rank-silver::before { background: linear-gradient(90deg, #cbd5e1, #f1f5f9, #cbd5e1); opacity: 1; }
+.ov-snap-card.v140.rank-bronze::before { background: linear-gradient(90deg, #a16207, #d97706, #a16207); opacity: 1; }
+
+/* Slight corner crown for #1 card */
+.ov-snap-card.v140.rank-gold::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle at 100% 0%, rgba(251,191,36,0.2), transparent 70%);
+  pointer-events: none;
+}
