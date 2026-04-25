@@ -11463,3 +11463,207 @@ body.rookie-modal-open { overflow: hidden; }
   background: radial-gradient(circle at 100% 0%, rgba(251,191,36,0.2), transparent 70%);
   pointer-events: none;
 }
+
+/* ============================================================
+   v141 — TYPOGRAPHY + POLISH SWEEP
+   Pure-CSS override layer. Tightens hierarchy on key views and
+   adds a unified animated shine + hover lift to major cards.
+   ============================================================ */
+
+/* --- 1. SECTION TITLES: softer, no SHOUTY uppercase on big headings --- */
+.tech-detail-card.v139 .aptitude-title,
+.tech-detail-card.v139 .st-profile-title,
+.tech-detail-card.v139 .google-reviews-title,
+.tech-detail-card.v139 .manager-notes-title,
+.tech-detail-card.v139 .rc-profile-title,
+.tech-detail-card.v139 .coach-log-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: #e2e8f0 !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  position: relative;
+  padding-left: 12px;
+}
+/* Colored accent bar before each section title */
+.tech-detail-card.v139 .aptitude-title::before,
+.tech-detail-card.v139 .st-profile-title::before,
+.tech-detail-card.v139 .google-reviews-title::before,
+.tech-detail-card.v139 .manager-notes-title::before,
+.tech-detail-card.v139 .rc-profile-title::before,
+.tech-detail-card.v139 .coach-log-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 2px;
+  background: #60a5fa;
+}
+.tech-detail-card.v139 .aptitude-title::before      { background: #10b981; }
+.tech-detail-card.v139 .st-profile-title::before    { background: #60a5fa; }
+.tech-detail-card.v139 .google-reviews-title::before{ background: #fbbf24; }
+.tech-detail-card.v139 .manager-notes-title::before { background: #a78bfa; }
+.tech-detail-card.v139 .rc-profile-title::before    { background: #f87171; }
+.tech-detail-card.v139 .coach-log-title::before     { background: #22d3ee; }
+
+/* Hide the SVG icon inside these titles \u2014 the accent bar replaces them */
+.tech-detail-card.v139 .aptitude-title svg,
+.tech-detail-card.v139 .st-profile-title svg,
+.tech-detail-card.v139 .google-reviews-title svg,
+.tech-detail-card.v139 .manager-notes-title svg,
+.tech-detail-card.v139 .rc-profile-title svg,
+.tech-detail-card.v139 .coach-log-title svg {
+  width: 14px !important;
+  height: 14px !important;
+  opacity: 0.8;
+}
+
+/* Detail sub-sections inside profile card (Strengths, Weaknesses, Growth Plan) */
+.tech-detail-card.v139 .detail-section-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: #94a3b8 !important;
+  margin-bottom: 8px;
+}
+
+/* Tighten the tiny all-caps label inside ST metrics \u2014 was too loud */
+.tech-detail-card.v139 .st-metric-label {
+  font-size: 10px !important;
+  letter-spacing: 0.06em !important;
+  color: #94a3b8 !important;
+}
+
+/* --- 2. GLOBAL HOVER LIFT for major cards --- */
+.kpi-card.v140,
+.ov-snap-card.v140,
+.tech-detail-card.v139,
+.ov-kpi-card,
+.rookie-card,
+.bb-card,
+.mgr-profile-card {
+  will-change: transform;
+}
+
+/* --- 3. ANIMATED SHINE on S-tier profile hero --- */
+@keyframes tdv2-shine-sweep {
+  0%   { transform: translateX(-120%) rotate(8deg); opacity: 0; }
+  15%  { opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: translateX(320%) rotate(8deg); opacity: 0; }
+}
+.tech-detail-card.v139 .tdv2-hero::after {
+  animation: tdv2-shine-sweep 9s ease-in-out infinite;
+  animation-delay: 2s;
+}
+.tech-detail-card.v139.tier-S .tdv2-hero::after {
+  animation-duration: 5s; /* S-tier shines more often */
+  background: linear-gradient(115deg, transparent 35%, rgba(255,230,140,0.28) 50%, transparent 65%);
+}
+.tech-detail-card.v139.tier-A .tdv2-hero::after {
+  background: linear-gradient(115deg, transparent 35%, rgba(255,160,160,0.2) 50%, transparent 65%);
+}
+.tech-detail-card.v139.tier-B .tdv2-hero::after {
+  background: linear-gradient(115deg, transparent 35%, rgba(170,210,255,0.2) 50%, transparent 65%);
+}
+
+/* --- 4. GENTLE PULSE on composite ring when rendering --- */
+@keyframes tdv2-ring-pulse {
+  0%   { stroke-dashoffset: 0; opacity: 0.8; }
+  50%  { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0.8; }
+}
+.tech-detail-card.v139 .tdv2-ring .ring-fill {
+  animation: tdv2-ring-pulse 3.5s ease-in-out infinite;
+}
+
+/* --- 5. KPI HERO: animated gradient shine on hero tile --- */
+@keyframes kpi-hero-shine {
+  0%   { transform: translateX(-50%) rotate(8deg); }
+  100% { transform: translateX(250%) rotate(8deg); }
+}
+.kpi-card.kpi-hero.v140::after {
+  animation: kpi-hero-shine 10s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+/* --- 6. RANK BADGES on Team Snapshot: subtle pulse for #1 --- */
+@keyframes rank-gold-pulse {
+  0%, 100% { box-shadow: 0 6px 20px -8px rgba(251,191,36,0.35), 0 0 0 1px rgba(251,191,36,0.2) inset; }
+  50%      { box-shadow: 0 8px 28px -6px rgba(251,191,36,0.55), 0 0 0 1px rgba(251,191,36,0.35) inset; }
+}
+.ov-snap-card.v140.rank-gold {
+  animation: rank-gold-pulse 4s ease-in-out infinite;
+}
+
+/* --- 7. UNIFORM CARD RADIUS across main app surfaces (was inconsistent 8/10/12/14) --- */
+.kpi-card.v140,
+.ov-snap-card.v140,
+.tech-detail-card.v139 {
+  border-radius: 14px !important;
+}
+
+/* --- 8. LABEL CLEANUP on Team Snapshot cards --- */
+.ov-snap-card.v140 .ov-snap-name {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.01em !important;
+}
+.ov-snap-card.v140 .ov-snap-stat {
+  font-size: 12.5px !important;
+  color: #cbd5e1 !important;
+}
+.ov-snap-card.v140 .ov-snap-badges {
+  font-size: 11px !important;
+  color: #94a3b8 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* --- 9. KPI SATELLITE TILE typography refinement --- */
+.kpi-card.v140 .kpi-label {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: #94a3b8 !important;
+}
+.kpi-card.v140 .kpi-value {
+  font-family: 'JetBrains Mono', 'Orbitron', monospace !important;
+  font-size: 30px !important;
+  font-weight: 800 !important;
+  color: #f1f5f9 !important;
+  line-height: 1.1;
+  margin: 4px 0;
+}
+.kpi-card.v140 .kpi-sub {
+  font-size: 11.5px !important;
+  color: #94a3b8 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* --- 10. FOCUS STATES for accessibility (keyboard nav shows tier-matched outline) --- */
+.tdv2-factor:focus-visible,
+.kpi-card.v140:focus-visible,
+.ov-snap-card.v140:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+/* --- 11. Reduce motion respect --- */
+@media (prefers-reduced-motion: reduce) {
+  .tech-detail-card.v139 .tdv2-hero::after,
+  .tech-detail-card.v139 .tdv2-ring .ring-fill,
+  .kpi-card.kpi-hero.v140::after,
+  .ov-snap-card.v140.rank-gold {
+    animation: none !important;
+  }
+}
