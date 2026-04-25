@@ -11302,6 +11302,15 @@ function openEmbeddedPDF(filename) {
       }
       if (Array.isArray(ov.strengths)) t.strengths = ov.strengths.slice();
       if (Array.isArray(ov.weaknesses)) t.weaknesses = ov.weaknesses.slice();
+      // v136: also apply managerTags + baseFields so they survive any re-init
+      if (Array.isArray(ov.managerTags)) t.managerTags = ov.managerTags.slice();
+      if (ov.baseFields && typeof ov.baseFields === 'object') {
+        Object.keys(ov.baseFields).forEach(function(k) {
+          var v = ov.baseFields[k];
+          if (k === 'years') t.years = (v === '' || v == null) ? '' : (isNaN(parseFloat(v)) ? v : parseFloat(v));
+          else t[k] = v;
+        });
+      }
     });
   }
   scoresLoad();
@@ -11430,14 +11439,17 @@ function openEmbeddedPDF(filename) {
         'renderGroupedBar',
         'renderSTRadar'
       ];
+      var didRender = [];
       for (var i = 0; i < renderers.length; i++) {
         var fnName = renderers[i];
         try {
-          var fn = (typeof window !== 'undefined' && typeof window[fnName] === 'function') ? window[fnName]
-                  : (eval('typeof ' + fnName) === 'function' ? eval(fnName) : null);
-          if (typeof fn === 'function') fn();
-        } catch(e) { console.warn('refresh ' + fnName, e); }
+          var fn = null;
+          if (typeof window !== 'undefined' && typeof window[fnName] === 'function') fn = window[fnName];
+          else { try { fn = (0, eval)(fnName); } catch(_) { fn = null; } }
+          if (typeof fn === 'function') { fn(); didRender.push(fnName); }
+        } catch(e) { console.warn('[snappy] refresh ' + fnName + ' failed:', e); }
       }
+      try { console.log('[snappy] notifyDataChanged re-rendered:', didRender.join(', ')); } catch(_) {}
 
       // 3) If profile modal is open, refresh it in place so values shown update too
       try {
@@ -11460,7 +11472,7 @@ function openEmbeddedPDF(filename) {
         var view = active ? (active.id || '').replace(/^view-/, '') : '';
         document.dispatchEvent(new CustomEvent('snappy:data-changed', { detail: { view: view } }));
       } catch(e) {}
-    }, 120);
+    }, 50);
   }
   // Make available globally so other modules can also trigger refresh
   if (typeof window !== 'undefined') window.snappyNotifyDataChanged = notifyDataChanged;
