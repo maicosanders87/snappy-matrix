@@ -22,11 +22,20 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260424v145">
+  <link rel="stylesheet" href="styles.css?v=20260424v146">
 </head>
 <body>
+  <!-- v146: Intro splash video (click anywhere to skip) -->
+  <div id="introSplash" class="intro-splash" role="dialog" aria-label="Snappy team intro">
+    <video id="introSplashVideo" class="intro-splash-video" playsinline autoplay muted preload="auto">
+      <source src="snappy_team_intro.mp4" type="video/mp4">
+    </video>
+    <button type="button" id="introSkipBtn" class="intro-skip-btn" aria-label="Skip intro">Skip ×</button>
+    <div class="intro-hint">Tap anywhere to skip</div>
+  </div>
+
   <!-- Version Badge (top-left, always visible) -->
-  <div id="appVersionBadge" class="app-version-badge" title="App version">v145</div>
+  <div id="appVersionBadge" class="app-version-badge" title="App version">v146</div>
 
   <!-- Background Grid Effect -->
   <div class="bg-grid-effect"></div>
@@ -68,7 +77,7 @@
       </div>
       <div class="header-right">
         <span class="badge">5 Technicians</span>
-        <span class="badge badge-date">Updated 4/24/2026 &middot; v145</span>
+        <span class="badge badge-date">Updated 4/24/2026 &middot; v146</span>
         <button class="share-matrix-btn" onclick="shareMatrix()" title="Share Matrix"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share</button>
         <button id="syncNowBtn" class="sync-now-btn mgr-only" onclick="manualSync()" title="Sync Now">&#x1f504;</button>
         <span id="syncStatusIndicator" class="sync-indicator sync-idle mgr-only" onclick="openSyncSetup()" title="Cloud Sync Settings">☁ Cloud</span>
@@ -1298,7 +1307,50 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="score_pdfs.js?v=20260424v145"></script>
-  <script src="app.js?v=20260424v145"></script>
+  <script src="score_pdfs.js?v=20260424v146"></script>
+  <script src="app.js?v=20260424v146"></script>
+
+  <!-- v146: Intro splash controller -->
+  <script>
+    (function() {
+      var splash = document.getElementById('introSplash');
+      var video  = document.getElementById('introSplashVideo');
+      var skipBtn = document.getElementById('introSkipBtn');
+      if (!splash || !video) return;
+      var dismissed = false;
+      function dismiss() {
+        if (dismissed) return;
+        dismissed = true;
+        splash.classList.add('intro-splash-fading');
+        try { video.pause(); } catch(e) {}
+        setTimeout(function() {
+          if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+        }, 450);
+      }
+      // Click anywhere on overlay (or skip button) dismisses
+      splash.addEventListener('click', dismiss);
+      splash.addEventListener('touchstart', dismiss, { passive: true });
+      if (skipBtn) skipBtn.addEventListener('click', function(e) { e.stopPropagation(); dismiss(); });
+      // Auto-dismiss when video ends
+      video.addEventListener('ended', dismiss);
+      // Safety: if video errors out, dismiss immediately
+      video.addEventListener('error', dismiss);
+      // Try to play; some browsers require explicit call after autoplay attribute
+      var p = video.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(function() {
+          // Autoplay blocked — try unmute on first interaction handled by dismiss anyway
+        });
+      }
+      // Try to enable audio on first user interaction (desktop only)
+      var unmuteOnce = function() {
+        try { video.muted = false; } catch(e) {}
+        document.removeEventListener('keydown', unmuteOnce);
+      };
+      document.addEventListener('keydown', unmuteOnce, { once: true });
+      // Hard timeout: if for any reason nothing happens in 15s, dismiss
+      setTimeout(dismiss, 15000);
+    })();
+  </script>
 </body>
 </html>
