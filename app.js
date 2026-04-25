@@ -12669,16 +12669,22 @@ function openEmbeddedPDF(filename) {
     }
   });
 
-  // v137: Boot-time re-render so overrides loaded from localStorage propagate
-  // to all views even though renderProfiles/renderRookieCards run BEFORE this IIFE
-  // applies overrides. Wait one tick so all renderers exist + DOM is ready.
+  // v138: Boot-time re-render — only fire ONCE, and only if overrides actually exist.
+  // Previously (v137) we fired notifyDataChanged twice (0ms + 500ms) which caused
+  // 32 re-renders on every fresh load. Skip entirely when there's nothing to apply.
   try {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function() { setTimeout(notifyDataChanged, 0); });
-    } else {
-      setTimeout(notifyDataChanged, 0);
+    var _hasOverrides = false;
+    try {
+      var _so = JSON.parse(localStorage.getItem('snappy_tech_score_overrides') || '{}');
+      _hasOverrides = _so && Object.keys(_so).length > 0;
+    } catch(_) {}
+    if (_hasOverrides) {
+      var _fireBoot = function() { setTimeout(notifyDataChanged, 0); };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _fireBoot);
+      } else {
+        _fireBoot();
+      }
     }
-    // Also schedule one more refresh after a short delay to catch any late-arriving renderers
-    setTimeout(notifyDataChanged, 500);
   } catch(e) { console.warn('boot-time notifyDataChanged failed', e); }
 })();
