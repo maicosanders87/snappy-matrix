@@ -12668,4 +12668,17 @@ function openEmbeddedPDF(filename) {
       if (md && md.classList.contains('active')) mgrCloseProfileModal();
     }
   });
+
+  // v137: Boot-time re-render so overrides loaded from localStorage propagate
+  // to all views even though renderProfiles/renderRookieCards run BEFORE this IIFE
+  // applies overrides. Wait one tick so all renderers exist + DOM is ready.
+  try {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() { setTimeout(notifyDataChanged, 0); });
+    } else {
+      setTimeout(notifyDataChanged, 0);
+    }
+    // Also schedule one more refresh after a short delay to catch any late-arriving renderers
+    setTimeout(notifyDataChanged, 500);
+  } catch(e) { console.warn('boot-time notifyDataChanged failed', e); }
 })();
