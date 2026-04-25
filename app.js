@@ -152,7 +152,9 @@ async function silentSyncOnLogin() {
       'seasons': 'snappy_seasons_v1',
       'skilllog': 'snappy_skill_log_v1',
       'techprofiles': 'snappy_tech_profiles',
-      'techscores': 'snappy_tech_score_overrides'
+      'techscores': 'snappy_tech_score_overrides',
+      'techstdata': 'snappy_tech_st_overrides',
+      'techaptitude': 'snappy_tech_aptitude_overrides'
     };
     var updated = false;
     for (var ck in keyMap) {
@@ -584,7 +586,9 @@ async function initCloudSync(userInitiated) {
     'seasons': 'snappy_seasons_v1',
     'skilllog': 'snappy_skill_log_v1',
     'techprofiles': 'snappy_tech_profiles',
-      'techscores': 'snappy_tech_score_overrides'
+      'techscores': 'snappy_tech_score_overrides',
+      'techstdata': 'snappy_tech_st_overrides',
+      'techaptitude': 'snappy_tech_aptitude_overrides'
   };
 
   // Protect recently-modified local keys from being overwritten by stale cloud data.
@@ -665,8 +669,8 @@ async function manualSync() {
       SyncEngine.write('skills', skillsData.assignments);
       SyncEngine.write('manager', mgrState);
       SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
-      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons','techprofiles','techscores'];
-      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1','snappy_tech_profiles','snappy_tech_score_overrides'];
+      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons','techprofiles','techscores','techstdata','techaptitude'];
+      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1','snappy_tech_profiles','snappy_tech_score_overrides','snappy_tech_st_overrides','snappy_tech_aptitude_overrides'];
       dKeys.forEach(function(k, i) {
         var v = localStorage.getItem(dLocalKeys[i]);
         if (v) {
@@ -701,7 +705,9 @@ async function manualSync() {
         'mgrnotes': 'snappy_mgr_notes_v1',
         'seasons': 'snappy_seasons_v1',
         'techprofiles': 'snappy_tech_profiles',
-      'techscores': 'snappy_tech_score_overrides'
+      'techscores': 'snappy_tech_score_overrides',
+      'techstdata': 'snappy_tech_st_overrides',
+      'techaptitude': 'snappy_tech_aptitude_overrides'
       };
       for (var ck in keyMap) {
         if (cloudData[ck] !== undefined && cloudData[ck] !== null) {
@@ -835,7 +841,9 @@ async function saveSyncUrl() {
       'mgrnotes': 'snappy_mgr_notes_v1',
       'seasons': 'snappy_seasons_v1',
       'techprofiles': 'snappy_tech_profiles',
-      'techscores': 'snappy_tech_score_overrides'
+      'techscores': 'snappy_tech_score_overrides',
+      'techstdata': 'snappy_tech_st_overrides',
+      'techaptitude': 'snappy_tech_aptitude_overrides'
     };
     var payload = {};
     for (var ck in keyMap) {
@@ -859,7 +867,7 @@ async function saveSyncUrl() {
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
       var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats',
-      'braydenstats': 'snappy_brayden_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1', 'seasons': 'snappy_seasons_v1', 'techprofiles': 'snappy_tech_profiles', 'techscores': 'snappy_tech_score_overrides' };
+      'braydenstats': 'snappy_brayden_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1', 'seasons': 'snappy_seasons_v1', 'techprofiles': 'snappy_tech_profiles', 'techscores': 'snappy_tech_score_overrides', 'techstdata': 'snappy_tech_st_overrides', 'techaptitude': 'snappy_tech_aptitude_overrides' };
       for (var pk in pullKeys) {
         if (pullData.result[pk] !== undefined && pullData.result[pk] !== null) {
           var cv = _extractCloudVal(pullData.result[pk]);
@@ -11320,6 +11328,199 @@ function openEmbeddedPDF(filename) {
     }
     scoresSave();
   }
+  function setWeaknesses(short, list) {
+    if (!scoreOverrides[short]) scoreOverrides[short] = {};
+    scoreOverrides[short].weaknesses = list.slice();
+    if (typeof techs !== 'undefined') {
+      var t = techs.find(function(x) { return x.short === short; });
+      if (t) t.weaknesses = list.slice();
+    }
+    scoresSave();
+  }
+  // Base fields (years, position, hireDate, color, growth, training, holding_back)
+  function setBaseField(short, key, val) {
+    if (!scoreOverrides[short]) scoreOverrides[short] = {};
+    if (!scoreOverrides[short].baseFields) scoreOverrides[short].baseFields = {};
+    scoreOverrides[short].baseFields[key] = val;
+    if (typeof techs !== 'undefined') {
+      var t = techs.find(function(x) { return x.short === short; });
+      if (t) {
+        if (key === 'years') t.years = (val === '' || val == null) ? '' : (isNaN(parseFloat(val)) ? val : parseFloat(val));
+        else t[key] = val;
+      }
+    }
+    scoresSave();
+  }
+  // Manager tags (array of {label, type})
+  function setManagerTags(short, list) {
+    if (!scoreOverrides[short]) scoreOverrides[short] = {};
+    scoreOverrides[short].managerTags = list.slice();
+    if (typeof techs !== 'undefined') {
+      var t = techs.find(function(x) { return x.short === short; });
+      if (t) t.managerTags = list.slice();
+    }
+    scoresSave();
+  }
+  // Recall / complaint manual overrides
+  function setRecallOverride(short, val) {
+    if (!scoreOverrides[short]) scoreOverrides[short] = {};
+    if (val === '' || val == null) delete scoreOverrides[short].recallOverride;
+    else scoreOverrides[short].recallOverride = parseInt(val, 10);
+    scoresSave();
+  }
+  function setComplaintOverride(short, val) {
+    if (!scoreOverrides[short]) scoreOverrides[short] = {};
+    if (val === '' || val == null) delete scoreOverrides[short].complaintOverride;
+    else scoreOverrides[short].complaintOverride = parseInt(val, 10);
+    scoresSave();
+  }
+
+  // Apply baseFields + managerTags + weaknesses to live techs[] on init
+  (function applyBaseOverridesNow() {
+    if (typeof techs === 'undefined' || !Array.isArray(techs)) return;
+    techs.forEach(function(t) {
+      var ov = scoreOverrides[t.short];
+      if (!ov) return;
+      if (ov.baseFields) {
+        Object.keys(ov.baseFields).forEach(function(k) {
+          var v = ov.baseFields[k];
+          if (k === 'years') t.years = (v === '' || v == null) ? '' : (isNaN(parseFloat(v)) ? v : parseFloat(v));
+          else t[k] = v;
+        });
+      }
+      if (Array.isArray(ov.managerTags)) t.managerTags = ov.managerTags.slice();
+      if (Array.isArray(ov.weaknesses)) t.weaknesses = ov.weaknesses.slice();
+    });
+  })();
+
+  // ----- ServiceTitan stData override layer (MTD/YTD service stats) -----
+  const STDATA_KEY = 'snappy_tech_st_overrides';
+  let stOverrides = {}; // { [short]: { mtd_productivity:{...}, productivity:{...} } }
+  function stOvLoad() {
+    try {
+      const raw = localStorage.getItem(STDATA_KEY);
+      if (raw) stOverrides = JSON.parse(raw) || {};
+    } catch (e) { stOverrides = {}; }
+  }
+  function stOvSave() {
+    try {
+      localStorage.setItem(STDATA_KEY, JSON.stringify(stOverrides));
+      if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
+        SyncEngine.write('techstdata', stOverrides);
+      }
+    } catch (e) { console.warn('stOverrides save failed', e); }
+  }
+  function applyStOverridesToStData() {
+    if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+    stData.forEach(function(rec) {
+      var ov = stOverrides[rec.short];
+      if (!ov) return;
+      ['mtd_productivity', 'productivity'].forEach(function(group) {
+        if (ov[group]) {
+          if (!rec[group]) rec[group] = {};
+          Object.keys(ov[group]).forEach(function(k) { rec[group][k] = ov[group][k]; });
+        }
+      });
+    });
+  }
+  stOvLoad();
+  applyStOverridesToStData();
+  if (typeof window !== 'undefined') {
+    window.__stOverridesApplyPull = function(remote) {
+      if (!remote || typeof remote !== 'object') return;
+      stOverrides = remote;
+      try { localStorage.setItem(STDATA_KEY, JSON.stringify(stOverrides)); } catch (e) {}
+      applyStOverridesToStData();
+    };
+  }
+  function setStStat(short, group, key, val) {
+    if (!stOverrides[short]) stOverrides[short] = {};
+    if (!stOverrides[short][group]) stOverrides[short][group] = {};
+    var num = parseFloat(val);
+    stOverrides[short][group][key] = isNaN(num) ? val : num;
+    if (typeof stData !== 'undefined') {
+      var rec = stData.find(function(r) { return r.short === short; });
+      if (rec) {
+        if (!rec[group]) rec[group] = {};
+        rec[group][key] = isNaN(num) ? val : num;
+      }
+    }
+    stOvSave();
+  }
+
+  // ----- Aptitude override layer -----
+  const APT_KEY = 'snappy_tech_aptitude_overrides';
+  let aptOverrides = {};
+  function aptOvLoad() {
+    try {
+      const raw = localStorage.getItem(APT_KEY);
+      if (raw) aptOverrides = JSON.parse(raw) || {};
+    } catch (e) { aptOverrides = {}; }
+  }
+  function aptOvSave() {
+    try {
+      localStorage.setItem(APT_KEY, JSON.stringify(aptOverrides));
+      if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
+        SyncEngine.write('techaptitude', aptOverrides);
+      }
+    } catch (e) { console.warn('aptOverrides save failed', e); }
+  }
+  function applyAptOverrides() {
+    if (typeof aptitudeTests === 'undefined') return;
+    Object.keys(aptOverrides).forEach(function(short) {
+      var ov = aptOverrides[short] || {};
+      if (!aptitudeTests[short]) aptitudeTests[short] = { date: '', sections: [], totalScore: 0, maxScore: 0, certs: [], interpretation: '' };
+      var live = aptitudeTests[short];
+      ['date', 'totalScore', 'maxScore', 'interpretation'].forEach(function(k) {
+        if (ov[k] !== undefined) live[k] = ov[k];
+      });
+      if (Array.isArray(ov.sections)) live.sections = ov.sections.slice();
+      if (Array.isArray(ov.certs)) live.certs = ov.certs.slice();
+    });
+  }
+  aptOvLoad();
+  applyAptOverrides();
+  if (typeof window !== 'undefined') {
+    window.__aptOverridesApplyPull = function(remote) {
+      if (!remote || typeof remote !== 'object') return;
+      aptOverrides = remote;
+      try { localStorage.setItem(APT_KEY, JSON.stringify(aptOverrides)); } catch (e) {}
+      applyAptOverrides();
+    };
+  }
+  function setAptField(short, key, val) {
+    if (!aptOverrides[short]) aptOverrides[short] = {};
+    if (key === 'totalScore' || key === 'maxScore') {
+      var n = parseFloat(val);
+      aptOverrides[short][key] = isNaN(n) ? 0 : n;
+    } else {
+      aptOverrides[short][key] = val;
+    }
+    if (typeof aptitudeTests !== 'undefined') {
+      if (!aptitudeTests[short]) aptitudeTests[short] = { date: '', sections: [], totalScore: 0, maxScore: 0, certs: [], interpretation: '' };
+      aptitudeTests[short][key] = aptOverrides[short][key];
+    }
+    aptOvSave();
+  }
+  function setAptSection(short, idx, sub, val) {
+    if (!aptOverrides[short]) aptOverrides[short] = {};
+    var live = (typeof aptitudeTests !== 'undefined' && aptitudeTests[short]) ? aptitudeTests[short] : null;
+    var baseSections = (live && Array.isArray(live.sections)) ? live.sections.map(function(s){return Object.assign({}, s);}) : [];
+    if (Array.isArray(aptOverrides[short].sections)) baseSections = aptOverrides[short].sections.map(function(s){return Object.assign({}, s);});
+    if (!baseSections[idx]) baseSections[idx] = { label: '', score: 0, total: 10 };
+    var n = parseFloat(val);
+    if (sub === 'label') baseSections[idx].label = val;
+    else baseSections[idx][sub] = isNaN(n) ? 0 : n;
+    aptOverrides[short].sections = baseSections;
+    if (live) live.sections = baseSections.slice();
+    aptOvSave();
+  }
+  function setAptCerts(short, list) {
+    if (!aptOverrides[short]) aptOverrides[short] = {};
+    aptOverrides[short].certs = list.slice();
+    if (typeof aptitudeTests !== 'undefined' && aptitudeTests[short]) aptitudeTests[short].certs = list.slice();
+    aptOvSave();
+  }
 
   // ----- Skill / dispatch tag toggles (reuse existing systems) -----
   function toggleSkill(short, skillId, on) {
@@ -11484,6 +11685,8 @@ function openEmbeddedPDF(filename) {
   }
   function getRecallCount(short) {
     try {
+      var ov = scoreOverrides[short];
+      if (ov && typeof ov.recallOverride === 'number') return ov.recallOverride;
       var raw = localStorage.getItem('snappy_recall_log_v1');
       if (!raw) return 0;
       var arr = JSON.parse(raw);
@@ -11493,6 +11696,8 @@ function openEmbeddedPDF(filename) {
   }
   function getComplaintCount(short) {
     try {
+      var ov = scoreOverrides[short];
+      if (ov && typeof ov.complaintOverride === 'number') return ov.complaintOverride;
       var raw = localStorage.getItem('snappy_complaint_log_v1');
       if (!raw) return 0;
       var arr = JSON.parse(raw);
@@ -11588,12 +11793,16 @@ function openEmbeddedPDF(filename) {
     if (person.role === 'tech' && person.source) {
       var t = person.source;
 
-      // 2) Career snapshot (years, position, color)
+      // 2) Career snapshot — editable
       html += '<div class="pm-section">' +
-        '<h4>Career Snapshot</h4>' +
-        '<div class="pm-stat-row">' +
-          statPill('Years', (t.years != null ? t.years : '—')) +
-          statPill('Position', t.position || '—') +
+        '<h4>Career Snapshot (Editable)</h4>' +
+        '<div class="pm-grid">' +
+          editStat('Years of Service', 'years', (t.years != null ? t.years : ''), 'number') +
+          editStat('Position', 'position', t.position || '', 'text') +
+          editStat('Hire Date', 'date', t.date || '', 'text') +
+          editColor('Avatar Color', 'color', t.color || '#1e40af') +
+        '</div>' +
+        '<div class="pm-stat-row" style="margin-top:8px">' +
           statPill('Initials', t.initials || '—') +
           statPill('Avg Score', avgScore(t.scores) || '—') +
         '</div>' +
@@ -11677,52 +11886,127 @@ function openEmbeddedPDF(filename) {
         '</div>' +
       '</div>';
 
-      // 7) MTD service stats
-      var st = getStData(short);
-      if (st) {
-        var ytd = st.productivity || {};
-        var mtd = st.mtd_productivity || {};
-        html += '<div class="pm-section"><h4>Service Performance (MTD)</h4>' +
-          '<div class="pm-stat-row">' +
-            statPill('Rev/Hr', '$' + (mtd.rev_hr != null ? mtd.rev_hr : '—')) +
-            statPill('Billable Hrs', mtd.billable_hours != null ? mtd.billable_hours : '—') +
-            statPill('Sold Hrs %', (mtd.sold_hrs_on_job_pct != null ? mtd.sold_hrs_on_job_pct + '%' : '—')) +
-            statPill('Tasks/Opp', mtd.tasks_per_opp != null ? mtd.tasks_per_opp : '—') +
-            statPill('Options/Opp', mtd.options_per_opp != null ? mtd.options_per_opp : '—') +
-            statPill('Recalls', mtd.recalls != null ? mtd.recalls : '—') +
-          '</div>' +
-          '<div style="font-size:10px;color:#64748b;margin-top:6px;">YTD avg rev/hr: $' + (ytd.rev_hr != null ? ytd.rev_hr : '—') + ' · Total billable hrs: ' + (ytd.billable_hours != null ? ytd.billable_hours : '—') + '</div>' +
+      // 7) EDITABLE MTD service stats
+      var st = getStData(short) || {};
+      var mtd = st.mtd_productivity || {};
+      html += '<div class="pm-section"><h4>Service Performance — MTD (Editable)</h4>' +
+        '<div class="pm-grid">' +
+          editStStat('Rev / Hr', 'mtd_productivity', 'rev_hr', mtd.rev_hr, '$') +
+          editStStat('Billable Hrs', 'mtd_productivity', 'billable_hours', mtd.billable_hours) +
+          editStStat('Sold Hrs %', 'mtd_productivity', 'sold_hrs_on_job_pct', mtd.sold_hrs_on_job_pct, '', '%') +
+          editStStat('Tasks / Opp', 'mtd_productivity', 'tasks_per_opp', mtd.tasks_per_opp) +
+          editStStat('Options / Opp', 'mtd_productivity', 'options_per_opp', mtd.options_per_opp) +
+          editStStat('Recalls', 'mtd_productivity', 'recalls', mtd.recalls) +
+        '</div>' +
+      '</div>';
+
+      // 7b) EDITABLE YTD productivity stats
+      var ytd = st.productivity || {};
+      html += '<div class="pm-section"><h4>Service Performance — YTD (Editable)</h4>' +
+        '<div class="pm-grid">' +
+          editStStat('Rev / Hr', 'productivity', 'rev_hr', ytd.rev_hr, '$') +
+          editStStat('Billable Hrs', 'productivity', 'billable_hours', ytd.billable_hours) +
+          editStStat('Sold Hrs %', 'productivity', 'sold_hrs_on_job_pct', ytd.sold_hrs_on_job_pct, '', '%') +
+          editStStat('Tasks / Opp', 'productivity', 'tasks_per_opp', ytd.tasks_per_opp) +
+          editStStat('Options / Opp', 'productivity', 'options_per_opp', ytd.options_per_opp) +
+          editStStat('Recalls', 'productivity', 'recalls', ytd.recalls) +
+        '</div>' +
+      '</div>';
+
+      // 8) Quality issues — manual override option
+      var sov = scoreOverrides[short] || {};
+      var liveRecalls = (function(){ try { var r = localStorage.getItem('snappy_recall_log_v1'); return r ? (JSON.parse(r) || []).filter(function(x){return x && (x.tech===short || x.techShort===short);}).length : 0; } catch(e){return 0;} })();
+      var liveComplaints = (function(){ try { var r = localStorage.getItem('snappy_complaint_log_v1'); return r ? (JSON.parse(r) || []).filter(function(x){return x && (x.tech===short || x.techShort===short);}).length : 0; } catch(e){return 0;} })();
+      html += '<div class="pm-section"><h4>Quality Issues (Editable Override)</h4>' +
+        '<div class="pm-grid">' +
+          '<div class="pm-field"><label>Recalls (override) — live: ' + liveRecalls + '</label>' +
+            '<input type="number" min="0" step="1" data-recall-override="1" placeholder="Leave blank to use live count" value="' + (typeof sov.recallOverride === 'number' ? sov.recallOverride : '') + '"></div>' +
+          '<div class="pm-field"><label>Complaints (override) — live: ' + liveComplaints + '</label>' +
+            '<input type="number" min="0" step="1" data-complaint-override="1" placeholder="Leave blank to use live count" value="' + (typeof sov.complaintOverride === 'number' ? sov.complaintOverride : '') + '"></div>' +
+        '</div>' +
+      '</div>';
+
+      // 9) EDITABLE Aptitude & certifications
+      var apt = getAptitude(short) || { date: '', sections: [], totalScore: 0, maxScore: 50, certs: [], interpretation: '' };
+      var aptSections = Array.isArray(apt.sections) ? apt.sections : [];
+      html += '<div class="pm-section"><h4>Aptitude & Certifications (Editable)</h4>' +
+        '<div class="pm-grid">' +
+          '<div class="pm-field"><label>Test Date</label><input type="text" data-apt-field="date" value="' + escapeHtml(apt.date || '') + '" placeholder="e.g. Jan 2025"></div>' +
+          '<div class="pm-field"><label>Total Score</label><input type="number" min="0" step="1" data-apt-field="totalScore" value="' + (apt.totalScore != null ? apt.totalScore : '') + '"></div>' +
+          '<div class="pm-field"><label>Max Score</label><input type="number" min="0" step="1" data-apt-field="maxScore" value="' + (apt.maxScore != null ? apt.maxScore : '') + '"></div>' +
+        '</div>';
+      // Sections (label/score/total)
+      html += '<div style="margin-top:10px;font-size:11px;color:#94a3b8;font-weight:600;">Test Sections</div>';
+      html += '<div class="pm-cat-subs">';
+      var sectionCount = Math.max(aptSections.length, 5);
+      for (var si = 0; si < sectionCount; si++) {
+        var sec = aptSections[si] || { label: '', score: 0, total: 10 };
+        html += '<div class="pm-sub-row" style="gap:6px;align-items:center;">' +
+          '<input type="text" class="pm-sub-input" style="flex:2" placeholder="Section name" data-apt-sec="' + si + '" data-apt-sec-sub="label" value="' + escapeHtml(sec.label || '') + '">' +
+          '<input type="number" min="0" step="1" class="pm-sub-input" style="width:60px" placeholder="Score" data-apt-sec="' + si + '" data-apt-sec-sub="score" value="' + (sec.score != null ? sec.score : '') + '">' +
+          '<span style="color:#64748b">/</span>' +
+          '<input type="number" min="0" step="1" class="pm-sub-input" style="width:60px" placeholder="Total" data-apt-sec="' + si + '" data-apt-sec-sub="total" value="' + (sec.total != null ? sec.total : '') + '">' +
           '</div>';
       }
+      html += '</div>';
+      // Certs
+      var certs = (apt.certs || []).slice();
+      html += '<div style="margin-top:10px;font-size:11px;color:#94a3b8;font-weight:600;">Certifications (click to remove)</div>' +
+        '<div class="pm-tags" id="pmCertsList">' +
+          certs.map(function(c, i) { return '<span class="pm-tag cert removable" data-cert-idx="' + i + '" title="Click to remove">' + escapeHtml(c) + ' ×</span>'; }).join('') +
+        '</div>' +
+        '<div class="pm-add-row">' +
+          '<input type="text" id="pmCertInput" placeholder="Add cert (e.g. EPA 608, NATE) and press Enter" class="pm-sub-input" style="flex:1">' +
+          '<button class="pm-btn gold" id="pmCertAdd">+ Add</button>' +
+        '</div>' +
+      '</div>';
 
-      // 8) Recalls / complaints (live logs)
-      var recalls = getRecallCount(short);
-      var complaints = getComplaintCount(short);
-      html += '<div class="pm-section"><h4>Quality Issues (Live)</h4>' +
-        '<div class="pm-stat-row">' +
-          statPill('Recalls', recalls) +
-          statPill('Complaints', complaints) +
-        '</div></div>';
+      // 10) EDITABLE Manager Tags
+      var mgrTags = Array.isArray(t.managerTags) ? t.managerTags.slice() : [];
+      html += '<div class="pm-section"><h4>Manager Tags (click to remove)</h4>' +
+        '<div class="pm-tags" id="pmMgrTagsList">' +
+          mgrTags.map(function(tag, i) {
+            var lbl = (typeof tag === 'string') ? tag : (tag && tag.label ? tag.label : '');
+            var typ = (tag && tag.type) ? tag.type : 'role';
+            return '<span class="pm-tag mgr-tag mgr-tag-' + escapeHtml(typ) + ' removable" data-mgrtag-idx="' + i + '" title="' + escapeHtml(typ) + ' — click to remove">' + escapeHtml(lbl) + ' ×</span>';
+          }).join('') +
+        '</div>' +
+        '<div class="pm-add-row">' +
+          '<input type="text" id="pmMgrTagInput" placeholder="Add tag" class="pm-sub-input" style="flex:2">' +
+          '<select id="pmMgrTagType" class="pm-sub-input" style="flex:1">' +
+            '<option value="role">role</option>' +
+            '<option value="trust">trust</option>' +
+            '<option value="strength">strength</option>' +
+          '</select>' +
+          '<button class="pm-btn gold" id="pmMgrTagAdd">+ Add</button>' +
+        '</div>' +
+      '</div>';
 
-      // 9) Aptitude / certifications
-      var apt = getAptitude(short);
-      if (apt) {
-        html += '<div class="pm-section"><h4>Aptitude & Certifications</h4>' +
-          '<div class="pm-stat-row">' +
-            statPill('Aptitude', (apt.totalScore != null ? apt.totalScore + '/' + (apt.maxScore || 50) : '—')) +
-            statPill('Test Date', apt.date || '—') +
-          '</div>' +
-          (apt.certs && apt.certs.length
-            ? '<div class="pm-tags" style="margin-top:8px">' + apt.certs.map(function(c) { return '<span class="pm-tag cert">' + escapeHtml(c) + '</span>'; }).join('') + '</div>'
-            : '') +
-          '</div>';
-      }
+      // 11) EDITABLE Weaknesses
+      var weaknesses = (t.weaknesses || []).slice();
+      html += '<div class="pm-section"><h4>Weaknesses / Areas to Improve (click to remove)</h4>' +
+        '<div class="pm-tags" id="pmWeaknessesList">' +
+          weaknesses.map(function(s, i) { return '<span class="pm-tag weakness removable" data-weakness-idx="' + i + '" title="Click to remove">' + escapeHtml(s) + ' ×</span>'; }).join('') +
+        '</div>' +
+        '<div class="pm-add-row">' +
+          '<input type="text" id="pmWeaknessInput" placeholder="Add a weakness and press Enter" class="pm-sub-input" style="flex:1">' +
+          '<button class="pm-btn gold" id="pmWeaknessAdd">+ Add</button>' +
+        '</div>' +
+      '</div>';
 
-      // 10) Coaching entries
+      // 12) EDITABLE Coaching Notes (growth, training, holding back)
+      html += '<div class="pm-section"><h4>Coaching Notes (Editable)</h4>' +
+        '<div class="pm-field"><label>Growth Plan</label><textarea data-base-field="growth" rows="2" placeholder="What this tech is working toward…">' + escapeHtml(t.growth || '') + '</textarea></div>' +
+        '<div class="pm-field" style="margin-top:8px"><label>Training Focus</label><textarea data-base-field="training" rows="2" placeholder="Current training focus…">' + escapeHtml(t.training || '') + '</textarea></div>' +
+        '<div class="pm-field" style="margin-top:8px"><label>What’s Holding Them Back</label><textarea data-base-field="holding_back" rows="2" placeholder="Blockers, gaps…">' + escapeHtml(t.holding_back || '') + '</textarea></div>' +
+        '<div class="pm-field" style="margin-top:8px"><label>Manager Notes (extended)</label><textarea data-base-field="managerNotes" rows="2" placeholder="Anything else…">' + escapeHtml(t.managerNotes || '') + '</textarea></div>' +
+      '</div>';
+
+      // 13) Coaching history (read-only counts)
       var entries = getMgrEntries(short);
       var oneOnOnes = entries.filter(function(e) { return e.type === '1on1' || e.type === 'one_on_one' || e.type === 'oneonone'; });
       var rideAlongs = entries.filter(function(e) { return e.type === 'ridealong' || e.type === 'ride_along'; });
-      html += '<div class="pm-section"><h4>Coaching History</h4>' +
+      html += '<div class="pm-section"><h4>Coaching History (live)</h4>' +
         '<div class="pm-stat-row">' +
           statPill('1-on-1s', oneOnOnes.length) +
           statPill('Ride-Alongs', rideAlongs.length) +
@@ -11838,6 +12122,217 @@ function openEmbeddedPDF(filename) {
       });
     });
 
+    // ===== v130 wiring =====
+
+    // Wire base fields (years, position, date, color, growth, training, holding_back, managerNotes)
+    bodyEl.querySelectorAll('[data-base-field]').forEach(function(el) {
+      var key = el.getAttribute('data-base-field');
+      var saveIt = function() {
+        setBaseField(short, key, el.value);
+        // If color, sync the partner text input
+        if (el.type === 'color') {
+          var partner = bodyEl.querySelector('[data-base-field-text="' + key + '"]');
+          if (partner) partner.value = el.value;
+        }
+        flashSaved();
+      };
+      var ev = (el.tagName === 'TEXTAREA') ? 'blur' : 'change';
+      el.addEventListener(ev, saveIt);
+      if (el.tagName === 'INPUT' && el.type === 'text') el.addEventListener('blur', saveIt);
+    });
+    // Sync the color text input back to the color picker
+    bodyEl.querySelectorAll('[data-base-field-text]').forEach(function(el) {
+      var key = el.getAttribute('data-base-field-text');
+      el.addEventListener('change', function() {
+        var v = (el.value || '').trim();
+        if (!/^#[0-9a-fA-F]{6}$/.test(v)) return;
+        setBaseField(short, key, v);
+        var partner = bodyEl.querySelector('input[type="color"][data-base-field="' + key + '"]');
+        if (partner) partner.value = v;
+        flashSaved();
+      });
+      el.addEventListener('blur', function() { el.dispatchEvent(new Event('change')); });
+    });
+
+    // Wire MTD/YTD service stats
+    bodyEl.querySelectorAll('[data-st-group]').forEach(function(inp) {
+      var saveIt = function() {
+        var g = inp.getAttribute('data-st-group');
+        var k = inp.getAttribute('data-st-key');
+        setStStat(short, g, k, inp.value);
+        flashSaved();
+      };
+      inp.addEventListener('change', saveIt);
+      inp.addEventListener('blur', saveIt);
+    });
+
+    // Wire recall/complaint manual overrides
+    bodyEl.querySelectorAll('[data-recall-override]').forEach(function(inp) {
+      var saveIt = function() { setRecallOverride(short, inp.value); flashSaved(); };
+      inp.addEventListener('change', saveIt);
+      inp.addEventListener('blur', saveIt);
+    });
+    bodyEl.querySelectorAll('[data-complaint-override]').forEach(function(inp) {
+      var saveIt = function() { setComplaintOverride(short, inp.value); flashSaved(); };
+      inp.addEventListener('change', saveIt);
+      inp.addEventListener('blur', saveIt);
+    });
+
+    // Wire aptitude top-level fields
+    bodyEl.querySelectorAll('[data-apt-field]').forEach(function(inp) {
+      var saveIt = function() {
+        setAptField(short, inp.getAttribute('data-apt-field'), inp.value);
+        flashSaved();
+      };
+      inp.addEventListener('change', saveIt);
+      inp.addEventListener('blur', saveIt);
+    });
+    // Wire aptitude sections
+    bodyEl.querySelectorAll('[data-apt-sec]').forEach(function(inp) {
+      var saveIt = function() {
+        var idx = parseInt(inp.getAttribute('data-apt-sec'), 10);
+        var sub = inp.getAttribute('data-apt-sec-sub');
+        setAptSection(short, idx, sub, inp.value);
+        flashSaved();
+      };
+      inp.addEventListener('change', saveIt);
+      inp.addEventListener('blur', saveIt);
+    });
+
+    // Wire certifications add/remove
+    var certsList = document.getElementById('pmCertsList');
+    var certInput = document.getElementById('pmCertInput');
+    var certAdd = document.getElementById('pmCertAdd');
+    function refreshCertsUI() {
+      if (!certsList) return;
+      var live = (typeof aptitudeTests !== 'undefined' && aptitudeTests[short]) ? aptitudeTests[short] : null;
+      var arr = (live && Array.isArray(live.certs)) ? live.certs : [];
+      certsList.innerHTML = arr.map(function(c, i) {
+        return '<span class="pm-tag cert removable" data-cert-idx="' + i + '" title="Click to remove">' + escapeHtml(c) + ' ×</span>';
+      }).join('');
+    }
+    function addCert() {
+      if (!certInput) return;
+      var v = (certInput.value || '').trim();
+      if (!v) return;
+      var live = (typeof aptitudeTests !== 'undefined' && aptitudeTests[short]) ? aptitudeTests[short] : null;
+      var arr = (live && Array.isArray(live.certs)) ? live.certs.slice() : [];
+      if (arr.indexOf(v) === -1) arr.push(v);
+      setAptCerts(short, arr);
+      certInput.value = '';
+      refreshCertsUI();
+      flashSaved();
+    }
+    if (certAdd) certAdd.addEventListener('click', addCert);
+    if (certInput) certInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); addCert(); }
+    });
+    if (certsList) certsList.addEventListener('click', function(e) {
+      var chip = e.target.closest('[data-cert-idx]');
+      if (!chip) return;
+      var idx = parseInt(chip.getAttribute('data-cert-idx'), 10);
+      var live = (typeof aptitudeTests !== 'undefined' && aptitudeTests[short]) ? aptitudeTests[short] : null;
+      var arr = (live && Array.isArray(live.certs)) ? live.certs.slice() : [];
+      if (idx >= 0 && idx < arr.length) {
+        arr.splice(idx, 1);
+        setAptCerts(short, arr);
+        refreshCertsUI();
+        flashSaved();
+      }
+    });
+
+    // Wire Manager Tags add/remove
+    var mgrTagsList = document.getElementById('pmMgrTagsList');
+    var mgrTagInput = document.getElementById('pmMgrTagInput');
+    var mgrTagType = document.getElementById('pmMgrTagType');
+    var mgrTagAdd = document.getElementById('pmMgrTagAdd');
+    function refreshMgrTagsUI() {
+      if (!mgrTagsList) return;
+      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
+      var arr = (t2 && Array.isArray(t2.managerTags)) ? t2.managerTags : [];
+      mgrTagsList.innerHTML = arr.map(function(tag, i) {
+        var lbl = (typeof tag === 'string') ? tag : (tag && tag.label ? tag.label : '');
+        var typ = (tag && tag.type) ? tag.type : 'role';
+        return '<span class="pm-tag mgr-tag mgr-tag-' + escapeHtml(typ) + ' removable" data-mgrtag-idx="' + i + '" title="' + escapeHtml(typ) + ' — click to remove">' + escapeHtml(lbl) + ' ×</span>';
+      }).join('');
+    }
+    function addMgrTag() {
+      if (!mgrTagInput) return;
+      var v = (mgrTagInput.value || '').trim();
+      if (!v) return;
+      var typ = (mgrTagType && mgrTagType.value) ? mgrTagType.value : 'role';
+      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
+      var arr = (t2 && Array.isArray(t2.managerTags)) ? t2.managerTags.slice() : [];
+      var exists = arr.some(function(x) {
+        var l = (typeof x === 'string') ? x : (x && x.label);
+        return l === v;
+      });
+      if (!exists) arr.push({ label: v, type: typ });
+      setManagerTags(short, arr);
+      mgrTagInput.value = '';
+      refreshMgrTagsUI();
+      flashSaved();
+    }
+    if (mgrTagAdd) mgrTagAdd.addEventListener('click', addMgrTag);
+    if (mgrTagInput) mgrTagInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); addMgrTag(); }
+    });
+    if (mgrTagsList) mgrTagsList.addEventListener('click', function(e) {
+      var chip = e.target.closest('[data-mgrtag-idx]');
+      if (!chip) return;
+      var idx = parseInt(chip.getAttribute('data-mgrtag-idx'), 10);
+      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
+      var arr = (t2 && Array.isArray(t2.managerTags)) ? t2.managerTags.slice() : [];
+      if (idx >= 0 && idx < arr.length) {
+        arr.splice(idx, 1);
+        setManagerTags(short, arr);
+        refreshMgrTagsUI();
+        flashSaved();
+      }
+    });
+
+    // Wire Weaknesses add/remove
+    var weakList = document.getElementById('pmWeaknessesList');
+    var weakInput = document.getElementById('pmWeaknessInput');
+    var weakAdd = document.getElementById('pmWeaknessAdd');
+    function refreshWeaknessesUI() {
+      if (!weakList) return;
+      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
+      var arr = (t2 && Array.isArray(t2.weaknesses)) ? t2.weaknesses : [];
+      weakList.innerHTML = arr.map(function(s, i) {
+        return '<span class="pm-tag weakness removable" data-weakness-idx="' + i + '" title="Click to remove">' + escapeHtml(s) + ' ×</span>';
+      }).join('');
+    }
+    function addWeakness() {
+      if (!weakInput) return;
+      var v = (weakInput.value || '').trim();
+      if (!v) return;
+      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
+      var arr = (t2 && Array.isArray(t2.weaknesses)) ? t2.weaknesses.slice() : [];
+      if (arr.indexOf(v) === -1) arr.push(v);
+      setWeaknesses(short, arr);
+      weakInput.value = '';
+      refreshWeaknessesUI();
+      flashSaved();
+    }
+    if (weakAdd) weakAdd.addEventListener('click', addWeakness);
+    if (weakInput) weakInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); addWeakness(); }
+    });
+    if (weakList) weakList.addEventListener('click', function(e) {
+      var chip = e.target.closest('[data-weakness-idx]');
+      if (!chip) return;
+      var idx = parseInt(chip.getAttribute('data-weakness-idx'), 10);
+      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
+      var arr = (t2 && Array.isArray(t2.weaknesses)) ? t2.weaknesses.slice() : [];
+      if (idx >= 0 && idx < arr.length) {
+        arr.splice(idx, 1);
+        setWeaknesses(short, arr);
+        refreshWeaknessesUI();
+        flashSaved();
+      }
+    });
+
     // Photo upload
     var fi = document.getElementById('pmPhotoInput');
     if (fi) {
@@ -11887,6 +12382,27 @@ function openEmbeddedPDF(filename) {
     var ro = readOnly ? ' readonly style="opacity:0.7;"' : '';
     return '<div class="pm-field"><label>' + escapeHtml(label) + '</label>' +
       '<input type="' + type + '" data-field="' + escapeHtml(key) + '" value="' + escapeHtml(String(v)) + '"' + ro + '></div>';
+  }
+  function editStat(label, key, value, type) {
+    type = type || 'text';
+    var v = value == null ? '' : value;
+    return '<div class="pm-field"><label>' + escapeHtml(label) + '</label>' +
+      '<input type="' + type + '" data-base-field="' + escapeHtml(key) + '" value="' + escapeHtml(String(v)) + '"></div>';
+  }
+  function editColor(label, key, value) {
+    var v = value || '#1e40af';
+    return '<div class="pm-field"><label>' + escapeHtml(label) + '</label>' +
+      '<div style="display:flex;gap:6px;align-items:center;">' +
+        '<input type="color" data-base-field="' + escapeHtml(key) + '" value="' + escapeHtml(v) + '" style="width:42px;height:32px;padding:0;border:1px solid #334155;border-radius:6px;background:transparent;cursor:pointer;">' +
+        '<input type="text" data-base-field-text="' + escapeHtml(key) + '" value="' + escapeHtml(v) + '" style="flex:1" placeholder="#hex">' +
+      '</div>' +
+    '</div>';
+  }
+  function editStStat(label, group, key, value, prefix, suffix) {
+    prefix = prefix || ''; suffix = suffix || '';
+    var v = (value == null || value === '') ? '' : value;
+    return '<div class="pm-field"><label>' + escapeHtml(label) + (prefix||suffix ? ' (' + escapeHtml(prefix+suffix) + ')' : '') + '</label>' +
+      '<input type="number" step="any" data-st-group="' + escapeHtml(group) + '" data-st-key="' + escapeHtml(key) + '" value="' + escapeHtml(String(v)) + '"></div>';
   }
   function statPill(lbl, val) {
     return '<div class="pm-stat-pill"><span class="lbl">' + escapeHtml(lbl) + '</span><span class="val">' + escapeHtml(String(val)) + '</span></div>';
