@@ -12139,3 +12139,82 @@ body.rookie-modal-open { overflow: hidden; }
   .wlb-rev { font-size: 14px; }
   .wlb-edit-row { grid-template-columns: 1fr 130px; }
 }
+
+/* ============================================================
+   v144 — WEEKLY STREAMS (service / install / memberships)
+   ============================================================ */
+.wlb-streams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.wlb-stream {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(30,41,59,0.6);
+  border: 1px solid rgba(148,163,184,0.18);
+  color: #cbd5e1;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0;
+}
+.wlb-stream-label {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(148,163,184,0.18);
+  color: #94a3b8;
+}
+.wlb-stream.svc  { border-color: rgba(74,222,128,0.3); }
+.wlb-stream.svc  .wlb-stream-label { background: rgba(74,222,128,0.18); color: #4ade80; }
+.wlb-stream.inst { border-color: rgba(96,165,250,0.3); }
+.wlb-stream.inst .wlb-stream-label { background: rgba(96,165,250,0.18); color: #93c5fd; }
+.wlb-stream.mem  { border-color: rgba(167,139,250,0.3); }
+.wlb-stream.mem  .wlb-stream-label { background: rgba(167,139,250,0.18); color: #c4b5fd; }
+
+.wlb-foot { align-items: center; }
+.wlb-foot-streams { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Editor: 4-column row (label + 3 inputs) */
+.wlb-edit-row.v144 {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) 110px 110px 80px;
+  gap: 8px;
+  align-items: center;
+}
+.wlb-edit-input-wrap.money input { padding-left: 22px; }
+.wlb-edit-input-wrap.count input  { padding-left: 8px; text-align: center; }
+.wlb-edit-mini-label {
+  position: absolute;
+  top: -7px;
+  left: 8px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #0f172a;
+  color: #94a3b8;
+  pointer-events: none;
+}
+.wlb-edit-input-wrap.money .wlb-edit-mini-label { color: #4ade80; }
+.wlb-edit-input-wrap:nth-of-type(3) .wlb-edit-mini-label { color: #93c5fd; }
+.wlb-edit-input-wrap.count .wlb-edit-mini-label { color: #c4b5fd; }
+
+@media (max-width: 600px) {
+  .wlb-edit-row.v144 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .wlb-edit-row.v144 label {
+    grid-column: 1 / -1;
+    margin-bottom: -4px;
+  }
+}

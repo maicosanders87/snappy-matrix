@@ -1034,7 +1034,7 @@ document.addEventListener('visibilitychange', function() {
         ]
       },
       {
-        name: "Benji",
+        name: "Ben Tinahui",
         short: "Benji",
         initials: "BT",
         color: "#5B4A8A",
@@ -2005,6 +2005,30 @@ document.addEventListener('visibilitychange', function() {
     // ============================================================
     var WEEKLY_KEY = 'snappy_weekly_data';
     var WEEKLY_VIEW_KEY = 'snappy_weekly_active_week';
+    var WEEKLY_SEEDED_KEY = 'snappy_weekly_seeded_v144';
+
+    // v144: One-time seed of the week of Apr 20, 2026 from ServiceTitan exports.
+    // Service rev (image 0178) + Install sold-by rev (image 0180) + Mem count (image 0179).
+    function _wlbSeedWeekIfNeeded() {
+      try {
+        if (localStorage.getItem(WEEKLY_SEEDED_KEY) === '1') return;
+        var d = _wlbLoad();
+        var WEEK = '2026-04-20';
+        if (!d[WEEK]) {
+          d[WEEK] = {
+            'Dewone': { service: 3107,    install: 13417.31, memberships: 2 },
+            'Benji':  { service: 813,     install: 5581,     memberships: 1 },
+            'Daniel': { service: 3264,    install: 0,        memberships: 0 },
+            'Dee':    { service: 1900,    install: 0,        memberships: 0 },
+            'Chris':  { service: 1274,    install: 22688.60, memberships: 0 }
+          };
+          _wlbSave(d);
+          // Point the leaderboard at this week so the user sees the seed immediately
+          try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+        }
+        localStorage.setItem(WEEKLY_SEEDED_KEY, '1');
+      } catch(e) { console.warn('_wlbSeedWeekIfNeeded failed', e); }
+    }
 
     // Returns Monday of the week containing date d as 'YYYY-MM-DD' (UTC-safe)
     function _wlbWeekStart(d) {
@@ -2056,6 +2080,18 @@ document.addEventListener('visibilitychange', function() {
       return '$' + Math.round(n);
     }
 
+    // v144: per-tech weekly entry can be either a number (legacy) or
+    // { service, install, memberships }. _wlbReadEntry normalizes both.
+    function _wlbReadEntry(weekData, short) {
+      var v = weekData[short];
+      if (v == null) return null;
+      if (typeof v === 'number') return { service: v, install: 0, memberships: 0, total: v, _legacy: true };
+      var svc = (typeof v.service === 'number') ? v.service : 0;
+      var inst = (typeof v.install === 'number') ? v.install : 0;
+      var mem  = (typeof v.memberships === 'number') ? v.memberships : 0;
+      return { service: svc, install: inst, memberships: mem, total: svc + inst };
+    }
+
     function renderWeeklyLeaderboard() {
       var el = document.getElementById('weeklyLeaderboard');
       if (!el) return;
@@ -2071,8 +2107,8 @@ document.addEventListener('visibilitychange', function() {
 
         // Build ranking rows
         var rows = roster.map(function(t) {
-          var rev = (typeof weekData[t.short] === 'number') ? weekData[t.short] : null;
-          var prevRev = (typeof prevData[t.short] === 'number') ? prevData[t.short] : null;
+          var entry = _wlbReadEntry(weekData, t.short);
+          var prevEntry = _wlbReadEntry(prevData, t.short);
           var tier = 'C';
           try { var info = (typeof getTechTier === 'function') ? getTechTier(t) : null; if (info && info.tier) tier = info.tier; } catch(e) {}
           return {
@@ -2081,8 +2117,10 @@ document.addEventListener('visibilitychange', function() {
             avatar: t.avatar || '',
             initials: (t.name || t.short).split(' ').map(function(p){return p[0]||'';}).join('').slice(0,2).toUpperCase(),
             tier: tier,
-            rev: rev,
-            prevRev: prevRev
+            entry: entry,
+            prevEntry: prevEntry,
+            rev: entry ? entry.total : null,
+            prevRev: prevEntry ? prevEntry.total : null
           };
         });
 
@@ -2148,30 +2186,52 @@ document.addEventListener('visibilitychange', function() {
             var revDelta = '';
             if (r.prevRev !== null && r.prevRev !== undefined) {
               var d = r.rev - r.prevRev;
-              if (d > 0) revDelta = '<span class="wlb-rev-delta up">+' + _wlbFmtMoney(d).replace('$','$') + '</span>';
+              if (d > 0) revDelta = '<span class="wlb-rev-delta up">+' + _wlbFmtMoney(d) + '</span>';
               else if (d < 0) revDelta = '<span class="wlb-rev-delta down">\u2212' + _wlbFmtMoney(Math.abs(d)) + '</span>';
             }
             var medal = rank === 1 ? '\ud83e\udd47' : (rank === 2 ? '\ud83e\udd48' : (rank === 3 ? '\ud83e\udd49' : ''));
             var avatar = r.avatar
               ? '<img class="wlb-avatar" src="' + r.avatar + '" alt="">'
               : '<div class="wlb-avatar wlb-avatar-fallback">' + r.initials + '</div>';
+
+            // v144: 3-stream breakdown chips
+            var streamHTML = '';
+            if (r.entry) {
+              var chips = [];
+              if (r.entry.service > 0) chips.push('<span class="wlb-stream svc" title="Service revenue"><span class="wlb-stream-label">SVC</span> ' + _wlbFmtMoney(r.entry.service) + '</span>');
+              if (r.entry.install > 0) chips.push('<span class="wlb-stream inst" title="Install sold-by revenue"><span class="wlb-stream-label">INST</span> ' + _wlbFmtMoney(r.entry.install) + '</span>');
+              if (r.entry.memberships > 0) chips.push('<span class="wlb-stream mem" title="Memberships sold"><span class="wlb-stream-label">MEM</span> \u00d7' + r.entry.memberships + '</span>');
+              streamHTML = chips.length ? '<div class="wlb-streams">' + chips.join('') + '</div>' : '';
+            }
+
             return '<div class="wlb-row tier-' + r.tier + ' rank-' + rank + '">' +
               '<div class="wlb-rank">' + (medal || rank) + '</div>' +
               avatar +
               '<div class="wlb-name-block">' +
                 '<div class="wlb-name">' + r.name + '</div>' +
                 '<div class="wlb-meta"><span class="wlb-tier-pill tier-' + r.tier + '">' + r.tier + '-Tier</span> ' + delta + '</div>' +
+                streamHTML +
               '</div>' +
               '<div class="wlb-rev-block">' +
                 '<div class="wlb-rev">' + _wlbFmtMoney(r.rev) + '</div>' +
-                (revDelta ? '<div class="wlb-rev-sub">' + revDelta + ' vs last wk</div>' : '<div class="wlb-rev-sub">\u2013</div>') +
+                (revDelta ? '<div class="wlb-rev-sub">' + revDelta + ' vs last wk</div>' : '<div class="wlb-rev-sub">total</div>') +
               '</div>' +
             '</div>';
           }).join('') + '</div>';
 
+          // Aggregate streams for footer
+          var totalSvc = rows.reduce(function(s, r) { return s + (r.entry ? r.entry.service : 0); }, 0);
+          var totalInst = rows.reduce(function(s, r) { return s + (r.entry ? r.entry.install : 0); }, 0);
+          var totalMem = rows.reduce(function(s, r) { return s + (r.entry ? r.entry.memberships : 0); }, 0);
+
           // Summary footer
           rowsHTML += '<div class="wlb-foot">' +
             '<span><b>Team total:</b> ' + _wlbFmtMoney(totalRev) + '</span>' +
+            '<span class="wlb-foot-streams">' +
+              '<span class="wlb-stream svc"><span class="wlb-stream-label">SVC</span> ' + _wlbFmtMoney(totalSvc) + '</span>' +
+              '<span class="wlb-stream inst"><span class="wlb-stream-label">INST</span> ' + _wlbFmtMoney(totalInst) + '</span>' +
+              '<span class="wlb-stream mem"><span class="wlb-stream-label">MEM</span> \u00d7' + totalMem + '</span>' +
+            '</span>' +
             (topEarner ? '<span><b>Top earner:</b> ' + topEarner.name + ' \u2014 ' + _wlbFmtMoney(topEarner.rev) + '</span>' : '') +
           '</div>';
         }
@@ -2210,12 +2270,30 @@ document.addEventListener('visibilitychange', function() {
         overlay.className = 'wlb-modal-overlay';
 
         var rowsHTML = roster.map(function(t) {
-          var v = (typeof weekData[t.short] === 'number') ? weekData[t.short] : '';
-          return '<div class="wlb-edit-row">' +
+          // Read existing entry (legacy number or object)
+          var raw = weekData[t.short];
+          var svc = '', inst = '', mem = '';
+          if (typeof raw === 'number') { svc = raw; }
+          else if (raw && typeof raw === 'object') {
+            if (typeof raw.service === 'number') svc = raw.service;
+            if (typeof raw.install === 'number') inst = raw.install;
+            if (typeof raw.memberships === 'number') mem = raw.memberships;
+          }
+          return '<div class="wlb-edit-row v144">' +
             '<label>' + t.name + '</label>' +
-            '<div class="wlb-edit-input-wrap">' +
+            '<div class="wlb-edit-input-wrap money" title="Service revenue">' +
+              '<span class="wlb-edit-mini-label">SVC</span>' +
               '<span class="wlb-edit-prefix">$</span>' +
-              '<input type="number" inputmode="decimal" step="1" min="0" data-short="' + t.short + '" value="' + v + '" placeholder="0">' +
+              '<input type="number" inputmode="decimal" step="0.01" min="0" data-short="' + t.short + '" data-field="service" value="' + svc + '" placeholder="0">' +
+            '</div>' +
+            '<div class="wlb-edit-input-wrap money" title="Install sold-by revenue">' +
+              '<span class="wlb-edit-mini-label">INST</span>' +
+              '<span class="wlb-edit-prefix">$</span>' +
+              '<input type="number" inputmode="decimal" step="0.01" min="0" data-short="' + t.short + '" data-field="install" value="' + inst + '" placeholder="0">' +
+            '</div>' +
+            '<div class="wlb-edit-input-wrap count" title="Memberships sold (count)">' +
+              '<span class="wlb-edit-mini-label">MEM</span>' +
+              '<input type="number" inputmode="numeric" step="1" min="0" data-short="' + t.short + '" data-field="memberships" value="' + mem + '" placeholder="0">' +
             '</div>' +
           '</div>';
         }).join('');
@@ -2232,8 +2310,8 @@ document.addEventListener('visibilitychange', function() {
             '<div class="wlb-modal-body">' +
               '<div class="wlb-edit-list">' + rowsHTML + '</div>' +
               '<div class="wlb-paste-block">' +
-                '<div class="wlb-paste-label">Or paste CSV / TSV (Tech name, revenue)</div>' +
-                '<textarea id="wlbPasteArea" placeholder="Dewone,25675&#10;Benji,18238&#10;Daniel,19162&#10;Chris,15359&#10;Dee,6416"></textarea>' +
+                '<div class="wlb-paste-label">Or paste CSV / TSV \u2014 Name, Service $, Install $, Mem count</div>' +
+                '<textarea id="wlbPasteArea" placeholder="Ben Tinahui,813,5581,1&#10;Chris Monahan,1274,22688.60,0&#10;Dewone Martin,3107,13417.31,2&#10;Daniel Gazaway,3264,0,0&#10;Dee Williams,1900,0,0"></textarea>' +
                 '<button type="button" class="wlb-paste-btn" id="wlbApplyPaste">Apply Paste</button>' +
               '</div>' +
             '</div>' +
@@ -2255,19 +2333,27 @@ document.addEventListener('visibilitychange', function() {
             ln = ln.trim();
             if (!ln) return;
             // Split on tab, comma, or 2+ spaces
-            var parts = ln.split(/\t|,|\s{2,}/);
+            var parts = ln.split(/\t|,|\s{2,}/).map(function(s) { return s.trim(); });
             if (parts.length < 2) return;
-            var name = parts[0].trim();
-            var num = parseFloat(String(parts[1]).replace(/[$,\s]/g, ''));
-            if (isNaN(num)) return;
+            var name = parts[0];
+            // v144: support 4-column rows: name, service, install, memberships
+            // Also support legacy 2-column: name, total (goes into service field)
+            var svc = parseFloat(String(parts[1] || '').replace(/[$,\s]/g, ''));
+            var inst = parseFloat(String(parts[2] || '').replace(/[$,\s]/g, ''));
+            var mem  = parseFloat(String(parts[3] || '').replace(/[$,\s]/g, ''));
+            if (isNaN(svc)) svc = null;
+            if (isNaN(inst)) inst = null;
+            if (isNaN(mem)) mem = null;
             // match by short or first name (case-insensitive)
             var match = roster.find(function(t) {
               return t.short.toLowerCase() === name.toLowerCase()
-                  || (t.name && t.name.toLowerCase().split(' ')[0] === name.toLowerCase());
+                  || (t.name && t.name.toLowerCase().split(' ')[0] === name.toLowerCase())
+                  || (t.name && t.name.toLowerCase() === name.toLowerCase());
             });
             if (match) {
-              var input = overlay.querySelector('input[data-short="' + match.short + '"]');
-              if (input) input.value = num;
+              if (svc !== null)  { var i1 = overlay.querySelector('input[data-short="' + match.short + '"][data-field="service"]');     if (i1) i1.value = svc; }
+              if (inst !== null) { var i2 = overlay.querySelector('input[data-short="' + match.short + '"][data-field="install"]');     if (i2) i2.value = inst; }
+              if (mem !== null)  { var i3 = overlay.querySelector('input[data-short="' + match.short + '"][data-field="memberships"]'); if (i3) i3.value = mem; }
             }
           });
         };
@@ -2283,15 +2369,23 @@ document.addEventListener('visibilitychange', function() {
 
         document.getElementById('wlbSaveBtn').onclick = function() {
           var d = _wlbLoad();
-          var entry = {};
+          var entries = {};
           overlay.querySelectorAll('input[data-short]').forEach(function(inp) {
             var v = parseFloat(inp.value);
-            if (!isNaN(v) && v >= 0) entry[inp.dataset.short] = v;
+            if (isNaN(v) || v < 0) return;
+            var k = inp.dataset.short;
+            if (!entries[k]) entries[k] = { service: 0, install: 0, memberships: 0 };
+            entries[k][inp.dataset.field] = v;
           });
-          if (Object.keys(entry).length === 0) {
+          // Drop techs with all zeros
+          Object.keys(entries).forEach(function(k) {
+            var e = entries[k];
+            if (!e.service && !e.install && !e.memberships) delete entries[k];
+          });
+          if (Object.keys(entries).length === 0) {
             delete d[weekKey];
           } else {
-            d[weekKey] = entry;
+            d[weekKey] = entries;
           }
           _wlbSave(d);
           close();
@@ -5466,6 +5560,7 @@ if (typeof Chart !== 'undefined') {
       },
       {
         name: "Benji",
+        displayName: "Ben Tinahui",
         color: "#5B4A8A",
         mtd_service_rev: 8176,
         mtd_installs: 2,
@@ -11509,6 +11604,7 @@ if (typeof Chart !== 'undefined') {
     renderRookieCards();
     // Render season badge universe on overview + pre-render seasonal content so it's ready on first sub-tab click
     try { renderSeasonBadgeUniverse(); } catch(e) { console.warn('renderSeasonBadgeUniverse init failed', e); }
+    try { _wlbSeedWeekIfNeeded(); } catch(e) {}
     try { renderWeeklyLeaderboard(); } catch(e) { console.warn('renderWeeklyLeaderboard init failed', e); }
     renderProgression();
     renderSTKPIs();
