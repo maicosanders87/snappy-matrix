@@ -12398,3 +12398,41 @@ body.rookie-modal-open { overflow: hidden; }
   .intro-skip-btn { top: 12px; right: 12px; font-size: 12px; padding: 6px 11px; }
   .intro-hint { bottom: 14px; font-size: 10px; }
 }
+
+/* v147: Sound button on intro splash */
+.intro-sound-btn {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #0f172a;
+  border: 2px solid rgba(0,0,0,0.15);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(251, 191, 36, 0.45), 0 2px 6px rgba(0,0,0,0.4);
+  transition: transform 0.2s ease, opacity 0.3s ease, box-shadow 0.2s ease;
+  z-index: 3;
+  animation: introSoundBtnPulse 1.6s ease-in-out infinite;
+}
+.intro-sound-btn:hover {
+  transform: translateX(-50%) scale(1.06);
+  box-shadow: 0 8px 30px rgba(251, 191, 36, 0.6), 0 3px 10px rgba(0,0,0,0.5);
+}
+.intro-sound-btn-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) scale(0.9);
+}
+@keyframes introSoundBtnPulse {
+  0%, 100% { box-shadow: 0 6px 24px rgba(251, 191, 36, 0.45), 0 2px 6px rgba(0,0,0,0.4); }
+  50%      { box-shadow: 0 6px 28px rgba(251, 191, 36, 0.75), 0 2px 6px rgba(0,0,0,0.4); }
+}
+@media (max-width: 600px) {
+  .intro-sound-btn { bottom: 44px; font-size: 12px; padding: 9px 16px; }
+}
