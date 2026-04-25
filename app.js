@@ -11397,43 +11397,69 @@ function openEmbeddedPDF(filename) {
   }
 
   // ----- Central refresh: re-render whatever view is currently visible after any edit -----
-  // Debounced so a flurry of edits triggers one re-render
+  // Debounced so a flurry of edits triggers one re-render.
+  // Re-renders EVERY view (cheap on edit cadence) so changes propagate
+  // wherever the user looks next, not just the currently active view.
   var __refreshTimer = null;
   function notifyDataChanged() {
     if (__refreshTimer) clearTimeout(__refreshTimer);
     __refreshTimer = setTimeout(function() {
       __refreshTimer = null;
+      // 1) Re-apply override layers so master data + tier calcs are consistent
+      try { if (typeof applyOverridesToTechs === 'function') applyOverridesToTechs(); } catch(e) { console.warn('applyOverridesToTechs', e); }
+      try { if (typeof applyStOverridesToStData === 'function') applyStOverridesToStData(); } catch(e) { console.warn('applyStOverridesToStData', e); }
+      try { if (typeof applyAptOverrides === 'function') applyAptOverrides(); } catch(e) { console.warn('applyAptOverrides', e); }
+      try { if (typeof applyMgrScoreOverrides === 'function') applyMgrScoreOverrides(); } catch(e) { console.warn('applyMgrScoreOverrides', e); }
+
+      // 2) Re-render EVERYTHING (same order as boot). Each call wrapped in try/catch.
+      var renderers = [
+        'renderKPIs',
+        'renderBulletinBoard',
+        'renderOverviewTab',
+        'renderMatrix',
+        'renderAptitudeSkills',
+        'renderProfiles',
+        'renderRookieCards',
+        'renderSkillsTags',
+        'renderProgression',
+        'renderManagerTab',
+        'renderSTKPIs',
+        'renderSTTables',
+        'renderRadar',
+        'renderBar',
+        'renderGroupedBar',
+        'renderSTRadar'
+      ];
+      for (var i = 0; i < renderers.length; i++) {
+        var fnName = renderers[i];
+        try {
+          var fn = (typeof window !== 'undefined' && typeof window[fnName] === 'function') ? window[fnName]
+                  : (eval('typeof ' + fnName) === 'function' ? eval(fnName) : null);
+          if (typeof fn === 'function') fn();
+        } catch(e) { console.warn('refresh ' + fnName, e); }
+      }
+
+      // 3) If profile modal is open, refresh it in place so values shown update too
       try {
-        // Re-apply overrides so any in-memory mutation already done is consistent
-        applyOverridesToTechs();
-        if (typeof applyStOverridesToStData === 'function') applyStOverridesToStData();
-        if (typeof applyAptOverrides === 'function') applyAptOverrides();
-        if (typeof applyMgrScoreOverrides === 'function') applyMgrScoreOverrides();
-      } catch (e) {}
-      // Identify currently active main view
-      var active = document.querySelector('.view-section.active');
-      var view = active ? (active.id || '').replace(/^view-/, '') : '';
-      // Always-safe: KPI tiles + overview bulletin
-      try { if (typeof renderKPIs === 'function') renderKPIs(); } catch(e) {}
-      try { if (typeof renderBulletinBoard === 'function') renderBulletinBoard(); } catch(e) {}
-      // View-specific
+        var md = document.getElementById('profileModal');
+        if (md && md.classList.contains('active') && md.dataset && md.dataset.short && typeof window.mgrOpenProfileModal === 'function') {
+          // Preserve scroll position
+          var bodyEl = document.getElementById('profileModalBody');
+          var scrollY = bodyEl ? bodyEl.scrollTop : 0;
+          window.mgrOpenProfileModal(md.dataset.short);
+          if (bodyEl) {
+            var newBody = document.getElementById('profileModalBody');
+            if (newBody) newBody.scrollTop = scrollY;
+          }
+        }
+      } catch(e) { console.warn('refresh profileModal', e); }
+
+      // 4) Notify any other listeners
       try {
-        if (view === 'overview' && typeof renderOverviewTab === 'function') renderOverviewTab();
-      } catch(e) { console.warn('refresh overview', e); }
-      try {
-        if (view === 'matrix' && typeof renderMatrix === 'function') renderMatrix();
-      } catch(e) { console.warn('refresh matrix', e); }
-      try {
-        if (view === 'rookie' && typeof renderRookieCards === 'function') renderRookieCards();
-      } catch(e) { console.warn('refresh rookie', e); }
-      try {
-        if (view === 'skills-tags' && typeof renderSkillsTags === 'function') renderSkillsTags();
-      } catch(e) { console.warn('refresh skills', e); }
-      try {
-        if (view === 'manager' && typeof renderManagerTab === 'function') renderManagerTab();
-      } catch(e) { console.warn('refresh manager', e); }
-      // Notify any other listeners
-      try { document.dispatchEvent(new CustomEvent('snappy:data-changed', { detail: { view: view } })); } catch(e) {}
+        var active = document.querySelector('.view-section.active');
+        var view = active ? (active.id || '').replace(/^view-/, '') : '';
+        document.dispatchEvent(new CustomEvent('snappy:data-changed', { detail: { view: view } }));
+      } catch(e) {}
     }, 120);
   }
   // Make available globally so other modules can also trigger refresh
@@ -11782,7 +11808,7 @@ function openEmbeddedPDF(filename) {
     var ov = document.getElementById('profileModalOverlay');
     var md = document.getElementById('profileModal');
     if (ov) ov.classList.remove('active');
-    if (md) { md.classList.remove('active'); md.setAttribute('aria-hidden', 'true'); }
+    if (md) { md.classList.remove('active'); md.setAttribute('aria-hidden', 'true'); try { delete md.dataset.short; } catch(e){} }
   };
 
   function getStData(short) {
@@ -12523,6 +12549,7 @@ function openEmbeddedPDF(filename) {
     // Open modal
     if (ov) ov.classList.add('active');
     md.classList.add('active');
+    md.dataset.short = short;
     md.setAttribute('aria-hidden', 'false');
   };
 
