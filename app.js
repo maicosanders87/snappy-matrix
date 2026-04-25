@@ -1886,6 +1886,15 @@ document.addEventListener('visibilitychange', function() {
     }
 
     // ---------- 1. Badge Universe (on overview, below team photo) ----------
+    // v143: collapsed by default — shows only the current season + total earned count.
+    // Click "View all seasons" to expand the full 4-season grid.
+    var SBU_EXPANDED_KEY = 'snappy_sbu_expanded';
+    function _sbuIsExpanded() {
+      try { return localStorage.getItem(SBU_EXPANDED_KEY) === '1'; } catch(e) { return false; }
+    }
+    function _sbuSetExpanded(v) {
+      try { localStorage.setItem(SBU_EXPANDED_KEY, v ? '1' : '0'); } catch(e) {}
+    }
     function renderSeasonBadgeUniverse() {
       var el = document.getElementById('seasonBadgeUniverse');
       if (!el) return;
@@ -1894,6 +1903,19 @@ document.addEventListener('visibilitychange', function() {
         if (!seasons.length) { el.style.display = 'none'; return; }
         var cur = (typeof getCurrentSeason === 'function') ? getCurrentSeason() : null;
         var curName = cur ? cur.name : '';
+        var expanded = _sbuIsExpanded();
+
+        // Count total earned badges across all techs/seasons
+        var earnedCount = 0;
+        var totalPossible = seasons.length * 4 + seasons.length; // 4 tier badges + 1 MVP per season
+        try {
+          var data = (typeof loadSeasonsData === 'function') ? loadSeasonsData() : null;
+          if (data && data.badges) {
+            Object.keys(data.badges).forEach(function(k) {
+              earnedCount += (data.badges[k] || []).length;
+            });
+          }
+        } catch(e) {}
 
         var tiers = [
           { key: 'S', label: 'Elite',    color: '#FFD700', desc: '92+' },
@@ -1902,19 +1924,47 @@ document.addEventListener('visibilitychange', function() {
           { key: 'C', label: 'Rising',   color: '#94A3B8', desc: '<78' }
         ];
 
+        function badgeHTML(s, t) {
+          return '<div class="sbu-badge tier-' + t.key.toLowerCase() + '" title="' + s.name + ' \u2014 ' + t.key + '-Tier (' + t.label + ')">' +
+            '<div class="sbu-badge-tier">' + t.key + '</div>' +
+            '<div class="sbu-badge-emoji">' + s.emoji + '</div>' +
+            '<div class="sbu-badge-season-label">' + s.name + '</div>' +
+          '</div>';
+        }
+
+        // ---------- COLLAPSED MODE ----------
+        if (!expanded) {
+          var curSeason = seasons.filter(function(s) { return s.name === curName; })[0] || seasons[0];
+          var curBadgesHTML = tiers.map(function(t) { return badgeHTML(curSeason, t); }).join('');
+
+          el.classList.add('sbu-compact');
+          el.innerHTML =
+            '<div class="sbu-compact-head">' +
+              '<div class="sbu-compact-title-block">' +
+                '<span class="sbu-compact-emoji">' + curSeason.emoji + '</span>' +
+                '<div class="sbu-compact-text">' +
+                  '<div class="sbu-compact-title">Season Badges \u2014 ' + curSeason.name + ' ' + curSeason.year + '</div>' +
+                  '<div class="sbu-compact-sub">' + earnedCount + ' / ' + totalPossible + ' badges collected this year</div>' +
+                '</div>' +
+              '</div>' +
+              '<button type="button" class="sbu-toggle" id="sbu-toggle">View all seasons \u2192</button>' +
+            '</div>' +
+            '<div class="sbu-compact-row">' + curBadgesHTML + '</div>';
+
+          var btn = document.getElementById('sbu-toggle');
+          if (btn) btn.onclick = function() { _sbuSetExpanded(true); renderSeasonBadgeUniverse(); };
+          return;
+        }
+
+        // ---------- EXPANDED MODE (legacy full grid) ----------
+        el.classList.remove('sbu-compact');
         var legendHTML = tiers.map(function(t) {
           return '<span class="sbu-legend-item"><span class="sbu-legend-dot" style="background:' + t.color + ';color:' + t.color + '"></span>' + t.key + '-TIER &middot; ' + t.label + '</span>';
         }).join('');
 
         var seasonsHTML = seasons.map(function(s) {
           var isCurrent = (s.name === curName);
-          var badgesHTML = tiers.map(function(t) {
-            return '<div class="sbu-badge tier-' + t.key.toLowerCase() + '" title="' + s.name + ' \u2014 ' + t.key + '-Tier (' + t.label + ')">' +
-              '<div class="sbu-badge-tier">' + t.key + '</div>' +
-              '<div class="sbu-badge-emoji">' + s.emoji + '</div>' +
-              '<div class="sbu-badge-season-label">' + s.name + '</div>' +
-            '</div>';
-          }).join('');
+          var badgesHTML = tiers.map(function(t) { return badgeHTML(s, t); }).join('');
           return '<div class="sbu-season-col' + (isCurrent ? ' current' : '') + '">' +
             '<div class="sbu-season-head">' +
               '<span class="sbu-season-emoji">' + s.emoji + '</span>' +
@@ -1929,8 +1979,9 @@ document.addEventListener('visibilitychange', function() {
         el.innerHTML =
           '<div class="sbu-head">' +
             '<span class="sbu-title">\ud83c\udfc6 Season Badge Universe</span>' +
-            '<span class="sbu-subtitle">Finish a season in tier &rarr; claim the badge forever</span>' +
+            '<button type="button" class="sbu-toggle" id="sbu-toggle">\u2190 Collapse</button>' +
           '</div>' +
+          '<div class="sbu-subtitle">Finish a season in tier &rarr; claim the badge forever</div>' +
           '<div class="sbu-legend">' + legendHTML + '</div>' +
           '<div class="sbu-seasons-grid">' + seasonsHTML + '</div>' +
           '<div class="sbu-mvp-row">' +
@@ -1940,9 +1991,315 @@ document.addEventListener('visibilitychange', function() {
               '<div class="sbu-mvp-desc">Awarded to the highest composite score when a season ends. Only one per three months \u2014 the most coveted collectible.</div>' +
             '</div>' +
           '</div>';
+        var btn2 = document.getElementById('sbu-toggle');
+        if (btn2) btn2.onclick = function() { _sbuSetExpanded(false); renderSeasonBadgeUniverse(); };
       } catch(e) { console.warn('renderSeasonBadgeUniverse failed', e); }
     }
     window.renderSeasonBadgeUniverse = renderSeasonBadgeUniverse;
+
+    // ============================================================
+    // v143 — WEEKLY LEADERBOARD
+    // Self-contained module under team photo. Persists weekly data
+    // (revenue per tech) in localStorage and ranks them with deltas
+    // vs. the prior week. Supports manual entry + paste-CSV import.
+    // ============================================================
+    var WEEKLY_KEY = 'snappy_weekly_data';
+    var WEEKLY_VIEW_KEY = 'snappy_weekly_active_week';
+
+    // Returns Monday of the week containing date d as 'YYYY-MM-DD' (UTC-safe)
+    function _wlbWeekStart(d) {
+      d = d ? new Date(d) : new Date();
+      var day = d.getDay(); // 0 Sun ... 6 Sat
+      var diff = (day === 0 ? -6 : 1 - day);
+      d.setDate(d.getDate() + diff);
+      d.setHours(0,0,0,0);
+      var y = d.getFullYear();
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var dd = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + dd;
+    }
+    function _wlbPrevWeek(weekKey) {
+      var d = new Date(weekKey + 'T00:00:00');
+      d.setDate(d.getDate() - 7);
+      return _wlbWeekStart(d);
+    }
+    function _wlbWeekLabel(weekKey) {
+      try {
+        var d = new Date(weekKey + 'T00:00:00');
+        var end = new Date(d); end.setDate(end.getDate() + 6);
+        var fmt = function(x) {
+          return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][x.getMonth()] + ' ' + x.getDate();
+        };
+        return fmt(d) + ' \u2013 ' + fmt(end);
+      } catch(e) { return weekKey; }
+    }
+    function _wlbLoad() {
+      try { return JSON.parse(localStorage.getItem(WEEKLY_KEY) || '{}') || {}; }
+      catch(e) { return {}; }
+    }
+    function _wlbSave(d) {
+      try { localStorage.setItem(WEEKLY_KEY, JSON.stringify(d)); } catch(e) {}
+    }
+    function _wlbActiveWeek() {
+      try {
+        var w = localStorage.getItem(WEEKLY_VIEW_KEY);
+        if (w) return w;
+      } catch(e) {}
+      return _wlbWeekStart();
+    }
+    function _wlbSetActiveWeek(w) {
+      try { localStorage.setItem(WEEKLY_VIEW_KEY, w); } catch(e) {}
+    }
+    function _wlbFmtMoney(n) {
+      if (typeof n !== 'number' || isNaN(n)) return '\u2013';
+      if (n >= 1000) return '$' + n.toLocaleString();
+      return '$' + Math.round(n);
+    }
+
+    function renderWeeklyLeaderboard() {
+      var el = document.getElementById('weeklyLeaderboard');
+      if (!el) return;
+      try {
+        var roster = (typeof techs !== 'undefined' && techs) ? techs : [];
+        if (!roster.length) { el.style.display = 'none'; return; }
+
+        var data = _wlbLoad();
+        var activeWeek = _wlbActiveWeek();
+        var prevWeek = _wlbPrevWeek(activeWeek);
+        var weekData = data[activeWeek] || {};
+        var prevData = data[prevWeek] || {};
+
+        // Build ranking rows
+        var rows = roster.map(function(t) {
+          var rev = (typeof weekData[t.short] === 'number') ? weekData[t.short] : null;
+          var prevRev = (typeof prevData[t.short] === 'number') ? prevData[t.short] : null;
+          var tier = 'C';
+          try { var info = (typeof getTechTier === 'function') ? getTechTier(t) : null; if (info && info.tier) tier = info.tier; } catch(e) {}
+          return {
+            short: t.short,
+            name: t.name,
+            avatar: t.avatar || '',
+            initials: (t.name || t.short).split(' ').map(function(p){return p[0]||'';}).join('').slice(0,2).toUpperCase(),
+            tier: tier,
+            rev: rev,
+            prevRev: prevRev
+          };
+        });
+
+        var hasAny = rows.some(function(r) { return r.rev !== null; });
+
+        // Sort: entries first by rev desc, no-data rows last alpha
+        rows.sort(function(a, b) {
+          var av = a.rev === null ? -Infinity : a.rev;
+          var bv = b.rev === null ? -Infinity : b.rev;
+          if (bv !== av) return bv - av;
+          return a.name.localeCompare(b.name);
+        });
+
+        // Compute prior-week ranks for delta arrows
+        var prevRanked = roster.map(function(t) {
+          return { short: t.short, rev: (typeof prevData[t.short] === 'number') ? prevData[t.short] : null };
+        }).filter(function(r) { return r.rev !== null; })
+          .sort(function(a,b) { return b.rev - a.rev; });
+        var prevRankBy = {};
+        prevRanked.forEach(function(r, i) { prevRankBy[r.short] = i + 1; });
+
+        var totalRev = rows.reduce(function(s, r) { return s + (r.rev || 0); }, 0);
+        var topEarner = rows.find(function(r) { return r.rev !== null; });
+
+        // Header
+        var headHTML =
+          '<div class="wlb-head">' +
+            '<div class="wlb-title-block">' +
+              '<div class="wlb-title"><span class="wlb-trophy">\ud83c\udfc6</span> Weekly Leaderboard</div>' +
+              '<div class="wlb-week">Week of ' + _wlbWeekLabel(activeWeek) + '</div>' +
+            '</div>' +
+            '<div class="wlb-actions">' +
+              '<button type="button" class="wlb-btn" id="wlb-prev-week" title="Previous week">\u2190</button>' +
+              '<button type="button" class="wlb-btn wlb-this-week" id="wlb-this-week">This Week</button>' +
+              '<button type="button" class="wlb-btn" id="wlb-next-week" title="Next week">\u2192</button>' +
+              '<button type="button" class="wlb-btn wlb-edit" id="wlb-edit" title="Enter / paste weekly numbers">\u270e Enter Numbers</button>' +
+            '</div>' +
+          '</div>';
+
+        // Rank rows
+        var rowsHTML;
+        if (!hasAny) {
+          rowsHTML =
+            '<div class="wlb-empty">' +
+              '<div class="wlb-empty-icon">\ud83d\udcca</div>' +
+              '<div class="wlb-empty-title">No data for this week yet</div>' +
+              '<div class="wlb-empty-sub">Click <b>Enter Numbers</b> to add weekly revenue per tech \u2014 manual entry or paste CSV.</div>' +
+            '</div>';
+        } else {
+          rowsHTML = '<div class="wlb-rows">' + rows.map(function(r, i) {
+            if (r.rev === null) return ''; // skip techs with no entry this week
+            var rank = i + 1;
+            var prevRank = prevRankBy[r.short];
+            var delta = '';
+            if (prevRank) {
+              var diff = prevRank - rank; // positive = moved up
+              if (diff > 0) delta = '<span class="wlb-delta up" title="Up ' + diff + ' from last week">\u25b2 ' + diff + '</span>';
+              else if (diff < 0) delta = '<span class="wlb-delta down" title="Down ' + (-diff) + ' from last week">\u25bc ' + (-diff) + '</span>';
+              else delta = '<span class="wlb-delta same" title="Same rank">\u2013</span>';
+            } else {
+              delta = '<span class="wlb-delta new" title="New entry this week">NEW</span>';
+            }
+            var revDelta = '';
+            if (r.prevRev !== null && r.prevRev !== undefined) {
+              var d = r.rev - r.prevRev;
+              if (d > 0) revDelta = '<span class="wlb-rev-delta up">+' + _wlbFmtMoney(d).replace('$','$') + '</span>';
+              else if (d < 0) revDelta = '<span class="wlb-rev-delta down">\u2212' + _wlbFmtMoney(Math.abs(d)) + '</span>';
+            }
+            var medal = rank === 1 ? '\ud83e\udd47' : (rank === 2 ? '\ud83e\udd48' : (rank === 3 ? '\ud83e\udd49' : ''));
+            var avatar = r.avatar
+              ? '<img class="wlb-avatar" src="' + r.avatar + '" alt="">'
+              : '<div class="wlb-avatar wlb-avatar-fallback">' + r.initials + '</div>';
+            return '<div class="wlb-row tier-' + r.tier + ' rank-' + rank + '">' +
+              '<div class="wlb-rank">' + (medal || rank) + '</div>' +
+              avatar +
+              '<div class="wlb-name-block">' +
+                '<div class="wlb-name">' + r.name + '</div>' +
+                '<div class="wlb-meta"><span class="wlb-tier-pill tier-' + r.tier + '">' + r.tier + '-Tier</span> ' + delta + '</div>' +
+              '</div>' +
+              '<div class="wlb-rev-block">' +
+                '<div class="wlb-rev">' + _wlbFmtMoney(r.rev) + '</div>' +
+                (revDelta ? '<div class="wlb-rev-sub">' + revDelta + ' vs last wk</div>' : '<div class="wlb-rev-sub">\u2013</div>') +
+              '</div>' +
+            '</div>';
+          }).join('') + '</div>';
+
+          // Summary footer
+          rowsHTML += '<div class="wlb-foot">' +
+            '<span><b>Team total:</b> ' + _wlbFmtMoney(totalRev) + '</span>' +
+            (topEarner ? '<span><b>Top earner:</b> ' + topEarner.name + ' \u2014 ' + _wlbFmtMoney(topEarner.rev) + '</span>' : '') +
+          '</div>';
+        }
+
+        el.innerHTML = headHTML + rowsHTML;
+
+        // Wire up buttons
+        var qs = function(id) { return document.getElementById(id); };
+        var rerender = function() { renderWeeklyLeaderboard(); };
+        var prev = qs('wlb-prev-week'); if (prev) prev.onclick = function() {
+          _wlbSetActiveWeek(_wlbPrevWeek(activeWeek)); rerender();
+        };
+        var next = qs('wlb-next-week'); if (next) next.onclick = function() {
+          var d = new Date(activeWeek + 'T00:00:00'); d.setDate(d.getDate() + 7);
+          _wlbSetActiveWeek(_wlbWeekStart(d)); rerender();
+        };
+        var thisW = qs('wlb-this-week'); if (thisW) thisW.onclick = function() {
+          _wlbSetActiveWeek(_wlbWeekStart()); rerender();
+        };
+        var edit = qs('wlb-edit'); if (edit) edit.onclick = function() { _wlbOpenEditor(activeWeek); };
+      } catch(e) { console.warn('renderWeeklyLeaderboard failed', e); }
+    }
+    window.renderWeeklyLeaderboard = renderWeeklyLeaderboard;
+
+    // ---------- Editor modal ----------
+    function _wlbOpenEditor(weekKey) {
+      try {
+        var roster = (typeof techs !== 'undefined' && techs) ? techs : [];
+        var data = _wlbLoad();
+        var weekData = data[weekKey] || {};
+        var existing = document.getElementById('wlbEditorOverlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'wlbEditorOverlay';
+        overlay.className = 'wlb-modal-overlay';
+
+        var rowsHTML = roster.map(function(t) {
+          var v = (typeof weekData[t.short] === 'number') ? weekData[t.short] : '';
+          return '<div class="wlb-edit-row">' +
+            '<label>' + t.name + '</label>' +
+            '<div class="wlb-edit-input-wrap">' +
+              '<span class="wlb-edit-prefix">$</span>' +
+              '<input type="number" inputmode="decimal" step="1" min="0" data-short="' + t.short + '" value="' + v + '" placeholder="0">' +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+        overlay.innerHTML =
+          '<div class="wlb-modal">' +
+            '<div class="wlb-modal-head">' +
+              '<div>' +
+                '<div class="wlb-modal-title">Enter Weekly Revenue</div>' +
+                '<div class="wlb-modal-sub">Week of ' + _wlbWeekLabel(weekKey) + ' \u00b7 ' + weekKey + '</div>' +
+              '</div>' +
+              '<button type="button" class="wlb-modal-close" id="wlbCloseBtn">\u00d7</button>' +
+            '</div>' +
+            '<div class="wlb-modal-body">' +
+              '<div class="wlb-edit-list">' + rowsHTML + '</div>' +
+              '<div class="wlb-paste-block">' +
+                '<div class="wlb-paste-label">Or paste CSV / TSV (Tech name, revenue)</div>' +
+                '<textarea id="wlbPasteArea" placeholder="Dewone,25675&#10;Benji,18238&#10;Daniel,19162&#10;Chris,15359&#10;Dee,6416"></textarea>' +
+                '<button type="button" class="wlb-paste-btn" id="wlbApplyPaste">Apply Paste</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="wlb-modal-foot">' +
+              '<button type="button" class="wlb-btn-secondary" id="wlbClearBtn">Clear Week</button>' +
+              '<button type="button" class="wlb-btn-primary" id="wlbSaveBtn">Save</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(overlay);
+
+        var close = function() { overlay.remove(); };
+        document.getElementById('wlbCloseBtn').onclick = close;
+        overlay.onclick = function(e) { if (e.target === overlay) close(); };
+
+        document.getElementById('wlbApplyPaste').onclick = function() {
+          var txt = document.getElementById('wlbPasteArea').value || '';
+          var lines = txt.split(/\r?\n/);
+          lines.forEach(function(ln) {
+            ln = ln.trim();
+            if (!ln) return;
+            // Split on tab, comma, or 2+ spaces
+            var parts = ln.split(/\t|,|\s{2,}/);
+            if (parts.length < 2) return;
+            var name = parts[0].trim();
+            var num = parseFloat(String(parts[1]).replace(/[$,\s]/g, ''));
+            if (isNaN(num)) return;
+            // match by short or first name (case-insensitive)
+            var match = roster.find(function(t) {
+              return t.short.toLowerCase() === name.toLowerCase()
+                  || (t.name && t.name.toLowerCase().split(' ')[0] === name.toLowerCase());
+            });
+            if (match) {
+              var input = overlay.querySelector('input[data-short="' + match.short + '"]');
+              if (input) input.value = num;
+            }
+          });
+        };
+
+        document.getElementById('wlbClearBtn').onclick = function() {
+          if (!confirm('Clear all entries for the week of ' + _wlbWeekLabel(weekKey) + '?')) return;
+          var d = _wlbLoad();
+          delete d[weekKey];
+          _wlbSave(d);
+          close();
+          renderWeeklyLeaderboard();
+        };
+
+        document.getElementById('wlbSaveBtn').onclick = function() {
+          var d = _wlbLoad();
+          var entry = {};
+          overlay.querySelectorAll('input[data-short]').forEach(function(inp) {
+            var v = parseFloat(inp.value);
+            if (!isNaN(v) && v >= 0) entry[inp.dataset.short] = v;
+          });
+          if (Object.keys(entry).length === 0) {
+            delete d[weekKey];
+          } else {
+            d[weekKey] = entry;
+          }
+          _wlbSave(d);
+          close();
+          renderWeeklyLeaderboard();
+        };
+      } catch(e) { console.warn('_wlbOpenEditor failed', e); }
+    }
+    window._wlbOpenEditor = _wlbOpenEditor;
 
     // ---------- 2. Current Season Hero Card ----------
     function renderSeasonHeroCard() {
@@ -3663,6 +4020,9 @@ document.addEventListener('visibilitychange', function() {
 
       // ---- 3. BULLETIN BOARD ----
       renderBulletinBoard();
+
+      // ---- 4. WEEKLY LEADERBOARD (v143) ----
+      try { renderWeeklyLeaderboard(); } catch(e) {}
     }
 
     function renderBulletinBoard() {
@@ -11149,6 +11509,7 @@ if (typeof Chart !== 'undefined') {
     renderRookieCards();
     // Render season badge universe on overview + pre-render seasonal content so it's ready on first sub-tab click
     try { renderSeasonBadgeUniverse(); } catch(e) { console.warn('renderSeasonBadgeUniverse init failed', e); }
+    try { renderWeeklyLeaderboard(); } catch(e) { console.warn('renderWeeklyLeaderboard init failed', e); }
     renderProgression();
     renderSTKPIs();
     renderSTTables();

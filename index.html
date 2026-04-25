@@ -22,11 +22,11 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260424v142">
+  <link rel="stylesheet" href="styles.css?v=20260424v143">
 </head>
 <body>
   <!-- Version Badge (top-left, always visible) -->
-  <div id="appVersionBadge" class="app-version-badge" title="App version">v142</div>
+  <div id="appVersionBadge" class="app-version-badge" title="App version">v143</div>
 
   <!-- Background Grid Effect -->
   <div class="bg-grid-effect"></div>
@@ -68,7 +68,7 @@
       </div>
       <div class="header-right">
         <span class="badge">5 Technicians</span>
-        <span class="badge badge-date">Updated 4/24/2026 &middot; v142</span>
+        <span class="badge badge-date">Updated 4/24/2026 &middot; v143</span>
         <button class="share-matrix-btn" onclick="shareMatrix()" title="Share Matrix"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share</button>
         <button id="syncNowBtn" class="sync-now-btn mgr-only" onclick="manualSync()" title="Sync Now">&#x1f504;</button>
         <span id="syncStatusIndicator" class="sync-indicator sync-idle mgr-only" onclick="openSyncSetup()" title="Cloud Sync Settings">☁ Cloud</span>
@@ -164,8 +164,11 @@
         </div>
       </div>
 
-      <!-- Season Badge Universe — all possible badges to earn -->
-      <div id="seasonBadgeUniverse" class="sbu-card"></div>
+      <!-- Weekly Leaderboard — auto-renders under team photo -->
+      <div id="weeklyLeaderboard" class="wlb-card"></div>
+
+      <!-- Season Badge Universe — collapsible -->
+      <div id="seasonBadgeUniverse" class="sbu-card sbu-compact"></div>
 
       <!-- KPIs (skills-based) -->
       <div class="kpi-row" id="kpi-row"></div>
@@ -1295,7 +1298,7 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="score_pdfs.js?v=20260424v142"></script>
-  <script src="app.js?v=20260424v142"></script>
+  <script src="score_pdfs.js?v=20260424v143"></script>
+  <script src="app.js?v=20260424v143"></script>
 </body>
 </html>
