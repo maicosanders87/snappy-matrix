@@ -154,7 +154,8 @@ async function silentSyncOnLogin() {
       'techprofiles': 'snappy_tech_profiles',
       'techscores': 'snappy_tech_score_overrides',
       'techstdata': 'snappy_tech_st_overrides',
-      'techaptitude': 'snappy_tech_aptitude_overrides'
+      'techaptitude': 'snappy_tech_aptitude_overrides',
+      'mgrscore': 'snappy_mgr_score_overrides'
     };
     var updated = false;
     for (var ck in keyMap) {
@@ -588,7 +589,8 @@ async function initCloudSync(userInitiated) {
     'techprofiles': 'snappy_tech_profiles',
       'techscores': 'snappy_tech_score_overrides',
       'techstdata': 'snappy_tech_st_overrides',
-      'techaptitude': 'snappy_tech_aptitude_overrides'
+      'techaptitude': 'snappy_tech_aptitude_overrides',
+      'mgrscore': 'snappy_mgr_score_overrides'
   };
 
   // Protect recently-modified local keys from being overwritten by stale cloud data.
@@ -669,8 +671,8 @@ async function manualSync() {
       SyncEngine.write('skills', skillsData.assignments);
       SyncEngine.write('manager', mgrState);
       SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
-      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons','techprofiles','techscores','techstdata','techaptitude'];
-      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1','snappy_tech_profiles','snappy_tech_score_overrides','snappy_tech_st_overrides','snappy_tech_aptitude_overrides'];
+      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons','techprofiles','techscores','techstdata','techaptitude','mgrscore'];
+      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1','snappy_tech_profiles','snappy_tech_score_overrides','snappy_tech_st_overrides','snappy_tech_aptitude_overrides','snappy_mgr_score_overrides'];
       dKeys.forEach(function(k, i) {
         var v = localStorage.getItem(dLocalKeys[i]);
         if (v) {
@@ -707,7 +709,8 @@ async function manualSync() {
         'techprofiles': 'snappy_tech_profiles',
       'techscores': 'snappy_tech_score_overrides',
       'techstdata': 'snappy_tech_st_overrides',
-      'techaptitude': 'snappy_tech_aptitude_overrides'
+      'techaptitude': 'snappy_tech_aptitude_overrides',
+      'mgrscore': 'snappy_mgr_score_overrides'
       };
       for (var ck in keyMap) {
         if (cloudData[ck] !== undefined && cloudData[ck] !== null) {
@@ -843,7 +846,8 @@ async function saveSyncUrl() {
       'techprofiles': 'snappy_tech_profiles',
       'techscores': 'snappy_tech_score_overrides',
       'techstdata': 'snappy_tech_st_overrides',
-      'techaptitude': 'snappy_tech_aptitude_overrides'
+      'techaptitude': 'snappy_tech_aptitude_overrides',
+      'mgrscore': 'snappy_mgr_score_overrides'
     };
     var payload = {};
     for (var ck in keyMap) {
@@ -867,7 +871,7 @@ async function saveSyncUrl() {
     var pullData = await _syncJsonpGet(url);
     if (pullData && pullData.status === 'ok' && pullData.result) {
       var pullKeys = { 'skills': 'snappy_skills_assignments', 'manager': 'snappy_manager_entries', 'techfiles': 'snappy_tech_files', 'dispatch': 'snappy_dispatch_v1', 'dailyduties': 'snappy_daily_duties', 'mgrstats': 'snappy_mgr_stats',
-      'braydenstats': 'snappy_brayden_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1', 'seasons': 'snappy_seasons_v1', 'techprofiles': 'snappy_tech_profiles', 'techscores': 'snappy_tech_score_overrides', 'techstdata': 'snappy_tech_st_overrides', 'techaptitude': 'snappy_tech_aptitude_overrides' };
+      'braydenstats': 'snappy_brayden_stats', 'daynotes': 'snappy_day_notes', 'nexstar': 'snappy_nexstar', 'bulletin': 'snappy_bulletin_board', 'recall': 'snappy_recall_log_v1', 'complaint': 'snappy_complaint_log_v1', 'mgrnotes': 'snappy_mgr_notes_v1', 'seasons': 'snappy_seasons_v1', 'techprofiles': 'snappy_tech_profiles', 'techscores': 'snappy_tech_score_overrides', 'techstdata': 'snappy_tech_st_overrides', 'techaptitude': 'snappy_tech_aptitude_overrides', 'mgrscore': 'snappy_mgr_score_overrides' };
       for (var pk in pullKeys) {
         if (pullData.result[pk] !== undefined && pullData.result[pk] !== null) {
           var cv = _extractCloudVal(pullData.result[pk]);
@@ -1273,13 +1277,23 @@ document.addEventListener('visibilitychange', function() {
 
     // ========== MANAGER SCORE ==========
     // 1–10 scale: recalls, inspection sheets, stickers, housekeeping
-    const managerScores = {
+    // v130: var (mutable) + exposed on window so the Profiles pop-up can edit it
+    var managerScores = {
       "Dee": 10,
       "Daniel": 7.5,
       "Chris": 10,
       "Benji": 10,
       "Dewone": 7
     };
+    // Apply persisted overrides (set by the Profiles pop-up) before tier calcs run
+    try {
+      var __mgrOv = JSON.parse(localStorage.getItem('snappy_mgr_score_overrides') || '{}');
+      Object.keys(__mgrOv || {}).forEach(function(k) {
+        var v = parseFloat(__mgrOv[k]);
+        if (!isNaN(v)) managerScores[k] = v;
+      });
+    } catch (e) {}
+    if (typeof window !== 'undefined') window.managerScores = managerScores;
 
     // ========== TIER RANKING SYSTEM ==========
     // S = Elite (92+) — maxed out / near-perfect across the board
@@ -11375,6 +11389,59 @@ function openEmbeddedPDF(filename) {
     scoresSave();
   }
 
+  // ----- Manager Score override (1–10 scale) -----
+  const MGR_SCORE_KEY = 'snappy_mgr_score_overrides';
+  let mgrScoreOverrides = {};
+  function mgrScoreLoad() {
+    try {
+      const raw = localStorage.getItem(MGR_SCORE_KEY);
+      if (raw) mgrScoreOverrides = JSON.parse(raw) || {};
+    } catch (e) { mgrScoreOverrides = {}; }
+  }
+  function mgrScoreSave() {
+    try {
+      localStorage.setItem(MGR_SCORE_KEY, JSON.stringify(mgrScoreOverrides));
+      if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
+        SyncEngine.write('mgrscore', mgrScoreOverrides);
+      }
+    } catch (e) { console.warn('mgrScore save failed', e); }
+  }
+  function applyMgrScoreOverrides() {
+    if (typeof window === 'undefined' || !window.managerScores) return;
+    Object.keys(mgrScoreOverrides).forEach(function(short) {
+      var v = parseFloat(mgrScoreOverrides[short]);
+      if (!isNaN(v)) window.managerScores[short] = v;
+    });
+  }
+  mgrScoreLoad();
+  applyMgrScoreOverrides();
+  if (typeof window !== 'undefined') {
+    window.__mgrScoreApplyPull = function(remote) {
+      if (!remote || typeof remote !== 'object') return;
+      mgrScoreOverrides = remote;
+      try { localStorage.setItem(MGR_SCORE_KEY, JSON.stringify(mgrScoreOverrides)); } catch (e) {}
+      applyMgrScoreOverrides();
+    };
+  }
+  function getMgrScore(short) {
+    if (typeof window !== 'undefined' && window.managerScores && window.managerScores[short] != null) {
+      return window.managerScores[short];
+    }
+    return null;
+  }
+  function setMgrScore(short, val) {
+    if (val === '' || val == null) {
+      delete mgrScoreOverrides[short];
+    } else {
+      var v = parseFloat(val);
+      if (isNaN(v)) return;
+      v = Math.max(0, Math.min(10, v));
+      mgrScoreOverrides[short] = v;
+      if (typeof window !== 'undefined' && window.managerScores) window.managerScores[short] = v;
+    }
+    mgrScoreSave();
+  }
+
   // Apply baseFields + managerTags + weaknesses to live techs[] on init
   (function applyBaseOverridesNow() {
     if (typeof techs === 'undefined' || !Array.isArray(techs)) return;
@@ -11961,6 +12028,17 @@ function openEmbeddedPDF(filename) {
         '</div>' +
       '</div>';
 
+      // 9b) EDITABLE Manager Score (1–10 scale)
+      var mgrScoreVal = getMgrScore(short);
+      html += '<div class="pm-section"><h4>Manager Score (Editable · 0–10 scale)</h4>' +
+        '<div class="pm-grid">' +
+          '<div class="pm-field"><label>Manager Score</label>' +
+            '<input type="number" min="0" max="10" step="0.5" data-mgr-score="1" placeholder="e.g. 8.5" value="' + (mgrScoreVal != null ? mgrScoreVal : '') + '"></div>' +
+          '<div class="pm-stat-pill" style="justify-content:center;"><span class="lbl">Weighted into Tier</span><span class="val" id="pmMgrScorePct">' + (mgrScoreVal != null ? Math.round((mgrScoreVal / 10) * 100) + ' / 100' : '—') + '</span></div>' +
+        '</div>' +
+        '<div style="font-size:10px;color:#64748b;margin-top:6px;">Recalls, inspection sheets, stickers, housekeeping, communication, professionalism. Feeds the tier ranking system at 10% weight.</div>' +
+      '</div>';
+
       // 10) EDITABLE Manager Tags
       var mgrTags = Array.isArray(t.managerTags) ? t.managerTags.slice() : [];
       html += '<div class="pm-section"><h4>Manager Tags (click to remove)</h4>' +
@@ -12174,6 +12252,21 @@ function openEmbeddedPDF(filename) {
     });
     bodyEl.querySelectorAll('[data-complaint-override]').forEach(function(inp) {
       var saveIt = function() { setComplaintOverride(short, inp.value); flashSaved(); };
+      inp.addEventListener('change', saveIt);
+      inp.addEventListener('blur', saveIt);
+    });
+
+    // Wire Manager Score input
+    bodyEl.querySelectorAll('[data-mgr-score]').forEach(function(inp) {
+      var saveIt = function() {
+        setMgrScore(short, inp.value);
+        var pct = bodyEl.querySelector('#pmMgrScorePct');
+        if (pct) {
+          var v = parseFloat(inp.value);
+          pct.textContent = isNaN(v) ? '—' : (Math.round((v / 10) * 100) + ' / 100');
+        }
+        flashSaved();
+      };
       inp.addEventListener('change', saveIt);
       inp.addEventListener('blur', saveIt);
     });
