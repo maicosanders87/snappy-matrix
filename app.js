@@ -12176,6 +12176,65 @@ function openEmbeddedPDF(filename) {
         '</div></div>';
     }
 
+    // ===== Non-tech editable sections (Mark / Brayden) =====
+    // These also live in scoreOverrides[short] so setStrengths/setWeaknesses/setManagerTags work uniformly.
+    if (person.role !== 'tech') {
+      var ovx = (typeof scoreOverrides !== 'undefined' && scoreOverrides[short]) ? scoreOverrides[short] : {};
+      var nStrengths = Array.isArray(ovx.strengths) ? ovx.strengths.slice() : [];
+      var nWeak = Array.isArray(ovx.weaknesses) ? ovx.weaknesses.slice() : [];
+      var nMgrTags = Array.isArray(ovx.managerTags) ? ovx.managerTags.slice() : [];
+      var nBase = ovx.baseFields || {};
+
+      // Strengths
+      html += '<div class="pm-section"><h4>Strengths (click to remove)</h4>' +
+        '<div class="pm-tags" id="pmStrengthsList">' +
+          nStrengths.map(function(s, i) { return '<span class="pm-tag strength removable" data-strength-idx="' + i + '" title="Click to remove">' + escapeHtml(s) + ' ×</span>'; }).join('') +
+        '</div>' +
+        '<div class="pm-add-row">' +
+          '<input type="text" id="pmStrengthInput" placeholder="Add a strength and press Enter" class="pm-sub-input" style="flex:1">' +
+          '<button class="pm-btn gold" id="pmStrengthAdd">+ Add</button>' +
+        '</div>' +
+      '</div>';
+
+      // Manager tags
+      html += '<div class="pm-section"><h4>Tags (click to remove)</h4>' +
+        '<div class="pm-tags" id="pmMgrTagsList">' +
+          nMgrTags.map(function(tag, i) {
+            var lbl = (typeof tag === 'string') ? tag : (tag && tag.label ? tag.label : '');
+            var typ = (tag && tag.type) ? tag.type : 'role';
+            return '<span class="pm-tag mgr-tag mgr-tag-' + escapeHtml(typ) + ' removable" data-mgrtag-idx="' + i + '" title="' + escapeHtml(typ) + ' — click to remove">' + escapeHtml(lbl) + ' ×</span>';
+          }).join('') +
+        '</div>' +
+        '<div class="pm-add-row">' +
+          '<input type="text" id="pmMgrTagInput" placeholder="Add tag" class="pm-sub-input" style="flex:2">' +
+          '<select id="pmMgrTagType" class="pm-sub-input" style="flex:1">' +
+            '<option value="role">role</option>' +
+            '<option value="trust">trust</option>' +
+            '<option value="strength">strength</option>' +
+          '</select>' +
+          '<button class="pm-btn gold" id="pmMgrTagAdd">+ Add</button>' +
+        '</div>' +
+      '</div>';
+
+      // Weaknesses
+      html += '<div class="pm-section"><h4>Areas to Improve (click to remove)</h4>' +
+        '<div class="pm-tags" id="pmWeaknessesList">' +
+          nWeak.map(function(s, i) { return '<span class="pm-tag weakness removable" data-weakness-idx="' + i + '" title="Click to remove">' + escapeHtml(s) + ' ×</span>'; }).join('') +
+        '</div>' +
+        '<div class="pm-add-row">' +
+          '<input type="text" id="pmWeaknessInput" placeholder="Add area and press Enter" class="pm-sub-input" style="flex:1">' +
+          '<button class="pm-btn gold" id="pmWeaknessAdd">+ Add</button>' +
+        '</div>' +
+      '</div>';
+
+      // Coaching notes
+      html += '<div class="pm-section"><h4>Notes (Editable)</h4>' +
+        '<div class="pm-field"><label>Focus / Goals</label><textarea data-base-field="growth" rows="2" placeholder="Current focus…">' + escapeHtml(nBase.growth || '') + '</textarea></div>' +
+        '<div class="pm-field" style="margin-top:8px"><label>Training Focus</label><textarea data-base-field="training" rows="2" placeholder="Current training focus…">' + escapeHtml(nBase.training || '') + '</textarea></div>' +
+        '<div class="pm-field" style="margin-top:8px"><label>Notes</label><textarea data-base-field="managerNotes" rows="3" placeholder="Anything else…">' + escapeHtml(nBase.managerNotes || '') + '</textarea></div>' +
+      '</div>';
+    }
+
     // Save bar
     html += '<div class="pm-save-bar">' +
       '<span class="pm-saved-flash" id="pmSavedFlash">✓ Saved</span>' +
@@ -12217,14 +12276,22 @@ function openEmbeddedPDF(filename) {
       inp.addEventListener('blur', saveScore);
     });
 
+    // Helper: read live array from techs[] (for techs) or scoreOverrides (for non-techs)
+    function getLiveArr(field) {
+      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
+      if (t2 && Array.isArray(t2[field])) return t2[field];
+      var ov = (typeof scoreOverrides !== 'undefined' && scoreOverrides[short]) ? scoreOverrides[short] : null;
+      if (ov && Array.isArray(ov[field])) return ov[field];
+      return [];
+    }
+
     // Wire strengths add/remove
     var strengthsList = document.getElementById('pmStrengthsList');
     var strengthInput = document.getElementById('pmStrengthInput');
     var strengthAdd = document.getElementById('pmStrengthAdd');
     function refreshStrengthsUI() {
       if (!strengthsList) return;
-      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
-      var arr = (t2 && t2.strengths) ? t2.strengths : [];
+      var arr = getLiveArr('strengths');
       strengthsList.innerHTML = arr.map(function(s, i) {
         return '<span class="pm-tag strength removable" data-strength-idx="' + i + '" title="Click to remove">' + escapeHtml(s) + ' ×</span>';
       }).join('');
@@ -12233,8 +12300,7 @@ function openEmbeddedPDF(filename) {
       if (!strengthInput) return;
       var v = (strengthInput.value || '').trim();
       if (!v) return;
-      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
-      var arr = (t2 && t2.strengths) ? t2.strengths.slice() : [];
+      var arr = getLiveArr('strengths').slice();
       if (arr.indexOf(v) === -1) arr.push(v);
       setStrengths(short, arr);
       strengthInput.value = '';
@@ -12249,8 +12315,7 @@ function openEmbeddedPDF(filename) {
       var chip = e.target.closest('[data-strength-idx]');
       if (!chip) return;
       var idx = parseInt(chip.getAttribute('data-strength-idx'), 10);
-      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
-      var arr = (t2 && t2.strengths) ? t2.strengths.slice() : [];
+      var arr = getLiveArr('strengths').slice();
       if (idx >= 0 && idx < arr.length) {
         arr.splice(idx, 1);
         setStrengths(short, arr);
@@ -12425,8 +12490,7 @@ function openEmbeddedPDF(filename) {
     var mgrTagAdd = document.getElementById('pmMgrTagAdd');
     function refreshMgrTagsUI() {
       if (!mgrTagsList) return;
-      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
-      var arr = (t2 && Array.isArray(t2.managerTags)) ? t2.managerTags : [];
+      var arr = getLiveArr('managerTags');
       mgrTagsList.innerHTML = arr.map(function(tag, i) {
         var lbl = (typeof tag === 'string') ? tag : (tag && tag.label ? tag.label : '');
         var typ = (tag && tag.type) ? tag.type : 'role';
@@ -12438,8 +12502,7 @@ function openEmbeddedPDF(filename) {
       var v = (mgrTagInput.value || '').trim();
       if (!v) return;
       var typ = (mgrTagType && mgrTagType.value) ? mgrTagType.value : 'role';
-      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
-      var arr = (t2 && Array.isArray(t2.managerTags)) ? t2.managerTags.slice() : [];
+      var arr = getLiveArr('managerTags').slice();
       var exists = arr.some(function(x) {
         var l = (typeof x === 'string') ? x : (x && x.label);
         return l === v;
@@ -12458,8 +12521,7 @@ function openEmbeddedPDF(filename) {
       var chip = e.target.closest('[data-mgrtag-idx]');
       if (!chip) return;
       var idx = parseInt(chip.getAttribute('data-mgrtag-idx'), 10);
-      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
-      var arr = (t2 && Array.isArray(t2.managerTags)) ? t2.managerTags.slice() : [];
+      var arr = getLiveArr('managerTags').slice();
       if (idx >= 0 && idx < arr.length) {
         arr.splice(idx, 1);
         setManagerTags(short, arr);
@@ -12474,8 +12536,7 @@ function openEmbeddedPDF(filename) {
     var weakAdd = document.getElementById('pmWeaknessAdd');
     function refreshWeaknessesUI() {
       if (!weakList) return;
-      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
-      var arr = (t2 && Array.isArray(t2.weaknesses)) ? t2.weaknesses : [];
+      var arr = getLiveArr('weaknesses');
       weakList.innerHTML = arr.map(function(s, i) {
         return '<span class="pm-tag weakness removable" data-weakness-idx="' + i + '" title="Click to remove">' + escapeHtml(s) + ' ×</span>';
       }).join('');
@@ -12484,8 +12545,7 @@ function openEmbeddedPDF(filename) {
       if (!weakInput) return;
       var v = (weakInput.value || '').trim();
       if (!v) return;
-      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
-      var arr = (t2 && Array.isArray(t2.weaknesses)) ? t2.weaknesses.slice() : [];
+      var arr = getLiveArr('weaknesses').slice();
       if (arr.indexOf(v) === -1) arr.push(v);
       setWeaknesses(short, arr);
       weakInput.value = '';
@@ -12500,8 +12560,7 @@ function openEmbeddedPDF(filename) {
       var chip = e.target.closest('[data-weakness-idx]');
       if (!chip) return;
       var idx = parseInt(chip.getAttribute('data-weakness-idx'), 10);
-      var t2 = (typeof techs !== 'undefined') ? techs.find(function(x){return x.short===short;}) : null;
-      var arr = (t2 && Array.isArray(t2.weaknesses)) ? t2.weaknesses.slice() : [];
+      var arr = getLiveArr('weaknesses').slice();
       if (idx >= 0 && idx < arr.length) {
         arr.splice(idx, 1);
         setWeaknesses(short, arr);
