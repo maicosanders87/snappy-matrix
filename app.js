@@ -2572,12 +2572,11 @@ document.addEventListener('visibilitychange', function() {
       if (!el) return;
       try {
         var weights = [
-          { pct: '30%', label: 'ServiceTitan',    desc: 'Jobs, conversion, flat rate, callbacks, billable hours, tasks', color: '#20808D' },
-          { pct: '25%', label: 'Aptitude Test',   desc: '100-pt written test across 5 sections', color: '#7A39BB' },
-          { pct: '15%', label: 'Performance',     desc: '8-week rolling avg (floor) + this week\u2019s delta vs avg (\u00b15 pts). 4-week grace period at floor 75 while data builds.', color: '#A855F7' },
+          { pct: '35%', label: 'ServiceTitan',    desc: 'Jobs, conversion, flat rate, callbacks, billable hours, tasks', color: '#20808D' },
+          { pct: '30%', label: 'Aptitude Test',   desc: '100-pt written test across 5 sections', color: '#7A39BB' },
           { pct: '10%', label: 'Skills Matrix',   desc: '48-skill ServiceTitan tag system (1-5 rating per skill)', color: '#DA7101' },
           { pct: '10%', label: 'Manager Review',  desc: 'Monthly manager scoring across 9 areas', color: '#4F98A3' },
-          { pct: '5%',  label: 'Install Revenue', desc: '90-day equipment sales revenue + install count', color: '#437A22' },
+          { pct: '10%', label: 'Install Revenue', desc: '90-day equipment sales revenue + install count', color: '#437A22' },
           { pct: '5%',  label: 'Google Reviews',  desc: '5-star customer reviews tied back to the tech', color: '#D19900' }
         ];
         var weightsHTML = weights.map(function(w) {
@@ -2601,10 +2600,10 @@ document.addEventListener('visibilitychange', function() {
         el.innerHTML =
           '<div class="composite-explainer">' +
             '<div class="ce-title">How Composite Score Works</div>' +
-            '<div class="ce-subtitle">Composite score (0-100) is the weighted average across seven dimensions, plus dispatch and efficiency bonuses. Your finishing tier at season end determines the badge you collect. Every new season applies a small soft reset so improvement is rewarded.</div>' +
+            '<div class="ce-subtitle">Composite score (0-100) is the weighted average across six dimensions, plus dispatch, efficiency, and performance bonuses (additive \u2014 they only help). Your finishing tier at season end determines the badge you collect. Every new season applies a small soft reset so improvement is rewarded.</div>' +
             '<div class="ce-weights">' + weightsHTML + '</div>' +
             '<div class="ce-tiers">' + tiersHTML + '</div>' +
-            '<div class="ce-bonus-note">+ Dispatch bonus: premium tags +1.0 each, standard tags +0.25. + Efficiency MTD bonus tiered off billable-hour performance. \u2014 Season soft reset: S-4, A-3, B-1, C-0 applied at the start of a new season.</div>' +
+            '<div class="ce-bonus-note">+ Dispatch bonus: premium tags +1.0 each, standard tags +0.25. + Efficiency MTD bonus tiered off billable-hour performance. + Performance bonus (leaderboard): S week +3.0, A week +2.0, B week +1.0, active +0.5 \u2014 only helps, never hurts. \u2014 Season soft reset: S-4, A-3, B-1, C-0 applied at the start of a new season.</div>' +
           '</div>';
       } catch(e) { console.warn('renderCompositeExplainer failed', e); }
     }
@@ -3039,83 +3038,86 @@ document.addEventListener('visibilitychange', function() {
       return (apt.totalScore / apt.maxScore) * 100;
     }
 
-    // v158 (Option A grace period): Performance pillar = floor + this week's delta.
+    // v159 (Approach 2): Performance as a PURE ADDITIVE BONUS — only helps, never hurts.
     //
-    //   Floor = avg of last 8 PRIOR weeks of leaderboard total points, normalized so 25 pts/wk = 100.
-    //   Delta = this week's total vs the 8-week avg, scaled to ±5 pts (linear; ±10 pts above/below = max swing).
-    //   Final = clamp(floor + delta, 0, 100).
+    // Bonus tiers (based on best-of-recent leaderboard total points):
+    //   30+ pts/wk → +3.0 composite pts  (S week)
+    //   20–29 pts/wk → +2.0 composite pts  (A week)
+    //   10–19 pts/wk → +1.0 composite pts  (B week)
+    //   1–9 pts/wk  → +0.5 composite pts  (any activity)
+    //   0 pts or no data → +0.0  (no penalty, ever)
     //
-    // GRACE PERIOD: Until a tech has GRACE_WEEKS (4) of historical data, the floor is held at 75
-    // (B-tier baseline). This prevents thin data from cliffing composite scores during rollout.
-    // Once 4+ prior weeks are on file, the real rolling avg takes over.
+    // Basis: prefers THIS WEEK's total. If no data this week, uses the HIGHEST of the
+    // last 4 prior weeks (so a recent strong week still rewards). This way, performance
+    // pulls composite up but a slow week or missing data never pulls it down.
     //
-    // Delta still applies during grace (if current week has data) so a strong week can still bump
-    // composite up a few points. No-data current-week => delta = 0 (no early-week penalty).
-    //
-    // Returns { score, floor, delta, weeksCounted, avgPts, thisWeekPts, thisWeekHasData, hasData, inGracePeriod, graceWeeks }
-    var WLB_GRACE_WEEKS = 4;
-    var WLB_GRACE_FLOOR = 75; // B-tier baseline used during grace period
-    function getTechPerformanceScore(tech) {
+    // Returns { bonus, basis: 'thisWeek'|'recentBest'|'none', basisPts, basisWeek, label, hasData }
+    function calcPerformanceBonus(tech) {
       try {
         if (typeof _wlbLoad !== 'function' || typeof _wlbWeekStart !== 'function' || typeof _wlbPrevWeek !== 'function' || typeof _wlbReadEntry !== 'function' || typeof _wlbPoints !== 'function') {
-          return { score: WLB_GRACE_FLOOR, floor: WLB_GRACE_FLOOR, delta: 0, weeksCounted: 0, avgPts: 0, thisWeekPts: null, thisWeekHasData: false, hasData: false, inGracePeriod: true, graceWeeks: WLB_GRACE_WEEKS };
+          return { bonus: 0, basis: 'none', basisPts: 0, basisWeek: null, label: 'No data', hasData: false };
         }
         var data = _wlbLoad();
         var thisWk = _wlbWeekStart();
 
-        // Read this week's entry (drives the delta, NOT the floor)
+        // 1) This week's total (preferred basis)
         var thisEntry = _wlbReadEntry(data[thisWk] || {}, tech.short);
         var thisPts = thisEntry ? _wlbPoints(thisEntry) : null;
         var thisWeekTotal = (thisPts && typeof thisPts.total === 'number') ? thisPts.total : null;
 
-        // Walk back 8 weeks PRIOR to current week to build the floor
-        var wk = _wlbPrevWeek(thisWk);
-        var totals = [];
-        for (var i = 0; i < 8; i++) {
-          var weekData = data[wk] || {};
-          var entry = _wlbReadEntry(weekData, tech.short);
-          if (entry) {
-            var pts = _wlbPoints(entry);
-            if (pts && typeof pts.total === 'number') totals.push(pts.total);
+        var basis, basisPts, basisWeek;
+        if (thisWeekTotal !== null && thisWeekTotal > 0) {
+          basis = 'thisWeek';
+          basisPts = thisWeekTotal;
+          basisWeek = thisWk;
+        } else {
+          // 2) Fall back to highest of the last 4 prior weeks
+          var wk = _wlbPrevWeek(thisWk);
+          var bestPts = 0;
+          var bestWk = null;
+          for (var i = 0; i < 4; i++) {
+            var weekData = data[wk] || {};
+            var entry = _wlbReadEntry(weekData, tech.short);
+            if (entry) {
+              var pts = _wlbPoints(entry);
+              if (pts && typeof pts.total === 'number' && pts.total > bestPts) {
+                bestPts = pts.total;
+                bestWk = wk;
+              }
+            }
+            wk = _wlbPrevWeek(wk);
           }
-          wk = _wlbPrevWeek(wk);
+          if (bestPts > 0) {
+            basis = 'recentBest';
+            basisPts = bestPts;
+            basisWeek = bestWk;
+          } else {
+            basis = 'none';
+            basisPts = 0;
+            basisWeek = null;
+          }
         }
 
-        var weeksCounted = totals.length;
-        var avg = weeksCounted ? (totals.reduce(function(a,b){ return a+b; }, 0) / weeksCounted) : 0;
-        var inGrace = weeksCounted < WLB_GRACE_WEEKS;
-
-        // Floor: during grace, use B-tier baseline. After grace, use real rolling avg normalized to 25 pts/wk = 100.
-        var floor = inGrace ? WLB_GRACE_FLOOR : Math.max(0, Math.min((avg / 25) * 100, 100));
-
-        // Delta: this week vs the avg if we have historical data; otherwise 0.
-        // Even during grace, a strong/weak current week still nudges the score by ±5 pts.
-        var delta = 0;
-        if (thisWeekTotal !== null && weeksCounted > 0) {
-          var raw = thisWeekTotal - avg;
-          delta = Math.max(-5, Math.min(5, (raw / 10) * 5));
-          delta = Math.round(delta * 10) / 10;
-        }
-
-        var score = Math.max(0, Math.min(floor + delta, 100));
+        // Tiered bonus — only positive
+        var bonus = 0, label = 'No bonus';
+        if (basisPts >= 30)      { bonus = 3.0; label = 'S week'; }
+        else if (basisPts >= 20) { bonus = 2.0; label = 'A week'; }
+        else if (basisPts >= 10) { bonus = 1.0; label = 'B week'; }
+        else if (basisPts >= 1)  { bonus = 0.5; label = 'Active week'; }
 
         return {
-          score: score,
-          floor: Math.round(floor * 10) / 10,
-          delta: delta,
-          weeksCounted: weeksCounted,
-          avgPts: Math.round(avg * 10) / 10,
-          thisWeekPts: thisWeekTotal,
-          thisWeekHasData: thisWeekTotal !== null,
-          hasData: weeksCounted > 0 || thisWeekTotal !== null,
-          inGracePeriod: inGrace,
-          graceWeeks: WLB_GRACE_WEEKS
+          bonus: bonus,
+          basis: basis,
+          basisPts: Math.round(basisPts * 10) / 10,
+          basisWeek: basisWeek,
+          label: label,
+          hasData: basis !== 'none'
         };
       } catch(e) {
-        return { score: WLB_GRACE_FLOOR, floor: WLB_GRACE_FLOOR, delta: 0, weeksCounted: 0, avgPts: 0, thisWeekPts: null, thisWeekHasData: false, hasData: false, inGracePeriod: true, graceWeeks: WLB_GRACE_WEEKS };
+        return { bonus: 0, basis: 'none', basisPts: 0, basisWeek: null, label: 'No data', hasData: false };
       }
     }
-    window.getTechPerformanceScore = getTechPerformanceScore;
+    window.calcPerformanceBonus = calcPerformanceBonus;
 
     function getTechTier(tech) {
       // 1. Aptitude test score (0–100): actual test percentage — PRIMARY knowledge gauge
@@ -3181,12 +3183,13 @@ document.addEventListener('visibilitychange', function() {
       const effData = calcEfficiencyBonus(tech);
       const efficiencyBonus = effData.bonus;
 
-      // 9. Performance pillar (v156, Option E): 8-week rolling avg FLOOR + this-week DELTA, 0–100
-      const perfData = getTechPerformanceScore(tech);
-      const perfScore = perfData.score;
+      // 9. Performance Bonus (v159, Approach 2): pure additive bonus from leaderboard — only helps, never hurts
+      const perfBonusData = calcPerformanceBonus(tech);
+      const performanceBonus = perfBonusData.bonus;
 
-      // v155+ weights: ST 30% + Aptitude 25% + Performance 15% + Skills 10% + Manager 10% + Installs 5% + Reviews 5% + Dispatch bonus + Efficiency bonus
-      const compositeRawPreSeason = stScore * 0.30 + aptScore * 0.25 + perfScore * 0.15 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.05 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus;
+      // v159 weights restored to v153 baseline: ST 35% + Aptitude 30% + Skills 10% + Manager 10% + Installs 10% + Reviews 5%
+      // Plus additive bonuses: Dispatch + Efficiency + Performance (all only-help)
+      const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus + performanceBonus;
       // Season soft reset penalty (carries for current season only)
       const seasonPenalty = (typeof getSeasonSoftResetPenalty === 'function') ? getSeasonSoftResetPenalty(tech.short) : 0;
       const composite = Math.max(0, compositeRawPreSeason - seasonPenalty);
@@ -3197,7 +3200,7 @@ document.addEventListener('visibilitychange', function() {
       else if (composite >= 78) { tier = 'B'; tierLabel = 'Solid'; }
       else { tier = 'C'; tierLabel = 'Developing'; }
 
-      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), perfScore: Math.round(perfScore), perfFloor: perfData.floor, perfDelta: perfData.delta, perfWeeksCounted: perfData.weeksCounted, perfAvgPts: perfData.avgPts, perfThisWeekPts: perfData.thisWeekPts, perfThisWeekHasData: perfData.thisWeekHasData, perfHasData: perfData.hasData, perfInGrace: perfData.inGracePeriod, perfGraceWeeks: perfData.graceWeeks, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct };
+      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct };
     }
 
 
@@ -7034,40 +7037,18 @@ if (typeof Chart !== 'undefined') {
                       <div class="rookie-composite-score" style="color:${t.color}">${tierInfo.composite}</div>
                     </div>
 
-                    ${(() => {
-                      // Performance pillar display (v158) — floor + this-week delta, with grace period
-                      var deltaSign = tierInfo.perfDelta > 0 ? '+' : (tierInfo.perfDelta < 0 ? '' : '\u00b1');
-                      var deltaColor = tierInfo.perfDelta > 0 ? '#4ADE80' : (tierInfo.perfDelta < 0 ? '#F87171' : '#94A3B8');
-                      var deltaArrow = tierInfo.perfDelta > 0 ? '\u25B2' : (tierInfo.perfDelta < 0 ? '\u25BC' : '\u2014');
-                      var thisWkLabel = tierInfo.perfThisWeekHasData
-                        ? ('This wk ' + tierInfo.perfThisWeekPts.toFixed(1) + ' pts')
-                        : 'No data this wk';
-                      var floorLabel;
-                      var floorPillClass = 'rookie-perf-pill-floor';
-                      var floorPillText;
-                      if (tierInfo.perfInGrace) {
-                        floorPillClass = 'rookie-perf-pill-grace';
-                        floorPillText = 'Grace Floor 75';
-                        floorLabel = 'Building (' + tierInfo.perfWeeksCounted + '/' + tierInfo.perfGraceWeeks + ' wks)';
-                      } else {
-                        floorPillText = 'Floor ' + tierInfo.perfFloor.toFixed(0);
-                        floorLabel = tierInfo.perfAvgPts.toFixed(1) + ' avg \u00b7 ' + tierInfo.perfWeeksCounted + 'wk';
-                      }
-                      return `
-                    <div class="rookie-perf${tierInfo.perfInGrace ? ' rookie-perf-grace' : ''}">
-                      <div class="rookie-perf-header">
-                        <span class="rookie-perf-icon">\ud83d\udcca</span>
-                        <span class="rookie-perf-title">Performance${tierInfo.perfInGrace ? ' \u00b7 Grace' : ''}</span>
-                        <span class="rookie-perf-score">${tierInfo.perfScore}</span>
+                    <div class="rookie-dispatch-tags rookie-perf-bonus${tierInfo.performanceBonus > 0 ? ' has-bonus' : ''}">
+                      <div class="rookie-dispatch-header">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                        Performance Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.performanceBonus >= 3 ? '#FFD700' : tierInfo.performanceBonus >= 2 ? '#4ADE80' : tierInfo.performanceBonus >= 1 ? '#60A5FA' : tierInfo.performanceBonus > 0 ? '#A855F7' : '#64748B'}">+${tierInfo.performanceBonus.toFixed(2)} pts</span>
                       </div>
-                      <div class="rookie-perf-row">
-                        <span class="rookie-perf-pill ${floorPillClass}">${floorPillText}</span>
-                        <span class="rookie-perf-pill rookie-perf-pill-delta" style="color:${deltaColor};border-color:${deltaColor}33;background:${deltaColor}1A">${deltaArrow} ${deltaSign}${tierInfo.perfDelta.toFixed(1)}</span>
-                        <span class="rookie-perf-meta">${floorLabel}</span>
-                        <span class="rookie-perf-meta">${thisWkLabel}</span>
+                      <div class="rookie-dispatch-pills">
+                        ${tierInfo.performanceHasData
+                          ? `<span class="rookie-dispatch-pill${tierInfo.performanceBonus >= 2 ? ' is-premium' : ''}">${tierInfo.performanceLabel}</span><span class="rookie-dispatch-pill">${tierInfo.performanceBasisPts.toFixed(1)} pts ${tierInfo.performanceBasis === 'thisWeek' ? 'this wk' : 'recent best'}</span>`
+                          : `<span class="rookie-dispatch-pill" style="color:#64748B;border-color:#334155;background:rgba(100,116,139,0.08)">No leaderboard data yet</span>`
+                        }
                       </div>
-                    </div>`;
-                    })()}
+                    </div>
 
                     ${techDispTags.length ? `
                     <div class="rookie-dispatch-tags">
