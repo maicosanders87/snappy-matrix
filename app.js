@@ -7023,6 +7023,33 @@ if (typeof Chart !== 'undefined') {
                       <div class="rookie-composite-score" style="color:${t.color}">${tierInfo.composite}</div>
                     </div>
 
+                    ${(() => {
+                      // Performance pillar display (v157) — 8-week rolling avg floor + this week's delta
+                      var deltaSign = tierInfo.perfDelta > 0 ? '+' : (tierInfo.perfDelta < 0 ? '' : '\u00b1');
+                      var deltaColor = tierInfo.perfDelta > 0 ? '#4ADE80' : (tierInfo.perfDelta < 0 ? '#F87171' : '#94A3B8');
+                      var deltaArrow = tierInfo.perfDelta > 0 ? '\u25B2' : (tierInfo.perfDelta < 0 ? '\u25BC' : '\u2014');
+                      var thisWkLabel = tierInfo.perfThisWeekHasData
+                        ? ('This wk ' + tierInfo.perfThisWeekPts.toFixed(1) + ' pts')
+                        : 'No data this wk';
+                      var floorLabel = tierInfo.perfWeeksCounted > 0
+                        ? (tierInfo.perfAvgPts.toFixed(1) + ' avg \u00b7 ' + tierInfo.perfWeeksCounted + 'wk')
+                        : 'New \u2014 floor 50';
+                      return `
+                    <div class="rookie-perf">
+                      <div class="rookie-perf-header">
+                        <span class="rookie-perf-icon">\ud83d\udcca</span>
+                        <span class="rookie-perf-title">Performance</span>
+                        <span class="rookie-perf-score">${tierInfo.perfScore}</span>
+                      </div>
+                      <div class="rookie-perf-row">
+                        <span class="rookie-perf-pill rookie-perf-pill-floor">Floor ${tierInfo.perfFloor.toFixed(0)}</span>
+                        <span class="rookie-perf-pill rookie-perf-pill-delta" style="color:${deltaColor};border-color:${deltaColor}33;background:${deltaColor}1A">${deltaArrow} ${deltaSign}${tierInfo.perfDelta.toFixed(1)}</span>
+                        <span class="rookie-perf-meta">${floorLabel}</span>
+                        <span class="rookie-perf-meta">${thisWkLabel}</span>
+                      </div>
+                    </div>`;
+                    })()}
+
                     ${techDispTags.length ? `
                     <div class="rookie-dispatch-tags">
                       <div class="rookie-dispatch-header">
