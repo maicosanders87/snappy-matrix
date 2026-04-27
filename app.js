@@ -2603,7 +2603,7 @@ document.addEventListener('visibilitychange', function() {
             '<div class="ce-subtitle">Composite score (0-100) is the weighted average across six dimensions, plus dispatch, efficiency, and performance bonuses (additive \u2014 they only help). Your finishing tier at season end determines the badge you collect. Every new season applies a small soft reset so improvement is rewarded.</div>' +
             '<div class="ce-weights">' + weightsHTML + '</div>' +
             '<div class="ce-tiers">' + tiersHTML + '</div>' +
-            '<div class="ce-bonus-note">+ Dispatch bonus: premium tags +1.0 each, standard tags +0.25. + Efficiency MTD bonus tiered off billable-hour performance. + Performance bonus (leaderboard): S week +3.0, A week +2.0, B week +1.0, active +0.5 \u2014 only helps, never hurts. \u2014 Season soft reset: S-4, A-3, B-1, C-0 applied at the start of a new season.</div>' +
+            '<div class="ce-bonus-note">+ Dispatch bonus: premium tags +1.0 each, standard tags +0.25. + Efficiency MTD bonus tiered off billable-hour performance. + Performance bonus (leaderboard): S+ wk (40+) +12, S wk (30+) +9, A wk (20+) +6, B wk (10+) +3.5, active (1+) +1.5 \u2014 only helps, never hurts. \u2014 Season soft reset: S-4, A-3, B-1, C-0 applied at the start of a new season.</div>' +
           '</div>';
       } catch(e) { console.warn('renderCompositeExplainer failed', e); }
     }
@@ -3098,12 +3098,13 @@ document.addEventListener('visibilitychange', function() {
           }
         }
 
-        // Tiered bonus — only positive
+        // Tiered bonus — only positive (boosted v160 — leaderboard wins matter)
         var bonus = 0, label = 'No bonus';
-        if (basisPts >= 30)      { bonus = 3.0; label = 'S week'; }
-        else if (basisPts >= 20) { bonus = 2.0; label = 'A week'; }
-        else if (basisPts >= 10) { bonus = 1.0; label = 'B week'; }
-        else if (basisPts >= 1)  { bonus = 0.5; label = 'Active week'; }
+        if (basisPts >= 40)      { bonus = 12.0; label = 'S+ week'; }
+        else if (basisPts >= 30) { bonus = 9.0;  label = 'S week'; }
+        else if (basisPts >= 20) { bonus = 6.0;  label = 'A week'; }
+        else if (basisPts >= 10) { bonus = 3.5;  label = 'B week'; }
+        else if (basisPts >= 1)  { bonus = 1.5;  label = 'Active week'; }
 
         return {
           bonus: bonus,
@@ -7040,11 +7041,11 @@ if (typeof Chart !== 'undefined') {
                     <div class="rookie-dispatch-tags rookie-perf-bonus${tierInfo.performanceBonus > 0 ? ' has-bonus' : ''}">
                       <div class="rookie-dispatch-header">
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-                        Performance Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.performanceBonus >= 3 ? '#FFD700' : tierInfo.performanceBonus >= 2 ? '#4ADE80' : tierInfo.performanceBonus >= 1 ? '#60A5FA' : tierInfo.performanceBonus > 0 ? '#A855F7' : '#64748B'}">+${tierInfo.performanceBonus.toFixed(2)} pts</span>
+                        Performance Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.performanceBonus >= 12 ? '#FFD700' : tierInfo.performanceBonus >= 9 ? '#FBBF24' : tierInfo.performanceBonus >= 6 ? '#4ADE80' : tierInfo.performanceBonus >= 3.5 ? '#60A5FA' : tierInfo.performanceBonus > 0 ? '#A855F7' : '#64748B'}">+${tierInfo.performanceBonus.toFixed(2)} pts</span>
                       </div>
                       <div class="rookie-dispatch-pills">
                         ${tierInfo.performanceHasData
-                          ? `<span class="rookie-dispatch-pill${tierInfo.performanceBonus >= 2 ? ' is-premium' : ''}">${tierInfo.performanceLabel}</span><span class="rookie-dispatch-pill">${tierInfo.performanceBasisPts.toFixed(1)} pts ${tierInfo.performanceBasis === 'thisWeek' ? 'this wk' : 'recent best'}</span>`
+                          ? `<span class="rookie-dispatch-pill${tierInfo.performanceBonus >= 6 ? ' is-premium' : ''}">${tierInfo.performanceLabel}</span><span class="rookie-dispatch-pill">${tierInfo.performanceBasisPts.toFixed(1)} pts ${tierInfo.performanceBasis === 'thisWeek' ? 'this wk' : 'recent best'}</span>`
                           : `<span class="rookie-dispatch-pill" style="color:#64748B;border-color:#334155;background:rgba(100,116,139,0.08)">No leaderboard data yet</span>`
                         }
                       </div>
