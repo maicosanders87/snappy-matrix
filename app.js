@@ -2164,6 +2164,9 @@ document.addEventListener('visibilitychange', function() {
           var prevPts = prevEntry ? _wlbPoints(prevEntry) : null;
           var tier = 'C';
           try { var info = (typeof getTechTier === 'function') ? getTechTier(t) : null; if (info && info.tier) tier = info.tier; } catch(e) {}
+          // v161: live composite-bonus pill next to name
+          var perfBonus = null;
+          try { perfBonus = (typeof calcPerformanceBonus === 'function') ? calcPerformanceBonus(t) : null; } catch(e) {}
           return {
             short: t.short,
             name: t.name,
@@ -2176,7 +2179,8 @@ document.addEventListener('visibilitychange', function() {
             prevPts: prevPts,
             rev: entry ? entry.total : null,
             prevRev: prevEntry ? prevEntry.total : null,
-            score: pts ? pts.total : null
+            score: pts ? pts.total : null,
+            perfBonus: perfBonus
           };
         });
 
@@ -2304,7 +2308,14 @@ document.addEventListener('visibilitychange', function() {
               avatar +
               '<div class="wlb-name-block">' +
                 '<div class="wlb-name">' + r.name + '</div>' +
-                '<div class="wlb-meta"><span class="wlb-tier-pill tier-' + r.tier + '">' + r.tier + '-Tier</span> ' + delta + '</div>' +
+                '<div class="wlb-meta"><span class="wlb-tier-pill tier-' + r.tier + '">' + r.tier + '-Tier</span> ' + delta +
+                ((r.perfBonus && r.perfBonus.bonus > 0) ? (function(){
+                  var b = r.perfBonus.bonus;
+                  var cls = b >= 12 ? 'sp' : b >= 9 ? 's' : b >= 6 ? 'a' : b >= 3.5 ? 'b' : 'act';
+                  var basis = r.perfBonus.basis === 'thisWeek' ? 'this wk' : 'recent';
+                  return ' <span class="wlb-perf-pill wlb-perf-' + cls + '" title="Composite bonus from this week\u2019s leaderboard pace (' + r.perfBonus.label + ', ' + r.perfBonus.basisPts + ' pts ' + basis + ')">\u26a1 +' + b.toFixed(1) + ' composite</span>';
+                })() : '') +
+              '</div>' +
                 pillsHTML +
               '</div>' +
               '<div class="wlb-rev-block">' +
