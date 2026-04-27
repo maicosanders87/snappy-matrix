@@ -2574,7 +2574,7 @@ document.addEventListener('visibilitychange', function() {
         var weights = [
           { pct: '30%', label: 'ServiceTitan',    desc: 'Jobs, conversion, flat rate, callbacks, billable hours, tasks', color: '#20808D' },
           { pct: '25%', label: 'Aptitude Test',   desc: '100-pt written test across 5 sections', color: '#7A39BB' },
-          { pct: '15%', label: 'Performance',     desc: '8-week rolling avg of weekly leaderboard points (SVC + INST + MEM)', color: '#A855F7' },
+          { pct: '15%', label: 'Performance',     desc: '8-week rolling avg (floor) + this week\u2019s delta vs avg (\u00b15 pts). Stable base, fast weekly signal.', color: '#A855F7' },
           { pct: '10%', label: 'Skills Matrix',   desc: '48-skill ServiceTitan tag system (1-5 rating per skill)', color: '#DA7101' },
           { pct: '10%', label: 'Manager Review',  desc: 'Monthly manager scoring across 9 areas', color: '#4F98A3' },
           { pct: '5%',  label: 'Install Revenue', desc: '90-day equipment sales revenue + install count', color: '#437A22' },
@@ -3039,17 +3039,31 @@ document.addEventListener('visibilitychange', function() {
       return (apt.totalScore / apt.maxScore) * 100;
     }
 
-    // v155: Performance pillar — 8-week rolling average of weekly leaderboard total points,
-    // normalized so 25 pts/wk avg = 100. New techs with no history default to 50 (neutral).
-    // Returns { score: 0-100, weeksCounted, avgPts, hasData }
+    // v156 (Option E): Performance pillar = 8-week rolling avg FLOOR + this week's DELTA.
+    //
+    //   Floor = avg of weeks 1..8 prior, normalized so 25 pts/wk = 100. Smooths volatility.
+    //   Delta = this-week total vs the 8-week avg, scaled to ±5 pts (linear, ±10 pts above/below avg = max swing).
+    //   Final = clamp(floor + delta, 0, 100).
+    //
+    // If a tech has no current-week entry yet, delta = 0 (don't penalize early-week views).
+    // New techs with no history default to floor 50 (neutral) so they aren't punished while data builds.
+    //
+    // Returns { score, floor, delta, weeksCounted, avgPts, thisWeekPts, thisWeekHasData, hasData }
     function getTechPerformanceScore(tech) {
       try {
         if (typeof _wlbLoad !== 'function' || typeof _wlbWeekStart !== 'function' || typeof _wlbPrevWeek !== 'function' || typeof _wlbReadEntry !== 'function' || typeof _wlbPoints !== 'function') {
-          return { score: 50, weeksCounted: 0, avgPts: 0, hasData: false };
+          return { score: 50, floor: 50, delta: 0, weeksCounted: 0, avgPts: 0, thisWeekPts: null, thisWeekHasData: false, hasData: false };
         }
         var data = _wlbLoad();
-        // Walk back 8 weeks from current actual week (NOT the user-selected viewing week)
-        var wk = _wlbWeekStart();
+        var thisWk = _wlbWeekStart();
+
+        // Read this week's entry (drives the delta, NOT the floor)
+        var thisEntry = _wlbReadEntry(data[thisWk] || {}, tech.short);
+        var thisPts = thisEntry ? _wlbPoints(thisEntry) : null;
+        var thisWeekTotal = (thisPts && typeof thisPts.total === 'number') ? thisPts.total : null;
+
+        // Walk back 8 weeks PRIOR to current week to build the floor
+        var wk = _wlbPrevWeek(thisWk);
         var totals = [];
         for (var i = 0; i < 8; i++) {
           var weekData = data[wk] || {};
@@ -3060,14 +3074,34 @@ document.addEventListener('visibilitychange', function() {
           }
           wk = _wlbPrevWeek(wk);
         }
-        if (!totals.length) return { score: 50, weeksCounted: 0, avgPts: 0, hasData: false };
-        var sum = totals.reduce(function(a,b){ return a+b; }, 0);
-        var avg = sum / totals.length;
-        // Normalize: 25 pts/wk avg = 100, linear, capped 0–100
-        var score = Math.max(0, Math.min((avg / 25) * 100, 100));
-        return { score: score, weeksCounted: totals.length, avgPts: Math.round(avg * 10) / 10, hasData: true };
+
+        var hasFloorData = totals.length > 0;
+        var avg = hasFloorData ? (totals.reduce(function(a,b){ return a+b; }, 0) / totals.length) : 0;
+        // Floor: normalize 25 pts/wk avg = 100, capped 0–100. Default 50 if no history.
+        var floor = hasFloorData ? Math.max(0, Math.min((avg / 25) * 100, 100)) : 50;
+
+        // Delta: this week vs floor's avg, ±5 pts max (linear; ±10 pts above/below avg saturates)
+        var delta = 0;
+        if (thisWeekTotal !== null && hasFloorData) {
+          var raw = thisWeekTotal - avg;
+          delta = Math.max(-5, Math.min(5, (raw / 10) * 5));
+          delta = Math.round(delta * 10) / 10;
+        }
+
+        var score = Math.max(0, Math.min(floor + delta, 100));
+
+        return {
+          score: score,
+          floor: Math.round(floor * 10) / 10,
+          delta: delta,
+          weeksCounted: totals.length,
+          avgPts: Math.round(avg * 10) / 10,
+          thisWeekPts: thisWeekTotal,
+          thisWeekHasData: thisWeekTotal !== null,
+          hasData: hasFloorData || thisWeekTotal !== null
+        };
       } catch(e) {
-        return { score: 50, weeksCounted: 0, avgPts: 0, hasData: false };
+        return { score: 50, floor: 50, delta: 0, weeksCounted: 0, avgPts: 0, thisWeekPts: null, thisWeekHasData: false, hasData: false };
       }
     }
     window.getTechPerformanceScore = getTechPerformanceScore;
@@ -3136,11 +3170,11 @@ document.addEventListener('visibilitychange', function() {
       const effData = calcEfficiencyBonus(tech);
       const efficiencyBonus = effData.bonus;
 
-      // 9. Performance pillar (v155): 8-week rolling avg of weekly leaderboard points, normalized to 0–100
+      // 9. Performance pillar (v156, Option E): 8-week rolling avg FLOOR + this-week DELTA, 0–100
       const perfData = getTechPerformanceScore(tech);
       const perfScore = perfData.score;
 
-      // v155 weights: ST 30% + Aptitude 25% + Performance 15% + Skills 10% + Manager 10% + Installs 5% + Reviews 5% + Dispatch bonus + Efficiency bonus
+      // v155+ weights: ST 30% + Aptitude 25% + Performance 15% + Skills 10% + Manager 10% + Installs 5% + Reviews 5% + Dispatch bonus + Efficiency bonus
       const compositeRawPreSeason = stScore * 0.30 + aptScore * 0.25 + perfScore * 0.15 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.05 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus;
       // Season soft reset penalty (carries for current season only)
       const seasonPenalty = (typeof getSeasonSoftResetPenalty === 'function') ? getSeasonSoftResetPenalty(tech.short) : 0;
@@ -3152,7 +3186,7 @@ document.addEventListener('visibilitychange', function() {
       else if (composite >= 78) { tier = 'B'; tierLabel = 'Solid'; }
       else { tier = 'C'; tierLabel = 'Developing'; }
 
-      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), perfScore: Math.round(perfScore), perfWeeksCounted: perfData.weeksCounted, perfAvgPts: perfData.avgPts, perfHasData: perfData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct };
+      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), perfScore: Math.round(perfScore), perfFloor: perfData.floor, perfDelta: perfData.delta, perfWeeksCounted: perfData.weeksCounted, perfAvgPts: perfData.avgPts, perfThisWeekPts: perfData.thisWeekPts, perfThisWeekHasData: perfData.thisWeekHasData, perfHasData: perfData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct };
     }
 
 
