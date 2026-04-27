@@ -10469,6 +10469,46 @@ if (typeof Chart !== 'undefined') {
       localStorage.setItem(seedKey, '1');
     }
 
+    // Auto-inject 1-on-1 composite packets from onon_packets.js into Tech Files
+    // Only seeds techs that have an entry in TECH_1ON1_PACKETS (targeted, not blanket).
+    // Re-runs whenever new techs are added to the registry — uses per-tech flags.
+    function _tfSeed1on1Packets() {
+      if (typeof TECH_1ON1_PACKETS === 'undefined') return;
+      var changed = false;
+      for (var techShort in TECH_1ON1_PACKETS) {
+        if (!TECH_1ON1_PACKETS[techShort]) continue;
+        var perTechKey = 'snappy_tf_1on1_seeded_' + techShort.toLowerCase() + '_v1';
+        if (localStorage.getItem(perTechKey)) continue;
+
+        if (!tfFiles[techShort]) tfFiles[techShort] = [];
+
+        // Skip if a 1on1 packet entry already exists for this tech
+        var exists = tfFiles[techShort].some(function(f) {
+          return f && f.type === '1on1';
+        });
+        if (exists) {
+          localStorage.setItem(perTechKey, '1');
+          continue;
+        }
+
+        var b64 = TECH_1ON1_PACKETS[techShort];
+        var byteLen = Math.round(b64.length * 3 / 4);
+        tfFiles[techShort].push({
+          id: '1on1_' + techShort.toLowerCase() + '_' + Date.now(),
+          type: '1on1',
+          title: techShort + ' — 1-on-1 Composite Packet',
+          notes: 'Auto-imported 1-on-1 composite packet: wins, where you stand, the numbers, skills & growth, coaching session, and goal setting.',
+          fileName: techShort.toLowerCase() + '_composite_packet.pdf',
+          fileSize: byteLen,
+          fileData: 'data:application/pdf;base64,' + b64,
+          date: new Date().toISOString()
+        });
+        changed = true;
+        localStorage.setItem(perTechKey, '1');
+      }
+      if (changed) tfSave();
+    }
+
     // Strip base64 fileData before pushing to cloud (too large for Google Sheets cells)
     // Cloud stores metadata only (no fileData); actual file content stays in localStorage
     function _tfStripFileData(files) {
@@ -11044,6 +11084,8 @@ if (typeof Chart !== 'undefined') {
     tfLoad();
     // Auto-seed disabled per user request (was auto-injecting score PDFs into every tech)
     // _tfSeedScorePDFs();
+    // Auto-import 1-on-1 composite packets (targeted — only techs in TECH_1ON1_PACKETS)
+    try { _tfSeed1on1Packets(); } catch(e) { console.warn('1on1 seed failed:', e); }
     // One-time cleanup: remove any previously auto-seeded scorecard entries
     (function _tfCleanupSeededScorecards() {
       try {
