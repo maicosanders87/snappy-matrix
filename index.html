@@ -22,10 +22,10 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260424v153">
+  <link rel="stylesheet" href="styles.css?v=20260424v154">
 </head>
 <body>
-  <!-- v153: Intro splash video (click anywhere to skip) -->
+  <!-- v154: Intro splash video (click anywhere to skip) -->
   <div id="introSplash" class="intro-splash" role="dialog" aria-label="Snappy team intro">
     <video id="introSplashVideo" class="intro-splash-video" playsinline autoplay muted preload="auto">
       <source src="snappy_team_intro.mp4" type="video/mp4">
@@ -36,7 +36,7 @@
   </div>
 
   <!-- Version Badge (top-left, always visible) -->
-  <div id="appVersionBadge" class="app-version-badge" title="App version">v153</div>
+  <div id="appVersionBadge" class="app-version-badge" title="App version">v154</div>
 
   <!-- Background Grid Effect -->
   <div class="bg-grid-effect"></div>
@@ -78,7 +78,7 @@
       </div>
       <div class="header-right">
         <span class="badge">5 Technicians</span>
-        <span class="badge badge-date">Updated 4/24/2026 &middot; v153</span>
+        <span class="badge badge-date">Updated 4/24/2026 &middot; v154</span>
         <button class="share-matrix-btn" onclick="shareMatrix()" title="Share Matrix"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share</button>
         <button id="syncNowBtn" class="sync-now-btn mgr-only" onclick="manualSync()" title="Sync Now">&#x1f504;</button>
         <span id="syncStatusIndicator" class="sync-indicator sync-idle mgr-only" onclick="openSyncSetup()" title="Cloud Sync Settings">☁ Cloud</span>
@@ -176,6 +176,87 @@
 
       <!-- Weekly Leaderboard — auto-renders under team photo -->
       <div id="weeklyLeaderboard" class="wlb-card"></div>
+
+      <!-- Points System Explainer — collapsible card under the leaderboard -->
+      <details class="pts-explainer" id="ptsExplainer">
+        <summary class="pts-summary">
+          <span class="pts-summary-left">
+            <span class="pts-summary-icon">🧮</span>
+            <span class="pts-summary-title">How Points Work</span>
+          </span>
+          <span class="pts-summary-hint">SVC + INST + MEM = Total<span class="pts-summary-chev">▾</span></span>
+        </summary>
+        <div class="pts-body">
+          <div class="pts-intro">
+            Each tech earns points across <b>three streams</b> every week. Add them together for the weekly total. The leader on the board is whoever stacks the most points across all three.
+          </div>
+          <div class="pts-grid">
+            <!-- SERVICE -->
+            <div class="pts-card svc">
+              <div class="pts-card-head">
+                <span class="pts-card-label">SVC</span>
+                <span class="pts-card-name">Service Revenue</span>
+              </div>
+              <div class="pts-formula">1 pt per $1,000 booked</div>
+              <div class="pts-examples">
+                <div class="pts-ex"><span class="pts-ex-raw">$8,500</span><span class="pts-ex-arrow">→</span><span class="pts-ex-pts">8.5 pts</span></div>
+                <div class="pts-ex"><span class="pts-ex-raw">$15,200</span><span class="pts-ex-arrow">→</span><span class="pts-ex-pts">15.2 pts</span></div>
+              </div>
+              <div class="pts-note">No cap — keep stacking revenue, keep stacking points.</div>
+            </div>
+
+            <!-- INSTALLS -->
+            <div class="pts-card inst">
+              <div class="pts-card-head">
+                <span class="pts-card-label">INST</span>
+                <span class="pts-card-name">Installs Sold</span>
+              </div>
+              <div class="pts-formula">Tiered by count</div>
+              <div class="pts-tiers">
+                <div class="pts-tier"><span class="pts-tier-badge tier-S">S</span><span class="pts-tier-rule">4+ installs</span><span class="pts-tier-pts">10 pts</span></div>
+                <div class="pts-tier"><span class="pts-tier-badge tier-A">A</span><span class="pts-tier-rule">2–3 installs</span><span class="pts-tier-pts">7 pts</span></div>
+                <div class="pts-tier"><span class="pts-tier-badge tier-B">B</span><span class="pts-tier-rule">1 install</span><span class="pts-tier-pts">4 pts</span></div>
+                <div class="pts-tier"><span class="pts-tier-badge tier-0">0</span><span class="pts-tier-rule">none</span><span class="pts-tier-pts">0 pts</span></div>
+              </div>
+            </div>
+
+            <!-- MEMBERSHIPS -->
+            <div class="pts-card mem">
+              <div class="pts-card-head">
+                <span class="pts-card-label">MEM</span>
+                <span class="pts-card-name">Membership Conversion</span>
+              </div>
+              <div class="pts-formula">Memberships sold ÷ opportunities</div>
+              <div class="pts-tiers">
+                <div class="pts-tier"><span class="pts-tier-badge tier-S">S</span><span class="pts-tier-rule">70%+</span><span class="pts-tier-pts">10 pts</span></div>
+                <div class="pts-tier"><span class="pts-tier-badge tier-A">A</span><span class="pts-tier-rule">50–69%</span><span class="pts-tier-pts">7 pts</span></div>
+                <div class="pts-tier"><span class="pts-tier-badge tier-B">B</span><span class="pts-tier-rule">30–49%</span><span class="pts-tier-pts">4 pts</span></div>
+                <div class="pts-tier"><span class="pts-tier-badge tier-C">C</span><span class="pts-tier-rule">1–29%</span><span class="pts-tier-pts">1 pt</span></div>
+              </div>
+              <div class="pts-note">No opportunities = no points (no penalty).</div>
+            </div>
+          </div>
+
+          <!-- Worked example -->
+          <div class="pts-example-box">
+            <div class="pts-example-head">Worked Example</div>
+            <div class="pts-example-line">A tech books <b>$12,000</b> in service, sells <b>3 installs</b>, and converts <b>4 of 6</b> membership opps (67%).</div>
+            <div class="pts-example-math">
+              <span class="pts-pill svc">SVC 12.0</span>
+              <span class="pts-plus">+</span>
+              <span class="pts-pill inst">INST 7 <span class="pts-pill-tier tier-A">A</span></span>
+              <span class="pts-plus">+</span>
+              <span class="pts-pill mem">MEM 7 <span class="pts-pill-tier tier-A">A</span></span>
+              <span class="pts-equals">=</span>
+              <span class="pts-pill total">26.0 pts</span>
+            </div>
+          </div>
+
+          <div class="pts-tiebreak">
+            <b>Tiebreaker:</b> If two techs tie on total points, the higher service revenue wins the rank.
+          </div>
+        </div>
+      </details>
 
       <!-- Season Badge Universe — collapsible -->
       <div id="seasonBadgeUniverse" class="sbu-card sbu-compact"></div>
@@ -1308,10 +1389,10 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="score_pdfs.js?v=20260424v153"></script>
-  <script src="app.js?v=20260424v153"></script>
+  <script src="score_pdfs.js?v=20260424v154"></script>
+  <script src="app.js?v=20260424v154"></script>
 
-  <!-- v153: Intro splash controller -->
+  <!-- v154: Intro splash controller -->
   <script>
     (function() {
       var splash = document.getElementById('introSplash');
