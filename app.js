@@ -6564,9 +6564,9 @@ if (typeof Chart !== 'undefined') {
     function renderRookieCards() {
       let html = '';
 
-      // Manager card — Mark Sanders, S-Tier (no flip)
-      const mgrTierLower = 's';
-      const mgrCompBarColor = 'linear-gradient(90deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF)';
+      // Manager card — Mark Sanders, B-Tier (no flip)
+      const mgrTierLower = 'b';
+      const mgrCompBarColor = '#60A5FA';
       const ms = mgrLoadStats();
       const mgrInstalls = { count: 5, total_revenue: 69610, avg_sale: 13922, opps: 10, conv_pct: 40 };
       const mgrNexstar = { total_revenue: 7083, avg_sale: 403, conversion_rate: 36, spps_sold: 5, tech_gen_leads: 2, sold_hours: 13.45 };
@@ -6574,28 +6574,15 @@ if (typeof Chart !== 'undefined') {
         <div class="rookie-flip-container no-flip">
           <div class="rookie-flip-inner">
             <div class="rookie-flip-front">
-              <div class="rookie-card rookie-tier-s">
-                <div class="rookie-card-border tier-s"></div>
-                <div class="rookie-tier-badge tier-s">S-TIER</div>
+              <div class="rookie-card rookie-tier-b">
+                <div class="rookie-card-border tier-b"></div>
+                <div class="rookie-tier-badge tier-b">B-TIER</div>
                 <div class="rookie-avatar-wrap">
                   <img loading="lazy" decoding="async" src="maico_avatar.png" alt="Mark Sanders">
-                  <div class="s-tier-flames">
-                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
-                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
-                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
-                    <div class="s-flame"></div>
-                  </div>
-                  <div class="s-tier-sparkles">
-                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
-                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
-                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
-                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
-                  </div>
-                  <div class="s-tier-color-cycle"></div>
                   <div class="rookie-label">
                     <span class="rookie-tag">Snappy Services</span>
                     <div class="rookie-name-overlay">Mark Sanders</div>
-                    <div class="rookie-meta-overlay">Service Manager &bull; Elite</div>
+                    <div class="rookie-meta-overlay">Service Manager &bull; Solid</div>
                   </div>
                 </div>
                 <div class="rookie-info">
@@ -6624,9 +6611,9 @@ if (typeof Chart !== 'undefined') {
                   <div class="rookie-composite">
                     <div class="rookie-composite-label">Composite</div>
                     <div class="rookie-composite-bar">
-                      <div class="rookie-composite-bar-fill" style="width:100%;background:${mgrCompBarColor}"></div>
+                      <div class="rookie-composite-bar-fill" style="width:80%;background:${mgrCompBarColor}"></div>
                     </div>
-                    <div class="rookie-composite-score" style="color:#fbbf24">S</div>
+                    <div class="rookie-composite-score" style="color:#60A5FA">B</div>
                   </div>
                   <div class="rookie-certs"><span class="rookie-cert">Service Manager</span><span class="rookie-cert">Team Lead</span></div>
                 </div>
@@ -6636,35 +6623,22 @@ if (typeof Chart !== 'undefined') {
         </div>
       `;
 
-      // Sales card — Brayden Bond, S-Tier (no flip, metrics TBD)
+      // Sales card — Brayden Bond, B-Tier (no flip, metrics TBD)
       const bbStats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : { mtd_revenue: '', mtd_closed: '', close_rate: '', avg_ticket: '' };
-      const bbCompBarColor = 'linear-gradient(90deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF)';
+      const bbCompBarColor = '#60A5FA';
       html += `
         <div class="rookie-flip-container no-flip">
           <div class="rookie-flip-inner">
             <div class="rookie-flip-front">
-              <div class="rookie-card rookie-tier-s">
-                <div class="rookie-card-border tier-s"></div>
-                <div class="rookie-tier-badge tier-s">S-TIER</div>
+              <div class="rookie-card rookie-tier-b">
+                <div class="rookie-card-border tier-b"></div>
+                <div class="rookie-tier-badge tier-b">B-TIER</div>
                 <div class="rookie-avatar-wrap">
                   <img loading="lazy" decoding="async" src="brayden_avatar.png" alt="Brayden Bond">
-                  <div class="s-tier-flames">
-                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
-                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
-                    <div class="s-flame"></div><div class="s-flame"></div><div class="s-flame"></div>
-                    <div class="s-flame"></div>
-                  </div>
-                  <div class="s-tier-sparkles">
-                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
-                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
-                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
-                    <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
-                  </div>
-                  <div class="s-tier-color-cycle"></div>
                   <div class="rookie-label">
                     <span class="rookie-tag">Snappy Services</span>
                     <div class="rookie-name-overlay">Brayden Bond</div>
-                    <div class="rookie-meta-overlay">HVAC Sales &bull; Elite</div>
+                    <div class="rookie-meta-overlay">HVAC Sales &bull; Solid</div>
                   </div>
                 </div>
                 <div class="rookie-info">
@@ -6693,9 +6667,9 @@ if (typeof Chart !== 'undefined') {
                   <div class="rookie-composite">
                     <div class="rookie-composite-label">Composite</div>
                     <div class="rookie-composite-bar">
-                      <div class="rookie-composite-bar-fill" style="width:100%;background:${bbCompBarColor}"></div>
+                      <div class="rookie-composite-bar-fill" style="width:80%;background:${bbCompBarColor}"></div>
                     </div>
-                    <div class="rookie-composite-score" style="color:#fbbf24">S</div>
+                    <div class="rookie-composite-score" style="color:#60A5FA">B</div>
                   </div>
                   <div class="rookie-certs"><span class="rookie-cert">HVAC Sales</span><span class="rookie-cert">In-Home Sales</span><span class="rookie-cert">Metrics TBD</span></div>
                 </div>
