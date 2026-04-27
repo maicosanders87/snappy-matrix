@@ -2572,11 +2572,12 @@ document.addEventListener('visibilitychange', function() {
       if (!el) return;
       try {
         var weights = [
-          { pct: '35%', label: 'ServiceTitan',    desc: 'Jobs, conversion, flat rate, callbacks, billable hours, tasks', color: '#20808D' },
-          { pct: '30%', label: 'Aptitude Test',   desc: '100-pt written test across 5 sections', color: '#7A39BB' },
+          { pct: '30%', label: 'ServiceTitan',    desc: 'Jobs, conversion, flat rate, callbacks, billable hours, tasks', color: '#20808D' },
+          { pct: '25%', label: 'Aptitude Test',   desc: '100-pt written test across 5 sections', color: '#7A39BB' },
+          { pct: '15%', label: 'Performance',     desc: '8-week rolling avg of weekly leaderboard points (SVC + INST + MEM)', color: '#A855F7' },
           { pct: '10%', label: 'Skills Matrix',   desc: '48-skill ServiceTitan tag system (1-5 rating per skill)', color: '#DA7101' },
           { pct: '10%', label: 'Manager Review',  desc: 'Monthly manager scoring across 9 areas', color: '#4F98A3' },
-          { pct: '10%', label: 'Install Revenue', desc: '90-day equipment sales revenue + install count', color: '#437A22' },
+          { pct: '5%',  label: 'Install Revenue', desc: '90-day equipment sales revenue + install count', color: '#437A22' },
           { pct: '5%',  label: 'Google Reviews',  desc: '5-star customer reviews tied back to the tech', color: '#D19900' }
         ];
         var weightsHTML = weights.map(function(w) {
@@ -2600,7 +2601,7 @@ document.addEventListener('visibilitychange', function() {
         el.innerHTML =
           '<div class="composite-explainer">' +
             '<div class="ce-title">How Composite Score Works</div>' +
-            '<div class="ce-subtitle">Composite score (0-100) is the weighted average across six dimensions, plus dispatch and efficiency bonuses. Your finishing tier at season end determines the badge you collect. Every new season applies a small soft reset so improvement is rewarded.</div>' +
+            '<div class="ce-subtitle">Composite score (0-100) is the weighted average across seven dimensions, plus dispatch and efficiency bonuses. Your finishing tier at season end determines the badge you collect. Every new season applies a small soft reset so improvement is rewarded.</div>' +
             '<div class="ce-weights">' + weightsHTML + '</div>' +
             '<div class="ce-tiers">' + tiersHTML + '</div>' +
             '<div class="ce-bonus-note">+ Dispatch bonus: premium tags +1.0 each, standard tags +0.25. + Efficiency MTD bonus tiered off billable-hour performance. \u2014 Season soft reset: S-4, A-3, B-1, C-0 applied at the start of a new season.</div>' +
@@ -3038,6 +3039,39 @@ document.addEventListener('visibilitychange', function() {
       return (apt.totalScore / apt.maxScore) * 100;
     }
 
+    // v155: Performance pillar — 8-week rolling average of weekly leaderboard total points,
+    // normalized so 25 pts/wk avg = 100. New techs with no history default to 50 (neutral).
+    // Returns { score: 0-100, weeksCounted, avgPts, hasData }
+    function getTechPerformanceScore(tech) {
+      try {
+        if (typeof _wlbLoad !== 'function' || typeof _wlbWeekStart !== 'function' || typeof _wlbPrevWeek !== 'function' || typeof _wlbReadEntry !== 'function' || typeof _wlbPoints !== 'function') {
+          return { score: 50, weeksCounted: 0, avgPts: 0, hasData: false };
+        }
+        var data = _wlbLoad();
+        // Walk back 8 weeks from current actual week (NOT the user-selected viewing week)
+        var wk = _wlbWeekStart();
+        var totals = [];
+        for (var i = 0; i < 8; i++) {
+          var weekData = data[wk] || {};
+          var entry = _wlbReadEntry(weekData, tech.short);
+          if (entry) {
+            var pts = _wlbPoints(entry);
+            if (pts && typeof pts.total === 'number') totals.push(pts.total);
+          }
+          wk = _wlbPrevWeek(wk);
+        }
+        if (!totals.length) return { score: 50, weeksCounted: 0, avgPts: 0, hasData: false };
+        var sum = totals.reduce(function(a,b){ return a+b; }, 0);
+        var avg = sum / totals.length;
+        // Normalize: 25 pts/wk avg = 100, linear, capped 0–100
+        var score = Math.max(0, Math.min((avg / 25) * 100, 100));
+        return { score: score, weeksCounted: totals.length, avgPts: Math.round(avg * 10) / 10, hasData: true };
+      } catch(e) {
+        return { score: 50, weeksCounted: 0, avgPts: 0, hasData: false };
+      }
+    }
+    window.getTechPerformanceScore = getTechPerformanceScore;
+
     function getTechTier(tech) {
       // 1. Aptitude test score (0–100): actual test percentage — PRIMARY knowledge gauge
       const aptScore = getTechAptitudeScore(tech);
@@ -3102,8 +3136,12 @@ document.addEventListener('visibilitychange', function() {
       const effData = calcEfficiencyBonus(tech);
       const efficiencyBonus = effData.bonus;
 
-      // Composite: Aptitude 30% + ST 35% + Skills 10% + Manager 10% + Installs 10% + Reviews 5% + Dispatch bonus + Efficiency bonus
-      const compositeRawPreSeason = aptScore * 0.30 + stScore * 0.35 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus;
+      // 9. Performance pillar (v155): 8-week rolling avg of weekly leaderboard points, normalized to 0–100
+      const perfData = getTechPerformanceScore(tech);
+      const perfScore = perfData.score;
+
+      // v155 weights: ST 30% + Aptitude 25% + Performance 15% + Skills 10% + Manager 10% + Installs 5% + Reviews 5% + Dispatch bonus + Efficiency bonus
+      const compositeRawPreSeason = stScore * 0.30 + aptScore * 0.25 + perfScore * 0.15 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.05 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus;
       // Season soft reset penalty (carries for current season only)
       const seasonPenalty = (typeof getSeasonSoftResetPenalty === 'function') ? getSeasonSoftResetPenalty(tech.short) : 0;
       const composite = Math.max(0, compositeRawPreSeason - seasonPenalty);
@@ -3114,7 +3152,7 @@ document.addEventListener('visibilitychange', function() {
       else if (composite >= 78) { tier = 'B'; tierLabel = 'Solid'; }
       else { tier = 'C'; tierLabel = 'Developing'; }
 
-      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct };
+      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), perfScore: Math.round(perfScore), perfWeeksCounted: perfData.weeksCounted, perfAvgPts: perfData.avgPts, perfHasData: perfData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct };
     }
 
 
