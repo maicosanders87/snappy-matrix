@@ -2912,6 +2912,8 @@ document.addEventListener('visibilitychange', function() {
           ['s','a','b','c'].forEach(function(t) {
             if (frontCard.classList.contains('rookie-tier-' + t)) tierLabel = t.toUpperCase() + '-TIER';
           });
+          // v172: Rookie skin override
+          if (frontCard.classList.contains('rookie-tier-rookie')) tierLabel = 'ROOKIE';
 
           // Extract tech name from overlay
           var nameEl = frontCard.querySelector('.rookie-name-overlay');
@@ -6827,6 +6829,13 @@ if (typeof Chart !== 'undefined') {
           : tierLower === 'b' ? 'linear-gradient(90deg, #2563EB, #3B82F6)'
           : 'linear-gradient(90deg, #6B7280, #9CA3AF)';
 
+        // v172: Rookie/Onboarding cosmetic skin — doesn't change composite, only background/badge
+        // Triggered by isNewHire flag on stData entry (Nick Goehler, day-1 hire)
+        const isRookie = !!(st && st.isNewHire);
+        const cardTierClass = isRookie ? 'rookie' : tierLower;
+        const tierBadgeText = isRookie ? 'ROOKIE' : (tierInfo.tier + '-TIER');
+        const compBarColorFinal = isRookie ? 'linear-gradient(90deg, #3A6BA5, #60A5FA, #FCD9A5)' : compBarColor;
+
         // Build ST stat rows — MTD / 90-Day toggle
         var stRows = '';
         if (st) {
@@ -7085,9 +7094,9 @@ if (typeof Chart !== 'undefined') {
           <div class="rookie-flip-container" tabindex="0" role="button" aria-label="View ${t.name} rookie card">
             <div class="rookie-flip-inner">
               <div class="rookie-flip-front">
-                <div class="rookie-card rookie-tier-${tierLower}">
-                  <div class="rookie-card-border tier-${tierLower}"></div>
-                  <div class="rookie-tier-badge tier-${tierLower}">${tierInfo.tier}-TIER</div>
+                <div class="rookie-card rookie-tier-${cardTierClass}">
+                  <div class="rookie-card-border tier-${cardTierClass}"></div>
+                  <div class="rookie-tier-badge tier-${cardTierClass}">${tierBadgeText}</div>
                   <div class="rookie-avatar-wrap">
                     ${techAvatars[t.short]
                       ? `<img loading="lazy" decoding="async" src="${techAvatars[t.short]}" alt="${t.name}">`
@@ -7133,7 +7142,7 @@ if (typeof Chart !== 'undefined') {
                     <div class="rookie-composite">
                       <div class="rookie-composite-label">Composite</div>
                       <div class="rookie-composite-bar">
-                        <div class="rookie-composite-bar-fill" style="width:${tierInfo.composite}%;background:${compBarColor}"></div>
+                        <div class="rookie-composite-bar-fill" style="width:${tierInfo.composite}%;background:${compBarColorFinal}"></div>
                       </div>
                       <div class="rookie-composite-score" style="color:${t.color}">${tierInfo.composite}</div>
                     </div>
