@@ -2029,6 +2029,35 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedWeekIfNeeded failed', e); }
     }
 
+    // v167: One-shot daily seed for Mon Apr 27, 2026 (start of week 2026-04-27)
+    // Numbers from ServiceTitan daily report screenshots (IMG_0184, 0185, 0186).
+    // Replaces this week's totals (one-time, gated by SEEDED_KEY_2026_04_27).
+    // Last week's performance bonus carries until this week beats it (see calcPerformanceBonus).
+    function _wlbSeedDay20260427IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_04_27_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var d = _wlbLoad();
+        var WEEK = '2026-04-27';
+        d[WEEK] = {
+          // Service rev + mem opps from IMG_0184/0185
+          // Daniel — $602 svc, no install, no mem opps
+          'Daniel': { service: 602, installCount: 0, installRev: 0,        memSold: 0, memOpps: 0 },
+          // Dee — $322 svc, no install, 1/1 memberships (100%)
+          'Dee':    { service: 322, installCount: 0, installRev: 0,        memSold: 1, memOpps: 1 },
+          // Chris — $222 svc closed $0 (so use $0 service for points), 0/1 memberships
+          'Chris':  { service: 0,   installCount: 0, installRev: 0,        memSold: 0, memOpps: 1 },
+          // Dewone — 1 install $24,315.58 (Martha Futral) per IMG_0186; svc not shown
+          'Dewone': { service: 0,   installCount: 1, installRev: 24315.58, memSold: 0, memOpps: 0 },
+          // Benji — not on report; entered as $0 across the board per user
+          'Benji':  { service: 0,   installCount: 0, installRev: 0,        memSold: 0, memOpps: 0 }
+        };
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260427IfNeeded failed', e); }
+    }
+
     // Returns Monday of the week containing date d as 'YYYY-MM-DD' (UTC-safe)
     function _wlbWeekStart(d) {
       d = d ? new Date(d) : new Date();
@@ -3071,42 +3100,47 @@ document.addEventListener('visibilitychange', function() {
         var data = _wlbLoad();
         var thisWk = _wlbWeekStart();
 
-        // 1) This week's total (preferred basis)
+        // 1) This week's total
         var thisEntry = _wlbReadEntry(data[thisWk] || {}, tech.short);
         var thisPts = thisEntry ? _wlbPoints(thisEntry) : null;
-        var thisWeekTotal = (thisPts && typeof thisPts.total === 'number') ? thisPts.total : null;
+        var thisWeekTotal = (thisPts && typeof thisPts.total === 'number') ? thisPts.total : 0;
 
+        // 2) Recent-best across the last 4 prior weeks
+        var wk = _wlbPrevWeek(thisWk);
+        var bestPts = 0;
+        var bestWk = null;
+        for (var i = 0; i < 4; i++) {
+          var weekData = data[wk] || {};
+          var entry = _wlbReadEntry(weekData, tech.short);
+          if (entry) {
+            var pts = _wlbPoints(entry);
+            if (pts && typeof pts.total === 'number' && pts.total > bestPts) {
+              bestPts = pts.total;
+              bestWk = wk;
+            }
+          }
+          wk = _wlbPrevWeek(wk);
+        }
+
+        // Pick whichever basis gives the higher bonus — prior win carries until this
+        // week beats it. Locked principle: "only help their composite score not hurt."
         var basis, basisPts, basisWeek;
-        if (thisWeekTotal !== null && thisWeekTotal > 0) {
+        if (thisWeekTotal > 0 && thisWeekTotal >= bestPts) {
+          basis = 'thisWeek';
+          basisPts = thisWeekTotal;
+          basisWeek = thisWk;
+        } else if (bestPts > 0) {
+          basis = 'recentBest';
+          basisPts = bestPts;
+          basisWeek = bestWk;
+        } else if (thisWeekTotal > 0) {
           basis = 'thisWeek';
           basisPts = thisWeekTotal;
           basisWeek = thisWk;
         } else {
-          // 2) Fall back to highest of the last 4 prior weeks
-          var wk = _wlbPrevWeek(thisWk);
-          var bestPts = 0;
-          var bestWk = null;
-          for (var i = 0; i < 4; i++) {
-            var weekData = data[wk] || {};
-            var entry = _wlbReadEntry(weekData, tech.short);
-            if (entry) {
-              var pts = _wlbPoints(entry);
-              if (pts && typeof pts.total === 'number' && pts.total > bestPts) {
-                bestPts = pts.total;
-                bestWk = wk;
-              }
-            }
-            wk = _wlbPrevWeek(wk);
-          }
-          if (bestPts > 0) {
-            basis = 'recentBest';
-            basisPts = bestPts;
-            basisWeek = bestWk;
-          } else {
-            basis = 'none';
-            basisPts = 0;
-            basisWeek = null;
-          }
+          basis = 'none';
+          basisPts = 0;
+          basisWeek = null;
         }
 
         // Tiered bonus — only positive (boosted v160 — leaderboard wins matter)
@@ -11844,6 +11878,7 @@ if (typeof Chart !== 'undefined') {
     // Render season badge universe on overview + pre-render seasonal content so it's ready on first sub-tab click
     try { renderSeasonBadgeUniverse(); } catch(e) { console.warn('renderSeasonBadgeUniverse init failed', e); }
     try { _wlbSeedWeekIfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260427IfNeeded(); } catch(e) {}
     try { renderWeeklyLeaderboard(); } catch(e) { console.warn('renderWeeklyLeaderboard init failed', e); }
     renderProgression();
     renderSTKPIs();
