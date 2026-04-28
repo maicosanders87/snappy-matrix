@@ -2141,6 +2141,43 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260427IfNeeded failed', e); }
     }
 
+    // v175: One-shot Tuesday Apr 28, 2026 ADD-ON seed for week 2026-04-27.
+    // Adds Tuesday's daily numbers to Monday's totals already seeded by v167.
+    // Sources: IMG_0190 (Nexstar daily), IMG_0191 (Memberships), IMG_0192 (install — Ben Tinahui $9,059.59 to Nellie Ellis).
+    // Daily 4/28 per tech:
+    //   Daniel:  $1,287 svc, 0 installs, 0 mem opps
+    //   Benji:   $444 svc, 1 install $9,059.59, 1 mem opp (no sale)
+    //   Chris:   $275 svc, 0 installs, 2 mem opps (no sale)
+    //   Dee:     $0 svc, 0 installs, 0 mem opps
+    //   Dewone:  $0 svc, 0 installs, 0 mem opps
+    function _wlbSeedDay20260428IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_04_28_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var d = _wlbLoad();
+        var WEEK = '2026-04-27';
+        var existing = d[WEEK] || {};
+        function add(short, svc, ic, ir, ms, mo) {
+          var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+          existing[short] = {
+            service:      (prev.service || 0)      + svc,
+            installCount: (prev.installCount || 0) + ic,
+            installRev:   (prev.installRev || 0)   + ir,
+            memSold:      (prev.memSold || 0)      + ms,
+            memOpps:      (prev.memOpps || 0)      + mo
+          };
+        }
+        add('Daniel', 1287, 0, 0,        0, 0);
+        add('Benji',   444, 1, 9059.59,  0, 1);
+        add('Chris',   275, 0, 0,        0, 2);
+        // Dee, Dewone, Nick had $0 across — nothing to add
+        d[WEEK] = existing;
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260428IfNeeded failed', e); }
+    }
+
     // Returns Monday of the week containing date d as 'YYYY-MM-DD' (UTC-safe)
     function _wlbWeekStart(d) {
       d = d ? new Date(d) : new Date();
@@ -4238,7 +4275,8 @@ document.addEventListener('visibilitychange', function() {
       var bb = bbLoad();
       var seededIds = {
         'st_update_20260418': { date: '2026-04-18', text: 'ServiceTitan scorecard data refreshed (4/18/26 4:30 PM). Key changes: Dewone revenue up to $25,675 (+$1,838), conversion 79%. Benji revenue $18,238 (+$1,420), conversion improved to 56%. Daniel revenue $19,162 (+$2,364), conversion 64%. Chris revenue $15,359 (+$552), conversion 55%. Chris install count 12 ($151K). Memberships: Benji up to 2 sold (8%), Chris 6 sold (32%). Team total MTD revenue $84,850.' },
-        'st_update_20260427_mtd': { date: '2026-04-27', text: 'MTD refresh (4/27/26). Dewone +1 install ($24,316 \u2014 Martha Futral) bumps installs to 3 / $51,363. Daniel service rev +$602 \u2192 $8,484 MTD. Dee service rev +$322 \u2192 $2,854 MTD with first membership sold (1/1, 100%). Chris adds 1 mem opp (4/8 = 50%). Team MTD service rev $36,267 \u2022 Team MTD installs 10 ($137K).' }
+        'st_update_20260427_mtd': { date: '2026-04-27', text: 'MTD refresh (4/27/26). Dewone +1 install ($24,316 \u2014 Martha Futral) bumps installs to 3 / $51,363. Daniel service rev +$602 \u2192 $8,484 MTD. Dee service rev +$322 \u2192 $2,854 MTD with first membership sold (1/1, 100%). Chris adds 1 mem opp (4/8 = 50%). Team MTD service rev $36,267 \u2022 Team MTD installs 10 ($137K).' },
+        'st_update_20260428_mtd': { date: '2026-04-28', text: 'Daily refresh (4/28/26). Benji +$444 svc + 1 install $9,060 (Nellie Ellis) \u2192 8,620 svc / 3 installs / $29,514 install rev MTD. Daniel +$1,287 svc \u2192 $9,771 MTD. Chris +$275 svc + 2 mem opps (no sale) \u2192 $6,860 svc / 4-of-10 mem (40%) MTD. Dee, Dewone $0 daily. Brayden 1 mem opp. Team MTD service rev $38,273 \u2022 Team MTD installs 11 ($146K). Nick Goehler day 1 \u2014 onboarding only.' }
       };
       var changed = false;
       Object.keys(seededIds).forEach(function(sid) {
@@ -5892,14 +5930,15 @@ if (typeof Chart !== 'undefined') {
         name: "Benji",
         displayName: "Ben Tinahui",
         color: "#5B4A8A",
-        mtd_service_rev: 8176,
-        mtd_installs: 2,
-        mtd_install_rev: 20454,
+        // v175: +$444 svc, +1 install $9,059.59 (Nellie Ellis), +1 mem opp (no sale) on 4/28
+        mtd_service_rev: 8620,
+        mtd_installs: 3,
+        mtd_install_rev: 29514,
         mtd_install_self_sourced: 1,
         mtd_on_job_pct: 57,
-        mtd_nexstar: { total_revenue: 8176, avg_sale: 436, conversion_rate: 72, spps_sold: 2, tech_gen_leads: 2, sold_hours: 44.05, tech_sold_hr_eff: 0.34, flat_rate_tasks: 2.01 },
-        mtd_productivity: { rev_hr: 108, billable_hours: 44.05, sold_hrs_on_job_pct: 57, tasks_per_opp: 1.97, options_per_opp: 1.37, recalls: 1 },
-        mtd_memberships: { total_mem_sold: 2, total_mem_opps: 8, total_mem_pct: 25 },
+        mtd_nexstar: { total_revenue: 8620, avg_sale: 437, conversion_rate: 73, spps_sold: 2, tech_gen_leads: 2, sold_hours: 50.85, tech_sold_hr_eff: 0.71, flat_rate_tasks: 2.13 },
+        mtd_productivity: { rev_hr: 95, billable_hours: 50.85, sold_hrs_on_job_pct: 57, tasks_per_opp: 1.97, options_per_opp: 1.37, recalls: 1 },
+        mtd_memberships: { total_mem_sold: 2, total_mem_opps: 9, total_mem_pct: 22 },
         mtd_sales: { close_rate: 72 },
         nexstar: { total_revenue: 18238, avg_sale: 445, conversion_rate: 56, spps_sold: 2, tech_gen_leads: 9, sold_hours: 130.65, tech_sold_hr_eff: 0.28, flat_rate_tasks: 2.17 },
         overview: { revenue: 18238, total_job_avg: 108, opp_job_avg: 260, opp_conversion: 56, opps: 66, converted_jobs: 37 },
@@ -5912,13 +5951,14 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Daniel",
         color: "#C47F17",
-        mtd_service_rev: 8484,
+        // v175: +$1,287 svc on 4/28 (avg $643, 100% conv, 2 sold hrs, 2 tasks)
+        mtd_service_rev: 9771,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 28,
-        mtd_nexstar: { total_revenue: 8484, avg_sale: 487, conversion_rate: 80, spps_sold: 0, tech_gen_leads: 1, sold_hours: 39.15, flat_rate_tasks: 1.87 },
-        mtd_productivity: { rev_hr: 53, billable_hours: 39.15, sold_hrs_on_job_pct: 28, tasks_per_opp: 2.2, options_per_opp: 0.86, recalls: 2 },
+        mtd_nexstar: { total_revenue: 9771, avg_sale: 502, conversion_rate: 82, spps_sold: 0, tech_gen_leads: 1, sold_hours: 41.15, flat_rate_tasks: 1.89 },
+        mtd_productivity: { rev_hr: 56, billable_hours: 41.15, sold_hrs_on_job_pct: 28, tasks_per_opp: 2.2, options_per_opp: 0.86, recalls: 2 },
         mtd_memberships: { total_mem_sold: 0, total_mem_opps: 4, total_mem_pct: 0 },
         mtd_sales: { close_rate: 80 },
         nexstar: { total_revenue: 19162, avg_sale: 547, conversion_rate: 64, spps_sold: 4, tech_gen_leads: 5, sold_hours: 120.75, tech_sold_hr_eff: 0, flat_rate_tasks: 2.03 },
@@ -5932,15 +5972,16 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Chris",
         color: "#8B3A3A",
-        mtd_service_rev: 6585,
+        // v175: +$275 svc on 4/28 ($206 avg, 100% conv, 1 tech-gen lead, 2.8 sold hrs, 2 tasks, 2 mem opps no sale)
+        mtd_service_rev: 6860,
         mtd_installs: 3,
         mtd_install_rev: 37485,
         mtd_install_self_sourced: 2,
         mtd_install_tgl_for_others: 1,
         mtd_on_job_pct: 51,
-        mtd_nexstar: { total_revenue: 6585, avg_sale: 364, conversion_rate: 63, spps_sold: 4, tech_gen_leads: 6, sold_hours: 48.6, flat_rate_tasks: 1.88 },
-        mtd_productivity: { rev_hr: 68, billable_hours: 48.6, sold_hrs_on_job_pct: 51, tasks_per_opp: 1.52, options_per_opp: 2.11, recalls: 1 },
-        mtd_memberships: { total_mem_sold: 4, total_mem_opps: 8, total_mem_pct: 50 },
+        mtd_nexstar: { total_revenue: 6860, avg_sale: 354, conversion_rate: 65, spps_sold: 4, tech_gen_leads: 7, sold_hours: 51.4, flat_rate_tasks: 1.89 },
+        mtd_productivity: { rev_hr: 65, billable_hours: 51.4, sold_hrs_on_job_pct: 51, tasks_per_opp: 1.52, options_per_opp: 2.11, recalls: 1 },
+        mtd_memberships: { total_mem_sold: 4, total_mem_opps: 10, total_mem_pct: 40 },
         mtd_sales: { close_rate: 63 },
         nexstar: { total_revenue: 15359, avg_sale: 360, conversion_rate: 55, spps_sold: 6, tech_gen_leads: 26, sold_hours: 127.67, tech_sold_hr_eff: 0, flat_rate_tasks: 1.91 },
         overview: { revenue: 15359, total_job_avg: 86, opp_job_avg: 203, opp_conversion: 55, opps: 73, converted_jobs: 40 },
@@ -12069,6 +12110,7 @@ if (typeof Chart !== 'undefined') {
     try { renderSeasonBadgeUniverse(); } catch(e) { console.warn('renderSeasonBadgeUniverse init failed', e); }
     try { _wlbSeedWeekIfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260427IfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260428IfNeeded(); } catch(e) {}
     try { renderWeeklyLeaderboard(); } catch(e) { console.warn('renderWeeklyLeaderboard init failed', e); }
     renderProgression();
     renderSTKPIs();
