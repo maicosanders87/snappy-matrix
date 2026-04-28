@@ -1096,6 +1096,37 @@ document.addEventListener('visibilitychange', function() {
           { label: "Building Foundation", type: "watch" },
           { label: "Sales Conversion", type: "trust" }
         ]
+      },
+      {
+        name: "Nick Goehler",
+        short: "Nick",
+        initials: "NG",
+        color: "#3A6BA5",
+        years: 3,
+        position: "Service Technician",
+        date: "4/28/2026",
+        scores: {
+          electrical: { low_voltage: 3, high_voltage: 3, schematics: 3, open_circuit: 3 },
+          heating: { furnace_sequence: 3, components: 3, heat_exchanger: 3, gas_flue: 3 },
+          cooling: { superheat_subcool: 3, refrigerant_charge: 3, refrigerant_cycle: 3, vacuum_reclaim: 3 },
+          airflow: { static_pressure: 3, airflow_troubleshoot: 3, duct_awareness: 3, iaq: 3 },
+          install: { blower_fan: 3, evap_coil: 3, tstat_zoning: 3, compressor: 3 },
+          customer: { communication: 3, explaining: 3, solutions: 3, closing: 3 },
+          advanced: { communicating_sys: 2, dual_fuel: 2, zone_board: 2, iaq_dehumid: 2 },
+          truck: { organization: 3, cleanliness: 3, locate_tools: 3 },
+          uniform: { full_uniform: 3, clean_appearance: 3, grooming: 3 },
+          professionalism: { professional_present: 3, clean_work: 3, respect_home: 3, no_odors: 3 }
+        },
+        strengths: ["TBD \u2014 first day 4/28/2026"],
+        weaknesses: ["TBD \u2014 onboarding in progress"],
+        growth: "Initial onboarding & ride-alongs",
+        training: "Snappy onboarding, NSS Greet, ServiceTitan basics, ride-alongs",
+        holding_back: "Brand new to the team \u2014 baseline TBD after first ride-alongs",
+        managerNotes: "Day 1: 4/28/2026. New service technician with ~3 years prior HVAC experience. Initial scores set to developing-tech baseline (3s) until first ride-along and aptitude test.",
+        managerTags: [
+          { label: "New Hire", type: "watch" },
+          { label: "Onboarding", type: "watch" }
+        ]
       }
     ];
 
@@ -1183,6 +1214,7 @@ document.addEventListener('visibilitychange', function() {
       "Chris": "chris_avatar.png",
       "Dee": "dee_avatar.jpg",
       "Daniel": "daniel_avatar.png",
+      "Nick": "nick_avatar.png?v=20260428v170",
       "Maico": "maico_avatar.png?v=20260427v168",
       "Brayden": "brayden_avatar.png?v=20260427v168"
     };
@@ -1283,7 +1315,8 @@ document.addEventListener('visibilitychange', function() {
       "Daniel": 7.5,
       "Chris": 10,
       "Benji": 10,
-      "Dewone": 7
+      "Dewone": 7,
+      "Nick": 5
     };
     // Apply persisted overrides (set by the Profiles pop-up) before tier calcs run
     try {
@@ -5886,6 +5919,29 @@ if (typeof Chart !== 'undefined') {
         productivity: { rev_hr: 24, billable_hours: 87.35, sold_hrs_on_job_pct: 32, tasks_per_opp: 2.63, options_per_opp: 0.75, recalls: 1 },
         sales: { total_sales: 1233, avg_sale_s: 411, close_rate: 38, sales_opps: 8, options_per_opp_s: 0.75 },
         installs: { count: 1, total_revenue: 13410, avg_sale: 13410, leads_generated: 1, self_sourced: 0 }
+      },
+      {
+        name: "Nick",
+        displayName: "Nick Goehler",
+        color: "#3A6BA5",
+        isNewHire: true,
+        startDate: "2026-04-28",
+        mtd_service_rev: 0,
+        mtd_installs: 0,
+        mtd_install_rev: 0,
+        mtd_install_self_sourced: 0,
+        mtd_on_job_pct: 0,
+        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 },
+        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 0 },
+        nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 },
+        overview: { revenue: 0, total_job_avg: 0, opp_job_avg: 0, opp_conversion: 0, opps: 0, converted_jobs: 0 },
+        leads: { opps: 0, leads_set: 0, conv_rate: 0, avg_sale: 0 },
+        memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        sales: { total_sales: 0, avg_sale_s: 0, close_rate: 0, sales_opps: 0, options_per_opp_s: 0 },
+        installs: { count: 0, total_revenue: 0, avg_sale: 0, leads_generated: 0, self_sourced: 0 }
       }
     ];
 
@@ -11338,11 +11394,11 @@ if (typeof Chart !== 'undefined') {
       });
 
       // Tech avatars map
-      const avatarMap = { Chris: 'chris_avatar.png', Dewone: 'dewone_avatar.jpg', Benji: 'benji_avatar.png', Daniel: 'daniel_avatar.png', Dee: 'dee_avatar.jpg' };
+      const avatarMap = { Chris: 'chris_avatar.png', Dewone: 'dewone_avatar.jpg', Benji: 'benji_avatar.png', Daniel: 'daniel_avatar.png', Dee: 'dee_avatar.jpg', Nick: 'nick_avatar.png?v=20260428v170' };
       const dispTierColors = { S: 'linear-gradient(135deg,#ff6ec4,#7873f5,#4adede)', A: '#7C3AED', B: '#3B82F6', C: '#94A3B8' };
 
       // Render tech cards
-      const techOrder = ['Chris','Dewone','Benji','Daniel','Dee'];
+      const techOrder = ['Chris','Dewone','Benji','Daniel','Dee','Nick'];
       let cardsHtml = '<div class="disp-grid">';
       techOrder.forEach(tech => {
         const t = techs.find(x => x.short === tech);
@@ -11537,8 +11593,8 @@ if (typeof Chart !== 'undefined') {
       const container = document.getElementById(containerId);
       if (!container) return;
       const data = loadLogData(storageKey);
-      const techOrder = ['Chris','Dewone','Benji','Daniel','Dee'];
-      const avatarMap = { Chris: 'chris_avatar.png', Dewone: 'dewone_avatar.jpg', Benji: 'benji_avatar.png', Daniel: 'daniel_avatar.png', Dee: 'dee_avatar.jpg' };
+      const techOrder = ['Chris','Dewone','Benji','Daniel','Dee','Nick'];
+      const avatarMap = { Chris: 'chris_avatar.png', Dewone: 'dewone_avatar.jpg', Benji: 'benji_avatar.png', Daniel: 'daniel_avatar.png', Dee: 'dee_avatar.jpg', Nick: 'nick_avatar.png?v=20260428v170' };
       const dispTierColors = { S: 'linear-gradient(135deg,#ff6ec4,#7873f5,#4adede)', A: '#7C3AED', B: '#3B82F6', C: '#94A3B8' };
       const typeColors = logType === 'recall'
         ? { cardBorder: '#FF9800', badge: '#FF9800', badgeBg: 'rgba(255,152,0,0.12)', addBtn: '#FF9800', addBtnHover: '#F57C00' }
