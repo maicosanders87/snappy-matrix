@@ -1183,8 +1183,8 @@ document.addEventListener('visibilitychange', function() {
       "Chris": "chris_avatar.png",
       "Dee": "dee_avatar.jpg",
       "Daniel": "daniel_avatar.png",
-      "Maico": "maico_avatar.png",
-      "Brayden": "brayden_avatar.png"
+      "Maico": "maico_avatar.png?v=20260427v168",
+      "Brayden": "brayden_avatar.png?v=20260427v168"
     };
 
     // ========== APTITUDE TEST DATA ==========
@@ -3000,7 +3000,7 @@ document.addEventListener('visibilitychange', function() {
           var list = allBadges[t.short] || [];
           var avatarSrc = t.short.toLowerCase() + '_avatar.png';
           // Maico avatar fallback
-          if (t.short === 'Maico' || t.short === 'Mark') avatarSrc = 'maico_avatar.png';
+          if (t.short === 'Maico' || t.short === 'Mark') avatarSrc = 'maico_avatar.png?v=20260427v168';
           var badgesHTML;
           if (!list.length) {
             badgesHTML = '<div class="eg-empty">No badges yet \u2014 finish the current season to claim the first one.</div>';
@@ -6612,7 +6612,7 @@ if (typeof Chart !== 'undefined') {
                 <div class="rookie-card-border tier-b"></div>
                 <div class="rookie-tier-badge tier-b">B-TIER</div>
                 <div class="rookie-avatar-wrap">
-                  <img loading="lazy" decoding="async" src="maico_avatar.png" alt="Mark Sanders">
+                  <img loading="lazy" decoding="async" src="maico_avatar.png?v=20260427v168" alt="Mark Sanders">
                   <div class="rookie-label">
                     <span class="rookie-tag">Snappy Services</span>
                     <div class="rookie-name-overlay">Mark Sanders</div>
@@ -6668,7 +6668,7 @@ if (typeof Chart !== 'undefined') {
                 <div class="rookie-card-border tier-b"></div>
                 <div class="rookie-tier-badge tier-b">B-TIER</div>
                 <div class="rookie-avatar-wrap">
-                  <img loading="lazy" decoding="async" src="brayden_avatar.png" alt="Brayden Bond">
+                  <img loading="lazy" decoding="async" src="brayden_avatar.png?v=20260427v168" alt="Brayden Bond">
                   <div class="rookie-label">
                     <span class="rookie-tag">Snappy Services</span>
                     <div class="rookie-name-overlay">Brayden Bond</div>
