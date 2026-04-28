@@ -1122,11 +1122,18 @@ document.addEventListener('visibilitychange', function() {
         growth: "Initial onboarding & ride-alongs",
         training: "Snappy onboarding, NSS Greet, ServiceTitan basics, ride-alongs",
         holding_back: "Brand new to the team \u2014 baseline TBD after first ride-alongs",
-        managerNotes: "Day 1: 4/28/2026. New service technician with ~3 years prior HVAC experience. Initial scores set to developing-tech baseline (3s) until first ride-along and aptitude test.",
+        managerNotes: "Day 1: 4/28/2026. New service technician with ~3 years prior HVAC experience. Aptitude test 4/28: 35/50 (70%) \u2014 Service Technician level. Strong on Electrical & Heating (8/10), needs targeted training on Cooling (5/10).",
         managerTags: [
           { label: "New Hire", type: "watch" },
           { label: "Onboarding", type: "watch" }
-        ]
+        ],
+        contact: {
+          phone: "770-771-7634",
+          email: "ngoehler99@gmail.com",
+          address: "7020 Blossomwood Dr, Canton, GA 30115",
+          age: 21,
+          city: "Canton, GA"
+        }
       }
     ];
 
@@ -1303,7 +1310,21 @@ document.addEventListener('visibilitychange', function() {
         totalScore: 38,
         maxScore: 50,
         certs: ["EPA Universal"],
-        interpretation: "Solid Service Technician level. Section B is a standout (90%). Well-rounded across A, C, and Bonus sections. Section D is the primary development area — recommend focused training on advanced diagnostics and system design."
+        interpretation: "Solid Service Technician level. Section B is a standout (90%). Well-rounded across A, C, and Bonus sections. Section D is the primary development area \u2014 recommend focused training on advanced diagnostics and system design."
+      },
+      "Nick": {
+        date: "04/28/2026",
+        sections: [
+          { label: "Section A", score: 8, total: 10 },
+          { label: "Section B", score: 8, total: 10 },
+          { label: "Section C", score: 5, total: 10 },
+          { label: "Section D", score: 7, total: 10 },
+          { label: "Bonus (E)", score: 7, total: 10 }
+        ],
+        totalScore: 35,
+        maxScore: 50,
+        certs: [],
+        interpretation: "Service Technician level overall (70%). Strong fundamentals on Sections A (Electrical) and B (Heating) at 80%. Section C (Cooling/Refrigeration) is the primary growth area at 50% \u2014 recommend targeted training on superheat/subcool, refrigerant cycle, and vacuum/reclaim before independent cooling-heavy field assignments. Section D (Airflow) and Bonus E (Advanced) both solid at 70%, showing good baseline knowledge for a developing tech."
       }
     };
 
