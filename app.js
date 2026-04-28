@@ -3714,7 +3714,8 @@ document.addEventListener('visibilitychange', function() {
         "Dewone": ["A3","A7","A10","A11","B1","B5","B6","B7","B8","B9","C2","C3","C4","D2","F1","G1"],
         "Benji":  ["A2","A3","A5","A7","A9","A10","A11","B1","B2","B4","B5","B6","B7","B8","B9","C1","C5","D1","D2","D3","D5","E2","E4","F1","F2","F3","F4","G2","G3","H1"],
         "Daniel": ["A1","A2","A3","A4","A5","A7","A8","A10","A11","B1","B2","B3","B5","B6","B7","B8","B9","C4","D2","E1","E2","E3","E4","F1","F2","F3","F4","F5","G1"],
-        "Dee":    ["A1","A2","A3","A5","A7","A10","A11","B1","B5","B7","B8","B9","D2","E1","E2","E3","E4","F1"]
+        "Dee":    ["A1","A2","A3","A5","A7","A10","A11","B1","B5","B7","B8","B9","D2","E1","E2","E3","E4","F1"],
+        "Nick":   []
       },
       levels: {
         "C-1":    { min: 5,  max: 7,  composite: "< 60" },
@@ -3744,7 +3745,8 @@ document.addEventListener('visibilitychange', function() {
         "Dewone": { next: ["H1","H2","H4","H5","D1"], action: "Ride-along for NSS; enroll NexTech Academy" },
         "Benji":  { next: ["C1","C2","D1","D5"], action: "Enroll NexTech Academy Level 3" },
         "Daniel": { next: ["C1","C6","E1","F1 verify","H1-H5"], action: "Nexstar Service System training; EPA cert" },
-        "Dee":    { next: ["F1","B1","D1","H1","H2"], action: "EPA enrollment week 1; ride-along within 30 days" }
+        "Dee":    { next: ["F1","B1","D1","H1","H2"], action: "EPA enrollment week 1; ride-along within 30 days" },
+        "Nick":   { next: ["A6","A11","A3","A7","H1"], action: "Initial onboarding ride-alongs; complete EPA verification; NSS Greet/Explore foundations" }
       }
     };
 
@@ -3758,11 +3760,19 @@ document.addEventListener('visibilitychange', function() {
         const saved = localStorage.getItem(SKILLS_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          // Validate structure: must have same tech keys
+          // v176: Migrate — add any missing tech keys (e.g., Nick) from defaults
+          let migrated = false;
+          Object.keys(DEFAULT_ASSIGNMENTS).forEach(function(k) {
+            if (!parsed[k]) { parsed[k] = DEFAULT_ASSIGNMENTS[k].slice(); migrated = true; }
+          });
+          // Validate structure: must have same tech keys (after migration)
           const defaultKeys = Object.keys(DEFAULT_ASSIGNMENTS).sort().join(',');
           const savedKeys = Object.keys(parsed).sort().join(',');
           if (defaultKeys === savedKeys) {
             skillsData.assignments = parsed;
+            if (migrated) {
+              try { localStorage.setItem(SKILLS_STORAGE_KEY, JSON.stringify(parsed)); } catch(e) {}
+            }
           }
         }
       } catch (e) { /* ignore parse errors, use defaults */ }
@@ -6164,7 +6174,7 @@ if (typeof Chart !== 'undefined') {
       document.getElementById('skCategoryCards').innerHTML = catHtml;
 
       // ---- By Technician ----
-      const techColors = { 'Chris': '#2D6A6A', 'Dewone': '#C47F17', 'Benji': '#5B4A8A', 'Daniel': '#3A7A4A', 'Dee': '#8B3A3A' };
+      const techColors = { 'Chris': '#2D6A6A', 'Dewone': '#C47F17', 'Benji': '#5B4A8A', 'Daniel': '#3A7A4A', 'Dee': '#8B3A3A', 'Nick': '#3A6BA5' };
       let techHtml = '';
       techs.forEach(tech => {
         const assigned = skillsData.assignments[tech];
@@ -7519,7 +7529,8 @@ if (typeof Chart !== 'undefined') {
       'Dewone': '#C47F17',
       'Benji': '#5B4A8A',
       'Daniel': '#3A7A4A',
-      'Dee': '#8B3A3A'
+      'Dee': '#8B3A3A',
+      'Nick': '#3A6BA5'
     };
     const MGR_HOUSEKEEPING_ITEMS = [
       { key: 'dispatch', label: 'Dispatch — late starts, missed calls, routing' },
@@ -10671,7 +10682,7 @@ if (typeof Chart !== 'undefined') {
 
       var techMap = {
         'Chris': 'Chris', 'Dewone': 'Dewone', 'Benji': 'Benji',
-        'Daniel': 'Daniel', 'Dee': 'Dee'
+        'Daniel': 'Daniel', 'Dee': 'Dee', 'Nick': 'Nick'
       };
       var changed = false;
       for (var pdfKey in techMap) {
@@ -10912,7 +10923,7 @@ if (typeof Chart !== 'undefined') {
     }
 
     function tfRender() {
-      const techNames = ['Chris', 'Dewone', 'Benji', 'Daniel', 'Dee'];
+      const techNames = ['Chris', 'Dewone', 'Benji', 'Daniel', 'Dee', 'Nick'];
       // Sidebar
       const sb = document.getElementById('tfSidebar');
       sb.innerHTML = techNames.map(t => {
@@ -11485,6 +11496,13 @@ if (typeof Chart !== 'undefined') {
             data._migV1 = true;
             localStorage.setItem(DISP_STORAGE, JSON.stringify(data));
           }
+          // Migration v2 (v176): ensure Nick has dispatch tag entry
+          if (!data._migV2) {
+            if (!data.assignments) data.assignments = {};
+            if (!data.assignments['Nick']) data.assignments['Nick'] = ['Maintenance'];
+            data._migV2 = true;
+            localStorage.setItem(DISP_STORAGE, JSON.stringify(data));
+          }
           return data;
         }
       } catch(e) {}
@@ -11496,7 +11514,8 @@ if (typeof Chart !== 'undefined') {
           'Dewone': ['Ride Along Trainer', 'Maintenance', 'Sales Capable'],
           'Benji':  ['Diagnostics', 'Maintenance'],
           'Daniel': ['Diagnostics', 'Install / Changeout', 'Maintenance', 'Sales Capable'],
-          'Dee':    ['Warranty Tech', 'Diagnostics', 'Install / Changeout', 'Maintenance']
+          'Dee':    ['Warranty Tech', 'Diagnostics', 'Install / Changeout', 'Maintenance'],
+          'Nick':   ['Maintenance']
         }
       };
     }
