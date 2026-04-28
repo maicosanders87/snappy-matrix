@@ -507,17 +507,45 @@ function _mergeTechFiles(localJson, cloudJson) {
     var allTechs = {};
     Object.keys(local).forEach(function(t) { allTechs[t] = true; });
     Object.keys(cloud).forEach(function(t) { allTechs[t] = true; });
+    // v174: also collapse by (type+fileName) for auto-seeded entries so legacy
+    // Date.now() IDs don't accumulate across devices.
+    var SEED_TYPES = { '1on1': true, 'scorecard': true };
     for (var tech in allTechs) {
       var localFiles = Array.isArray(local[tech]) ? local[tech] : [];
       var cloudFiles = Array.isArray(cloud[tech]) ? cloud[tech] : [];
-      // Index local files by ID (these have fileData)
       var byId = {};
+      // Local first — these have fileData and win on conflict
       localFiles.forEach(function(f) { if (f && f.id) byId[f.id] = f; });
-      // Add cloud-only files (metadata stubs without fileData)
       cloudFiles.forEach(function(f) {
         if (f && f.id && !byId[f.id]) byId[f.id] = f;
       });
-      var arr = Object.values(byId);
+      // Second pass: dedupe auto-seed types by (type|fileName) — prefer entry with fileData, then newest date
+      var seedGroups = {};
+      var nonSeedKeys = [];
+      Object.keys(byId).forEach(function(id) {
+        var f = byId[id];
+        if (f && SEED_TYPES[f.type]) {
+          var key = (f.type || '') + '|' + (f.fileName || '');
+          if (!seedGroups[key]) seedGroups[key] = [];
+          seedGroups[key].push(f);
+        } else {
+          nonSeedKeys.push(id);
+        }
+      });
+      var keptSeeds = [];
+      Object.keys(seedGroups).forEach(function(key) {
+        var g = seedGroups[key];
+        g.sort(function(a, b) {
+          var aHas = !!(a.fileData);
+          var bHas = !!(b.fileData);
+          if (aHas !== bHas) return aHas ? -1 : 1;
+          var ad = a.date ? Date.parse(a.date) : 0;
+          var bd = b.date ? Date.parse(b.date) : 0;
+          return bd - ad;
+        });
+        keptSeeds.push(g[0]);
+      });
+      var arr = nonSeedKeys.map(function(id) { return byId[id]; }).concat(keptSeeds);
       if (arr.length > 0) merged[tech] = arr;
     }
     return JSON.stringify(merged);
@@ -10514,6 +10542,74 @@ if (typeof Chart !== 'undefined') {
         const dm = localStorage.getItem(TF_DRIVEMAP_KEY);
         if (dm) tfDriveMap = JSON.parse(dm);
       } catch (e) {}
+      // v174 FIX: dedupe auto-seeded entries that drifted across devices (1on1, scorecard).
+      // Keep most recent of each (type, fileName) pair per tech — manual uploads are preserved.
+      try { _tfDedupeAutoSeeded(); } catch(e) { console.warn('Tech Files: dedupe failed', e); }
+    }
+
+    // v174: One-time + on-load cleanup of duplicate auto-seeded entries.
+    // Earlier versions used Date.now() in the seed ID, so cloud merge accumulated copies.
+    // Strategy: for each tech, group entries by (type + fileName); if it's an auto-seed type
+    // ('1on1' or 'scorecard') and >1 entry exists, keep the newest by date and drop the rest.
+    // Manual uploads (other types) are never touched.
+    function _tfDedupeAutoSeeded() {
+      var SEED_TYPES = { '1on1': true, 'scorecard': true };
+      var changed = false;
+      for (var tech in tfFiles) {
+        var arr = Array.isArray(tfFiles[tech]) ? tfFiles[tech] : [];
+        if (arr.length < 2) continue;
+        var groups = {};
+        var others = [];
+        arr.forEach(function(f) {
+          if (!f) return;
+          if (SEED_TYPES[f.type]) {
+            var key = (f.type || '') + '|' + (f.fileName || '');
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(f);
+          } else {
+            others.push(f);
+          }
+        });
+        var keptSeeds = [];
+        for (var k in groups) {
+          var g = groups[k];
+          if (g.length === 1) { keptSeeds.push(g[0]); continue; }
+          // Sort newest-first; prefer entries that have fileData (so we don't keep a stub if a real one exists)
+          g.sort(function(a, b) {
+            var aHas = !!(a.fileData);
+            var bHas = !!(b.fileData);
+            if (aHas !== bHas) return aHas ? -1 : 1;
+            var ad = a.date ? Date.parse(a.date) : 0;
+            var bd = b.date ? Date.parse(b.date) : 0;
+            return bd - ad;
+          });
+          // Migrate the kept entry to the deterministic seed ID so future merges collapse cleanly
+          var kept = g[0];
+          var techShort = tech;
+          if (kept.type === '1on1') kept.id = '1on1_' + techShort.toLowerCase() + '_seed';
+          else if (kept.type === 'scorecard') kept.id = 'score_' + techShort.toLowerCase() + '_seed';
+          keptSeeds.push(kept);
+          changed = true;
+        }
+        var rebuilt = others.concat(keptSeeds);
+        if (rebuilt.length !== arr.length) {
+          tfFiles[tech] = rebuilt;
+          changed = true;
+        } else if (changed) {
+          // ID was migrated even if length unchanged
+          tfFiles[tech] = rebuilt;
+        }
+      }
+      if (changed) {
+        try { localStorage.setItem(TF_STORAGE_KEY, JSON.stringify(tfFiles)); } catch(e) {}
+        // Push cleaned snapshot to cloud so other devices stop receiving the duplicates back
+        try {
+          if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
+            SyncEngine.write('techfiles', typeof _tfStripFileData === 'function' ? _tfStripFileData(tfFiles) : tfFiles);
+          }
+        } catch(e) { console.warn('Dedupe cloud push failed:', e); }
+        console.log('Tech Files: deduped auto-seeded packets');
+      }
     }
     function tfSave() {
       try {
@@ -10550,8 +10646,9 @@ if (typeof Chart !== 'undefined') {
 
         var b64 = TECH_SCORE_PDFS[pdfKey];
         var byteLen = Math.round(b64.length * 3 / 4);
+        // v174 FIX: Deterministic ID so cloud sync merges correctly across devices.
         tfFiles[techName].push({
-          id: 'score_' + pdfKey.toLowerCase() + '_' + Date.now(),
+          id: 'score_' + pdfKey.toLowerCase() + '_seed',
           type: 'scorecard',
           title: pdfKey + ' — Score Breakdown',
           notes: 'Auto-generated composite score breakdown with aptitude, skills, ST performance, and dispatch bonus details.',
@@ -10592,10 +10689,12 @@ if (typeof Chart !== 'undefined') {
 
         var b64 = TECH_1ON1_PACKETS[techShort];
         var byteLen = Math.round(b64.length * 3 / 4);
+        // v174 FIX: Deterministic ID so cloud sync merges correctly across devices.
+        // Was using Date.now() — caused new ID per device/session → 18 duplicates after merge.
         tfFiles[techShort].push({
-          id: '1on1_' + techShort.toLowerCase() + '_' + Date.now(),
+          id: '1on1_' + techShort.toLowerCase() + '_seed',
           type: '1on1',
-          title: techShort + ' — 1-on-1 Composite Packet',
+          title: techShort + ' \u2014 1-on-1 Composite Packet',
           notes: 'Auto-imported 1-on-1 composite packet: wins, where you stand, the numbers, skills & growth, coaching session, and goal setting.',
           fileName: techShort.toLowerCase() + '_composite_packet.pdf',
           fileSize: byteLen,
