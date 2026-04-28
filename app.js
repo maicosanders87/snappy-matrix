@@ -4152,7 +4152,8 @@ document.addEventListener('visibilitychange', function() {
     (function bbSeedUpdates() {
       var bb = bbLoad();
       var seededIds = {
-        'st_update_20260418': { date: '2026-04-18', text: 'ServiceTitan scorecard data refreshed (4/18/26 4:30 PM). Key changes: Dewone revenue up to $25,675 (+$1,838), conversion 79%. Benji revenue $18,238 (+$1,420), conversion improved to 56%. Daniel revenue $19,162 (+$2,364), conversion 64%. Chris revenue $15,359 (+$552), conversion 55%. Chris install count 12 ($151K). Memberships: Benji up to 2 sold (8%), Chris 6 sold (32%). Team total MTD revenue $84,850.' }
+        'st_update_20260418': { date: '2026-04-18', text: 'ServiceTitan scorecard data refreshed (4/18/26 4:30 PM). Key changes: Dewone revenue up to $25,675 (+$1,838), conversion 79%. Benji revenue $18,238 (+$1,420), conversion improved to 56%. Daniel revenue $19,162 (+$2,364), conversion 64%. Chris revenue $15,359 (+$552), conversion 55%. Chris install count 12 ($151K). Memberships: Benji up to 2 sold (8%), Chris 6 sold (32%). Team total MTD revenue $84,850.' },
+        'st_update_20260427_mtd': { date: '2026-04-27', text: 'MTD refresh (4/27/26). Dewone +1 install ($24,316 \u2014 Martha Futral) bumps installs to 3 / $51,363. Daniel service rev +$602 \u2192 $8,484 MTD. Dee service rev +$322 \u2192 $2,854 MTD with first membership sold (1/1, 100%). Chris adds 1 mem opp (4/8 = 50%). Team MTD service rev $36,267 \u2022 Team MTD installs 10 ($137K).' }
       };
       var changed = false;
       Object.keys(seededIds).forEach(function(sid) {
@@ -5786,9 +5787,9 @@ if (typeof Chart !== 'undefined') {
         name: "Dewone",
         color: "#E07B3A",
         mtd_service_rev: 10168,
-        mtd_installs: 2,
-        mtd_install_rev: 27047,
-        mtd_install_self_sourced: 2,
+        mtd_installs: 3,
+        mtd_install_rev: 51363,
+        mtd_install_self_sourced: 3,
         mtd_on_job_pct: 52,
         mtd_nexstar: { total_revenue: 10168, avg_sale: 435, conversion_rate: 88, spps_sold: 5, tech_gen_leads: 11, sold_hours: 43.75, flat_rate_tasks: 1.74 },
         mtd_productivity: { rev_hr: 110, billable_hours: 43.75, sold_hrs_on_job_pct: 52, tasks_per_opp: 2.14, options_per_opp: 3, recalls: 1 },
@@ -5826,12 +5827,12 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Daniel",
         color: "#C47F17",
-        mtd_service_rev: 7882,
+        mtd_service_rev: 8484,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 28,
-        mtd_nexstar: { total_revenue: 7882, avg_sale: 487, conversion_rate: 80, spps_sold: 0, tech_gen_leads: 1, sold_hours: 39.15, flat_rate_tasks: 1.87 },
+        mtd_nexstar: { total_revenue: 8484, avg_sale: 487, conversion_rate: 80, spps_sold: 0, tech_gen_leads: 1, sold_hours: 39.15, flat_rate_tasks: 1.87 },
         mtd_productivity: { rev_hr: 53, billable_hours: 39.15, sold_hrs_on_job_pct: 28, tasks_per_opp: 2.2, options_per_opp: 0.86, recalls: 2 },
         mtd_memberships: { total_mem_sold: 0, total_mem_opps: 4, total_mem_pct: 0 },
         mtd_sales: { close_rate: 80 },
@@ -5854,7 +5855,7 @@ if (typeof Chart !== 'undefined') {
         mtd_on_job_pct: 51,
         mtd_nexstar: { total_revenue: 6585, avg_sale: 364, conversion_rate: 63, spps_sold: 4, tech_gen_leads: 6, sold_hours: 48.6, flat_rate_tasks: 1.88 },
         mtd_productivity: { rev_hr: 68, billable_hours: 48.6, sold_hrs_on_job_pct: 51, tasks_per_opp: 1.52, options_per_opp: 2.11, recalls: 1 },
-        mtd_memberships: { total_mem_sold: 4, total_mem_opps: 7, total_mem_pct: 57 },
+        mtd_memberships: { total_mem_sold: 4, total_mem_opps: 8, total_mem_pct: 50 },
         mtd_sales: { close_rate: 63 },
         nexstar: { total_revenue: 15359, avg_sale: 360, conversion_rate: 55, spps_sold: 6, tech_gen_leads: 26, sold_hours: 127.67, tech_sold_hr_eff: 0, flat_rate_tasks: 1.91 },
         overview: { revenue: 15359, total_job_avg: 86, opp_job_avg: 203, opp_conversion: 55, opps: 73, converted_jobs: 40 },
@@ -5867,14 +5868,14 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Dee",
         color: "#2D6A6A",
-        mtd_service_rev: 2532,
+        mtd_service_rev: 2854,
         mtd_installs: 1,
         mtd_install_rev: 13410,
         mtd_install_self_sourced: 1,
         mtd_on_job_pct: 37,
-        mtd_nexstar: { total_revenue: 2532, avg_sale: 844, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 24.85, flat_rate_tasks: 5.6 },
+        mtd_nexstar: { total_revenue: 2854, avg_sale: 844, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 24.85, flat_rate_tasks: 5.6 },
         mtd_productivity: { rev_hr: 24, billable_hours: 24.85, sold_hrs_on_job_pct: 37, tasks_per_opp: 5.5, options_per_opp: 2, recalls: 0 },
-        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 1, total_mem_pct: 100 },
         mtd_sales: { close_rate: 100 },
         isWarrantyTech: true,
         completedJobs: 113,
@@ -6330,8 +6331,11 @@ if (typeof Chart !== 'undefined') {
       const totalSales = stData.reduce((s,t) => s + t.sales.total_sales, 0);
       const totalInstalls = stData.reduce((s,t) => s + t.installs.count, 0);
       const totalInstallRev = stData.reduce((s,t) => s + t.installs.total_revenue, 0);
-      const totalMtdInst = 9; // Team MTD installs incl. Adam (8 techs + 1 Adam)
-      const totalMtdInstRev = 112935;
+      // Auto-computed: techs' mtd_installs + 1 manager-sold install (Adam)
+      const ADAM_MTD_INSTALLS = 1;
+      const ADAM_MTD_INSTALL_REV = 14539;
+      const totalMtdInst = stData.reduce((s,t) => s + (t.mtd_installs||0), 0) + ADAM_MTD_INSTALLS;
+      const totalMtdInstRev = stData.reduce((s,t) => s + (t.mtd_install_rev||0), 0) + ADAM_MTD_INSTALL_REV;
       const topRev = stData.reduce((best, t) => t.nexstar.total_revenue > best.nexstar.total_revenue ? t : best);
 
       // v140: Hero tile + 4 satellites, branded accents
