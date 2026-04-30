@@ -4318,40 +4318,102 @@ document.addEventListener('visibilitychange', function() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
     }
 
-    // v194: Coaching History detail modal — opened from clickable pills on Profile cards
+    // v196: Unified coaching-history loader.
+    // Returns ALL saved 1-on-1 + ride-along entries from BOTH the Bulletin Board
+    // (snappy_bulletin_board) AND the Manager calendar (snappy_manager_entries),
+    // deduped by id. Preferring richer mgrState data when both exist.
+    // Earlier (v194/v195) the viewers only read the Bulletin Board, so any entry
+    // saved in the Manager tab without "Add to Bulletin Board" was invisible
+    // even though Coaching History counts/last-dates appeared correct in some cases.
+    function _chNormTech(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
+    function _chTechOf(entry) {
+      if (!entry) return '';
+      // Support legacy / alt schemas (technician, name, displayName, person)
+      return entry.tech || entry.technician || entry.techName || entry.name || entry.displayName || entry.person || '';
+    }
+    function _chLoadAllEntries() {
+      var bb = bbLoad();
+      var bbOO = Array.isArray(bb.oneOnOnes) ? bb.oneOnOnes : [];
+      var bbRA = Array.isArray(bb.rideAlongs) ? bb.rideAlongs : [];
+
+      // Pull mgrState entries from in-memory if available, else from localStorage.
+      var mgrEntries = [];
+      try {
+        if (typeof mgrState !== 'undefined' && mgrState && Array.isArray(mgrState.entries)) {
+          mgrEntries = mgrState.entries;
+        } else {
+          var rawM = localStorage.getItem('snappy_manager_entries');
+          if (rawM) {
+            var parsedM = JSON.parse(rawM) || {};
+            if (Array.isArray(parsedM.entries)) mgrEntries = parsedM.entries;
+          }
+        }
+      } catch(_) {}
+
+      var mgrById = {};
+      mgrEntries.forEach(function(e) { if (e && e.id) mgrById[e.id] = e; });
+
+      var seen = {};
+      var combined = [];
+
+      function pushUnified(src, kind) {
+        if (!src || !src.id) {
+          // Synthesize an id so duplicates within a single source still merge by date+tech.
+          var key = kind + '|' + (_chTechOf(src) || '?') + '|' + (src && src.date || '') + '|' + (src && src.time || '');
+          if (seen[key]) return;
+          seen[key] = true;
+        } else {
+          if (seen[src.id]) return;
+          seen[src.id] = true;
+        }
+        var rich = src.id ? mgrById[src.id] : null;
+        // src may already BE a mgr entry, in which case rich === src — that's fine.
+        var data = (rich && rich.data) ? rich.data : (src.data || null);
+        combined.push({
+          id: src.id || ('synth_' + combined.length),
+          kind: kind,
+          tech: _chTechOf(src) || (rich ? _chTechOf(rich) : ''),
+          date: src.date || (rich && rich.date) || '',
+          time: src.time || (rich && rich.time) || '',
+          status: src.status || (rich && rich.status) || 'planned',
+          notes: src.notes || (rich && rich.data && (rich.data.customFocus || rich.data.observationNotes)) || '',
+          data: data,
+          updatedAt: (rich && rich.updatedAt) || src.updatedAt || null,
+          createdAt: (rich && rich.createdAt) || src.createdAt || null,
+          source: src.source || (rich && !src.tech ? 'mgr' : 'bb')
+        });
+      }
+
+      bbOO.forEach(function(o) { pushUnified(o, 'one-on-one'); });
+      bbRA.forEach(function(r) { pushUnified(r, 'ride-along'); });
+      // Pull mgrState-only entries (those never promoted to the Bulletin Board)
+      mgrEntries.forEach(function(e) {
+        if (!e || !e.type) return;
+        if (e.type === 'one-on-one' || e.type === '1on1' || e.type === 'oneonone' || e.type === 'one_on_one') {
+          pushUnified(e, 'one-on-one');
+        } else if (e.type === 'ride-along' || e.type === 'ridealong' || e.type === 'ride_along') {
+          pushUnified(e, 'ride-along');
+        }
+      });
+      return combined;
+    }
+    function _chFilterTech(entries, tech) {
+      if (!tech) return entries.slice();
+      var t = _chNormTech(tech);
+      return entries.filter(function(e) { return _chNormTech(e.tech) === t; });
+    }
+    // Expose for debugging / shared use
+    window._chLoadAllEntries = _chLoadAllEntries;
+
+    // v194/v196: Coaching History detail modal — opened from clickable pills on Profile cards
     // type: 'one-on-one' | 'ride-along' | 'all'
     function openCoachingHistoryDetail(tech, type) {
       try {
-        var bb = bbLoad();
-        var bbOO = (bb.oneOnOnes || []).filter(function(o) { return o.tech === tech; });
-        var bbRA = (bb.rideAlongs || []).filter(function(r) { return r.tech === tech; });
-        // Index richer mgrState entries by id for matched lookup
-        var mgrById = {};
-        try {
-          if (typeof mgrState !== 'undefined' && mgrState && Array.isArray(mgrState.entries)) {
-            mgrState.entries.forEach(function(e) { if (e && e.id) mgrById[e.id] = e; });
-          }
-        } catch(_) {}
-
-        function decorate(bbEntry, kind) {
-          var rich = mgrById[bbEntry.id];
-          return {
-            id: bbEntry.id,
-            kind: kind,
-            tech: bbEntry.tech,
-            date: bbEntry.date || (rich && rich.date) || '',
-            time: bbEntry.time || (rich && rich.time) || '',
-            status: bbEntry.status || (rich && rich.status) || 'planned',
-            notes: bbEntry.notes || '',
-            data: rich && rich.data ? rich.data : null,
-            updatedAt: rich ? rich.updatedAt : null,
-            createdAt: rich ? rich.createdAt : null
-          };
-        }
-
-        var ooList = bbOO.map(function(e) { return decorate(e, 'one-on-one'); })
+        var all = _chLoadAllEntries();
+        var forTech = _chFilterTech(all, tech);
+        var ooList = forTech.filter(function(e) { return e.kind === 'one-on-one'; })
           .sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
-        var raList = bbRA.map(function(e) { return decorate(e, 'ride-along'); })
+        var raList = forTech.filter(function(e) { return e.kind === 'ride-along'; })
           .sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
 
         var showOO = (type === 'one-on-one' || type === 'all');
@@ -6092,10 +6154,16 @@ if (typeof Chart !== 'undefined') {
             })()}
 
             ${(() => {
-              var bb = bbLoad();
-              var oneOnOnes = (bb.oneOnOnes || []).filter(function(o) { return o.tech === t.short; })
+              // v196: count from the unified loader (BB + Manager calendar union),
+              // so the pills and the click-through detail modal always agree.
+              var allCh = (typeof _chLoadAllEntries === 'function') ? _chLoadAllEntries() : [];
+              var techForMatch = String(t.short || '').trim().toLowerCase();
+              var forTech = allCh.filter(function(e) {
+                return String(e.tech || '').trim().toLowerCase() === techForMatch;
+              });
+              var oneOnOnes = forTech.filter(function(e) { return e.kind === 'one-on-one'; })
                 .slice().sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
-              var rideAlongs = (bb.rideAlongs || []).filter(function(r) { return r.tech === t.short; })
+              var rideAlongs = forTech.filter(function(e) { return e.kind === 'ride-along'; })
                 .slice().sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
               var lastOO = oneOnOnes.length ? oneOnOnes[0].date : '\u2014';
               var lastRA = rideAlongs.length ? rideAlongs[0].date : '\u2014';
@@ -14266,43 +14334,12 @@ function openEmbeddedPDF(filename) {
     if (!resultsEl) return;
 
     function loadAllEntries() {
-      var bb = { oneOnOnes: [], rideAlongs: [] };
+      // v196: use shared union loader so manager-tab entries that were never
+      // promoted to the Bulletin Board still appear in this log.
       try {
-        var raw = localStorage.getItem('snappy_bulletin_board');
-        if (raw) {
-          var d = JSON.parse(raw) || {};
-          bb.oneOnOnes = Array.isArray(d.oneOnOnes) ? d.oneOnOnes : [];
-          bb.rideAlongs = Array.isArray(d.rideAlongs) ? d.rideAlongs : [];
-        }
+        if (typeof window._chLoadAllEntries === 'function') return window._chLoadAllEntries();
       } catch(_) {}
-      var mgrById = {};
-      try {
-        var rawM = localStorage.getItem('snappy_manager_entries');
-        if (rawM) {
-          var m = JSON.parse(rawM) || {};
-          var ents = Array.isArray(m.entries) ? m.entries : [];
-          ents.forEach(function(e) { if (e && e.id) mgrById[e.id] = e; });
-        }
-      } catch(_) {}
-      function decorate(b, kind) {
-        var rich = mgrById[b.id];
-        return {
-          id: b.id,
-          kind: kind,
-          tech: b.tech || (rich && rich.tech) || '',
-          date: b.date || (rich && rich.date) || '',
-          time: b.time || (rich && rich.time) || '',
-          status: b.status || (rich && rich.status) || 'planned',
-          notes: b.notes || '',
-          data: rich && rich.data ? rich.data : null,
-          updatedAt: rich ? rich.updatedAt : null,
-          createdAt: rich ? rich.createdAt : null
-        };
-      }
-      var combined = [];
-      bb.oneOnOnes.forEach(function(o) { combined.push(decorate(o, 'one-on-one')); });
-      bb.rideAlongs.forEach(function(r) { combined.push(decorate(r, 'ride-along')); });
-      return combined;
+      return [];
     }
 
     function flattenSearchableText(e) {
@@ -14340,8 +14377,9 @@ function openEmbeddedPDF(filename) {
       var searchVal = ((searchInp && searchInp.value) || '').trim().toLowerCase();
       var sortVal = (sortSel && sortSel.value) || 'newest';
 
+      var techNorm = (techVal || '').trim().toLowerCase();
       var filtered = all.filter(function(e) {
-        if (techVal && e.tech !== techVal) return false;
+        if (techNorm && String(e.tech || '').trim().toLowerCase() !== techNorm) return false;
         if (typeVal !== 'all' && e.kind !== typeVal) return false;
         if (fromVal && (e.date || '') < fromVal) return false;
         if (toVal && (e.date || '') > toVal) return false;
