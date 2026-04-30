@@ -13808,6 +13808,64 @@ function openEmbeddedPDF(filename) {
         '<div class="pm-field" style="margin-top:8px"><label>Training Focus</label><textarea data-base-field="training" rows="2" placeholder="Current training focus…">' + escapeHtml(nBase.training || '') + '</textarea></div>' +
         '<div class="pm-field" style="margin-top:8px"><label>Notes</label><textarea data-base-field="managerNotes" rows="3" placeholder="Anything else…">' + escapeHtml(nBase.managerNotes || '') + '</textarea></div>' +
       '</div>';
+
+      // v195: Manager-only — All Coaching Activity across the whole team
+      if (person.role === 'mgr') {
+        var techNamesForFilter = [];
+        try {
+          if (typeof techs !== 'undefined' && Array.isArray(techs)) {
+            techs.forEach(function(t) { techNamesForFilter.push(t.short); });
+          }
+        } catch(_) {}
+        var techOptions = techNamesForFilter.map(function(n) {
+          return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
+        }).join('');
+        html += '<div class="pm-section pm-coach-log-section">' +
+          '<h4>All Coaching Activity <span class="pm-coach-log-sub">across the whole team</span></h4>' +
+          '<div class="pm-coach-log-filters">' +
+            '<div class="pm-coach-log-filter">' +
+              '<label>Technician</label>' +
+              '<select id="pmCoachLogTech"><option value="">All technicians</option>' + techOptions + '</select>' +
+            '</div>' +
+            '<div class="pm-coach-log-filter">' +
+              '<label>Type</label>' +
+              '<select id="pmCoachLogType">' +
+                '<option value="all">All</option>' +
+                '<option value="one-on-one">1-on-1</option>' +
+                '<option value="ride-along">Ride-Along</option>' +
+              '</select>' +
+            '</div>' +
+            '<div class="pm-coach-log-filter">' +
+              '<label>From</label>' +
+              '<input type="date" id="pmCoachLogFrom">' +
+            '</div>' +
+            '<div class="pm-coach-log-filter">' +
+              '<label>To</label>' +
+              '<input type="date" id="pmCoachLogTo">' +
+            '</div>' +
+            '<div class="pm-coach-log-filter pm-coach-log-filter-grow">' +
+              '<label>Search notes / fields</label>' +
+              '<input type="text" id="pmCoachLogSearch" placeholder="Search any field…">' +
+            '</div>' +
+            '<div class="pm-coach-log-filter">' +
+              '<label>Sort</label>' +
+              '<select id="pmCoachLogSort">' +
+                '<option value="newest">Newest first</option>' +
+                '<option value="oldest">Oldest first</option>' +
+              '</select>' +
+            '</div>' +
+          '</div>' +
+          '<div class="pm-coach-log-chips">' +
+            '<button type="button" class="pm-coach-chip" data-pmchip="this-month">This Month</button>' +
+            '<button type="button" class="pm-coach-chip" data-pmchip="30">Last 30 Days</button>' +
+            '<button type="button" class="pm-coach-chip" data-pmchip="90">Last 90 Days</button>' +
+            '<button type="button" class="pm-coach-chip" data-pmchip="ytd">Year to Date</button>' +
+            '<button type="button" class="pm-coach-chip pm-coach-chip-reset" id="pmCoachLogReset">Reset filters</button>' +
+          '</div>' +
+          '<div class="pm-coach-log-summary" id="pmCoachLogSummary"></div>' +
+          '<div class="pm-coach-log-results" id="pmCoachLogResults"></div>' +
+        '</div>';
+      }
     }
 
     // Save bar
@@ -14180,12 +14238,272 @@ function openEmbeddedPDF(filename) {
       });
     }
 
+    // v195: Wire manager-only Coaching Activity log + filters
+    if (person.role === 'mgr' && document.getElementById('pmCoachLogResults')) {
+      wireMgrCoachingLog();
+    }
+
     // Open modal
     if (ov) ov.classList.add('active');
     md.classList.add('active');
     md.dataset.short = short;
     md.setAttribute('aria-hidden', 'false');
   };
+
+  // v195: Manager profile — All Coaching Activity log
+  // Reads bulletin board (oneOnOnes/rideAlongs) + mgrState.entries (rich data)
+  // and renders a filterable list of all 1-on-1s and ride-alongs across all techs.
+  function wireMgrCoachingLog() {
+    var techSel = document.getElementById('pmCoachLogTech');
+    var typeSel = document.getElementById('pmCoachLogType');
+    var fromInp = document.getElementById('pmCoachLogFrom');
+    var toInp = document.getElementById('pmCoachLogTo');
+    var searchInp = document.getElementById('pmCoachLogSearch');
+    var sortSel = document.getElementById('pmCoachLogSort');
+    var resetBtn = document.getElementById('pmCoachLogReset');
+    var resultsEl = document.getElementById('pmCoachLogResults');
+    var summaryEl = document.getElementById('pmCoachLogSummary');
+    if (!resultsEl) return;
+
+    function loadAllEntries() {
+      var bb = { oneOnOnes: [], rideAlongs: [] };
+      try {
+        var raw = localStorage.getItem('snappy_bulletin_board');
+        if (raw) {
+          var d = JSON.parse(raw) || {};
+          bb.oneOnOnes = Array.isArray(d.oneOnOnes) ? d.oneOnOnes : [];
+          bb.rideAlongs = Array.isArray(d.rideAlongs) ? d.rideAlongs : [];
+        }
+      } catch(_) {}
+      var mgrById = {};
+      try {
+        var rawM = localStorage.getItem('snappy_manager_entries');
+        if (rawM) {
+          var m = JSON.parse(rawM) || {};
+          var ents = Array.isArray(m.entries) ? m.entries : [];
+          ents.forEach(function(e) { if (e && e.id) mgrById[e.id] = e; });
+        }
+      } catch(_) {}
+      function decorate(b, kind) {
+        var rich = mgrById[b.id];
+        return {
+          id: b.id,
+          kind: kind,
+          tech: b.tech || (rich && rich.tech) || '',
+          date: b.date || (rich && rich.date) || '',
+          time: b.time || (rich && rich.time) || '',
+          status: b.status || (rich && rich.status) || 'planned',
+          notes: b.notes || '',
+          data: rich && rich.data ? rich.data : null,
+          updatedAt: rich ? rich.updatedAt : null,
+          createdAt: rich ? rich.createdAt : null
+        };
+      }
+      var combined = [];
+      bb.oneOnOnes.forEach(function(o) { combined.push(decorate(o, 'one-on-one')); });
+      bb.rideAlongs.forEach(function(r) { combined.push(decorate(r, 'ride-along')); });
+      return combined;
+    }
+
+    function flattenSearchableText(e) {
+      var parts = [e.tech, e.date, e.time, e.status, e.notes];
+      if (e.data) {
+        var d = e.data;
+        ['custIssue','actualDiagnosis','repairPerformed','callOutcome','observationNotes',
+         'customFocus','coveredSummary','actionItems','followUp','nextSteps',
+         'debriefManagerBetter','debriefTechBetter','debriefManagerWin','debriefTechWin',
+         'callType','housekeepingNotes'].forEach(function(k) { if (d[k]) parts.push(d[k]); });
+        if (d.maintenance) {
+          ['findings','recommendations','notes'].forEach(function(k) {
+            if (d.maintenance[k]) parts.push(d.maintenance[k]);
+          });
+        }
+        if (d.demand) {
+          ['symptom','onset','history','expectations','diagSteps','rootCause',
+           'contributing','explained'].forEach(function(k) {
+            if (d.demand[k]) parts.push(d.demand[k]);
+          });
+        }
+        if (d.redBarn) {
+          if (d.redBarn.scenario) parts.push(d.redBarn.scenario);
+          if (d.redBarn.outcome) parts.push(d.redBarn.outcome);
+        }
+      }
+      return parts.filter(Boolean).join(' • ').toLowerCase();
+    }
+
+    function applyFilters(all) {
+      var techVal = (techSel && techSel.value) || '';
+      var typeVal = (typeSel && typeSel.value) || 'all';
+      var fromVal = (fromInp && fromInp.value) || '';
+      var toVal = (toInp && toInp.value) || '';
+      var searchVal = ((searchInp && searchInp.value) || '').trim().toLowerCase();
+      var sortVal = (sortSel && sortSel.value) || 'newest';
+
+      var filtered = all.filter(function(e) {
+        if (techVal && e.tech !== techVal) return false;
+        if (typeVal !== 'all' && e.kind !== typeVal) return false;
+        if (fromVal && (e.date || '') < fromVal) return false;
+        if (toVal && (e.date || '') > toVal) return false;
+        if (searchVal && flattenSearchableText(e).indexOf(searchVal) === -1) return false;
+        return true;
+      });
+      filtered.sort(function(a, b) {
+        var av = a.date || '', bv = b.date || '';
+        return sortVal === 'oldest' ? av.localeCompare(bv) : bv.localeCompare(av);
+      });
+      return filtered;
+    }
+
+    function fmtCallTypeBadge(callType) {
+      if (!callType) return '';
+      var label = callType === 'maintenance' ? 'Maintenance' : (callType === 'demand' ? 'Demand' : callType);
+      var color = callType === 'maintenance' ? '#0EA5E9' : '#F59E0B';
+      return '<span class="pm-coach-card-tag" style="background:' + color + '22;color:' + color + ';border:1px solid ' + color + '55">' + escapeHtml(label) + '</span>';
+    }
+
+    function bestSummaryLine(e) {
+      var d = e.data || {};
+      // Prefer rich data fields, fall back to BB notes
+      var candidates = [];
+      if (e.kind === 'ride-along') {
+        candidates = [d.callOutcome, d.actualDiagnosis, d.custIssue, d.observationNotes,
+                      (d.maintenance && d.maintenance.findings),
+                      (d.demand && d.demand.rootCause)];
+      } else {
+        candidates = [d.coveredSummary, d.customFocus, d.actionItems, d.followUp];
+      }
+      var picked = candidates.find(function(c) { return c && String(c).trim(); });
+      if (!picked) picked = e.notes || '';
+      picked = String(picked || '').trim();
+      if (!picked) return '';
+      if (picked.length > 220) picked = picked.slice(0, 217) + '…';
+      return picked;
+    }
+
+    function renderResults() {
+      var all = loadAllEntries();
+      var filtered = applyFilters(all);
+      var ooCount = filtered.filter(function(e) { return e.kind === 'one-on-one'; }).length;
+      var raCount = filtered.filter(function(e) { return e.kind === 'ride-along'; }).length;
+
+      if (summaryEl) {
+        summaryEl.innerHTML =
+          '<span class="pm-coach-log-count"><strong>' + filtered.length + '</strong> of ' + all.length + ' entries</span>' +
+          '<span class="pm-coach-log-count oneonone">' + ooCount + ' 1-on-1' + (ooCount === 1 ? '' : 's') + '</span>' +
+          '<span class="pm-coach-log-count ridealong">' + raCount + ' ride-along' + (raCount === 1 ? '' : 's') + '</span>';
+      }
+
+      if (!all.length) {
+        resultsEl.innerHTML = '<div class="pm-coach-log-empty"><div class="pm-coach-log-empty-icon">🗒️</div>' +
+          '<div class="pm-coach-log-empty-title">No coaching activity yet</div>' +
+          '<div class="pm-coach-log-empty-sub">1-on-1s and ride-alongs added on the Bulletin Board or Manager tab will show up here.</div></div>';
+        return;
+      }
+      if (!filtered.length) {
+        resultsEl.innerHTML = '<div class="pm-coach-log-empty"><div class="pm-coach-log-empty-icon">🔍</div>' +
+          '<div class="pm-coach-log-empty-title">No matches</div>' +
+          '<div class="pm-coach-log-empty-sub">No coaching entries match your filters. Try clearing them.</div></div>';
+        return;
+      }
+
+      var html = '';
+      filtered.forEach(function(e) {
+        var typeLabel = e.kind === 'one-on-one' ? '1-on-1' : 'Ride-Along';
+        var typeCls = e.kind === 'one-on-one' ? 'oneonone' : 'ridealong';
+        var statusCls = 'status-' + (e.status || 'planned');
+        var summary = bestSummaryLine(e);
+        var ctBadge = (e.kind === 'ride-along' && e.data && e.data.callType) ? fmtCallTypeBadge(e.data.callType) : '';
+        html += '<div class="pm-coach-card ' + typeCls + '" data-tech="' + escapeHtml(e.tech) + '" data-kind="' + escapeHtml(e.kind) + '" tabindex="0" role="button" aria-label="Open ' + escapeHtml(typeLabel) + ' history for ' + escapeHtml(e.tech) + '">' +
+          '<div class="pm-coach-card-head">' +
+            '<span class="pm-coach-card-type ' + typeCls + '">' + escapeHtml(typeLabel) + '</span>' +
+            '<span class="pm-coach-card-tech">' + escapeHtml(e.tech || 'Unknown tech') + '</span>' +
+            (ctBadge ? ctBadge : '') +
+            '<span class="pm-coach-card-spacer"></span>' +
+            '<span class="pm-coach-card-date">' + escapeHtml(e.date || 'No date') + (e.time ? ' · ' + escapeHtml(e.time) : '') + '</span>' +
+            '<span class="coach-log-status ' + statusCls + '">' + escapeHtml(e.status || 'planned') + '</span>' +
+          '</div>' +
+          (summary ? '<div class="pm-coach-card-summary">' + escapeHtml(summary) + '</div>' : '<div class="pm-coach-card-summary pm-coach-card-summary-empty">No notes recorded yet — click to open detail.</div>') +
+          '<div class="pm-coach-card-foot"><span class="pm-coach-card-open">Open full detail →</span></div>' +
+          '</div>';
+      });
+      resultsEl.innerHTML = html;
+    }
+
+    // Click to open the detailed read-only modal (reuses v194 openCoachingHistoryDetail)
+    resultsEl.addEventListener('click', function(ev) {
+      var card = ev.target.closest('.pm-coach-card');
+      if (!card) return;
+      var tech = card.getAttribute('data-tech');
+      var kind = card.getAttribute('data-kind');
+      if (typeof window.openCoachingHistoryDetail === 'function' && tech) {
+        window.openCoachingHistoryDetail(tech, kind || 'all');
+      }
+    });
+    resultsEl.addEventListener('keydown', function(ev) {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      var card = ev.target.closest && ev.target.closest('.pm-coach-card');
+      if (!card) return;
+      ev.preventDefault();
+      var tech = card.getAttribute('data-tech');
+      var kind = card.getAttribute('data-kind');
+      if (typeof window.openCoachingHistoryDetail === 'function' && tech) {
+        window.openCoachingHistoryDetail(tech, kind || 'all');
+      }
+    });
+
+    // Filter listeners
+    [techSel, typeSel, fromInp, toInp, sortSel].forEach(function(el) {
+      if (el) el.addEventListener('change', renderResults);
+    });
+    if (searchInp) {
+      var searchTimer;
+      searchInp.addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(renderResults, 120);
+      });
+    }
+
+    // Quick chips (date ranges)
+    document.querySelectorAll('.pm-coach-log-chips .pm-coach-chip[data-pmchip]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var kind = btn.getAttribute('data-pmchip');
+        var today = new Date();
+        var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+        var iso = function(d) { return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); };
+        if (kind === 'this-month') {
+          var first = new Date(today.getFullYear(), today.getMonth(), 1);
+          if (fromInp) fromInp.value = iso(first);
+          if (toInp) toInp.value = iso(today);
+        } else if (kind === 'ytd') {
+          if (fromInp) fromInp.value = today.getFullYear() + '-01-01';
+          if (toInp) toInp.value = iso(today);
+        } else {
+          var n = parseInt(kind, 10);
+          if (!isNaN(n)) {
+            var start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - n);
+            if (fromInp) fromInp.value = iso(start);
+            if (toInp) toInp.value = iso(today);
+          }
+        }
+        renderResults();
+      });
+    });
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function() {
+        if (techSel) techSel.value = '';
+        if (typeSel) typeSel.value = 'all';
+        if (fromInp) fromInp.value = '';
+        if (toInp) toInp.value = '';
+        if (searchInp) searchInp.value = '';
+        if (sortSel) sortSel.value = 'newest';
+        renderResults();
+      });
+    }
+
+    renderResults();
+  }
 
   // ----- Helpers -----
   function pmField(label, key, value, readOnly, type) {

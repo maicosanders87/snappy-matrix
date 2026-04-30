@@ -6418,6 +6418,226 @@
       padding: 6px 0 2px;
     }
 
+    /* v195: Manager Profile — All Coaching Activity (cross-tech log + filters) */
+    .pm-coach-log-section h4 {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .pm-coach-log-sub {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .pm-coach-log-filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .pm-coach-log-filter {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .pm-coach-log-filter-grow {
+      grid-column: span 2;
+      min-width: 200px;
+    }
+    .pm-coach-log-filter label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .pm-coach-log-filter select,
+    .pm-coach-log-filter input {
+      padding: 7px 9px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .pm-coach-log-filter select:focus,
+    .pm-coach-log-filter input:focus {
+      outline: none;
+      border-color: rgba(245, 158, 11, 0.6);
+      box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+    }
+    .pm-coach-log-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .pm-coach-chip {
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(148, 163, 184, 0.08);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+      font-family: inherit;
+    }
+    .pm-coach-chip:hover {
+      background: rgba(245, 158, 11, 0.12);
+      color: #f59e0b;
+      border-color: rgba(245, 158, 11, 0.4);
+      transform: translateY(-1px);
+    }
+    .pm-coach-chip-reset {
+      margin-left: auto;
+      background: rgba(239, 68, 68, 0.08);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+    .pm-coach-chip-reset:hover {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+    .pm-coach-log-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(148, 163, 184, 0.06);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .pm-coach-log-summary:empty { display: none; }
+    .pm-coach-log-count {
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.3px;
+    }
+    .pm-coach-log-count strong { color: var(--text-primary); }
+    .pm-coach-log-count.oneonone { color: #3B82F6; }
+    .pm-coach-log-count.ridealong { color: #10B981; }
+    .pm-coach-log-results {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .pm-coach-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+    .pm-coach-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    }
+    .pm-coach-card.oneonone:hover { border-color: rgba(59, 130, 246, 0.6); background: rgba(59,130,246,0.05); }
+    .pm-coach-card.ridealong:hover { border-color: rgba(16, 185, 129, 0.6); background: rgba(16,185,129,0.05); }
+    .pm-coach-card:focus { outline: 2px solid rgba(245, 158, 11, 0.5); outline-offset: 2px; }
+    .pm-coach-card-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .pm-coach-card-type {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+    .pm-coach-card-type.oneonone { background: rgba(59,130,246,0.15); color: #3B82F6; border: 1px solid rgba(59,130,246,0.3); }
+    .pm-coach-card-type.ridealong { background: rgba(16,185,129,0.15); color: #10B981; border: 1px solid rgba(16,185,129,0.3); }
+    .pm-coach-card-tech {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+    .pm-coach-card-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .pm-coach-card-spacer { flex: 1; }
+    .pm-coach-card-date {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .pm-coach-card-summary {
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .pm-coach-card-summary-empty {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .pm-coach-card-foot {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border);
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+    .pm-coach-card-open { color: var(--text-muted); }
+    .pm-coach-card:hover .pm-coach-card-open { color: #f59e0b; }
+    .pm-coach-log-empty {
+      padding: 24px 16px;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      background: rgba(148, 163, 184, 0.04);
+      text-align: center;
+    }
+    .pm-coach-log-empty-icon {
+      font-size: 28px;
+      margin-bottom: 6px;
+    }
+    .pm-coach-log-empty-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .pm-coach-log-empty-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    @media (max-width: 640px) {
+      .pm-coach-log-filter-grow { grid-column: span 1; }
+      .pm-coach-chip-reset { margin-left: 0; }
+    }
+
     /* ========== Cloud Sync Button & Indicator ========== */
     .sync-now-btn {
       display: inline-flex;
