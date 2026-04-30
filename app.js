@@ -4318,6 +4318,263 @@ document.addEventListener('visibilitychange', function() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
     }
 
+    // v194: Coaching History detail modal — opened from clickable pills on Profile cards
+    // type: 'one-on-one' | 'ride-along' | 'all'
+    function openCoachingHistoryDetail(tech, type) {
+      try {
+        var bb = bbLoad();
+        var bbOO = (bb.oneOnOnes || []).filter(function(o) { return o.tech === tech; });
+        var bbRA = (bb.rideAlongs || []).filter(function(r) { return r.tech === tech; });
+        // Index richer mgrState entries by id for matched lookup
+        var mgrById = {};
+        try {
+          if (typeof mgrState !== 'undefined' && mgrState && Array.isArray(mgrState.entries)) {
+            mgrState.entries.forEach(function(e) { if (e && e.id) mgrById[e.id] = e; });
+          }
+        } catch(_) {}
+
+        function decorate(bbEntry, kind) {
+          var rich = mgrById[bbEntry.id];
+          return {
+            id: bbEntry.id,
+            kind: kind,
+            tech: bbEntry.tech,
+            date: bbEntry.date || (rich && rich.date) || '',
+            time: bbEntry.time || (rich && rich.time) || '',
+            status: bbEntry.status || (rich && rich.status) || 'planned',
+            notes: bbEntry.notes || '',
+            data: rich && rich.data ? rich.data : null,
+            updatedAt: rich ? rich.updatedAt : null,
+            createdAt: rich ? rich.createdAt : null
+          };
+        }
+
+        var ooList = bbOO.map(function(e) { return decorate(e, 'one-on-one'); })
+          .sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
+        var raList = bbRA.map(function(e) { return decorate(e, 'ride-along'); })
+          .sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
+
+        var showOO = (type === 'one-on-one' || type === 'all');
+        var showRA = (type === 'ride-along' || type === 'all');
+
+        var titleLabel = type === 'one-on-one' ? '1-on-1 History'
+                       : type === 'ride-along' ? 'Ride-Along History'
+                       : 'Coaching History';
+        var accent = type === 'ride-along' ? '#10B981' : '#3B82F6';
+        var accentBg = type === 'ride-along' ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.15)';
+
+        // Remove any existing modal
+        var existing = document.getElementById('coachHistoryModal');
+        if (existing) existing.remove();
+
+        var bodyHtml = '';
+        if (showOO) {
+          bodyHtml += '<div class="ch-detail-section">';
+          bodyHtml += '<div class="ch-detail-section-title oneonone">🤝 1-on-1 Sessions <span class="ch-detail-count">' + ooList.length + '</span></div>';
+          if (ooList.length === 0) {
+            bodyHtml += '<div class="ch-detail-empty">No 1-on-1s recorded for ' + escHtml(tech) + ' yet.</div>';
+          } else {
+            ooList.forEach(function(e) { bodyHtml += renderCoachHistoryEntry(e); });
+          }
+          bodyHtml += '</div>';
+        }
+        if (showRA) {
+          bodyHtml += '<div class="ch-detail-section">';
+          bodyHtml += '<div class="ch-detail-section-title ridealong">🚐 Ride-Alongs <span class="ch-detail-count">' + raList.length + '</span></div>';
+          if (raList.length === 0) {
+            bodyHtml += '<div class="ch-detail-empty">No ride-alongs recorded for ' + escHtml(tech) + ' yet.</div>';
+          } else {
+            raList.forEach(function(e) { bodyHtml += renderCoachHistoryEntry(e); });
+          }
+          bodyHtml += '</div>';
+        }
+
+        var modal = document.createElement('div');
+        modal.id = 'coachHistoryModal';
+        modal.className = 'log-entry-modal-overlay coach-history-modal-overlay';
+        modal.innerHTML =
+          '<div class="log-entry-modal coach-history-modal" style="border-top:4px solid ' + accent + '">' +
+            '<div class="log-entry-modal-header">' +
+              '<div class="log-entry-modal-title">' +
+                '<span class="log-entry-modal-badge" style="background:' + accentBg + ';color:' + accent + '">' + escHtml(titleLabel) + '</span>' +
+                '<span>' + escHtml(tech) + '</span>' +
+              '</div>' +
+              '<button class="log-entry-modal-close" id="coachHistModalClose" aria-label="Close">&times;</button>' +
+            '</div>' +
+            '<div class="log-entry-modal-body coach-history-modal-body">' + bodyHtml + '</div>' +
+          '</div>';
+        document.body.appendChild(modal);
+
+        var close = function() { var m = document.getElementById('coachHistoryModal'); if (m) m.remove(); document.removeEventListener('keydown', onKey); };
+        var onKey = function(e) { if (e.key === 'Escape') close(); };
+        modal.addEventListener('click', function(e) { if (e.target === modal) close(); });
+        var btn = document.getElementById('coachHistModalClose');
+        if (btn) btn.addEventListener('click', close);
+        document.addEventListener('keydown', onKey);
+      } catch(err) {
+        try { console.error('openCoachingHistoryDetail failed', err); } catch(_) {}
+      }
+    }
+    window.openCoachingHistoryDetail = openCoachingHistoryDetail;
+
+    function renderCoachHistoryEntry(e) {
+      var statusClass = 'status-' + (e.status || 'planned');
+      var html = '<div class="ch-entry">';
+      html += '<div class="ch-entry-head">';
+      html += '<div class="ch-entry-head-left">';
+      html += '<span class="ch-entry-date">' + escHtml(e.date || 'No date') + '</span>';
+      if (e.time) html += '<span class="ch-entry-time">' + escHtml(e.time) + '</span>';
+      html += '</div>';
+      html += '<span class="coach-log-status ' + statusClass + '">' + escHtml(e.status || 'planned') + '</span>';
+      html += '</div>';
+
+      var d = e.data || {};
+      var anyDetail = false;
+
+      if (e.kind === 'ride-along') {
+        // Call type pill
+        if (d.callType) {
+          var ctLabel = d.callType === 'maintenance' ? 'Maintenance Call' : (d.callType === 'demand' ? 'Demand / Service Call' : d.callType);
+          var ctColor = d.callType === 'maintenance' ? '#0EA5E9' : '#F59E0B';
+          html += '<div class="ch-entry-row"><span class="ch-entry-label">Call Type</span><span class="ch-entry-tag" style="background:' + ctColor + '22;color:' + ctColor + ';border:1px solid ' + ctColor + '55">' + escHtml(ctLabel) + '</span></div>';
+          anyDetail = true;
+        }
+        if (d.custIssue) { html += renderChField('Customer Issue / Symptom', d.custIssue); anyDetail = true; }
+        if (d.actualDiagnosis) { html += renderChField('Actual Diagnosis / Root Cause', d.actualDiagnosis); anyDetail = true; }
+        if (d.repairPerformed) { html += renderChField('Repair Performed / Options Presented', d.repairPerformed); anyDetail = true; }
+        if (d.callOutcome) { html += renderChField('Outcome', d.callOutcome); anyDetail = true; }
+
+        // Maintenance flow detail
+        if (d.callType === 'maintenance' && d.maintenance) {
+          var m = d.maintenance;
+          var maintChecks = collectChecks(m, [
+            ['hk_arrival', 'On-time arrival'],
+            ['hk_uniform', 'Uniform / appearance'],
+            ['hk_floor', 'Floor / shoe protection'],
+            ['intro_greet', 'Customer greet & intro'],
+            ['filter_check', 'Filter check / replace'],
+            ['coil_clean', 'Coil cleaning / inspection'],
+            ['drain_clear', 'Condensate / drain check'],
+            ['amps_measured', 'Amp draws measured'],
+            ['pressures_measured', 'Refrigerant pressures'],
+            ['delta_t', 'ΔT supply/return'],
+            ['safeties_tested', 'Safeties tested'],
+            ['photos_uploaded', 'Photos uploaded'],
+            ['rec_membership', 'Membership / maintenance plan offered'],
+            ['rec_repair', 'Repair recommendation made'],
+            ['rec_replace', 'Replacement option presented']
+          ]);
+          if (maintChecks.length) { html += renderChChecks('Maintenance Checks', maintChecks); anyDetail = true; }
+          if (m.findings) { html += renderChField('Findings', m.findings); anyDetail = true; }
+          if (m.recommendations) { html += renderChField('Recommendations', m.recommendations); anyDetail = true; }
+          if (m.notes) { html += renderChField('Maintenance Notes', m.notes); anyDetail = true; }
+        }
+
+        // Demand flow detail
+        if (d.callType === 'demand' && d.demand) {
+          var dem = d.demand;
+          if (dem.symptom) { html += renderChField('Symptom (customer’s words)', dem.symptom); anyDetail = true; }
+          if (dem.onset) { html += renderChField('Onset', dem.onset); anyDetail = true; }
+          if (dem.history) { html += renderChField('System History', dem.history); anyDetail = true; }
+          if (dem.expectations) { html += renderChField('Customer Expectations', dem.expectations); anyDetail = true; }
+          var diagChecks = collectChecks(dem, [
+            ['diag_visual', 'Visual inspection'],
+            ['diag_thermostat', 'Thermostat & call-for'],
+            ['diag_voltage', 'Line / control voltage'],
+            ['diag_amp', 'Amp draws'],
+            ['diag_pressures', 'Refrigerant pressures'],
+            ['diag_temps', 'Supply / return temps & ΔT'],
+            ['diag_capacitor', 'Capacitor under load'],
+            ['diag_safeties', 'Safety circuits / floats'],
+            ['diag_airflow', 'Airflow / static pressure']
+          ]);
+          if (diagChecks.length) { html += renderChChecks('Diagnostic Steps', diagChecks); anyDetail = true; }
+          if (dem.diagSteps) { html += renderChField('Diagnostic Walkthrough', dem.diagSteps); anyDetail = true; }
+          if (dem.rootCause) { html += renderChField('Root Cause', dem.rootCause); anyDetail = true; }
+          if (dem.contributing) { html += renderChField('Contributing Factors', dem.contributing); anyDetail = true; }
+          if (dem.explained) { html += renderChField('How Explained to Customer', dem.explained); anyDetail = true; }
+          var optChecks = collectChecks(dem, [
+            ['opt_repair', 'Repair option'],
+            ['opt_replace_component', 'Component replacement'],
+            ['opt_replace_system', 'System replacement'],
+            ['opt_membership', 'Membership offered'],
+            ['opt_financing', 'Financing presented']
+          ]);
+          if (optChecks.length) { html += renderChChecks('Options Presented', optChecks); anyDetail = true; }
+          if (dem.options) { html += renderChField('Good / Better / Best', dem.options); anyDetail = true; }
+          if (dem.decision) { html += renderChField('Customer Decision', dem.decision); anyDetail = true; }
+          var postChecks = collectChecks(dem, [
+            ['post_cycle', 'Cycle-tested heat & cool'],
+            ['post_pressures', 'Pressures / SH / SC re-verified'],
+            ['post_temps', 'ΔT confirmed in spec'],
+            ['post_amps', 'Amp draws re-measured'],
+            ['post_safeties', 'Safeties confirmed'],
+            ['post_walkthrough', 'Walkthrough with customer'],
+            ['post_photos', 'Before / after photos'],
+            ['post_review', 'Review / referral asked']
+          ]);
+          if (postChecks.length) { html += renderChChecks('Post-Repair Verification', postChecks); anyDetail = true; }
+          if (dem.postReadings) { html += renderChField('Post-Repair Readings', dem.postReadings); anyDetail = true; }
+          if (dem.leftIn) { html += renderChField('System Left In', dem.leftIn); anyDetail = true; }
+        }
+
+        if (d.debriefManagerBetter) { html += renderChField('Debrief — Manager: What could be better', d.debriefManagerBetter); anyDetail = true; }
+        if (d.debriefTechBetter) { html += renderChField('Debrief — Tech: What could be better', d.debriefTechBetter); anyDetail = true; }
+        if (d.debriefManagerWin) { html += renderChField('Debrief — Manager: What a WIN looks like', d.debriefManagerWin); anyDetail = true; }
+        if (d.debriefTechWin) { html += renderChField('Debrief — Tech: What a WIN looks like', d.debriefTechWin); anyDetail = true; }
+
+        if (d.observationNotes) { html += renderChField('Observation Notes', d.observationNotes); anyDetail = true; }
+        if (d.nextSteps) { html += renderChField('Next Steps', d.nextSteps); anyDetail = true; }
+        if (d.nssGreetScores && d.nssGreetScores.total) {
+          html += '<div class="ch-entry-row"><span class="ch-entry-label">NSS Greet Score</span><span class="ch-entry-tag">' + escHtml(String(d.nssGreetScores.total)) + ' / 100</span></div>';
+          anyDetail = true;
+        }
+      } else if (e.kind === 'one-on-one') {
+        if (d.customFocus) { html += renderChField('Focus / Topic', d.customFocus); anyDetail = true; }
+        if (d.coveredSummary) { html += renderChField('What Was Covered', d.coveredSummary); anyDetail = true; }
+        if (d.actionItems) { html += renderChField('Action Items', d.actionItems); anyDetail = true; }
+        if (d.followUp) { html += renderChField('Follow-Up', d.followUp); anyDetail = true; }
+        if (d.redBarn && d.redBarn.include) {
+          if (d.redBarn.scenario) { html += renderChField('Red Barn — Scenario', d.redBarn.scenario); anyDetail = true; }
+          if (d.redBarn.outcome) { html += renderChField('Red Barn — Outcome', d.redBarn.outcome); anyDetail = true; }
+        }
+        if (d.housekeepingNotes) { html += renderChField('Housekeeping Notes', d.housekeepingNotes); anyDetail = true; }
+      }
+
+      // Generic notes (from BB) — always show if present and not duplicated
+      if (e.notes && (!d || (d.customFocus !== e.notes && d.observationNotes !== e.notes))) {
+        html += renderChField('Notes', e.notes);
+        anyDetail = true;
+      }
+      if (d && d.rescheduleReason) { html += renderChField('Reschedule Reason', d.rescheduleReason); anyDetail = true; }
+
+      if (!anyDetail) {
+        html += '<div class="ch-entry-empty">No additional details saved for this entry.</div>';
+      }
+      html += '</div>';
+      return html;
+    }
+
+    function renderChField(label, value) {
+      return '<div class="ch-entry-field"><div class="ch-entry-label">' + escHtml(label) + '</div><div class="ch-entry-value">' + escHtml(String(value)).replace(/\n/g, '<br>') + '</div></div>';
+    }
+
+    function renderChChecks(label, items) {
+      var html = '<div class="ch-entry-field"><div class="ch-entry-label">' + escHtml(label) + '</div><div class="ch-entry-checks">';
+      items.forEach(function(it) {
+        html += '<span class="ch-check-pill"><span class="ch-check-tick">✓</span>' + escHtml(it) + '</span>';
+      });
+      html += '</div></div>';
+      return html;
+    }
+
+    function collectChecks(obj, defs) {
+      var out = [];
+      if (!obj) return out;
+      defs.forEach(function(pair) { if (obj[pair[0]]) out.push(pair[1]); });
+      return out;
+    }
+
     // Seed bulletin board updates on first load
     (function bbSeedUpdates() {
       var bb = bbLoad();
@@ -5840,46 +6097,18 @@ if (typeof Chart !== 'undefined') {
                 .slice().sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
               var rideAlongs = (bb.rideAlongs || []).filter(function(r) { return r.tech === t.short; })
                 .slice().sort(function(a,b) { return (b.date||'').localeCompare(a.date||''); });
-              if (oneOnOnes.length === 0 && rideAlongs.length === 0) return '';
               var lastOO = oneOnOnes.length ? oneOnOnes[0].date : '\u2014';
               var lastRA = rideAlongs.length ? rideAlongs[0].date : '\u2014';
-              var sectionId = 'coach-log-' + t.short;
-              var out = '<div class="coach-log-section profile-section-link" onclick="navigateToKpi(\'overview\',\'\')">';
-              out += '<div class="coach-log-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Coaching History <span class="profile-section-arrow">&rarr;</span></div>';
+              var totalEntries = oneOnOnes.length + rideAlongs.length;
+              var techShort = String(t.short).replace(/'/g,"\\'");
+              var out = '<div class="coach-log-section">';
+              out += '<div class="coach-log-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Coaching History <span class="coach-log-hint">click a card to read entries</span></div>';
               out += '<div class="coach-log-summary">';
-              out += '<div class="coach-log-pill oneonone"><span class="coach-log-pill-count">' + oneOnOnes.length + '</span><span class="coach-log-pill-label">1-on-1s</span><span class="coach-log-pill-last">last ' + escHtml(lastOO) + '</span></div>';
-              out += '<div class="coach-log-pill ridealong"><span class="coach-log-pill-count">' + rideAlongs.length + '</span><span class="coach-log-pill-label">Ride-Alongs</span><span class="coach-log-pill-last">last ' + escHtml(lastRA) + '</span></div>';
-              out += '<button class="coach-log-toggle" onclick="event.stopPropagation();var el=document.getElementById(\'' + sectionId + '\');if(el){el.classList.toggle(\'open\');this.textContent=el.classList.contains(\'open\')?\'Hide details\':\'Show details\';}">Show details</button>';
+              out += '<button type="button" class="coach-log-pill oneonone clickable" onclick="openCoachingHistoryDetail(\'' + techShort + '\',\'one-on-one\')" title="View all 1-on-1 entries for ' + escHtml(t.short) + '"><span class="coach-log-pill-count">' + oneOnOnes.length + '</span><span class="coach-log-pill-label">1-on-1s</span><span class="coach-log-pill-last">last ' + escHtml(lastOO) + '</span><span class="coach-log-pill-arrow">&rarr;</span></button>';
+              out += '<button type="button" class="coach-log-pill ridealong clickable" onclick="openCoachingHistoryDetail(\'' + techShort + '\',\'ride-along\')" title="View all Ride-Along entries for ' + escHtml(t.short) + '"><span class="coach-log-pill-count">' + rideAlongs.length + '</span><span class="coach-log-pill-label">Ride-Alongs</span><span class="coach-log-pill-last">last ' + escHtml(lastRA) + '</span><span class="coach-log-pill-arrow">&rarr;</span></button>';
+              out += '<button type="button" class="coach-log-pill total clickable" onclick="openCoachingHistoryDetail(\'' + techShort + '\',\'all\')" title="View all coaching entries for ' + escHtml(t.short) + '"><span class="coach-log-pill-count">' + totalEntries + '</span><span class="coach-log-pill-label">Total Entries</span><span class="coach-log-pill-arrow">&rarr;</span></button>';
               out += '</div>';
-              out += '<div class="coach-log-details" id="' + sectionId + '">';
-              out += '<div class="coach-log-grid">';
-              if (oneOnOnes.length > 0) {
-                out += '<div class="coach-log-col">';
-                out += '<div class="coach-log-col-header oneonone">\ud83e\udd1d 1-on-1s</div>';
-                oneOnOnes.forEach(function(e) {
-                  var statusClass = 'status-' + (e.status || 'planned');
-                  out += '<div class="coach-log-entry">';
-                  out += '<div class="coach-log-entry-top"><span class="coach-log-date">' + escHtml(e.date) + '</span><span class="coach-log-status ' + statusClass + '">' + escHtml(e.status || 'planned') + '</span></div>';
-                  if (e.time) out += '<div class="coach-log-time">' + escHtml(e.time) + '</div>';
-                  if (e.notes) out += '<div class="coach-log-notes">' + escHtml(e.notes) + '</div>';
-                  out += '</div>';
-                });
-                out += '</div>';
-              }
-              if (rideAlongs.length > 0) {
-                out += '<div class="coach-log-col">';
-                out += '<div class="coach-log-col-header ridealong">\ud83d\ude90 Ride-Alongs</div>';
-                rideAlongs.forEach(function(e) {
-                  var statusClass = 'status-' + (e.status || 'planned');
-                  out += '<div class="coach-log-entry">';
-                  out += '<div class="coach-log-entry-top"><span class="coach-log-date">' + escHtml(e.date) + '</span><span class="coach-log-status ' + statusClass + '">' + escHtml(e.status || 'planned') + '</span></div>';
-                  if (e.time) out += '<div class="coach-log-time">' + escHtml(e.time) + '</div>';
-                  if (e.notes) out += '<div class="coach-log-notes">' + escHtml(e.notes) + '</div>';
-                  out += '</div>';
-                });
-                out += '</div>';
-              }
-              out += '</div></div></div>';
+              out += '</div>';
               return out;
             })()}
 

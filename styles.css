@@ -6227,6 +6227,197 @@
       line-height: 1.4;
     }
 
+    /* v194: clickable Coaching History pills + detail modal */
+    .coach-log-hint {
+      margin-left: auto;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+    .coach-log-pill.clickable {
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+      font: inherit;
+    }
+    .coach-log-pill.clickable:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    }
+    .coach-log-pill.clickable.oneonone:hover {
+      border-color: rgba(59,130,246,0.7);
+      background: rgba(59,130,246,0.10);
+    }
+    .coach-log-pill.clickable.ridealong:hover {
+      border-color: rgba(16,185,129,0.7);
+      background: rgba(16,185,129,0.10);
+    }
+    .coach-log-pill.total {
+      border-color: rgba(148,163,184,0.35);
+    }
+    .coach-log-pill.total .coach-log-pill-count { color: #94A3B8; }
+    .coach-log-pill.clickable.total:hover {
+      border-color: rgba(148,163,184,0.7);
+      background: rgba(148,163,184,0.10);
+    }
+    .coach-log-pill-arrow {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-left: 2px;
+      transition: transform 0.15s ease, color 0.15s ease;
+    }
+    .coach-log-pill.clickable:hover .coach-log-pill-arrow {
+      transform: translateX(2px);
+      color: var(--text-primary);
+    }
+
+    .coach-history-modal {
+      max-width: 720px !important;
+    }
+    .coach-history-modal-body {
+      padding: 16px 20px 20px;
+    }
+    .ch-detail-section + .ch-detail-section {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+    .ch-detail-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+    }
+    .ch-detail-section-title.oneonone { color: #3B82F6; }
+    .ch-detail-section-title.ridealong { color: #10B981; }
+    .ch-detail-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(148,163,184,0.15);
+      color: var(--text-secondary);
+      letter-spacing: 0;
+    }
+    .ch-detail-section-title.oneonone .ch-detail-count {
+      background: rgba(59,130,246,0.15);
+      color: #3B82F6;
+    }
+    .ch-detail-section-title.ridealong .ch-detail-count {
+      background: rgba(16,185,129,0.15);
+      color: #10B981;
+    }
+    .ch-detail-empty {
+      padding: 18px 14px;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      background: rgba(148,163,184,0.04);
+    }
+    .ch-entry {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .ch-entry:last-child { margin-bottom: 0; }
+    .ch-entry-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .ch-entry-head-left {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .ch-entry-date {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+    .ch-entry-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .ch-entry-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 6px 0;
+      flex-wrap: wrap;
+    }
+    .ch-entry-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      background: rgba(148,163,184,0.15);
+      color: var(--text-primary);
+    }
+    .ch-entry-field {
+      margin: 8px 0;
+    }
+    .ch-entry-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+    .ch-entry-value {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .ch-entry-checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .ch-check-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(16,185,129,0.10);
+      color: #10B981;
+      border: 1px solid rgba(16,185,129,0.25);
+    }
+    .ch-check-tick { font-size: 11px; font-weight: 800; }
+    .ch-entry-empty {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 6px 0 2px;
+    }
+
     /* ========== Cloud Sync Button & Indicator ========== */
     .sync-now-btn {
       display: inline-flex;
