@@ -2141,6 +2141,42 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260427IfNeeded failed', e); }
     }
 
+    // v197: One-shot Thursday Apr 30, 2026 ADD-ON seed for week 2026-04-27.
+    // Adds Thursday's daily numbers on top of Mon+Tue+Wed totals already seeded.
+    // Sources: today's Nexstar productivity + Membership screenshots (4/30/26).
+    // Daily 4/30 per tech:
+    //   Dewone:  $362 svc, 100% conv, 2.5 sold hrs, 2 tasks/call, 0 mem opps
+    //   Benji (Ben Tinahui): $0 svc, 4.0 sold hrs, 0 mem opps
+    //   Dee:     $0 svc, 1.0 sold hr, 0 mem opps
+    //   Daniel:  $0 svc, 4.0 sold hrs, 0 mem opps
+    //   Chris:   $0 svc, 1 TGL, 2.5 sold hrs, 0 mem opps
+    // No installs today (team-wide). Mark Sanders shown in Nexstar table as manager (2.75 sold hrs) — not a WLB tech.
+    function _wlbSeedDay20260430IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_04_30_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var d = _wlbLoad();
+        var WEEK = '2026-04-27';
+        var existing = d[WEEK] || {};
+        function add(short, svc, ic, ir, ms, mo) {
+          var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+          existing[short] = {
+            service:      (prev.service || 0)      + svc,
+            installCount: (prev.installCount || 0) + ic,
+            installRev:   (prev.installRev || 0)   + ir,
+            memSold:      (prev.memSold || 0)      + ms,
+            memOpps:      (prev.memOpps || 0)      + mo
+          };
+        }
+        add('Dewone', 362, 0, 0, 0, 0);
+        // Benji, Dee, Daniel, Chris all $0 svc / 0 installs / 0 mem opps today — nothing to add
+        d[WEEK] = existing;
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260430IfNeeded failed', e); }
+    }
+
     // v189: One-shot Wednesday Apr 29, 2026 ADD-ON seed for week 2026-04-27.
     // Adds Wednesday's daily numbers on top of Mon+Tue totals already seeded by v167+v175.
     // Sources: IMG_0196 (Nexstar daily), IMG_0197 (Memberships).
@@ -4644,7 +4680,8 @@ document.addEventListener('visibilitychange', function() {
         'st_update_20260418': { date: '2026-04-18', text: 'ServiceTitan scorecard data refreshed (4/18/26 4:30 PM). Key changes: Dewone revenue up to $25,675 (+$1,838), conversion 79%. Benji revenue $18,238 (+$1,420), conversion improved to 56%. Daniel revenue $19,162 (+$2,364), conversion 64%. Chris revenue $15,359 (+$552), conversion 55%. Chris install count 12 ($151K). Memberships: Benji up to 2 sold (8%), Chris 6 sold (32%). Team total MTD revenue $84,850.' },
         'st_update_20260427_mtd': { date: '2026-04-27', text: 'MTD refresh (4/27/26). Dewone +1 install ($24,316 \u2014 Martha Futral) bumps installs to 3 / $51,363. Daniel service rev +$602 \u2192 $8,484 MTD. Dee service rev +$322 \u2192 $2,854 MTD with first membership sold (1/1, 100%). Chris adds 1 mem opp (4/8 = 50%). Team MTD service rev $36,267 \u2022 Team MTD installs 10 ($137K).' },
         'st_update_20260428_mtd': { date: '2026-04-28', text: 'Daily refresh (4/28/26). Benji +$444 svc + 1 install $9,060 (Nellie Ellis) \u2192 8,620 svc / 3 installs / $29,514 install rev MTD. Daniel +$1,287 svc \u2192 $9,771 MTD. Chris +$275 svc + 2 mem opps (no sale) \u2192 $6,860 svc / 4-of-10 mem (40%) MTD. Dee, Dewone $0 daily. Brayden 1 mem opp. Team MTD service rev $38,273 \u2022 Team MTD installs 11 ($146K). Nick Goehler day 1 \u2014 onboarding only.' },
-        'st_update_20260429_mtd': { date: '2026-04-29', text: 'Daily refresh (4/29/26). No installs today. Dee +$1,064 svc (100% conv, $1,064 avg) \u2192 $3,918 svc MTD. Chris +$1,064 svc (100% conv, $1,064 avg) \u2192 $7,924 svc / 4-of-10 mem (40%) MTD. Dewone +$158 svc + 1 TGL \u2192 $10,326 svc / 12 TGL MTD. Benji $0 svc (3.5 billable hrs, no opps) \u2192 $8,620 svc MTD held. Daniel $0 svc (1 sold hr, no opps) \u2192 $9,771 svc MTD held. Team daily $2,286 svc / 9.7 sold hrs / 1 TGL. Team MTD service rev $40,559 \u2022 Team MTD installs 11 ($146K) held.' }
+        'st_update_20260429_mtd': { date: '2026-04-29', text: 'Daily refresh (4/29/26). No installs today. Dee +$1,064 svc (100% conv, $1,064 avg) \u2192 $3,918 svc MTD. Chris +$1,064 svc (100% conv, $1,064 avg) \u2192 $7,924 svc / 4-of-10 mem (40%) MTD. Dewone +$158 svc + 1 TGL \u2192 $10,326 svc / 12 TGL MTD. Benji $0 svc (3.5 billable hrs, no opps) \u2192 $8,620 svc MTD held. Daniel $0 svc (1 sold hr, no opps) \u2192 $9,771 svc MTD held. Team daily $2,286 svc / 9.7 sold hrs / 1 TGL. Team MTD service rev $40,559 \u2022 Team MTD installs 11 ($146K) held.' },
+        'st_update_20260430_mtd': { date: '2026-04-30', text: 'Daily refresh (4/30/26). No installs today. Dewone +$362 svc (100% conv on 1 call, $362 avg, 2.5 sold hrs, 2 tasks/call) \u2192 $10,688 svc MTD. Benji (Ben Tinahui) $0 svc (4.0 sold hrs, 0.5 tech sold-hr efficiency, no opps). Dee $0 svc (1.0 sold hr, no opps). Daniel $0 svc (4.0 sold hrs, no opps). Chris $0 svc (2.5 sold hrs, 1 TGL, no opps). Memberships: 0 sold / 0 opps team-wide today. Team daily $362 svc / 16.75 sold hrs / 1 TGL / 0 installs. Team MTD installs 11 ($146K) held.' }
       };
       var changed = false;
       Object.keys(seededIds).forEach(function(sid) {
@@ -12729,6 +12766,7 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260427IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260428IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260429IfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260430IfNeeded(); } catch(e) {}
     try { renderWeeklyLeaderboard(); } catch(e) { console.warn('renderWeeklyLeaderboard init failed', e); }
     renderProgression();
     renderSTKPIs();
