@@ -8911,10 +8911,24 @@ if (typeof Chart !== 'undefined') {
       const techNames = Object.keys(skillsData.assignments);
       const calls = data.calls && data.calls.length ? data.calls : [''];
       const obs = data.observations || {};
+      const callType = data.callType || '';
+      const maint = data.maintenance || {};
+      const demand = data.demand || {};
 
       const existingRTime = existing && existing.time ? existing.time : (data.time || '');
       const html = `
         <form id="mgrRideAlongForm" onsubmit="return mgrSubmitRideAlong(event, '${existing ? existing.id : ''}', '${dateStr}');">
+          <div class="mgr-form-section">
+            <div class="mgr-form-section-title">Call Type <span style="color:#dc2626;font-weight:700;">*</span></div>
+            <div class="mgr-form-row">
+              <div class="mgr-radio-group" id="r_callTypeGroup">
+                <label class="mgr-radio"><input type="radio" name="r_callType" value="maintenance" ${callType==='maintenance'?'checked':''} onchange="mgrToggleCallTypeSections()" required> Maintenance Call</label>
+                <label class="mgr-radio"><input type="radio" name="r_callType" value="demand" ${callType==='demand'?'checked':''} onchange="mgrToggleCallTypeSections()" required> Demand / Service Call</label>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Select a call type to load the matching ride-along checklist.</div>
+            </div>
+          </div>
+
           <div class="mgr-form-section">
             <div class="mgr-form-section-title">Session Details</div>
             <div class="mgr-form-row">
@@ -8967,6 +8981,194 @@ if (typeof Chart !== 'undefined') {
               `).join('')}
             </div>
             <button type="button" class="mgr-btn secondary sm" onclick="mgrAddCallRow()">+ Add another call</button>
+          </div>
+
+          <div id="r_maintenanceSections" style="display:none;">
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Maintenance Inspection</div>
+              <div class="mgr-check-list">
+                <label class="mgr-check"><input type="checkbox" data-maint="inspect_filter" ${maint.inspect_filter?'checked':''}><span>Filter inspected / replaced</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="inspect_coil" ${maint.inspect_coil?'checked':''}><span>Indoor & outdoor coils inspected (cleaned if needed)</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="inspect_blower" ${maint.inspect_blower?'checked':''}><span>Blower wheel & motor inspected</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="inspect_drain" ${maint.inspect_drain?'checked':''}><span>Condensate drain & pan flushed/treated</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="inspect_electrical" ${maint.inspect_electrical?'checked':''}><span>Electrical connections tightened & inspected</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="inspect_capacitors" ${maint.inspect_capacitors?'checked':''}><span>Capacitors tested (within tolerance)</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="inspect_contactor" ${maint.inspect_contactor?'checked':''}><span>Contactor inspected for pitting</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="inspect_safeties" ${maint.inspect_safeties?'checked':''}><span>Safety controls / float switches verified</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="inspect_combustion" ${maint.inspect_combustion?'checked':''}><span>Combustion / heat exchanger inspected (if gas)</span></label>
+              </div>
+              <div class="mgr-form-row" style="margin-top:10px;">
+                <label class="mgr-form-label">Inspection Notes</label>
+                <textarea class="mgr-textarea" id="r_maint_inspectNotes" rows="2" placeholder="Anything noteworthy from the visual inspection...">${mgrEscape(maint.inspectNotes||'')}</textarea>
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">System Readings</div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Supply / Return temps (°F) — Δ T</label>
+                <input type="text" class="mgr-input" id="r_maint_deltaT" placeholder="e.g. 75 / 56 — ΔT 19" value="${mgrEscape(maint.deltaT||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Refrigerant pressures (suction / liquid)</label>
+                <input type="text" class="mgr-input" id="r_maint_pressures" placeholder="e.g. 118 / 245 psi" value="${mgrEscape(maint.pressures||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Superheat / Subcool</label>
+                <input type="text" class="mgr-input" id="r_maint_shsc" placeholder="e.g. SH 12 / SC 10" value="${mgrEscape(maint.shsc||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Amp draws (compressor / blower / condenser fan)</label>
+                <input type="text" class="mgr-input" id="r_maint_amps" placeholder="e.g. Comp 12.4 / Blower 3.1 / Fan 1.2" value="${mgrEscape(maint.amps||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Capacitor readings (rated vs measured)</label>
+                <input type="text" class="mgr-input" id="r_maint_capReadings" placeholder="e.g. 45/5 rated → 43.8/4.6 measured" value="${mgrEscape(maint.capReadings||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Static pressure (TESP / inWC)</label>
+                <input type="text" class="mgr-input" id="r_maint_static" placeholder="e.g. 0.82 inWC" value="${mgrEscape(maint.staticPressure||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Other readings / notes</label>
+                <textarea class="mgr-textarea" id="r_maint_otherReadings" rows="2">${mgrEscape(maint.otherReadings||'')}</textarea>
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Maintenance Recommendations</div>
+              <div class="mgr-check-list">
+                <label class="mgr-check"><input type="checkbox" data-maint="rec_capacitor" ${maint.rec_capacitor?'checked':''}><span>Weak capacitor — recommended replacement</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="rec_contactor" ${maint.rec_contactor?'checked':''}><span>Pitted contactor — recommended replacement</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="rec_surge" ${maint.rec_surge?'checked':''}><span>Surge protection recommended</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="rec_iaq" ${maint.rec_iaq?'checked':''}><span>IAQ accessory (UV / filter / dehumidifier) recommended</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="rec_duct" ${maint.rec_duct?'checked':''}><span>Duct repair / sealing recommended</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="rec_replace" ${maint.rec_replace?'checked':''}><span>System replacement option presented</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="rec_membership" ${maint.rec_membership?'checked':''}><span>Membership / maintenance plan offered</span></label>
+              </div>
+              <div class="mgr-form-row" style="margin-top:10px;">
+                <label class="mgr-form-label">Recommendation Notes</label>
+                <textarea class="mgr-textarea" id="r_maint_recNotes" rows="2" placeholder="Specifics on what was recommended and why...">${mgrEscape(maint.recNotes||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Quoted / sold amount</label>
+                <input type="text" class="mgr-input" id="r_maint_amount" placeholder="e.g. $185 capacitor / $85 surge" value="${mgrEscape(maint.amount||'')}">
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Maintenance Completion</div>
+              <div class="mgr-check-list">
+                <label class="mgr-check"><input type="checkbox" data-maint="comp_cleaned" ${maint.comp_cleaned?'checked':''}><span>Equipment cleaned & restored to operation</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="comp_tested" ${maint.comp_tested?'checked':''}><span>Cycle tested in heat & cool</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="comp_thermostat" ${maint.comp_thermostat?'checked':''}><span>Thermostat verified / set to customer preference</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="comp_photos" ${maint.comp_photos?'checked':''}><span>Before / after photos uploaded</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="comp_invoice" ${maint.comp_invoice?'checked':''}><span>Invoice presented & customer signed</span></label>
+                <label class="mgr-check"><input type="checkbox" data-maint="comp_review" ${maint.comp_review?'checked':''}><span>Review / referral asked</span></label>
+              </div>
+              <div class="mgr-form-row" style="margin-top:10px;">
+                <label class="mgr-form-label">Customer left with…</label>
+                <textarea class="mgr-textarea" id="r_maint_leftWith" rows="2" placeholder="System status, accepted/declined recs, follow-ups...">${mgrEscape(maint.leftWith||'')}</textarea>
+              </div>
+            </div>
+          </div>
+
+          <div id="r_demandSections" style="display:none;">
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Problem Discovery</div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Customer-reported symptom</label>
+                <textarea class="mgr-textarea" id="r_dem_symptom" rows="2" placeholder="In customer's own words — what brought us out?">${mgrEscape(demand.symptom||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">When did it start? Recent changes?</label>
+                <input type="text" class="mgr-input" id="r_dem_onset" placeholder="e.g. Started 3 days ago after storm" value="${mgrEscape(demand.onset||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Equipment age & history</label>
+                <input type="text" class="mgr-input" id="r_dem_history" placeholder="e.g. 12yr Carrier — 2 prior repairs" value="${mgrEscape(demand.history||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Customer expectations / urgency</label>
+                <textarea class="mgr-textarea" id="r_dem_expectations" rows="2">${mgrEscape(demand.expectations||'')}</textarea>
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Diagnostic Process</div>
+              <div class="mgr-check-list">
+                <label class="mgr-check"><input type="checkbox" data-demand="diag_visual" ${demand.diag_visual?'checked':''}><span>Visual inspection performed</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="diag_thermostat" ${demand.diag_thermostat?'checked':''}><span>Thermostat & call-for verified</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="diag_voltage" ${demand.diag_voltage?'checked':''}><span>Line / control voltage checked</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="diag_amp" ${demand.diag_amp?'checked':''}><span>Amp draws measured</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="diag_pressures" ${demand.diag_pressures?'checked':''}><span>Refrigerant pressures verified</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="diag_temps" ${demand.diag_temps?'checked':''}><span>Supply / return temps & ΔT taken</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="diag_capacitor" ${demand.diag_capacitor?'checked':''}><span>Capacitor tested under load</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="diag_safeties" ${demand.diag_safeties?'checked':''}><span>Safety circuits & float switches checked</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="diag_airflow" ${demand.diag_airflow?'checked':''}><span>Airflow / static pressure measured</span></label>
+              </div>
+              <div class="mgr-form-row" style="margin-top:10px;">
+                <label class="mgr-form-label">Diagnostic steps & readings</label>
+                <textarea class="mgr-textarea" id="r_dem_diagSteps" rows="3" placeholder="Walk through the steps the tech took and what they measured...">${mgrEscape(demand.diagSteps||'')}</textarea>
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Diagnosis</div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Root cause / failed component</label>
+                <textarea class="mgr-textarea" id="r_dem_rootCause" rows="2" placeholder="What actually failed and why?">${mgrEscape(demand.rootCause||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Contributing factors</label>
+                <textarea class="mgr-textarea" id="r_dem_contributing" rows="2" placeholder="e.g. Dirty coil → high head pressure → compressor overheat">${mgrEscape(demand.contributing||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Diagnosis explained to customer (yes/no & how)</label>
+                <textarea class="mgr-textarea" id="r_dem_explained" rows="2">${mgrEscape(demand.explained||'')}</textarea>
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Repair Options</div>
+              <div class="mgr-check-list">
+                <label class="mgr-check"><input type="checkbox" data-demand="opt_repair" ${demand.opt_repair?'checked':''}><span>Repair option presented</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="opt_replace_component" ${demand.opt_replace_component?'checked':''}><span>Component replacement option presented</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="opt_replace_system" ${demand.opt_replace_system?'checked':''}><span>System replacement option presented</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="opt_membership" ${demand.opt_membership?'checked':''}><span>Membership offered with repair</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="opt_financing" ${demand.opt_financing?'checked':''}><span>Financing presented</span></label>
+              </div>
+              <div class="mgr-form-row" style="margin-top:10px;">
+                <label class="mgr-form-label">Options & pricing presented</label>
+                <textarea class="mgr-textarea" id="r_dem_options" rows="3" placeholder="Good / Better / Best — list options and prices...">${mgrEscape(demand.options||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Customer decision</label>
+                <input type="text" class="mgr-input" id="r_dem_decision" placeholder="e.g. Approved Better option $1,485" value="${mgrEscape(demand.decision||'')}">
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Post-Repair Verification</div>
+              <div class="mgr-check-list">
+                <label class="mgr-check"><input type="checkbox" data-demand="post_cycle" ${demand.post_cycle?'checked':''}><span>System cycle-tested heat & cool</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="post_pressures" ${demand.post_pressures?'checked':''}><span>Pressures / SH / SC re-verified after repair</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="post_temps" ${demand.post_temps?'checked':''}><span>ΔT confirmed in spec</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="post_amps" ${demand.post_amps?'checked':''}><span>Amp draws re-measured & in range</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="post_safeties" ${demand.post_safeties?'checked':''}><span>Safeties confirmed operational</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="post_walkthrough" ${demand.post_walkthrough?'checked':''}><span>Walkthrough with customer (showed repair)</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="post_photos" ${demand.post_photos?'checked':''}><span>Before / after photos uploaded</span></label>
+                <label class="mgr-check"><input type="checkbox" data-demand="post_review" ${demand.post_review?'checked':''}><span>Review / referral asked</span></label>
+              </div>
+              <div class="mgr-form-row" style="margin-top:10px;">
+                <label class="mgr-form-label">Verification readings (post-repair)</label>
+                <textarea class="mgr-textarea" id="r_dem_postReadings" rows="2" placeholder="Pressures, ΔT, amps after repair...">${mgrEscape(demand.postReadings||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">System left in… (status, follow-up needed)</label>
+                <textarea class="mgr-textarea" id="r_dem_leftIn" rows="2">${mgrEscape(demand.leftIn||'')}</textarea>
+              </div>
+            </div>
           </div>
 
           <div class="mgr-form-section">
@@ -9076,6 +9278,17 @@ if (typeof Chart !== 'undefined') {
       mgrUpdateRideSuggest();
       mgrWireNssGreetStars();
       mgrRecalcNssGreetTotals();
+      mgrToggleCallTypeSections();
+    }
+
+    // Show/hide maintenance vs demand sections based on selected Call Type
+    function mgrToggleCallTypeSections() {
+      const sel = document.querySelector('#mgrRideAlongForm input[name="r_callType"]:checked');
+      const val = sel ? sel.value : '';
+      const maintEl = document.getElementById('r_maintenanceSections');
+      const demandEl = document.getElementById('r_demandSections');
+      if (maintEl) maintEl.style.display = (val === 'maintenance') ? '' : 'none';
+      if (demandEl) demandEl.style.display = (val === 'demand') ? '' : 'none';
     }
 
     function mgrWireNssGreetStars() {
@@ -9180,6 +9393,47 @@ if (typeof Chart !== 'undefined') {
       document.querySelectorAll('#mgrRideAlongForm [data-obs]').forEach(cb => {
         observations[cb.dataset.obs] = cb.checked;
       });
+      // Call Type — required
+      var callTypeSel = document.querySelector('#mgrRideAlongForm input[name="r_callType"]:checked');
+      var callType = callTypeSel ? callTypeSel.value : '';
+      if (!callType) {
+        alert('Please select a Call Type (Maintenance Call or Demand / Service Call).');
+        return false;
+      }
+      // Collect maintenance section data
+      var maintenance = {};
+      document.querySelectorAll('#mgrRideAlongForm [data-maint]').forEach(function(cb) {
+        maintenance[cb.dataset.maint] = cb.checked;
+      });
+      var _mGet = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
+      maintenance.inspectNotes = _mGet('r_maint_inspectNotes');
+      maintenance.deltaT = _mGet('r_maint_deltaT');
+      maintenance.pressures = _mGet('r_maint_pressures');
+      maintenance.shsc = _mGet('r_maint_shsc');
+      maintenance.amps = _mGet('r_maint_amps');
+      maintenance.capReadings = _mGet('r_maint_capReadings');
+      maintenance.staticPressure = _mGet('r_maint_static');
+      maintenance.otherReadings = _mGet('r_maint_otherReadings');
+      maintenance.recNotes = _mGet('r_maint_recNotes');
+      maintenance.amount = _mGet('r_maint_amount');
+      maintenance.leftWith = _mGet('r_maint_leftWith');
+      // Collect demand section data
+      var demand = {};
+      document.querySelectorAll('#mgrRideAlongForm [data-demand]').forEach(function(cb) {
+        demand[cb.dataset.demand] = cb.checked;
+      });
+      demand.symptom = _mGet('r_dem_symptom');
+      demand.onset = _mGet('r_dem_onset');
+      demand.history = _mGet('r_dem_history');
+      demand.expectations = _mGet('r_dem_expectations');
+      demand.diagSteps = _mGet('r_dem_diagSteps');
+      demand.rootCause = _mGet('r_dem_rootCause');
+      demand.contributing = _mGet('r_dem_contributing');
+      demand.explained = _mGet('r_dem_explained');
+      demand.options = _mGet('r_dem_options');
+      demand.decision = _mGet('r_dem_decision');
+      demand.postReadings = _mGet('r_dem_postReadings');
+      demand.leftIn = _mGet('r_dem_leftIn');
       // Reschedule: pull date/time/reason
       var rDateEl = document.getElementById('r_date');
       var rTimeEl = document.getElementById('r_time');
@@ -9188,6 +9442,9 @@ if (typeof Chart !== 'undefined') {
       var newRTime = (rTimeEl && rTimeEl.value) ? rTimeEl.value.trim() : '';
       var newRReason = (rReasonEl && rReasonEl.value) ? rReasonEl.value.trim() : '';
       const data = {
+        callType,
+        maintenance,
+        demand,
         ackObservation: document.getElementById('r_ackObs').checked,
         calls,
         custIssue: document.getElementById('r_custIssue').value,
