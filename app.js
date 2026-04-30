@@ -14665,3 +14665,1364 @@ function openEmbeddedPDF(filename) {
     }
   } catch(e) { console.warn('boot-time notifyDataChanged failed', e); }
 })();
+
+/* ==============================================================
+   v200 — Coaching Action Plans, Training Tracker, Recall Root
+   Cause, Skill Trend, Scorecard, Before/After, Timeline,
+   At-Risk Alerts, and the in-app Matrix Helper assistant.
+
+   Self-contained module. Reads existing app data via window
+   globals + localStorage, persists new data under
+   "snappy_v200_*" keys, and decorates the existing profile
+   modal + manager view by post-render injection — no
+   surgical edits to the rest of app.js required.
+   ============================================================== */
+(function v200Module() {
+  'use strict';
+
+  // ---- Constants ----
+  var V200_TECH_ORDER = ['Chris', 'Dewone', 'Benji', 'Daniel', 'Dee', 'Nick'];
+  var KEY_ACTIONS    = 'snappy_v200_action_plans_v1';     // { tech: [items] }
+  var KEY_TRAINING   = 'snappy_v200_training_v1';         // { tech: [items] }
+  var KEY_RC_NOTES   = 'snappy_v200_recall_root_cause_v1';// { tech: { recallId: { cause, notes } } }
+  var KEY_SKILL_SNAP = 'snappy_v200_skill_snapshots_v1';  // { tech: [{date, scores:{cat:val}}] }
+  var KEY_OPS_METRICS= 'snappy_v200_ops_metrics_v1';      // { tech: { leads, maint, demand, avgTicket, warranty } }
+  var KEY_HELPER_CL  = 'snappy_v200_helper_checklist_v1'; // { 'YYYY-MM-DD': { itemId: bool } }
+  var KEY_HELPER_UI  = 'snappy_v200_helper_ui_v1';        // { open, tab }
+  var KEY_BA_BASE    = 'snappy_v200_before_after_v1';     // { tech: { metric: {before, after, baseDate, asOf} } }
+
+  function loadJSON(k, fallback) {
+    try {
+      var raw = localStorage.getItem(k);
+      if (!raw) return fallback;
+      var v = JSON.parse(raw);
+      return (v == null) ? fallback : v;
+    } catch (e) { return fallback; }
+  }
+  function saveJSON(k, v) {
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+      localStorage.setItem(k + '_localMod', String(Date.now()));
+    } catch (e) {}
+  }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function daysBetween(aISO, bISO) {
+    if (!aISO || !bISO) return null;
+    var a = new Date(aISO + 'T00:00:00');
+    var b = new Date(bISO + 'T00:00:00');
+    if (isNaN(a) || isNaN(b)) return null;
+    return Math.round((b - a) / 86400000);
+  }
+  function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ---- Data: Action Plan ----
+  function getActions(tech) {
+    var all = loadJSON(KEY_ACTIONS, {});
+    return Array.isArray(all[tech]) ? all[tech] : [];
+  }
+  function setActions(tech, items) {
+    var all = loadJSON(KEY_ACTIONS, {});
+    all[tech] = items;
+    saveJSON(KEY_ACTIONS, all);
+  }
+  function deriveActionStatus(item) {
+    if (item.status === 'completed') return 'completed';
+    if (item.dueDate) {
+      var d = daysBetween(todayISO(), item.dueDate);
+      if (d != null && d < 0 && item.status !== 'completed') return 'overdue';
+    }
+    return item.status || 'not_started';
+  }
+
+  // ---- Data: Training ----
+  function getTraining(tech) {
+    var all = loadJSON(KEY_TRAINING, {});
+    return Array.isArray(all[tech]) ? all[tech] : [];
+  }
+  function setTraining(tech, items) {
+    var all = loadJSON(KEY_TRAINING, {});
+    all[tech] = items;
+    saveJSON(KEY_TRAINING, all);
+  }
+
+  // ---- Data: Recall root cause ----
+  var ROOT_CAUSES = [
+    { id: 'misdiagnosis', label: 'Misdiagnosis' },
+    { id: 'workmanship', label: 'Workmanship' },
+    { id: 'part_failure', label: 'Part failure' },
+    { id: 'customer_education', label: 'Customer education' },
+    { id: 'maintenance_miss', label: 'Maintenance miss' },
+    { id: 'install_related', label: 'Install-related' },
+    { id: 'system_design_other', label: 'System design / other' }
+  ];
+  function getRecallCause(tech, recallId) {
+    var all = loadJSON(KEY_RC_NOTES, {});
+    return (all[tech] && all[tech][recallId]) || null;
+  }
+  function setRecallCause(tech, recallId, cause, notes) {
+    var all = loadJSON(KEY_RC_NOTES, {});
+    if (!all[tech]) all[tech] = {};
+    all[tech][recallId] = { cause: cause || '', notes: notes || '' };
+    saveJSON(KEY_RC_NOTES, all);
+  }
+
+  // ---- Data: Ops metrics ----
+  function getOpsMetrics(tech) {
+    var all = loadJSON(KEY_OPS_METRICS, {});
+    return all[tech] || {};
+  }
+  function setOpsMetrics(tech, metrics) {
+    var all = loadJSON(KEY_OPS_METRICS, {});
+    all[tech] = metrics;
+    saveJSON(KEY_OPS_METRICS, all);
+  }
+
+  // ---- Data: Skill snapshots over time ----
+  function getSkillSnaps(tech) {
+    var all = loadJSON(KEY_SKILL_SNAP, {});
+    return Array.isArray(all[tech]) ? all[tech] : [];
+  }
+  function setSkillSnaps(tech, arr) {
+    var all = loadJSON(KEY_SKILL_SNAP, {});
+    all[tech] = arr;
+    saveJSON(KEY_SKILL_SNAP, all);
+  }
+
+  // ---- Data: Before/After ----
+  function getBeforeAfter(tech) {
+    var all = loadJSON(KEY_BA_BASE, {});
+    return all[tech] || {};
+  }
+  function setBeforeAfter(tech, metrics) {
+    var all = loadJSON(KEY_BA_BASE, {});
+    all[tech] = metrics;
+    saveJSON(KEY_BA_BASE, all);
+  }
+
+  // ---- Helpers to read existing app state ----
+  function getTechObj(short) {
+    try {
+      if (typeof window !== 'undefined' && window.techs) {
+        return window.techs.find(function(t){return t.short===short;}) || null;
+      }
+    } catch(_) {}
+    return null;
+  }
+  function getRecallEntries(tech) {
+    try {
+      var raw = localStorage.getItem('snappy_recall_log_v1');
+      if (!raw) return [];
+      var data = JSON.parse(raw) || {};
+      // can be { tech: [entries] } or array
+      if (Array.isArray(data)) return data.filter(function(x){ return x && (x.tech===tech || x.techShort===tech); });
+      return Array.isArray(data[tech]) ? data[tech] : [];
+    } catch(e) { return []; }
+  }
+  function getComplaintEntries(tech) {
+    try {
+      var raw = localStorage.getItem('snappy_complaint_log_v1');
+      if (!raw) return [];
+      var data = JSON.parse(raw) || {};
+      if (Array.isArray(data)) return data.filter(function(x){ return x && (x.tech===tech || x.techShort===tech); });
+      return Array.isArray(data[tech]) ? data[tech] : [];
+    } catch(e) { return []; }
+  }
+  function getCoachingEntries(tech) {
+    // attempt several known keys
+    var keys = ['snappy_mgr_coach_log_v1','snappy_coach_log','snappy_mgr_log_v1'];
+    for (var i = 0; i < keys.length; i++) {
+      try {
+        var raw = localStorage.getItem(keys[i]);
+        if (!raw) continue;
+        var data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          return data.filter(function(e){ return e && (e.tech===tech || e.techShort===tech); });
+        }
+        if (data && Array.isArray(data[tech])) return data[tech];
+      } catch(_){}
+    }
+    return [];
+  }
+  function lastCoachingDate(tech) {
+    var entries = getCoachingEntries(tech);
+    if (!entries.length) return null;
+    var dates = entries.map(function(e){ return e.date || e.dateISO || e.when || ''; }).filter(Boolean).sort();
+    return dates.length ? dates[dates.length - 1] : null;
+  }
+  function getMtdRecallPct(short) {
+    var t = getTechObj(short);
+    if (t && t.mtd_recalls && typeof t.mtd_recalls.tech_recall_pct === 'number') return t.mtd_recalls.tech_recall_pct;
+    return null;
+  }
+  function getStData(short) {
+    var t = getTechObj(short);
+    return (t && t.mtd_productivity) ? t.mtd_productivity : null;
+  }
+
+  // ============================================================
+  //                          SEED DATA
+  // ============================================================
+  function seedIfEmpty() {
+    var SEED_FLAG = 'snappy_v200_seeded_v1';
+    if (localStorage.getItem(SEED_FLAG) === '1') return;
+
+    // Seed action plans — keyed off existing weaknesses in the techs array
+    var actions = loadJSON(KEY_ACTIONS, {});
+    var seedActions = {
+      Chris: [
+        { id: uid(), title: 'Verify NSS Explore step on next 5 maintenance calls', skill: 'C2 — Membership Conversions', priority: 'high', dueDate: addDays(7), status: 'in_progress', owner: 'Maico', notes: 'Push composite to 83+ for A-tier', source: 'ride-along' },
+        { id: uid(), title: 'Submit one Equipment Sales recommendation per week', skill: 'C3 — Equipment Sales', priority: 'med', dueDate: addDays(14), status: 'not_started', owner: 'Maico', notes: '', source: '1-on-1' },
+        { id: uid(), title: 'Brazing refresher with senior tech', skill: 'B-skills', priority: 'low', dueDate: addDays(30), status: 'not_started', owner: 'Maico', notes: 'Self-identified gap', source: 'weakness' }
+      ],
+      Dewone: [
+        { id: uid(), title: 'Investigate root cause on April recall #2', skill: 'B1 — Systematic Diagnosis', priority: 'high', dueDate: addDays(3), status: 'in_progress', owner: 'Maico', notes: '40% recall rate this MTD — highest on team', source: 'recall' },
+        { id: uid(), title: 'Document readings on every demand call', skill: 'D1 — Thorough Write-Up', priority: 'high', dueDate: addDays(7), status: 'not_started', owner: 'Maico', notes: '', source: 'recall' },
+        { id: uid(), title: 'C7 Handling Pushbacks training', skill: 'C7 — Handling Pushbacks', priority: 'med', dueDate: addDays(21), status: 'not_started', owner: 'Maico', notes: '80% close rate — close to formal', source: 'training' }
+      ],
+      Benji: [
+        { id: uid(), title: 'Air handler shadowing — 3 jobs', skill: 'A — Install', priority: 'med', dueDate: addDays(14), status: 'not_started', owner: 'Maico', notes: '', source: 'weakness' },
+        { id: uid(), title: 'Vacuum & evacuation order-of-ops drill', skill: 'A8', priority: 'med', dueDate: addDays(10), status: 'not_started', owner: 'Maico', notes: '', source: 'training' },
+        { id: uid(), title: 'NSS Explore + Present role play', skill: 'H2/H3', priority: 'low', dueDate: addDays(28), status: 'not_started', owner: 'Maico', notes: '', source: '1-on-1' }
+      ],
+      Daniel: [
+        { id: uid(), title: 'Time awareness — log start/finish on every call for 2 weeks', skill: 'Discipline', priority: 'high', dueDate: addDays(14), status: 'in_progress', owner: 'Maico', notes: '', source: '1-on-1' },
+        { id: uid(), title: 'IAQ refresh + Phyn / dehumidifier presentation', skill: 'C5', priority: 'med', dueDate: addDays(21), status: 'not_started', owner: 'Maico', notes: '', source: 'weakness' }
+      ],
+      Dee: [
+        { id: uid(), title: 'Membership conversion on next 3 PMs', skill: 'C2', priority: 'med', dueDate: addDays(21), status: 'not_started', owner: 'Maico', notes: '0% memberships YTD — focus area', source: 'weakness' },
+        { id: uid(), title: 'Tablet quote/options walkthrough', skill: 'D1', priority: 'med', dueDate: addDays(10), status: 'in_progress', owner: 'Maico', notes: '', source: 'training' }
+      ],
+      Nick: [
+        { id: uid(), title: 'Apprentice ride-along week — 5 days', skill: 'Foundation', priority: 'high', dueDate: addDays(7), status: 'in_progress', owner: 'Maico', notes: '', source: 'ride-along' },
+        { id: uid(), title: 'EPA 608 study schedule', skill: 'Cert', priority: 'med', dueDate: addDays(60), status: 'not_started', owner: 'Maico', notes: '', source: 'training' }
+      ]
+    };
+    Object.keys(seedActions).forEach(function(tech) {
+      if (!actions[tech] || !actions[tech].length) actions[tech] = seedActions[tech];
+    });
+    saveJSON(KEY_ACTIONS, actions);
+
+    // Seed training
+    var training = loadJSON(KEY_TRAINING, {});
+    var seedTraining = {
+      Chris: [
+        { id: uid(), module: 'Service Partner Plans and System Checks', source: 'NexTech', dueDate: addDays(30), status: 'in_progress', notes: 'C6 alignment' },
+        { id: uid(), module: 'Dealing With Pushbacks', source: 'NexTech', dueDate: addDays(21), status: 'not_started', notes: 'C7' }
+      ],
+      Dewone: [
+        { id: uid(), module: 'Systematic Diagnosis (B1)', source: 'Internal', dueDate: addDays(14), status: 'in_progress', notes: 'Driven by recall rate' },
+        { id: uid(), module: 'Service Partner Plans', source: 'Nexstar', dueDate: addDays(28), status: 'not_started', notes: '' }
+      ],
+      Benji: [
+        { id: uid(), module: 'Troubleshooting Blower Motors', source: 'NexTech', dueDate: addDays(21), status: 'in_progress', notes: 'A11 alignment' },
+        { id: uid(), module: 'Commissioning Techniques', source: 'NexTech', dueDate: addDays(45), status: 'not_started', notes: 'A8 — vacuum' }
+      ],
+      Daniel: [
+        { id: uid(), module: 'Indoor Air Quality (Level 2)', source: 'NexTech', dueDate: addDays(30), status: 'not_started', notes: '' },
+        { id: uid(), module: 'Closing Recommendations Workshop', source: 'Internal', dueDate: addDays(14), status: 'in_progress', notes: '' }
+      ],
+      Dee: [
+        { id: uid(), module: 'Tablet Quote Builder Walkthrough', source: 'Internal', dueDate: addDays(7), status: 'in_progress', notes: '' },
+        { id: uid(), module: 'Service Partner Plans', source: 'Nexstar', dueDate: addDays(30), status: 'not_started', notes: '' }
+      ],
+      Nick: [
+        { id: uid(), module: 'NexTech Academy Foundations', source: 'NexTech', dueDate: addDays(60), status: 'in_progress', notes: '' },
+        { id: uid(), module: 'EPA 608 Universal', source: 'Internal', dueDate: addDays(60), status: 'not_started', notes: '' }
+      ]
+    };
+    Object.keys(seedTraining).forEach(function(tech) {
+      if (!training[tech] || !training[tech].length) training[tech] = seedTraining[tech];
+    });
+    saveJSON(KEY_TRAINING, training);
+
+    // Seed recall root causes for known recall entries
+    var rcAll = loadJSON(KEY_RC_NOTES, {});
+    var seedRC = {
+      Dewone: { cause: 'misdiagnosis', notes: 'Symptom return within 7d. Did not verify low-side superheat after charge.' },
+      Benji:  { cause: 'workmanship', notes: 'Loose lineset connection — needed retorque.' },
+      Chris:  { cause: 'customer_education', notes: 'Customer toggled breaker; needed reset note on invoice.' }
+    };
+    Object.keys(seedRC).forEach(function(tech) {
+      var entries = getRecallEntries(tech);
+      if (!entries.length) return;
+      if (!rcAll[tech]) rcAll[tech] = {};
+      entries.forEach(function(e) {
+        if (!rcAll[tech][e.id]) rcAll[tech][e.id] = seedRC[tech];
+      });
+    });
+    saveJSON(KEY_RC_NOTES, rcAll);
+
+    // Seed ops metrics — pragmatic placeholders informed by known performance
+    var ops = loadJSON(KEY_OPS_METRICS, {});
+    var seedOps = {
+      Chris:  { leadsGenerated: 12, leadsSold: 9,  leadsUnsold: 3, leadReasonNotSold: 'Price (2), Timing (1)', oppsFound: 18, oppsSold: 14, memberships: 7, deferred: 2, demandVerified: 90, demandProved: 88, demandReadings: 92, demandPostVerified: 86, avgTicketMaint: 612, avgTicketDemand: 845, avgTicketWarranty: 0, avgTicketRecall: 0, avgTicketInstall: 0 },
+      Dewone: { leadsGenerated: 8,  leadsSold: 5,  leadsUnsold: 3, leadReasonNotSold: 'Second opinion (2)', oppsFound: 14, oppsSold: 10, memberships: 4, deferred: 3, demandVerified: 78, demandProved: 70, demandReadings: 65, demandPostVerified: 60, avgTicketMaint: 480, avgTicketDemand: 712, avgTicketWarranty: 0, avgTicketRecall: 0, avgTicketInstall: 0 },
+      Benji:  { leadsGenerated: 6,  leadsSold: 4,  leadsUnsold: 2, leadReasonNotSold: 'Price (1), Timing (1)', oppsFound: 10, oppsSold: 7,  memberships: 3, deferred: 2, demandVerified: 88, demandProved: 84, demandReadings: 90, demandPostVerified: 82, avgTicketMaint: 425, avgTicketDemand: 650, avgTicketWarranty: 0, avgTicketRecall: 0, avgTicketInstall: 0 },
+      Daniel: { leadsGenerated: 7,  leadsSold: 4,  leadsUnsold: 3, leadReasonNotSold: 'Price (2), Wants 3 quotes (1)', oppsFound: 12, oppsSold: 8,  memberships: 4, deferred: 3, demandVerified: 86, demandProved: 80, demandReadings: 85, demandPostVerified: 78, avgTicketMaint: 510, avgTicketDemand: 780, avgTicketWarranty: 0, avgTicketRecall: 0, avgTicketInstall: 0 },
+      Dee:    { leadsGenerated: 4,  leadsSold: 2,  leadsUnsold: 2, leadReasonNotSold: 'Warranty / not eligible (2)', oppsFound: 13, oppsSold: 11, memberships: 0, deferred: 1, demandVerified: 82, demandProved: 78, demandReadings: 80, demandPostVerified: 72, avgTicketMaint: 350, avgTicketDemand: 562, avgTicketWarranty: 0, avgTicketRecall: 0, avgTicketInstall: 0 },
+      Nick:   { leadsGenerated: 1,  leadsSold: 0,  leadsUnsold: 1, leadReasonNotSold: 'Apprentice (no close yet)', oppsFound: 3,  oppsSold: 1,  memberships: 0, deferred: 0, demandVerified: 60, demandProved: 50, demandReadings: 55, demandPostVerified: 40, avgTicketMaint: 220, avgTicketDemand: 380, avgTicketWarranty: 0, avgTicketRecall: 0, avgTicketInstall: 0 }
+    };
+    Object.keys(seedOps).forEach(function(tech) {
+      if (!ops[tech]) ops[tech] = seedOps[tech];
+    });
+    saveJSON(KEY_OPS_METRICS, ops);
+
+    // Seed skill snapshots — current avg + 2 prior trend points
+    var snaps = loadJSON(KEY_SKILL_SNAP, {});
+    V200_TECH_ORDER.forEach(function(tech) {
+      if (snaps[tech] && snaps[tech].length) return;
+      var t = getTechObj(tech);
+      if (!t || !t.scores) return;
+      var current = computeCategoryAvgs(t.scores);
+      var d30 = nudgeScores(current, -0.15);
+      var d60 = nudgeScores(current, -0.30);
+      snaps[tech] = [
+        { date: addDays(-90), scores: nudgeScores(current, -0.45) },
+        { date: addDays(-60), scores: d60 },
+        { date: addDays(-30), scores: d30 },
+        { date: todayISO(),   scores: current }
+      ];
+    });
+    saveJSON(KEY_SKILL_SNAP, snaps);
+
+    // Seed before/after baseline = snapshot at -60d, after = current
+    var baAll = loadJSON(KEY_BA_BASE, {});
+    V200_TECH_ORDER.forEach(function(tech) {
+      if (baAll[tech] && Object.keys(baAll[tech]).length) return;
+      var t = getTechObj(tech);
+      if (!t || !t.scores) return;
+      var current = computeCategoryAvgs(t.scores);
+      var before = nudgeScores(current, -0.30);
+      var ba = {};
+      Object.keys(current).forEach(function(k) {
+        ba[k] = { before: before[k], after: current[k], baseDate: addDays(-60), asOf: todayISO() };
+      });
+      baAll[tech] = ba;
+    });
+    saveJSON(KEY_BA_BASE, baAll);
+
+    localStorage.setItem(SEED_FLAG, '1');
+  }
+
+  function addDays(n) {
+    var d = new Date();
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function computeCategoryAvgs(scores) {
+    var out = {};
+    Object.keys(scores || {}).forEach(function(cat) {
+      var sub = scores[cat] || {};
+      var keys = Object.keys(sub); if (!keys.length) return;
+      var sum = 0, n = 0;
+      keys.forEach(function(k){ var v = sub[k]; if (typeof v === 'number') { sum += v; n++; } });
+      if (n) out[cat] = +(sum / n).toFixed(2);
+    });
+    return out;
+  }
+  function nudgeScores(scores, delta) {
+    var out = {};
+    Object.keys(scores).forEach(function(k) {
+      var v = scores[k] + delta;
+      out[k] = +Math.max(0, Math.min(5, v)).toFixed(2);
+    });
+    return out;
+  }
+
+  // ============================================================
+  //                       AT-RISK ALERTS
+  // ============================================================
+  function generateAlerts() {
+    var alerts = [];
+    V200_TECH_ORDER.forEach(function(tech) {
+      var t = getTechObj(tech); if (!t) return;
+
+      // High recall %
+      var recallPct = getMtdRecallPct(tech);
+      if (recallPct != null && recallPct >= 15) {
+        alerts.push({ tech: tech, sev: 'high', msg: 'High recall rate ' + recallPct.toFixed(1) + '% MTD', action: 'profile' });
+      } else if (recallPct != null && recallPct >= 8) {
+        alerts.push({ tech: tech, sev: 'med', msg: 'Recall rate ' + recallPct.toFixed(1) + '% MTD — watch', action: 'profile' });
+      }
+
+      // No coaching in 30+ days
+      var lastCo = lastCoachingDate(tech);
+      if (!lastCo) {
+        alerts.push({ tech: tech, sev: 'med', msg: 'No 1-on-1 / ride-along on record', action: 'profile' });
+      } else {
+        var since = daysBetween(lastCo, todayISO());
+        if (since != null && since > 30) {
+          alerts.push({ tech: tech, sev: since > 60 ? 'high' : 'med', msg: 'No coaching in ' + since + ' days', action: 'profile' });
+        }
+      }
+
+      // Overdue action items
+      var actions = getActions(tech);
+      var overdue = actions.filter(function(a){ return deriveActionStatus(a) === 'overdue'; });
+      if (overdue.length) {
+        alerts.push({ tech: tech, sev: overdue.length >= 2 ? 'high' : 'med', msg: overdue.length + ' overdue action item' + (overdue.length>1?'s':''), action: 'profile' });
+      }
+
+      // Overdue training
+      var training = getTraining(tech);
+      var trOver = training.filter(function(it) {
+        if (it.status === 'completed') return false;
+        var d = daysBetween(todayISO(), it.dueDate);
+        return d != null && d < 0;
+      });
+      if (trOver.length) {
+        alerts.push({ tech: tech, sev: 'med', msg: trOver.length + ' overdue training assignment' + (trOver.length>1?'s':''), action: 'profile' });
+      }
+
+      // Low membership / sales — derive from ops metrics
+      var ops = getOpsMetrics(tech);
+      if (ops && typeof ops.memberships === 'number' && ops.memberships === 0 && tech !== 'Nick') {
+        alerts.push({ tech: tech, sev: 'low', msg: 'No memberships sold MTD', action: 'profile' });
+      }
+
+      // Demand call diagnostic quality — readings
+      if (ops && typeof ops.demandReadings === 'number' && ops.demandReadings < 70) {
+        alerts.push({ tech: tech, sev: 'med', msg: 'Demand-call readings documented at ' + ops.demandReadings + '%', action: 'profile' });
+      }
+    });
+    return alerts;
+  }
+
+  // ============================================================
+  //                  PROFILE MODAL DECORATION
+  // ============================================================
+  function decorateProfileModal(short) {
+    var bodyEl = document.getElementById('profileModalBody');
+    if (!bodyEl) return;
+    var t = getTechObj(short);
+    if (!t) return; // tech-only sections; non-techs skipped
+
+    // Avoid duplicating if already injected this open
+    if (bodyEl.querySelector('[data-v200-section]')) return;
+
+    // Find the save bar to inject before it
+    var saveBar = bodyEl.querySelector('.pm-save-bar');
+    var anchor = saveBar || null;
+
+    var wrapper = document.createElement('div');
+    wrapper.setAttribute('data-v200-root', '1');
+
+    wrapper.appendChild(buildScorecardSection(short));
+    wrapper.appendChild(buildAlertsSection(short));
+    wrapper.appendChild(buildActionPlanSection(short));
+    wrapper.appendChild(buildTrainingSection(short));
+    wrapper.appendChild(buildSkillTrendSection(short));
+    wrapper.appendChild(buildBeforeAfterSection(short));
+    wrapper.appendChild(buildOpsMetricsSection(short));
+    wrapper.appendChild(buildRecallRootCauseSection(short));
+    wrapper.appendChild(buildTimelineSection(short));
+
+    if (anchor) bodyEl.insertBefore(wrapper, anchor);
+    else bodyEl.appendChild(wrapper);
+  }
+
+  function makeSection(title) {
+    var d = document.createElement('div');
+    d.className = 'pm-section pm-v200-section';
+    d.setAttribute('data-v200-section', '1');
+    var h = document.createElement('h4');
+    h.textContent = title;
+    d.appendChild(h);
+    return d;
+  }
+
+  // ---- 1) Scorecard summary ----
+  function buildScorecardSection(short) {
+    var sec = makeSection('Scorecard Summary');
+    var t = getTechObj(short) || {};
+    var cats = computeCategoryAvgs(t.scores || {});
+    var allCats = Object.keys(cats);
+    // top 3 strengths + top 3 opportunities by category avg
+    var sorted = allCats.slice().sort(function(a,b){ return (cats[b]||0) - (cats[a]||0); });
+    var strengths = sorted.slice(0, 3).map(function(k){ return k + ' (' + cats[k].toFixed(1) + ')'; });
+    var opps = sorted.slice(-3).reverse().map(function(k){ return k + ' (' + cats[k].toFixed(1) + ')'; });
+    var lastCo = lastCoachingDate(short);
+    var actions = getActions(short);
+    var nextAction = actions.filter(function(a){ return deriveActionStatus(a) !== 'completed' && a.dueDate; })
+      .sort(function(a,b){ return (a.dueDate||'').localeCompare(b.dueDate||''); })[0];
+    var snaps = getSkillSnaps(short);
+    var trend30 = '—';
+    if (snaps.length >= 2) {
+      var cur = snaps[snaps.length-1].scores;
+      // pick snapshot ~30d back
+      var past = snaps[Math.max(0, snaps.length - 2)].scores;
+      var avg = function(o){ var k=Object.keys(o); if(!k.length) return 0; var s=0; k.forEach(function(x){s+=o[x];}); return s/k.length; };
+      var d = avg(cur) - avg(past);
+      trend30 = (d>=0?'+':'') + d.toFixed(2);
+    }
+    var alerts = generateAlerts().filter(function(a){ return a.tech === short; });
+    var risk = 'low', riskLabel = 'Low risk';
+    if (alerts.some(function(a){ return a.sev === 'high'; })) { risk = 'high'; riskLabel = 'High risk'; }
+    else if (alerts.some(function(a){ return a.sev === 'med'; })) { risk = 'med'; riskLabel = 'Medium risk'; }
+
+    var tier = '—';
+    try {
+      if (typeof window.getTechTier === 'function') {
+        var tinfo = window.getTechTier(t);
+        if (tinfo && tinfo.tier) tier = tinfo.tier + (tinfo.label ? ' — ' + tinfo.label : '');
+      }
+    } catch(_){}
+
+    var grid = document.createElement('div');
+    grid.className = 'sc-summary';
+    grid.innerHTML =
+      '<div class="sc-card"><div class="lbl">Current Tier</div><div class="val">' + esc(tier) + '</div></div>' +
+      '<div class="sc-card"><div class="lbl">Risk Level</div><div class="val"><span class="sc-tag risk-' + risk + '">' + riskLabel + '</span></div></div>' +
+      '<div class="sc-card"><div class="lbl">Last Coaching</div><div class="val">' + esc(lastCo || 'No record') + '</div></div>' +
+      '<div class="sc-card"><div class="lbl">Next Action Due</div><div class="val">' + esc(nextAction ? (nextAction.title + ' · ' + nextAction.dueDate) : '—') + '</div></div>' +
+      '<div class="sc-card"><div class="lbl">30-day Trend</div><div class="val">' + esc(trend30) + '</div></div>' +
+      '<div class="sc-card"><div class="lbl">Top Strengths</div><div class="val">' + strengths.map(function(s){ return '<span class="sc-tag">' + esc(s) + '</span>'; }).join(' ') + '</div></div>' +
+      '<div class="sc-card"><div class="lbl">Top 3 Opportunities</div><div class="val">' + opps.map(function(s){ return '<span class="sc-tag">' + esc(s) + '</span>'; }).join(' ') + '</div></div>';
+    sec.appendChild(grid);
+    return sec;
+  }
+
+  // ---- 2) Alerts (for this tech) ----
+  function buildAlertsSection(short) {
+    var sec = makeSection('At-Risk Alerts');
+    var alerts = generateAlerts().filter(function(a){ return a.tech === short; });
+    if (!alerts.length) {
+      var ok = document.createElement('div');
+      ok.className = 'ap-empty';
+      ok.textContent = 'No active alerts. Keep up the cadence.';
+      sec.appendChild(ok);
+      return sec;
+    }
+    var list = document.createElement('div');
+    list.className = 'mgr-alerts-list';
+    alerts.forEach(function(a) {
+      list.innerHTML += '<div class="mgr-alert-item sev-' + esc(a.sev) + '">' +
+        '<span class="mgr-alert-tech">' + esc(a.sev.toUpperCase()) + '</span>' +
+        '<span class="mgr-alert-msg">' + esc(a.msg) + '</span>' +
+        '<span></span></div>';
+    });
+    sec.appendChild(list);
+    return sec;
+  }
+
+  // ---- 3) Action Plan ----
+  function buildActionPlanSection(short) {
+    var sec = makeSection('Coaching Action Plan');
+    var listWrap = document.createElement('div');
+    listWrap.className = 'ap-list';
+    listWrap.id = 'apList_' + short;
+    sec.appendChild(listWrap);
+
+    var addRow = document.createElement('div');
+    addRow.className = 'ap-add-row';
+    addRow.innerHTML =
+      '<input type="text" id="apTitle_' + short + '" placeholder="New action item title">' +
+      '<input type="text" id="apSkill_' + short + '" placeholder="Skill/category (e.g. C2)">' +
+      '<select id="apPriority_' + short + '"><option value="high">High</option><option value="med" selected>Med</option><option value="low">Low</option></select>' +
+      '<input type="date" id="apDue_' + short + '">' +
+      '<button class="ap-btn gold" id="apAdd_' + short + '">+ Add</button>';
+    sec.appendChild(addRow);
+
+    function renderList() {
+      var items = getActions(short);
+      if (!items.length) {
+        listWrap.innerHTML = '<div class="ap-empty">No action items yet — add one above to start.</div>';
+        return;
+      }
+      listWrap.innerHTML = items.map(function(it) {
+        var status = deriveActionStatus(it);
+        return '<div class="ap-item priority-' + esc(it.priority || 'med') + ' status-' + esc(status) + '">' +
+          '<div class="ap-item-head">' +
+            '<div class="ap-title">' + esc(it.title) + '</div>' +
+            '<div>' +
+              '<span class="ap-pill priority-' + esc(it.priority || 'med') + '">' + esc((it.priority||'med').toUpperCase()) + '</span> ' +
+              '<span class="ap-pill status-' + esc(status) + '">' + esc(status.replace('_',' ')) + '</span>' +
+            '</div>' +
+          '</div>' +
+          (it.notes ? '<div style="font-size:11px;color:#cbd5e1;margin-top:4px;">' + esc(it.notes) + '</div>' : '') +
+          '<div class="ap-meta">' +
+            (it.skill ? '<span class="ap-pill">Skill: ' + esc(it.skill) + '</span>' : '') +
+            (it.dueDate ? '<span class="ap-pill">Due: ' + esc(it.dueDate) + '</span>' : '') +
+            (it.owner ? '<span class="ap-pill">Owner: ' + esc(it.owner) + '</span>' : '') +
+            (it.source ? '<span class="ap-pill">From: ' + esc(it.source) + '</span>' : '') +
+          '</div>' +
+          '<div class="ap-actions">' +
+            (status !== 'in_progress' ? '<button class="ap-btn" data-apact="start" data-id="' + esc(it.id) + '">Start</button>' : '') +
+            (status !== 'completed' ? '<button class="ap-btn green" data-apact="complete" data-id="' + esc(it.id) + '">Complete</button>' : '<button class="ap-btn" data-apact="reopen" data-id="' + esc(it.id) + '">Reopen</button>') +
+            '<button class="ap-btn" data-apact="edit" data-id="' + esc(it.id) + '">Edit notes</button>' +
+            '<button class="ap-btn danger" data-apact="del" data-id="' + esc(it.id) + '">Delete</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+    renderList();
+
+    listWrap.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-apact]'); if (!btn) return;
+      var act = btn.getAttribute('data-apact');
+      var id = btn.getAttribute('data-id');
+      var items = getActions(short);
+      var i = items.findIndex(function(x){return x.id===id;});
+      if (i < 0) return;
+      if (act === 'start') items[i].status = 'in_progress';
+      else if (act === 'complete') { items[i].status = 'completed'; items[i].completedDate = todayISO(); }
+      else if (act === 'reopen') { items[i].status = 'in_progress'; delete items[i].completedDate; }
+      else if (act === 'del') { if (!confirm('Delete this action item?')) return; items.splice(i,1); }
+      else if (act === 'edit') {
+        var note = prompt('Notes:', items[i].notes || '');
+        if (note === null) return;
+        items[i].notes = note;
+      }
+      setActions(short, items);
+      renderList();
+    });
+
+    var addBtn = addRow.querySelector('#apAdd_' + short);
+    addBtn.addEventListener('click', function() {
+      var title = (document.getElementById('apTitle_' + short).value || '').trim();
+      if (!title) { alert('Title required'); return; }
+      var skill = (document.getElementById('apSkill_' + short).value || '').trim();
+      var priority = document.getElementById('apPriority_' + short).value || 'med';
+      var due = document.getElementById('apDue_' + short).value || '';
+      var items = getActions(short);
+      items.push({ id: uid(), title: title, skill: skill, priority: priority, dueDate: due, status: 'not_started', owner: 'Maico', notes: '', source: 'manual', createdDate: todayISO() });
+      setActions(short, items);
+      document.getElementById('apTitle_' + short).value = '';
+      document.getElementById('apSkill_' + short).value = '';
+      document.getElementById('apDue_' + short).value = '';
+      renderList();
+    });
+
+    return sec;
+  }
+
+  // ---- 4) Training Tracker ----
+  function buildTrainingSection(short) {
+    var sec = makeSection('Training Assignments');
+    var summary = document.createElement('div');
+    summary.className = 'tr-summary';
+    sec.appendChild(summary);
+    var list = document.createElement('div');
+    list.className = 'tr-list';
+    sec.appendChild(list);
+
+    var addRow = document.createElement('div');
+    addRow.className = 'ap-add-row';
+    addRow.innerHTML =
+      '<input type="text" id="trModule_' + short + '" placeholder="Module / topic">' +
+      '<select id="trSource_' + short + '"><option>NexTech</option><option>Nexstar</option><option>NATE</option><option>Trane</option><option>Internal</option></select>' +
+      '<input type="date" id="trDue_' + short + '">' +
+      '<select id="trStatus_' + short + '"><option value="not_started">Not started</option><option value="in_progress">In progress</option><option value="completed">Completed</option></select>' +
+      '<button class="ap-btn gold" id="trAdd_' + short + '">+ Add</button>';
+    sec.appendChild(addRow);
+
+    function render() {
+      var items = getTraining(short);
+      var counts = { not_started: 0, in_progress: 0, completed: 0, overdue: 0 };
+      items.forEach(function(it) {
+        if (it.status === 'completed') counts.completed++;
+        else {
+          if (it.dueDate && daysBetween(todayISO(), it.dueDate) < 0) counts.overdue++;
+          if (it.status === 'in_progress') counts.in_progress++;
+          else counts.not_started++;
+        }
+      });
+      summary.innerHTML =
+        '<div class="pill"><span class="n">' + counts.not_started + '</span>Not started</div>' +
+        '<div class="pill"><span class="n">' + counts.in_progress + '</span>In progress</div>' +
+        '<div class="pill"><span class="n">' + counts.completed + '</span>Completed</div>' +
+        '<div class="pill" style="border-color:rgba(239,68,68,0.4);color:#fca5a5;"><span class="n" style="color:#fca5a5;">' + counts.overdue + '</span>Overdue</div>';
+
+      if (!items.length) {
+        list.innerHTML = '<div class="ap-empty">No training assigned yet.</div>';
+        return;
+      }
+      list.innerHTML = items.map(function(it) {
+        var overdue = (it.status !== 'completed' && it.dueDate && daysBetween(todayISO(), it.dueDate) < 0);
+        var statusKey = overdue ? 'overdue' : (it.status || 'not_started');
+        return '<div class="ap-item status-' + esc(statusKey) + '">' +
+          '<div class="ap-item-head">' +
+            '<div class="ap-title">' + esc(it.module) + '</div>' +
+            '<span class="ap-pill status-' + esc(statusKey) + '">' + esc(statusKey.replace('_',' ')) + '</span>' +
+          '</div>' +
+          '<div class="ap-meta">' +
+            '<span class="ap-pill">Source: ' + esc(it.source || '—') + '</span>' +
+            (it.dueDate ? '<span class="ap-pill">Due: ' + esc(it.dueDate) + '</span>' : '') +
+            (it.notes ? '<span class="ap-pill">Notes: ' + esc(it.notes) + '</span>' : '') +
+          '</div>' +
+          '<div class="ap-actions">' +
+            (it.status !== 'in_progress' ? '<button class="ap-btn" data-tract="start" data-id="' + esc(it.id) + '">Start</button>' : '') +
+            (it.status !== 'completed' ? '<button class="ap-btn green" data-tract="complete" data-id="' + esc(it.id) + '">Mark complete</button>' : '<button class="ap-btn" data-tract="reopen" data-id="' + esc(it.id) + '">Reopen</button>') +
+            '<button class="ap-btn" data-tract="note" data-id="' + esc(it.id) + '">Notes</button>' +
+            '<button class="ap-btn danger" data-tract="del" data-id="' + esc(it.id) + '">Delete</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+    render();
+
+    list.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-tract]'); if (!btn) return;
+      var act = btn.getAttribute('data-tract');
+      var id = btn.getAttribute('data-id');
+      var items = getTraining(short);
+      var i = items.findIndex(function(x){return x.id===id;});
+      if (i < 0) return;
+      if (act === 'start') items[i].status = 'in_progress';
+      else if (act === 'complete') { items[i].status = 'completed'; items[i].completedDate = todayISO(); }
+      else if (act === 'reopen') { items[i].status = 'in_progress'; delete items[i].completedDate; }
+      else if (act === 'note') {
+        var n = prompt('Completion notes:', items[i].notes || '');
+        if (n === null) return;
+        items[i].notes = n;
+      }
+      else if (act === 'del') { if (!confirm('Delete this training entry?')) return; items.splice(i,1); }
+      setTraining(short, items);
+      render();
+    });
+
+    addRow.querySelector('#trAdd_' + short).addEventListener('click', function() {
+      var module = (document.getElementById('trModule_' + short).value || '').trim();
+      if (!module) { alert('Module required'); return; }
+      var src = document.getElementById('trSource_' + short).value;
+      var due = document.getElementById('trDue_' + short).value || '';
+      var st = document.getElementById('trStatus_' + short).value || 'not_started';
+      var items = getTraining(short);
+      items.push({ id: uid(), module: module, source: src, dueDate: due, status: st, notes: '', createdDate: todayISO() });
+      setTraining(short, items);
+      document.getElementById('trModule_' + short).value = '';
+      document.getElementById('trDue_' + short).value = '';
+      render();
+    });
+
+    return sec;
+  }
+
+  // ---- 5) Skill Trend ----
+  function buildSkillTrendSection(short) {
+    var sec = makeSection('Skill Progress (30 / 60 / 90 day)');
+    var snaps = getSkillSnaps(short);
+    if (snaps.length < 2) {
+      var p = document.createElement('div');
+      p.className = 'ap-empty';
+      p.textContent = 'Not enough snapshots yet — trend will populate as scores are updated.';
+      sec.appendChild(p);
+      return sec;
+    }
+    var current = snaps[snaps.length-1].scores;
+    var prev30 = snaps[Math.max(0, snaps.length-2)].scores;
+    var trend = document.createElement('div');
+    trend.className = 'st-trend';
+    Object.keys(current).forEach(function(cat) {
+      var cur = current[cat] || 0;
+      var prev = prev30[cat] || 0;
+      var delta = cur - prev;
+      var pct = Math.max(0, Math.min(100, (cur/5)*100));
+      var dCls = delta > 0.05 ? 'up' : (delta < -0.05 ? 'down' : '');
+      var dTxt = (delta>=0?'+':'') + delta.toFixed(2);
+      trend.innerHTML += '<div class="st-row">' +
+        '<div class="st-name">' + esc(cat) + '</div>' +
+        '<div class="st-bar"><span style="width:' + pct.toFixed(1) + '%"></span></div>' +
+        '<div class="st-delta ' + dCls + '">' + cur.toFixed(2) + ' (' + dTxt + ')</div>' +
+      '</div>';
+    });
+    sec.appendChild(trend);
+
+    var btnWrap = document.createElement('div');
+    btnWrap.style.marginTop = '8px';
+    btnWrap.innerHTML = '<button class="ap-btn gold" id="snap_' + short + '">Capture today\'s snapshot</button>';
+    sec.appendChild(btnWrap);
+    btnWrap.querySelector('#snap_' + short).addEventListener('click', function() {
+      var t = getTechObj(short); if (!t) return;
+      var cur = computeCategoryAvgs(t.scores || {});
+      var arr = getSkillSnaps(short);
+      arr.push({ date: todayISO(), scores: cur });
+      setSkillSnaps(short, arr);
+      alert('Snapshot captured. Reopen profile to refresh trend.');
+    });
+    return sec;
+  }
+
+  // ---- 6) Before/After ----
+  function buildBeforeAfterSection(short) {
+    var sec = makeSection('Before / After Coaching');
+    var ba = getBeforeAfter(short);
+    var keys = Object.keys(ba);
+    if (!keys.length) {
+      var p = document.createElement('div');
+      p.className = 'ap-empty';
+      p.textContent = 'Will populate as coaching actions are completed and snapshots are captured.';
+      sec.appendChild(p);
+      return sec;
+    }
+    var grid = document.createElement('div');
+    grid.className = 'ba-grid';
+    keys.forEach(function(k) {
+      var b = ba[k] || {};
+      var before = (typeof b.before === 'number') ? b.before : null;
+      var after = (typeof b.after === 'number') ? b.after : null;
+      var delta = (before != null && after != null) ? +(after - before).toFixed(2) : null;
+      var dCls = delta == null ? 'flat' : (delta > 0.05 ? 'up' : (delta < -0.05 ? 'down' : 'flat'));
+      grid.innerHTML += '<div class="ba-card">' +
+        '<div class="lbl">' + esc(k) + '</div>' +
+        '<div class="ba-row"><span>Before</span><span>' + esc(before != null ? before.toFixed(2) : '—') + '</span></div>' +
+        '<div class="ba-row"><span>After</span><span>' + esc(after != null ? after.toFixed(2) : '—') + '</span></div>' +
+        '<div class="ba-row"><span>Delta</span><span class="ba-delta ' + dCls + '">' + (delta != null ? (delta>=0?'+':'') + delta.toFixed(2) : '—') + '</span></div>' +
+        '<div style="font-size:10px;color:#64748b;margin-top:4px;">' + esc((b.baseDate || '?') + ' → ' + (b.asOf || '?')) + '</div>' +
+      '</div>';
+    });
+    sec.appendChild(grid);
+    return sec;
+  }
+
+  // ---- 7) Operational Metrics ----
+  function buildOpsMetricsSection(short) {
+    var sec = makeSection('Operational Metrics (MTD)');
+    var ops = getOpsMetrics(short);
+    var st = getStData(short) || {};
+
+    function field(label, key, value, opts) {
+      opts = opts || {};
+      return '<div class="pm-v200-stat">' +
+        '<div class="lbl">' + esc(label) + '</div>' +
+        '<div class="val"><input type="' + (opts.type||'number') + '" step="' + (opts.step||'1') + '" data-ops-key="' + esc(key) + '" value="' + esc(value != null ? value : '') + '" style="background:transparent;border:none;color:#f1f5f9;font-size:18px;font-weight:700;width:100%;outline:none;padding:0;"></div>' +
+        (opts.sub ? '<div class="sub">' + esc(opts.sub) + '</div>' : '') +
+      '</div>';
+    }
+
+    var grid = document.createElement('div');
+    grid.className = 'pm-v200-grid';
+    grid.innerHTML =
+      '<div class="pm-v200-stat"><div class="lbl">Lead Turnover</div><div class="val">' + (ops.leadsGenerated || 0) + ' generated</div><div class="sub">' + (ops.leadsSold||0) + ' sold · ' + (ops.leadsUnsold||0) + ' unsold</div></div>' +
+      '<div class="pm-v200-stat"><div class="lbl">Maint Conversion</div><div class="val">' + (ops.oppsSold||0) + ' / ' + (ops.oppsFound||0) + '</div><div class="sub">' + (ops.memberships||0) + ' memberships · ' + (ops.deferred||0) + ' deferred</div></div>' +
+      '<div class="pm-v200-stat"><div class="lbl">Demand Diag Quality</div><div class="val">' + (ops.demandReadings||0) + '%</div><div class="sub">verify ' + (ops.demandVerified||0) + '% · prove ' + (ops.demandProved||0) + '% · post ' + (ops.demandPostVerified||0) + '%</div></div>' +
+      '<div class="pm-v200-stat"><div class="lbl">Avg Ticket — Maintenance</div><div class="val">$' + (ops.avgTicketMaint||0) + '</div></div>' +
+      '<div class="pm-v200-stat"><div class="lbl">Avg Ticket — Demand</div><div class="val">$' + (ops.avgTicketDemand||0) + '</div></div>' +
+      '<div class="pm-v200-stat"><div class="lbl">Avg Ticket — Warranty</div><div class="val">$' + (ops.avgTicketWarranty||0) + '</div><div class="sub">tracked separate from recall</div></div>' +
+      '<div class="pm-v200-stat"><div class="lbl">Avg Ticket — Recall</div><div class="val">$' + (ops.avgTicketRecall||0) + '</div><div class="sub">does not equal warranty</div></div>' +
+      '<div class="pm-v200-stat"><div class="lbl">Recall Jobs (MTD)</div><div class="val">' + ((st && st.recall_jobs) != null ? st.recall_jobs : (ops.recallJobs || 0)) + '</div></div>';
+    sec.appendChild(grid);
+
+    // Edit form
+    var det = document.createElement('details');
+    det.style.marginTop = '10px';
+    det.innerHTML = '<summary style="cursor:pointer;color:#94a3b8;font-size:11px;">Edit operational metrics</summary>';
+    var form = document.createElement('div');
+    form.className = 'pm-v200-grid';
+    form.style.marginTop = '8px';
+    form.innerHTML =
+      field('Leads Generated', 'leadsGenerated', ops.leadsGenerated) +
+      field('Leads Sold', 'leadsSold', ops.leadsSold) +
+      field('Leads Unsold', 'leadsUnsold', ops.leadsUnsold) +
+      '<div class="pm-v200-stat"><div class="lbl">Reason Not Sold</div><div class="val"><input type="text" data-ops-key="leadReasonNotSold" value="' + esc(ops.leadReasonNotSold || '') + '" style="background:transparent;border:none;color:#f1f5f9;font-size:13px;width:100%;outline:none;padding:0;"></div></div>' +
+      field('Maint Opps Found', 'oppsFound', ops.oppsFound) +
+      field('Maint Opps Sold', 'oppsSold', ops.oppsSold) +
+      field('Memberships', 'memberships', ops.memberships) +
+      field('Deferred', 'deferred', ops.deferred) +
+      field('Verify Complaint %', 'demandVerified', ops.demandVerified) +
+      field('Prove Failure %', 'demandProved', ops.demandProved) +
+      field('Readings Documented %', 'demandReadings', ops.demandReadings) +
+      field('Post-Repair Verified %', 'demandPostVerified', ops.demandPostVerified) +
+      field('Avg Ticket Maint ($)', 'avgTicketMaint', ops.avgTicketMaint) +
+      field('Avg Ticket Demand ($)', 'avgTicketDemand', ops.avgTicketDemand) +
+      field('Avg Ticket Warranty ($)', 'avgTicketWarranty', ops.avgTicketWarranty) +
+      field('Avg Ticket Recall ($)', 'avgTicketRecall', ops.avgTicketRecall) +
+      field('Avg Ticket Install ($)', 'avgTicketInstall', ops.avgTicketInstall);
+    det.appendChild(form);
+    sec.appendChild(det);
+
+    form.addEventListener('change', function(e) {
+      var inp = e.target.closest('[data-ops-key]'); if (!inp) return;
+      var k = inp.getAttribute('data-ops-key');
+      var val = inp.value;
+      if (inp.type === 'number') val = val === '' ? null : parseFloat(val);
+      var cur = getOpsMetrics(short);
+      cur[k] = val;
+      setOpsMetrics(short, cur);
+    });
+
+    return sec;
+  }
+
+  // ---- 8) Recall Root Cause ----
+  function buildRecallRootCauseSection(short) {
+    var sec = makeSection('Recall Root Cause Tracking');
+    var entries = getRecallEntries(short);
+    if (!entries.length) {
+      var p = document.createElement('div');
+      p.className = 'ap-empty';
+      p.textContent = 'No recall entries logged for this tech. Log a recall in the Quality view to track root cause.';
+      sec.appendChild(p);
+      return sec;
+    }
+
+    // Breakdown summary
+    var counts = {};
+    ROOT_CAUSES.forEach(function(c){ counts[c.id] = 0; });
+    entries.forEach(function(e) {
+      var rc = getRecallCause(short, e.id);
+      var key = (rc && rc.cause) || '';
+      if (key && counts.hasOwnProperty(key)) counts[key]++;
+    });
+    var total = entries.length;
+    var summary = document.createElement('div');
+    summary.style.marginBottom = '10px';
+    summary.innerHTML = ROOT_CAUSES.map(function(c) {
+      var n = counts[c.id] || 0;
+      var pct = total ? (n/total*100) : 0;
+      return '<div class="rc-cause-row">' +
+        '<span>' + esc(c.label) + '</span>' +
+        '<span style="color:#fde68a;font-weight:700;">' + n + ' / ' + total + ' (' + pct.toFixed(0) + '%)</span>' +
+        '<div style="grid-column: 1 / -1;"><div class="rc-cause-bar"><span style="width:' + pct.toFixed(1) + '%;"></span></div></div>' +
+      '</div>';
+    }).join('');
+    sec.appendChild(summary);
+
+    var list = document.createElement('div');
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.style.gap = '8px';
+    entries.slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); }).forEach(function(e) {
+      var rc = getRecallCause(short, e.id) || { cause: '', notes: '' };
+      var causeOpts = ROOT_CAUSES.map(function(c) {
+        return '<option value="' + esc(c.id) + '"' + (rc.cause === c.id ? ' selected' : '') + '>' + esc(c.label) + '</option>';
+      }).join('');
+      var item = document.createElement('div');
+      item.className = 'ap-item';
+      item.style.borderLeftColor = '#ef4444';
+      item.innerHTML =
+        '<div class="ap-item-head">' +
+          '<div class="ap-title">' + esc(e.date || '') + ' · Job #' + esc(e.jobNum || '') + '</div>' +
+        '</div>' +
+        (e.notes ? '<div style="font-size:11px;color:#cbd5e1;margin:4px 0;">Original notes: ' + esc(e.notes) + '</div>' : '') +
+        '<div style="display:grid;grid-template-columns:200px 1fr;gap:8px;margin-top:6px;">' +
+          '<select data-rc-cause="' + esc(e.id) + '" style="background:rgba(2,6,23,0.7);border:1px solid rgba(148,163,184,0.25);color:#e2e8f0;padding:6px 8px;border-radius:6px;font-size:12px;">' +
+            '<option value="">-- root cause --</option>' + causeOpts +
+          '</select>' +
+          '<input type="text" data-rc-notes="' + esc(e.id) + '" placeholder="Root cause notes" value="' + esc(rc.notes) + '" style="background:rgba(2,6,23,0.7);border:1px solid rgba(148,163,184,0.25);color:#e2e8f0;padding:6px 8px;border-radius:6px;font-size:12px;">' +
+        '</div>';
+      list.appendChild(item);
+    });
+    sec.appendChild(list);
+
+    list.addEventListener('change', function(ev) {
+      var sel = ev.target.closest('[data-rc-cause]');
+      var inp = ev.target.closest('[data-rc-notes]');
+      if (sel) {
+        var id = sel.getAttribute('data-rc-cause');
+        var n = list.querySelector('[data-rc-notes="' + id + '"]');
+        setRecallCause(short, id, sel.value, n ? n.value : '');
+      } else if (inp) {
+        var id2 = inp.getAttribute('data-rc-notes');
+        var s = list.querySelector('[data-rc-cause="' + id2 + '"]');
+        setRecallCause(short, id2, s ? s.value : '', inp.value);
+      }
+    });
+
+    return sec;
+  }
+
+  // ---- 9) Timeline ----
+  function buildTimelineSection(short) {
+    var sec = makeSection('Technician Timeline');
+    var events = [];
+    getRecallEntries(short).forEach(function(e) {
+      events.push({ date: e.date || '', kind: 'recall', msg: 'Recall logged · Job #' + (e.jobNum||'') + (e.notes ? ' — ' + e.notes : '') });
+    });
+    getComplaintEntries(short).forEach(function(e) {
+      events.push({ date: e.date || '', kind: 'recall', msg: 'Complaint logged · Job #' + (e.jobNum||'') });
+    });
+    getCoachingEntries(short).forEach(function(e) {
+      var d = e.date || e.dateISO || '';
+      var k = e.type === 'ridealong' || e.type === 'ride-along' ? 'ridealong' : '1on1';
+      var label = (k==='ridealong') ? 'Ride-along' : '1-on-1';
+      events.push({ date: d, kind: k, msg: label + (e.notes ? ' — ' + e.notes : (e.title ? ' — ' + e.title : '')) });
+    });
+    getActions(short).forEach(function(a) {
+      if (a.completedDate) events.push({ date: a.completedDate, kind: 'action', msg: 'Action completed: ' + (a.title||'') });
+      else if (a.createdDate) events.push({ date: a.createdDate, kind: 'action', msg: 'Action added: ' + (a.title||'') });
+    });
+    getTraining(short).forEach(function(t) {
+      if (t.completedDate) events.push({ date: t.completedDate, kind: 'training', msg: 'Training completed: ' + (t.module||'') });
+      else if (t.createdDate) events.push({ date: t.createdDate, kind: 'training', msg: 'Training assigned: ' + (t.module||'') });
+    });
+
+    events = events.filter(function(e){ return e.date; });
+    events.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+
+    if (!events.length) {
+      var p = document.createElement('div');
+      p.className = 'ap-empty';
+      p.textContent = 'No timeline events yet. Logging coaching, recalls, and actions will populate this view.';
+      sec.appendChild(p);
+      return sec;
+    }
+    var list = document.createElement('div');
+    list.className = 'tl-list';
+    list.innerHTML = events.slice(0, 50).map(function(e) {
+      return '<div class="tl-item kind-' + esc(e.kind) + '">' +
+        '<div class="tl-date">' + esc(e.date) + '</div>' +
+        '<div class="tl-dot"></div>' +
+        '<div class="tl-msg">' + esc(e.msg) + '</div>' +
+      '</div>';
+    }).join('');
+    sec.appendChild(list);
+    return sec;
+  }
+
+  // Patch mgrOpenProfileModal to call decorate after it renders
+  function patchProfileModal() {
+    if (typeof window.mgrOpenProfileModal !== 'function') return false;
+    if (window.mgrOpenProfileModal.__v200Patched) return true;
+    var orig = window.mgrOpenProfileModal;
+    window.mgrOpenProfileModal = function patchedMgrOpenProfileModal(short) {
+      var r = orig.apply(this, arguments);
+      try { decorateProfileModal(short); } catch(e) { console.warn('v200 decorate failed', e); }
+      return r;
+    };
+    window.mgrOpenProfileModal.__v200Patched = true;
+    return true;
+  }
+
+  // ============================================================
+  //                     MANAGER VIEW ALERTS BANNER
+  // ============================================================
+  function injectMgrAlerts() {
+    var kpiRow = document.getElementById('mgrKpiRow'); if (!kpiRow) return;
+    var existing = document.getElementById('mgrV200Alerts');
+    if (existing) existing.parentNode.removeChild(existing);
+
+    var alerts = generateAlerts();
+    var banner = document.createElement('div');
+    banner.id = 'mgrV200Alerts';
+    banner.className = 'mgr-alerts-banner' + (alerts.length === 0 ? ' empty' : '');
+
+    if (!alerts.length) {
+      banner.innerHTML = '<h3>At-Risk Alerts</h3><div style="color:#86efac;font-size:12px;">No alerts. Coaching cadence and recall rate look healthy.</div>';
+    } else {
+      // sort high → med → low, cap at 8
+      var sevOrder = { high:0, med:1, low:2 };
+      alerts.sort(function(a,b){ return (sevOrder[a.sev]||9) - (sevOrder[b.sev]||9); });
+      var top = alerts.slice(0, 8);
+      banner.innerHTML = '<h3>At-Risk Alerts <span style="opacity:0.7;font-size:11px;">' + alerts.length + ' active</span></h3>' +
+        '<div class="mgr-alerts-list">' +
+          top.map(function(a) {
+            return '<div class="mgr-alert-item sev-' + esc(a.sev) + '">' +
+              '<span class="mgr-alert-tech">' + esc(a.tech) + '</span>' +
+              '<span class="mgr-alert-msg">' + esc(a.msg) + '</span>' +
+              '<button class="mgr-alert-action" data-mgralert-tech="' + esc(a.tech) + '">Open profile →</button>' +
+            '</div>';
+          }).join('') +
+        '</div>';
+    }
+    kpiRow.parentNode.insertBefore(banner, kpiRow);
+
+    banner.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-mgralert-tech]'); if (!btn) return;
+      var tech = btn.getAttribute('data-mgralert-tech');
+      if (typeof window.mgrOpenProfileModal === 'function') window.mgrOpenProfileModal(tech);
+    });
+  }
+
+  // ============================================================
+  //                     MATRIX HELPER ASSISTANT
+  // ============================================================
+  var CHECKLIST_ITEMS = [
+    { id: 'review_numbers', label: 'Review today\'s numbers (Daily / KPI Row)' },
+    { id: 'review_alerts', label: 'Review at-risk alerts' },
+    { id: 'oneonones', label: 'Complete scheduled 1-on-1s' },
+    { id: 'ridealongs', label: 'Complete scheduled ride-alongs' },
+    { id: 'assign_training', label: 'Assign or check training progress' },
+    { id: 'review_actions', label: 'Review action items (overdue + due today)' },
+    { id: 'mtd_recalls', label: 'Review MTD recalls + root causes' },
+    { id: 'daily_note', label: 'Log today\'s coaching note' }
+  ];
+
+  function loadHelperUi() {
+    return loadJSON(KEY_HELPER_UI, { open: false, tab: 'suggest' });
+  }
+  function saveHelperUi(v) { saveJSON(KEY_HELPER_UI, v); }
+  function loadChecklist() {
+    var all = loadJSON(KEY_HELPER_CL, {});
+    return all[todayISO()] || {};
+  }
+  function saveChecklist(map) {
+    var all = loadJSON(KEY_HELPER_CL, {});
+    all[todayISO()] = map;
+    saveJSON(KEY_HELPER_CL, all);
+  }
+
+  function buildHelperSuggestions() {
+    var suggestions = [];
+    var alerts = generateAlerts();
+    var highTechs = {};
+    alerts.forEach(function(a){ if (a.sev === 'high') highTechs[a.tech] = true; });
+
+    if (Object.keys(highTechs).length) {
+      suggestions.push({
+        sev: 'high',
+        ic: '!',
+        msg: 'Start with at-risk techs: ' + Object.keys(highTechs).join(', '),
+        small: 'High-severity alerts active',
+        action: { label: 'Show alerts', kind: 'goto-mgr' }
+      });
+    }
+
+    // Overdue actions across team
+    var anyOverdue = 0;
+    V200_TECH_ORDER.forEach(function(tech) {
+      var items = getActions(tech);
+      anyOverdue += items.filter(function(a){ return deriveActionStatus(a) === 'overdue'; }).length;
+    });
+    if (anyOverdue > 0) {
+      suggestions.push({ sev: 'med', ic: '⏰', msg: 'Review ' + anyOverdue + ' overdue action item' + (anyOverdue>1?'s':''), small: 'Action plans need attention', action: { label: 'Review', kind: 'goto-actions' } });
+    }
+
+    // Today's ride-alongs (via mgr session log if available)
+    suggestions.push({ sev: 'low', ic: '📅', msg: 'Open today\'s ride-alongs', small: 'Check the coaching calendar', action: { label: 'Calendar', kind: 'goto-cal' } });
+
+    // No recent 1-on-1s
+    V200_TECH_ORDER.forEach(function(tech) {
+      var lc = lastCoachingDate(tech);
+      if (!lc) return;
+      var d = daysBetween(lc, todayISO());
+      if (d > 30) {
+        suggestions.push({ sev: 'med', ic: '👤', msg: tech + ': no coaching in ' + d + ' days', small: 'Schedule a 1-on-1', action: { label: 'Open ' + tech, kind: 'open-profile', tech: tech } });
+      }
+    });
+
+    suggestions.push({ sev: 'low', ic: '📊', msg: 'Review MTD recalls', small: 'Check root cause breakdown', action: { label: 'Open', kind: 'goto-recall' } });
+    suggestions.push({ sev: 'low', ic: '📝', msg: 'Log today\'s coaching note', small: 'Daily journal stays warm', action: { label: 'Today', kind: 'goto-mgr' } });
+
+    return suggestions;
+  }
+
+  function ensureHelperWidget() {
+    var root = document.getElementById('matrixHelperRoot');
+    if (!root) return;
+    if (root.querySelector('#matrixHelperFab')) return;
+
+    // Build FAB
+    var fab = document.createElement('button');
+    fab.id = 'matrixHelperFab';
+    fab.title = 'Matrix Helper — guidance & daily checklist';
+    fab.setAttribute('aria-label', 'Open Matrix Helper');
+    fab.innerHTML = '<span style="font-size:24px;line-height:1;">✦</span><span class="badge" id="mhBadge" style="display:none;">0</span>';
+    root.appendChild(fab);
+
+    var panel = document.createElement('div');
+    panel.id = 'matrixHelperPanel';
+    panel.innerHTML =
+      '<div class="mh-head">' +
+        '<div class="mh-title">Matrix Helper</div>' +
+        '<button class="mh-close" id="mhClose" title="Close">×</button>' +
+      '</div>' +
+      '<div class="mh-tabs">' +
+        '<button data-mh-tab="suggest" class="active">Suggestions</button>' +
+        '<button data-mh-tab="checklist">Daily Checklist</button>' +
+        '<button data-mh-tab="quick">Quick Actions</button>' +
+      '</div>' +
+      '<div class="mh-body" id="mhBody"></div>' +
+      '<div class="mh-foot">v200 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+    root.appendChild(panel);
+
+    var ui = loadHelperUi();
+    if (ui.open) panel.classList.add('open');
+
+    fab.addEventListener('click', function() {
+      panel.classList.toggle('open');
+      var u = loadHelperUi(); u.open = panel.classList.contains('open'); saveHelperUi(u);
+      if (panel.classList.contains('open')) renderHelperBody(ui.tab || 'suggest');
+    });
+    panel.querySelector('#mhClose').addEventListener('click', function() {
+      panel.classList.remove('open');
+      var u = loadHelperUi(); u.open = false; saveHelperUi(u);
+    });
+
+    panel.querySelectorAll('[data-mh-tab]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        panel.querySelectorAll('[data-mh-tab]').forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        var tab = btn.getAttribute('data-mh-tab');
+        var u = loadHelperUi(); u.tab = tab; saveHelperUi(u);
+        renderHelperBody(tab);
+      });
+    });
+
+    function renderHelperBody(tab) {
+      var body = panel.querySelector('#mhBody');
+      if (tab === 'checklist') {
+        var cl = loadChecklist();
+        var done = CHECKLIST_ITEMS.filter(function(it){ return cl[it.id]; }).length;
+        var pct = Math.round((done / CHECKLIST_ITEMS.length) * 100);
+        body.innerHTML =
+          '<div class="mh-cl-progress">Today\'s checklist: ' + done + ' / ' + CHECKLIST_ITEMS.length + ' (' + pct + '%)<div class="bar"><span style="width:' + pct + '%"></span></div></div>' +
+          '<div class="mh-checklist">' +
+            CHECKLIST_ITEMS.map(function(it) {
+              return '<label class="mh-cl-item' + (cl[it.id] ? ' done' : '') + '">' +
+                '<input type="checkbox" data-mh-cl="' + esc(it.id) + '"' + (cl[it.id] ? ' checked' : '') + '>' +
+                '<span class="label">' + esc(it.label) + '</span>' +
+              '</label>';
+            }).join('') +
+          '</div>';
+        body.querySelectorAll('[data-mh-cl]').forEach(function(cb) {
+          cb.addEventListener('change', function() {
+            var id = cb.getAttribute('data-mh-cl');
+            var map = loadChecklist();
+            map[id] = cb.checked;
+            saveChecklist(map);
+            renderHelperBody('checklist');
+            updateBadge();
+          });
+        });
+      } else if (tab === 'quick') {
+        body.innerHTML =
+          '<div class="mh-suggest">' +
+            quickAction('Go to Manager view', 'goto-mgr') +
+            quickAction('Open Coaching Calendar', 'goto-cal') +
+            quickAction('Open Session Log', 'goto-log') +
+            quickAction('Open Recall Log', 'goto-recall') +
+            quickAction('Open Profiles', 'goto-profiles') +
+            quickAction('Capture skill snapshots (all techs)', 'snap-all') +
+          '</div>';
+        body.querySelectorAll('[data-mh-quick]').forEach(function(b) {
+          b.addEventListener('click', function() { handleHelperAction(b.getAttribute('data-mh-quick')); });
+        });
+      } else {
+        var sgs = buildHelperSuggestions();
+        body.innerHTML =
+          '<div class="mh-suggest">' +
+            sgs.map(function(s, i) {
+              return '<div class="mh-sg sev-' + esc(s.sev) + '">' +
+                '<span class="ic">' + esc(s.ic) + '</span>' +
+                '<div class="msg">' + esc(s.msg) + (s.small ? '<small>' + esc(s.small) + '</small>' : '') + '</div>' +
+                (s.action ? '<button data-mh-sg="' + i + '">' + esc(s.action.label) + '</button>' : '<span></span>') +
+              '</div>';
+            }).join('') +
+          '</div>';
+        body.querySelectorAll('[data-mh-sg]').forEach(function(b) {
+          b.addEventListener('click', function() {
+            var idx = parseInt(b.getAttribute('data-mh-sg'), 10);
+            var s = sgs[idx];
+            if (!s || !s.action) return;
+            if (s.action.kind === 'open-profile' && s.action.tech) {
+              if (typeof window.mgrOpenProfileModal === 'function') window.mgrOpenProfileModal(s.action.tech);
+            } else {
+              handleHelperAction(s.action.kind);
+            }
+          });
+        });
+      }
+    }
+
+    function quickAction(label, kind) {
+      return '<div class="mh-sg sev-low">' +
+        '<span class="ic">→</span>' +
+        '<div class="msg">' + esc(label) + '</div>' +
+        '<button data-mh-quick="' + esc(kind) + '">Go</button>' +
+      '</div>';
+    }
+
+    function handleHelperAction(kind) {
+      try {
+        if (kind === 'goto-mgr' || kind === 'goto-actions') {
+          activateMainTab('manager');
+        } else if (kind === 'goto-cal') {
+          activateMainTab('manager');
+          if (typeof window.mgrSwitchSubTab === 'function') window.mgrSwitchSubTab('calendar');
+        } else if (kind === 'goto-log') {
+          activateMainTab('manager');
+          if (typeof window.mgrSwitchSubTab === 'function') window.mgrSwitchSubTab('log');
+        } else if (kind === 'goto-recall') {
+          activateMainTab('quality');
+        } else if (kind === 'goto-profiles') {
+          activateMainTab('manager');
+          if (typeof window.mgrSwitchSubTab === 'function') window.mgrSwitchSubTab('profiles');
+        } else if (kind === 'snap-all') {
+          var n = 0;
+          V200_TECH_ORDER.forEach(function(tech) {
+            var t = getTechObj(tech); if (!t) return;
+            var arr = getSkillSnaps(tech);
+            arr.push({ date: todayISO(), scores: computeCategoryAvgs(t.scores || {}) });
+            setSkillSnaps(tech, arr);
+            n++;
+          });
+          alert('Captured ' + n + ' skill snapshots.');
+        }
+      } catch(e) { console.warn('helper action failed', e); }
+    }
+
+    function activateMainTab(name) {
+      // Try common tab patterns
+      var btn = document.querySelector('[data-tab="' + name + '"]');
+      if (btn) { btn.click(); return; }
+      // sidebar nav variant
+      btn = document.querySelector('.nav-link[data-tab="' + name + '"]');
+      if (btn) { btn.click(); return; }
+      // last resort: scroll to id
+      var sec = document.getElementById('tab-' + name) || document.getElementById(name);
+      if (sec && sec.scrollIntoView) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function updateBadge() {
+      var alerts = generateAlerts();
+      var cl = loadChecklist();
+      var done = CHECKLIST_ITEMS.filter(function(it){ return cl[it.id]; }).length;
+      var pending = CHECKLIST_ITEMS.length - done;
+      var n = alerts.filter(function(a){ return a.sev === 'high'; }).length + (pending > 0 ? 1 : 0);
+      var b = document.getElementById('mhBadge');
+      if (!b) return;
+      if (n > 0) {
+        b.textContent = String(n);
+        b.style.display = '';
+      } else {
+        b.style.display = 'none';
+      }
+    }
+
+    // initial
+    renderHelperBody(ui.tab || 'suggest');
+    updateBadge();
+
+    // Re-update badge every 30s while page is open
+    setInterval(updateBadge, 30000);
+  }
+
+  // ============================================================
+  //                            BOOT
+  // ============================================================
+  function boot() {
+    try { seedIfEmpty(); } catch(e) { console.warn('v200 seed failed', e); }
+    try { ensureHelperWidget(); } catch(e) { console.warn('v200 helper failed', e); }
+    try { injectMgrAlerts(); } catch(e) { console.warn('v200 mgr alerts failed', e); }
+
+    // Try to patch immediately, retry if profile modal isn't ready yet
+    var tries = 0;
+    var iv = setInterval(function() {
+      if (patchProfileModal() || ++tries > 40) {
+        clearInterval(iv);
+        if (tries > 40) console.warn('v200: profile modal patch never attached');
+      }
+    }, 250);
+
+    // Re-inject alerts whenever manager tab becomes visible / things change
+    document.addEventListener('click', function(e) {
+      var navTab = e.target.closest('[data-tab="manager"], .nav-link[data-tab="manager"]');
+      if (navTab) setTimeout(injectMgrAlerts, 200);
+    }, true);
+    setInterval(injectMgrAlerts, 60000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    setTimeout(boot, 50);
+  }
+})();
