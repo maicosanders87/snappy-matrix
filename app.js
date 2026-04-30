@@ -2141,6 +2141,16 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260427IfNeeded failed', e); }
     }
 
+    // v198: MTD Recall Snapshot (Thursday Apr 30, 2026) — added mtd_recalls per tech in stData.
+    // Per-tech recall metrics (completed jobs, warranty jobs, recalls caused, tech recall %, recall jobs):
+    //   Dee Williams:    35 / 0 / 2 / 40.00% / 1   — highest recall rate; lowest job count
+    //   Daniel Gazaway:  51 / 0 / 2 / 11.11% / 1
+    //   Chris Monahan:   72 / 1 / 1 /  5.26% / 2   — highest completed jobs
+    //   Dewone Martin:   61 / 2 / 1 /  4.35% / 1
+    //   Ben Tinahui:     62 / 1 / 0 /  0.00% / 0   — clean
+    //   Thomas Gilbert:   2 / 0 / 0 /  0.00% / 0   — Snappy partner / not on Matrix roster, recorded for completeness only
+    // Tasks-per-Opportunity also refreshed to match the 4/30 MTD pull (Dee 4.30, Daniel 2.13, Chris 1.58, Dewone 2.15, Benji 2.22).
+
     // v197: One-shot Thursday Apr 30, 2026 ADD-ON seed for week 2026-04-27.
     // Adds Thursday's daily numbers on top of Mon+Tue+Wed totals already seeded.
     // Sources: today's Nexstar productivity + Membership screenshots (4/30/26).
@@ -6293,13 +6303,15 @@ if (typeof Chart !== 'undefined') {
         name: "Dewone",
         color: "#E07B3A",
         // v189: +$158 svc, +1 TGL, +3.2 sold hrs on 4/29 (low-volume callback day, no installs)
+        // v198: MTD Recalls (4/30/2026): completed 61, warranty 2, recalls caused 1, recall % 4.35, recall jobs 1
         mtd_service_rev: 10326,
         mtd_installs: 3,
         mtd_install_rev: 51363,
         mtd_install_self_sourced: 3,
         mtd_on_job_pct: 50,
         mtd_nexstar: { total_revenue: 10326, avg_sale: 419, conversion_rate: 86, spps_sold: 5, tech_gen_leads: 12, sold_hours: 46.95, flat_rate_tasks: 1.72 },
-        mtd_productivity: { rev_hr: 104, billable_hours: 46.95, sold_hrs_on_job_pct: 50, tasks_per_opp: 2.10, options_per_opp: 3, recalls: 1 },
+        mtd_productivity: { rev_hr: 104, billable_hours: 46.95, sold_hrs_on_job_pct: 50, tasks_per_opp: 2.15, options_per_opp: 3, recalls: 1 },
+        mtd_recalls: { completed_jobs: 61, warranty_jobs: 2, recalls_caused: 1, tech_recall_pct: 4.35, recall_jobs: 1 },
         mtd_memberships: { total_mem_sold: 5, total_mem_opps: 7, total_mem_pct: 71 },
         mtd_sales: { close_rate: 88 },
         nexstar: { total_revenue: 25675, avg_sale: 440, conversion_rate: 79, spps_sold: 8, tech_gen_leads: 34, sold_hours: 138.55, tech_sold_hr_eff: 0, flat_rate_tasks: 1.84 },
@@ -6316,13 +6328,15 @@ if (typeof Chart !== 'undefined') {
         color: "#5B4A8A",
         // v175: +$444 svc, +1 install $9,059.59 (Nellie Ellis), +1 mem opp (no sale) on 4/28
         // v189: $0 svc on 4/29 (no opps), +3.5 billable hrs (efficiency 0.41) — efficiency drag
+        // v198: MTD Recalls (4/30/2026): completed 62, warranty 1, recalls caused 0, recall % 0.00, recall jobs 0
         mtd_service_rev: 8620,
         mtd_installs: 3,
         mtd_install_rev: 29514,
         mtd_install_self_sourced: 1,
         mtd_on_job_pct: 53,
         mtd_nexstar: { total_revenue: 8620, avg_sale: 437, conversion_rate: 73, spps_sold: 2, tech_gen_leads: 2, sold_hours: 54.35, tech_sold_hr_eff: 0.66, flat_rate_tasks: 2.13 },
-        mtd_productivity: { rev_hr: 89, billable_hours: 54.35, sold_hrs_on_job_pct: 53, tasks_per_opp: 1.97, options_per_opp: 1.37, recalls: 1 },
+        mtd_productivity: { rev_hr: 89, billable_hours: 54.35, sold_hrs_on_job_pct: 53, tasks_per_opp: 2.22, options_per_opp: 1.37, recalls: 0 },
+        mtd_recalls: { completed_jobs: 62, warranty_jobs: 1, recalls_caused: 0, tech_recall_pct: 0.00, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 2, total_mem_opps: 9, total_mem_pct: 22 },
         mtd_sales: { close_rate: 72 },
         nexstar: { total_revenue: 18238, avg_sale: 445, conversion_rate: 56, spps_sold: 2, tech_gen_leads: 9, sold_hours: 130.65, tech_sold_hr_eff: 0.28, flat_rate_tasks: 2.17 },
@@ -6338,13 +6352,15 @@ if (typeof Chart !== 'undefined') {
         color: "#C47F17",
         // v175: +$1,287 svc on 4/28 (avg $643, 100% conv, 2 sold hrs, 2 tasks)
         // v189: $0 svc on 4/29 (no opps closed), +1.0 sold hr — efficiency drag
+        // v198: MTD Recalls (4/30/2026): completed 51, warranty 0, recalls caused 2, recall % 11.11, recall jobs 1
         mtd_service_rev: 9771,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 27,
         mtd_nexstar: { total_revenue: 9771, avg_sale: 502, conversion_rate: 82, spps_sold: 0, tech_gen_leads: 1, sold_hours: 42.15, flat_rate_tasks: 1.89 },
-        mtd_productivity: { rev_hr: 55, billable_hours: 42.15, sold_hrs_on_job_pct: 27, tasks_per_opp: 2.2, options_per_opp: 0.86, recalls: 2 },
+        mtd_productivity: { rev_hr: 55, billable_hours: 42.15, sold_hrs_on_job_pct: 27, tasks_per_opp: 2.13, options_per_opp: 0.86, recalls: 2 },
+        mtd_recalls: { completed_jobs: 51, warranty_jobs: 0, recalls_caused: 2, tech_recall_pct: 11.11, recall_jobs: 1 },
         mtd_memberships: { total_mem_sold: 0, total_mem_opps: 4, total_mem_pct: 0 },
         mtd_sales: { close_rate: 80 },
         nexstar: { total_revenue: 19162, avg_sale: 547, conversion_rate: 64, spps_sold: 4, tech_gen_leads: 5, sold_hours: 120.75, tech_sold_hr_eff: 0, flat_rate_tasks: 2.03 },
@@ -6360,6 +6376,7 @@ if (typeof Chart !== 'undefined') {
         color: "#8B3A3A",
         // v175: +$275 svc on 4/28 ($206 avg, 100% conv, 1 tech-gen lead, 2.8 sold hrs, 2 tasks, 2 mem opps no sale)
         // v189: +$1,064 svc on 4/29 (100% conv, $1,064 avg, 1.0 sold hr, 3 tasks)
+        // v198: MTD Recalls (4/30/2026): completed 72, warranty 1, recalls caused 1, recall % 5.26, recall jobs 2
         mtd_service_rev: 7924,
         mtd_installs: 3,
         mtd_install_rev: 37485,
@@ -6367,7 +6384,8 @@ if (typeof Chart !== 'undefined') {
         mtd_install_tgl_for_others: 1,
         mtd_on_job_pct: 51,
         mtd_nexstar: { total_revenue: 7924, avg_sale: 379, conversion_rate: 67, spps_sold: 4, tech_gen_leads: 7, sold_hours: 52.4, flat_rate_tasks: 1.91 },
-        mtd_productivity: { rev_hr: 73, billable_hours: 52.4, sold_hrs_on_job_pct: 51, tasks_per_opp: 1.54, options_per_opp: 2.11, recalls: 1 },
+        mtd_productivity: { rev_hr: 73, billable_hours: 52.4, sold_hrs_on_job_pct: 51, tasks_per_opp: 1.58, options_per_opp: 2.11, recalls: 1 },
+        mtd_recalls: { completed_jobs: 72, warranty_jobs: 1, recalls_caused: 1, tech_recall_pct: 5.26, recall_jobs: 2 },
         mtd_memberships: { total_mem_sold: 4, total_mem_opps: 10, total_mem_pct: 40 },
         mtd_sales: { close_rate: 63 },
         nexstar: { total_revenue: 15359, avg_sale: 360, conversion_rate: 55, spps_sold: 6, tech_gen_leads: 26, sold_hours: 127.67, tech_sold_hr_eff: 0, flat_rate_tasks: 1.91 },
@@ -6382,13 +6400,15 @@ if (typeof Chart !== 'undefined') {
         name: "Dee",
         color: "#2D6A6A",
         // v189: +$1,064 svc on 4/29 (100% conv, $1,064 avg, 1.0 sold hr, 3 tasks)
+        // v198: MTD Recalls (4/30/2026): completed 35, warranty 0, recalls caused 2, recall % 40.00, recall jobs 1 — highest recall rate on team
         mtd_service_rev: 3918,
         mtd_installs: 1,
         mtd_install_rev: 13410,
         mtd_install_self_sourced: 1,
         mtd_on_job_pct: 38,
         mtd_nexstar: { total_revenue: 3918, avg_sale: 891, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 25.85, flat_rate_tasks: 5.5 },
-        mtd_productivity: { rev_hr: 32, billable_hours: 25.85, sold_hrs_on_job_pct: 38, tasks_per_opp: 5.4, options_per_opp: 2, recalls: 0 },
+        mtd_productivity: { rev_hr: 32, billable_hours: 25.85, sold_hrs_on_job_pct: 38, tasks_per_opp: 4.30, options_per_opp: 2, recalls: 2 },
+        mtd_recalls: { completed_jobs: 35, warranty_jobs: 0, recalls_caused: 2, tech_recall_pct: 40.00, recall_jobs: 1 },
         mtd_memberships: { total_mem_sold: 1, total_mem_opps: 1, total_mem_pct: 100 },
         mtd_sales: { close_rate: 100 },
         isWarrantyTech: true,
