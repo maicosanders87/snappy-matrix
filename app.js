@@ -4750,6 +4750,8 @@ document.addEventListener('visibilitychange', function() {
 
     function renderOverviewTab() {
       // ---- 1. KPI COUNTERS ----
+      // v203: Pull MTD scalars through getMTDForTech() so the month picker switches
+      // between live (current) values and archived months (e.g. April 2026).
       var totalCallbacks = 0;
       var totalComplaints = 0;
       var totalRevenue = 0;
@@ -4757,13 +4759,15 @@ document.addEventListener('visibilitychange', function() {
       var totalInstallRev = 0;
       var totalMtdInstalls = 0;
       var totalMtdInstallRev = 0;
+      var isCurrentMonth = (currentMtdMonth === 'current');
 
       stData.forEach(function(st) {
         totalCallbacks += st.productivity.recalls || 0;
-        totalRevenue += st.mtd_service_rev || 0;
         totalInstallRev += st.installs.total_revenue || 0;
-        totalMtdInstalls += st.mtd_installs || 0;
-        totalMtdInstallRev += st.mtd_install_rev || 0;
+        var m = getMTDForTech(st);
+        totalRevenue += (m && m.mtd_service_rev) || 0;
+        totalMtdInstalls += (m && m.mtd_installs) || 0;
+        totalMtdInstallRev += (m && m.mtd_install_rev) || 0;
       });
       // Team MTD install totals (sum of techs' mtd_installs + 1 manager-sold install (Adam) = 8, but the
       // KPI tile shows team tech installs only, so we use the computed sum above.)
@@ -4790,14 +4794,24 @@ document.addEventListener('visibilitychange', function() {
       var liveRecalls = getTotalRecalls();
       var liveComplaints = getTotalComplaints();
 
+      // v203: when viewing an archived month, recalls/complaints aren't snapshotted yet \u2014
+      // show \u2014 placeholder rather than misleading current dispatch counts.
+      var recallsValue = isCurrentMonth ? liveRecalls : '\u2014';
+      var complaintsValue = isCurrentMonth ? liveComplaints : '\u2014';
+      var monthLabel = getCurrentMtdMonthShort();
+      var monthSub = isCurrentMonth ? 'Month-to-date' : monthLabel + ' (final)';
+      var recallSub = isCurrentMonth ? 'Active dispatch recalls' : 'Live counts \u2014 current only';
+      var complaintSub = isCurrentMonth ? 'Active customer complaints' : 'Live counts \u2014 current only';
+      var svcSub = isCurrentMonth ? 'Maintenance & service only' : monthLabel + ' \u00b7 Service rev';
+
       var kpiHTML = '';
       var kpis = [
-        { icon: '\ud83d\udd04', value: liveRecalls, label: 'Recalls', sub: 'Active dispatch recalls', nav: 'dispatch', stSub: null },
-        { icon: '\u26a0\ufe0f', value: liveComplaints, label: 'Complaints', sub: 'Active customer complaints', nav: 'dispatch', stSub: null },
-        { icon: '\ud83d\udcb0', value: '$' + totalRevenue.toLocaleString(), label: 'Service Revenue', sub: 'Maintenance & service only', nav: 'scorecards', stSub: 'overview' },
+        { icon: '\ud83d\udd04', value: recallsValue, label: 'Recalls', sub: recallSub, nav: 'dispatch', stSub: null },
+        { icon: '\u26a0\ufe0f', value: complaintsValue, label: 'Complaints', sub: complaintSub, nav: 'dispatch', stSub: null },
+        { icon: '\ud83d\udcb0', value: '$' + totalRevenue.toLocaleString(), label: 'Service Revenue', sub: svcSub, nav: 'scorecards', stSub: 'overview' },
         { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'Last 90 days', nav: 'profiles', stSub: null },
-        { icon: '\ud83c\udfe0', value: '$' + totalMtdInstallRev.toLocaleString(), label: 'Install Revenue', sub: 'Month-to-date', nav: 'scorecards', stSub: 'installs' },
-        { icon: '\ud83d\udee0\ufe0f', value: totalMtdInstalls, label: 'MTD Installs', sub: 'Month-to-date completed', nav: 'scorecards', stSub: 'installs' }
+        { icon: '\ud83c\udfe0', value: '$' + totalMtdInstallRev.toLocaleString(), label: 'Install Revenue', sub: monthSub, nav: 'scorecards', stSub: 'installs' },
+        { icon: '\ud83d\udee0\ufe0f', value: totalMtdInstalls, label: 'Installs', sub: isCurrentMonth ? 'Month-to-date completed' : monthLabel + ' completed', nav: 'scorecards', stSub: 'installs' }
       ];
 
       kpis.forEach(function(k) {
@@ -4809,6 +4823,20 @@ document.addEventListener('visibilitychange', function() {
         '</div>';
       });
       document.getElementById('ov-kpi-grid').innerHTML = kpiHTML;
+
+      // v203: Inject the month picker just above the KPI grid (idempotent: replace if present)
+      try {
+        var grid = document.getElementById('ov-kpi-grid');
+        if (grid && grid.parentNode) {
+          var picker = document.getElementById('ov-month-picker');
+          if (!picker) {
+            picker = document.createElement('div');
+            picker.id = 'ov-month-picker';
+            grid.parentNode.insertBefore(picker, grid);
+          }
+          picker.innerHTML = buildMonthPickerHTML();
+        }
+      } catch(e) { console.warn('month picker render failed', e); }
 
       // ---- 2. ANIMATED LEADERBOARD ----
       var snapHTML = '';
@@ -6315,19 +6343,32 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Dewone",
         color: "#E07B3A",
-        // v189: +$158 svc, +1 TGL, +3.2 sold hrs on 4/29 (low-volume callback day, no installs)
-        // v198: MTD Recalls (4/30/2026): completed 61, warranty 2, recalls caused 1, recall % 4.35, recall jobs 1
-        // v202: +$362 svc on 4/30 (100% conv on 1 call, $362 avg, 2.5 sold hrs, 2 tasks, +1 TGL)
-        mtd_service_rev: 10688,
-        mtd_installs: 3,
-        mtd_install_rev: 51363,
-        mtd_install_self_sourced: 3,
-        mtd_on_job_pct: 49,
-        mtd_nexstar: { total_revenue: 10688, avg_sale: 412, conversion_rate: 84, spps_sold: 5, tech_gen_leads: 13, sold_hours: 49.45, flat_rate_tasks: 1.74 },
-        mtd_productivity: { rev_hr: 102, billable_hours: 49.45, sold_hrs_on_job_pct: 49, tasks_per_opp: 2.13, options_per_opp: 3, recalls: 1 },
-        mtd_recalls: { completed_jobs: 61, warranty_jobs: 2, recalls_caused: 1, tech_recall_pct: 4.35, recall_jobs: 1 },
-        mtd_memberships: { total_mem_sold: 5, total_mem_opps: 7, total_mem_pct: 71 },
-        mtd_sales: { close_rate: 88 },
+        // v203: May 2026 starts \u2014 live MTD scalars reset to zero. April archived in monthly_archive['2026-04'].
+        mtd_service_rev: 0,
+        mtd_installs: 0,
+        mtd_install_rev: 0,
+        mtd_install_self_sourced: 0,
+        mtd_on_job_pct: 0,
+        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, flat_rate_tasks: 0 },
+        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 0 },
+        monthly_archive: {
+          '2026-04': {
+            label: 'April 2026',
+            mtd_service_rev: 10688,
+            mtd_installs: 3,
+            mtd_install_rev: 51363,
+            mtd_install_self_sourced: 3,
+            mtd_on_job_pct: 49,
+            mtd_nexstar: { total_revenue: 10688, avg_sale: 412, conversion_rate: 84, spps_sold: 5, tech_gen_leads: 13, sold_hours: 49.45, flat_rate_tasks: 1.74 },
+            mtd_productivity: { rev_hr: 102, billable_hours: 49.45, sold_hrs_on_job_pct: 49, tasks_per_opp: 2.13, options_per_opp: 3, recalls: 1 },
+            mtd_recalls: { completed_jobs: 61, warranty_jobs: 2, recalls_caused: 1, tech_recall_pct: 4.35, recall_jobs: 1 },
+            mtd_memberships: { total_mem_sold: 5, total_mem_opps: 7, total_mem_pct: 71 },
+            mtd_sales: { close_rate: 88 }
+          }
+        },
         nexstar: { total_revenue: 25675, avg_sale: 440, conversion_rate: 79, spps_sold: 8, tech_gen_leads: 34, sold_hours: 138.55, tech_sold_hr_eff: 0, flat_rate_tasks: 1.84 },
         overview: { revenue: 25675, total_job_avg: 153, opp_job_avg: 351, opp_conversion: 79, opps: 71, converted_jobs: 56 },
         leads: { opps: 71, leads_set: 34, conv_rate: 48, avg_sale: 440 },
@@ -6340,20 +6381,32 @@ if (typeof Chart !== 'undefined') {
         name: "Benji",
         displayName: "Ben Tinahui",
         color: "#5B4A8A",
-        // v175: +$444 svc, +1 install $9,059.59 (Nellie Ellis), +1 mem opp (no sale) on 4/28
-        // v189: $0 svc on 4/29 (no opps), +3.5 billable hrs (efficiency 0.41) — efficiency drag
-        // v198: MTD Recalls (4/30/2026): completed 62, warranty 1, recalls caused 0, recall % 0.00, recall jobs 0
-        // v202: $0 svc on 4/30 (no opps), +4.0 sold hrs (eff 0.5) — second straight zero-rev day
-        mtd_service_rev: 8620,
-        mtd_installs: 3,
-        mtd_install_rev: 29514,
-        mtd_install_self_sourced: 1,
-        mtd_on_job_pct: 50,
-        mtd_nexstar: { total_revenue: 8620, avg_sale: 437, conversion_rate: 73, spps_sold: 2, tech_gen_leads: 2, sold_hours: 58.35, tech_sold_hr_eff: 0.62, flat_rate_tasks: 2.13 },
-        mtd_productivity: { rev_hr: 83, billable_hours: 58.35, sold_hrs_on_job_pct: 50, tasks_per_opp: 2.22, options_per_opp: 1.37, recalls: 0 },
-        mtd_recalls: { completed_jobs: 62, warranty_jobs: 1, recalls_caused: 0, tech_recall_pct: 0.00, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 2, total_mem_opps: 9, total_mem_pct: 22 },
-        mtd_sales: { close_rate: 72 },
+        // v203: May 2026 starts \u2014 live MTD scalars reset to zero. April archived.
+        mtd_service_rev: 0,
+        mtd_installs: 0,
+        mtd_install_rev: 0,
+        mtd_install_self_sourced: 0,
+        mtd_on_job_pct: 0,
+        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 },
+        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 0 },
+        monthly_archive: {
+          '2026-04': {
+            label: 'April 2026',
+            mtd_service_rev: 8620,
+            mtd_installs: 3,
+            mtd_install_rev: 29514,
+            mtd_install_self_sourced: 1,
+            mtd_on_job_pct: 50,
+            mtd_nexstar: { total_revenue: 8620, avg_sale: 437, conversion_rate: 73, spps_sold: 2, tech_gen_leads: 2, sold_hours: 58.35, tech_sold_hr_eff: 0.62, flat_rate_tasks: 2.13 },
+            mtd_productivity: { rev_hr: 83, billable_hours: 58.35, sold_hrs_on_job_pct: 50, tasks_per_opp: 2.22, options_per_opp: 1.37, recalls: 0 },
+            mtd_recalls: { completed_jobs: 62, warranty_jobs: 1, recalls_caused: 0, tech_recall_pct: 0.00, recall_jobs: 0 },
+            mtd_memberships: { total_mem_sold: 2, total_mem_opps: 9, total_mem_pct: 22 },
+            mtd_sales: { close_rate: 72 }
+          }
+        },
         nexstar: { total_revenue: 18238, avg_sale: 445, conversion_rate: 56, spps_sold: 2, tech_gen_leads: 9, sold_hours: 130.65, tech_sold_hr_eff: 0.28, flat_rate_tasks: 2.17 },
         overview: { revenue: 18238, total_job_avg: 108, opp_job_avg: 260, opp_conversion: 56, opps: 66, converted_jobs: 37 },
         leads: { opps: 66, leads_set: 9, conv_rate: 14, avg_sale: 445 },
@@ -6365,20 +6418,32 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Daniel",
         color: "#C47F17",
-        // v175: +$1,287 svc on 4/28 (avg $643, 100% conv, 2 sold hrs, 2 tasks)
-        // v189: $0 svc on 4/29 (no opps closed), +1.0 sold hr — efficiency drag
-        // v198: MTD Recalls (4/30/2026): completed 51, warranty 0, recalls caused 2, recall % 11.11, recall jobs 1
-        // v202: $0 svc on 4/30 (no opps), +4.0 sold hrs — third zero-rev day in a row
-        mtd_service_rev: 9771,
+        // v203: May 2026 starts \u2014 live MTD scalars reset to zero. April archived.
+        mtd_service_rev: 0,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
-        mtd_on_job_pct: 24,
-        mtd_nexstar: { total_revenue: 9771, avg_sale: 502, conversion_rate: 82, spps_sold: 0, tech_gen_leads: 1, sold_hours: 46.15, flat_rate_tasks: 1.89 },
-        mtd_productivity: { rev_hr: 50, billable_hours: 46.15, sold_hrs_on_job_pct: 24, tasks_per_opp: 2.13, options_per_opp: 0.86, recalls: 2 },
-        mtd_recalls: { completed_jobs: 51, warranty_jobs: 0, recalls_caused: 2, tech_recall_pct: 11.11, recall_jobs: 1 },
-        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 4, total_mem_pct: 0 },
-        mtd_sales: { close_rate: 80 },
+        mtd_on_job_pct: 0,
+        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, flat_rate_tasks: 0 },
+        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 0 },
+        monthly_archive: {
+          '2026-04': {
+            label: 'April 2026',
+            mtd_service_rev: 9771,
+            mtd_installs: 0,
+            mtd_install_rev: 0,
+            mtd_install_self_sourced: 0,
+            mtd_on_job_pct: 24,
+            mtd_nexstar: { total_revenue: 9771, avg_sale: 502, conversion_rate: 82, spps_sold: 0, tech_gen_leads: 1, sold_hours: 46.15, flat_rate_tasks: 1.89 },
+            mtd_productivity: { rev_hr: 50, billable_hours: 46.15, sold_hrs_on_job_pct: 24, tasks_per_opp: 2.13, options_per_opp: 0.86, recalls: 2 },
+            mtd_recalls: { completed_jobs: 51, warranty_jobs: 0, recalls_caused: 2, tech_recall_pct: 11.11, recall_jobs: 1 },
+            mtd_memberships: { total_mem_sold: 0, total_mem_opps: 4, total_mem_pct: 0 },
+            mtd_sales: { close_rate: 80 }
+          }
+        },
         nexstar: { total_revenue: 19162, avg_sale: 547, conversion_rate: 64, spps_sold: 4, tech_gen_leads: 5, sold_hours: 120.75, tech_sold_hr_eff: 0, flat_rate_tasks: 2.03 },
         overview: { revenue: 19162, total_job_avg: 121, opp_job_avg: 355, opp_conversion: 64, opps: 53, converted_jobs: 34 },
         leads: { opps: 53, leads_set: 5, conv_rate: 9, avg_sale: 547 },
@@ -6390,21 +6455,34 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Chris",
         color: "#8B3A3A",
-        // v175: +$275 svc on 4/28 ($206 avg, 100% conv, 1 tech-gen lead, 2.8 sold hrs, 2 tasks, 2 mem opps no sale)
-        // v189: +$1,064 svc on 4/29 (100% conv, $1,064 avg, 1.0 sold hr, 3 tasks)
-        // v198: MTD Recalls (4/30/2026): completed 72, warranty 1, recalls caused 1, recall % 5.26, recall jobs 2
-        // v202: $0 svc on 4/30 (no opps), +2.5 sold hrs, +1 TGL
-        mtd_service_rev: 7924,
-        mtd_installs: 3,
-        mtd_install_rev: 37485,
-        mtd_install_self_sourced: 2,
-        mtd_install_tgl_for_others: 1,
-        mtd_on_job_pct: 49,
-        mtd_nexstar: { total_revenue: 7924, avg_sale: 379, conversion_rate: 67, spps_sold: 4, tech_gen_leads: 8, sold_hours: 54.9, flat_rate_tasks: 1.91 },
-        mtd_productivity: { rev_hr: 70, billable_hours: 54.9, sold_hrs_on_job_pct: 49, tasks_per_opp: 1.58, options_per_opp: 2.11, recalls: 1 },
-        mtd_recalls: { completed_jobs: 72, warranty_jobs: 1, recalls_caused: 1, tech_recall_pct: 5.26, recall_jobs: 2 },
-        mtd_memberships: { total_mem_sold: 4, total_mem_opps: 10, total_mem_pct: 40 },
-        mtd_sales: { close_rate: 63 },
+        // v203: May 2026 starts \u2014 live MTD scalars reset to zero. April archived.
+        mtd_service_rev: 0,
+        mtd_installs: 0,
+        mtd_install_rev: 0,
+        mtd_install_self_sourced: 0,
+        mtd_install_tgl_for_others: 0,
+        mtd_on_job_pct: 0,
+        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, flat_rate_tasks: 0 },
+        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 0 },
+        monthly_archive: {
+          '2026-04': {
+            label: 'April 2026',
+            mtd_service_rev: 7924,
+            mtd_installs: 3,
+            mtd_install_rev: 37485,
+            mtd_install_self_sourced: 2,
+            mtd_install_tgl_for_others: 1,
+            mtd_on_job_pct: 49,
+            mtd_nexstar: { total_revenue: 7924, avg_sale: 379, conversion_rate: 67, spps_sold: 4, tech_gen_leads: 8, sold_hours: 54.9, flat_rate_tasks: 1.91 },
+            mtd_productivity: { rev_hr: 70, billable_hours: 54.9, sold_hrs_on_job_pct: 49, tasks_per_opp: 1.58, options_per_opp: 2.11, recalls: 1 },
+            mtd_recalls: { completed_jobs: 72, warranty_jobs: 1, recalls_caused: 1, tech_recall_pct: 5.26, recall_jobs: 2 },
+            mtd_memberships: { total_mem_sold: 4, total_mem_opps: 10, total_mem_pct: 40 },
+            mtd_sales: { close_rate: 63 }
+          }
+        },
         nexstar: { total_revenue: 15359, avg_sale: 360, conversion_rate: 55, spps_sold: 6, tech_gen_leads: 26, sold_hours: 127.67, tech_sold_hr_eff: 0, flat_rate_tasks: 1.91 },
         overview: { revenue: 15359, total_job_avg: 86, opp_job_avg: 203, opp_conversion: 55, opps: 73, converted_jobs: 40 },
         leads: { opps: 73, leads_set: 26, conv_rate: 36, avg_sale: 360 },
@@ -6416,19 +6494,32 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Dee",
         color: "#2D6A6A",
-        // v189: +$1,064 svc on 4/29 (100% conv, $1,064 avg, 1.0 sold hr, 3 tasks)
-        // v198: MTD Recalls (4/30/2026): completed 35, warranty 0, recalls caused 2, recall % 40.00, recall jobs 1 — highest recall rate on team
-        // v202: $0 svc on 4/30 (no opps), +1.0 sold hr
-        mtd_service_rev: 3918,
-        mtd_installs: 1,
-        mtd_install_rev: 13410,
-        mtd_install_self_sourced: 1,
-        mtd_on_job_pct: 36,
-        mtd_nexstar: { total_revenue: 3918, avg_sale: 891, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 26.85, flat_rate_tasks: 5.5 },
-        mtd_productivity: { rev_hr: 31, billable_hours: 26.85, sold_hrs_on_job_pct: 36, tasks_per_opp: 4.30, options_per_opp: 2, recalls: 2 },
-        mtd_recalls: { completed_jobs: 35, warranty_jobs: 0, recalls_caused: 2, tech_recall_pct: 40.00, recall_jobs: 1 },
-        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 1, total_mem_pct: 100 },
-        mtd_sales: { close_rate: 100 },
+        // v203: May 2026 starts \u2014 live MTD scalars reset to zero. April archived.
+        mtd_service_rev: 0,
+        mtd_installs: 0,
+        mtd_install_rev: 0,
+        mtd_install_self_sourced: 0,
+        mtd_on_job_pct: 0,
+        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, flat_rate_tasks: 0 },
+        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 0 },
+        monthly_archive: {
+          '2026-04': {
+            label: 'April 2026',
+            mtd_service_rev: 3918,
+            mtd_installs: 1,
+            mtd_install_rev: 13410,
+            mtd_install_self_sourced: 1,
+            mtd_on_job_pct: 36,
+            mtd_nexstar: { total_revenue: 3918, avg_sale: 891, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 26.85, flat_rate_tasks: 5.5 },
+            mtd_productivity: { rev_hr: 31, billable_hours: 26.85, sold_hrs_on_job_pct: 36, tasks_per_opp: 4.30, options_per_opp: 2, recalls: 2 },
+            mtd_recalls: { completed_jobs: 35, warranty_jobs: 0, recalls_caused: 2, tech_recall_pct: 40.00, recall_jobs: 1 },
+            mtd_memberships: { total_mem_sold: 1, total_mem_opps: 1, total_mem_pct: 100 },
+            mtd_sales: { close_rate: 100 }
+          }
+        },
         isWarrantyTech: true,
         completedJobs: 113,
         nexstar: { total_revenue: 6416, avg_sale: 562, conversion_rate: 85, spps_sold: 0, tech_gen_leads: 3, sold_hours: 87.35, tech_sold_hr_eff: 0, flat_rate_tasks: 2.65 },
@@ -6454,6 +6545,17 @@ if (typeof Chart !== 'undefined') {
         mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
         mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
         mtd_sales: { close_rate: 0 },
+        monthly_archive: {
+          '2026-04': {
+            label: 'April 2026',
+            note: 'Started 4/28 \u2014 onboarding, no production days',
+            mtd_service_rev: 0, mtd_installs: 0, mtd_install_rev: 0, mtd_install_self_sourced: 0, mtd_on_job_pct: 0,
+            mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 },
+            mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+            mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+            mtd_sales: { close_rate: 0 }
+          }
+        },
         nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 },
         overview: { revenue: 0, total_job_avg: 0, opp_job_avg: 0, opp_conversion: 0, opps: 0, converted_jobs: 0 },
         leads: { opps: 0, leads_set: 0, conv_rate: 0, avg_sale: 0 },
@@ -6463,6 +6565,65 @@ if (typeof Chart !== 'undefined') {
         installs: { count: 0, total_revenue: 0, avg_sale: 0, leads_generated: 0, self_sourced: 0 }
       }
     ];
+
+    // ========== v203: MTD MONTH REGISTRY + STATE ==========
+    // Drives the month picker on Overview / Scorecards. 'current' resolves to live
+    // mtd_* scalars on each tech. Past months pull from tech.monthly_archive[key].
+    const MTD_MONTHS = [
+      { key: 'current', label: 'May 2026 (current)', short: 'May 2026' },
+      { key: '2026-04', label: 'April 2026', short: 'April 2026' }
+    ];
+    let currentMtdMonth = 'current';
+    function setCurrentMtdMonth(key) {
+      currentMtdMonth = key;
+      try { localStorage.setItem('snappy_current_mtd_month', key); } catch(e) {}
+      try { renderMTDTiles(); } catch(e) {}
+    }
+    try {
+      var _savedMonth = localStorage.getItem('snappy_current_mtd_month');
+      if (_savedMonth && MTD_MONTHS.some(function(m){return m.key === _savedMonth;})) currentMtdMonth = _savedMonth;
+    } catch(e) {}
+    // Expose so the picker buttons (rendered as HTML) can call it
+    try { window.setCurrentMtdMonth = setCurrentMtdMonth; } catch(e) {}
+
+    // Returns the MTD slice to use for a tech given the active month.
+    // For 'current' -> the live mtd_* fields on the tech itself.
+    // For an archived month -> tech.monthly_archive[key], falling back to zeros.
+    function getMTDForTech(st) {
+      if (currentMtdMonth === 'current' || !st) return st;
+      var arch = st && st.monthly_archive && st.monthly_archive[currentMtdMonth];
+      if (arch) return arch;
+      // Archive missing for this tech/month \u2014 return a zero shim so we don't crash
+      return {
+        mtd_service_rev: 0, mtd_installs: 0, mtd_install_rev: 0, mtd_install_self_sourced: 0, mtd_on_job_pct: 0,
+        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, flat_rate_tasks: 0 },
+        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 0 }
+      };
+    }
+    function getCurrentMtdMonthLabel() {
+      var m = MTD_MONTHS.find(function(x){return x.key === currentMtdMonth;});
+      return m ? m.label : 'Month-to-date';
+    }
+    function getCurrentMtdMonthShort() {
+      var m = MTD_MONTHS.find(function(x){return x.key === currentMtdMonth;});
+      return m ? m.short : 'Month-to-date';
+    }
+    function buildMonthPickerHTML() {
+      var html = '<div class="mtd-month-picker" role="tablist" aria-label="MTD month">';
+      html += '<span class="mtd-month-label">Period</span>';
+      MTD_MONTHS.forEach(function(m) {
+        var active = (m.key === currentMtdMonth);
+        html += '<button type="button" class="mtd-month-pill' + (active ? ' active' : '') + '" ' +
+          'role="tab" aria-selected="' + (active ? 'true' : 'false') + '" ' +
+          'onclick="setCurrentMtdMonth(\'' + m.key + '\')">' + m.label + '</button>';
+      });
+      html += '</div>';
+      return html;
+    }
+    try { window.buildMonthPickerHTML = buildMonthPickerHTML; } catch(e) {}
 
     // SK Sub-tab navigation
     document.querySelectorAll('#sk-sub-tabs .nav-tab').forEach(tab => {
@@ -6906,11 +7067,21 @@ if (typeof Chart !== 'undefined') {
       const totalSales = stData.reduce((s,t) => s + t.sales.total_sales, 0);
       const totalInstalls = stData.reduce((s,t) => s + t.installs.count, 0);
       const totalInstallRev = stData.reduce((s,t) => s + t.installs.total_revenue, 0);
-      // Auto-computed: techs' mtd_installs + 1 manager-sold install (Adam)
-      const ADAM_MTD_INSTALLS = 1;
-      const ADAM_MTD_INSTALL_REV = 14539;
-      const totalMtdInst = stData.reduce((s,t) => s + (t.mtd_installs||0), 0) + ADAM_MTD_INSTALLS;
-      const totalMtdInstRev = stData.reduce((s,t) => s + (t.mtd_install_rev||0), 0) + ADAM_MTD_INSTALL_REV;
+      // v203: ADAM (manager-sold) install attribution by month.
+      // April had 1 install / $14,539. May starts at 0.
+      const ADAM_MTD_BY_MONTH = {
+        'current': { installs: 0, rev: 0 },
+        '2026-04': { installs: 1, rev: 14539 }
+      };
+      var _adam = ADAM_MTD_BY_MONTH[currentMtdMonth] || { installs: 0, rev: 0 };
+      const totalMtdInst = stData.reduce((s,t) => {
+        var m = getMTDForTech(t); return s + ((m && m.mtd_installs) || 0);
+      }, 0) + _adam.installs;
+      const totalMtdInstRev = stData.reduce((s,t) => {
+        var m = getMTDForTech(t); return s + ((m && m.mtd_install_rev) || 0);
+      }, 0) + _adam.rev;
+      var _mtdMonthShort = getCurrentMtdMonthShort();
+      var _isCurrent = (currentMtdMonth === 'current');
       const topRev = stData.reduce((best, t) => t.nexstar.total_revenue > best.nexstar.total_revenue ? t : best);
 
       // v140: Hero tile + 4 satellites, branded accents
@@ -6944,11 +7115,24 @@ if (typeof Chart !== 'undefined') {
         </div>
         <div class="kpi-card v140" data-accent="installs">
           <div class="kpi-accent"></div>
-          <div class="kpi-label">MTD Installs</div>
+          <div class="kpi-label">${_isCurrent ? 'MTD Installs' : _mtdMonthShort + ' Installs'}</div>
           <div class="kpi-value">${totalMtdInst}</div>
           <div class="kpi-sub">${fmt$(totalMtdInstRev)} install revenue</div>
         </div>
       `;
+      // v203: Mirror the month picker on Scorecards so toggling is available there too
+      try {
+        var stRow = document.getElementById('st-kpi-row');
+        if (stRow && stRow.parentNode) {
+          var stPicker = document.getElementById('st-month-picker');
+          if (!stPicker) {
+            stPicker = document.createElement('div');
+            stPicker.id = 'st-month-picker';
+            stRow.parentNode.insertBefore(stPicker, stRow);
+          }
+          stPicker.innerHTML = buildMonthPickerHTML();
+        }
+      } catch(e) {}
     }
 
     function buildSTTable(id, cols) {
@@ -15860,7 +16044,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v202 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v203 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
