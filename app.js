@@ -4555,8 +4555,8 @@ document.addEventListener('visibilitychange', function() {
       if (e.kind === 'ride-along') {
         // Call type pill
         if (d.callType) {
-          var ctLabel = d.callType === 'maintenance' ? 'Maintenance Call' : (d.callType === 'demand' ? 'Demand / Service Call' : d.callType);
-          var ctColor = d.callType === 'maintenance' ? '#0EA5E9' : '#F59E0B';
+          var ctLabel = d.callType === 'maintenance' ? 'Maintenance Call' : (d.callType === 'demand' ? 'Demand / Service Call' : (d.callType === 'soldWork' ? 'Sold Work / Repair' : d.callType));
+          var ctColor = d.callType === 'maintenance' ? '#0EA5E9' : (d.callType === 'demand' ? '#F59E0B' : (d.callType === 'soldWork' ? '#10B981' : '#64748b'));
           html += '<div class="ch-entry-row"><span class="ch-entry-label">Call Type</span><span class="ch-entry-tag" style="background:' + ctColor + '22;color:' + ctColor + ';border:1px solid ' + ctColor + '55">' + escHtml(ctLabel) + '</span></div>';
           anyDetail = true;
         }
@@ -4637,6 +4637,71 @@ document.addEventListener('visibilitychange', function() {
           if (postChecks.length) { html += renderChChecks('Post-Repair Verification', postChecks); anyDetail = true; }
           if (dem.postReadings) { html += renderChField('Post-Repair Readings', dem.postReadings); anyDetail = true; }
           if (dem.leftIn) { html += renderChField('System Left In', dem.leftIn); anyDetail = true; }
+        }
+
+        // Sold Work / Repair flow detail
+        if (d.callType === 'soldWork' && d.soldWork) {
+          var sw = d.soldWork;
+          if (sw.scope) { html += renderChField('Scope of Work Sold', sw.scope); anyDetail = true; }
+          if (sw.soldBy) { html += renderChField('Sold By', sw.soldBy); anyDetail = true; }
+          if (sw.amount) { html += renderChField('Sold Amount', sw.amount); anyDetail = true; }
+          if (sw.history) { html += renderChField('System History', sw.history); anyDetail = true; }
+          if (sw.expectations) { html += renderChField('Customer Expectations', sw.expectations); anyDetail = true; }
+          var preChecks = collectChecks(sw, [
+            ['pre_invoice_reviewed', 'Sold invoice / scope reviewed'],
+            ['pre_parts_loaded', 'Parts & materials loaded / staged'],
+            ['pre_customer_confirm', 'Scope confirmed with customer'],
+            ['pre_floor_protect', 'Floor / shoe protection'],
+            ['pre_power_off', 'Power / disconnect off & locked'],
+            ['pre_baseline_readings', 'Baseline readings recorded'],
+            ['pre_photos', 'Before photos uploaded'],
+            ['pre_safety_ppe', 'PPE / safety gear in place']
+          ]);
+          if (preChecks.length) { html += renderChChecks('Pre-Work Verification', preChecks); anyDetail = true; }
+          if (sw.baselineReadings) { html += renderChField('Baseline Readings', sw.baselineReadings); anyDetail = true; }
+          var execChecks = collectChecks(sw, [
+            ['exec_followed_scope', 'Followed sold scope exactly'],
+            ['exec_used_correct_parts', 'Used correct parts / materials'],
+            ['exec_brazing', 'Brazing / nitrogen purge (if applicable)'],
+            ['exec_evac', 'Evacuation pulled (if applicable)'],
+            ['exec_charged', 'System charged to spec'],
+            ['exec_torqued', 'Connections torqued / leak-checked'],
+            ['exec_workspace_clean', 'Workspace kept clean during job']
+          ]);
+          if (execChecks.length) { html += renderChChecks('Repair Execution', execChecks); anyDetail = true; }
+          if (sw.walkthrough) { html += renderChField('Execution Walkthrough', sw.walkthrough); anyDetail = true; }
+          if (sw.issues) { html += renderChField('Issues / Surprises', sw.issues); anyDetail = true; }
+          if (sw.partsUsed) { html += renderChField('Parts Used', sw.partsUsed); anyDetail = true; }
+          if (sw.laborHours) { html += renderChField('Labor Hours', sw.laborHours); anyDetail = true; }
+          if (sw.addlFindings) { html += renderChField('Additional Findings', sw.addlFindings); anyDetail = true; }
+          if (sw.addOns) { html += renderChField('Add-Ons Sold On Job', sw.addOns); anyDetail = true; }
+          var qcChecks = collectChecks(sw, [
+            ['qc_cycle', 'Cycle-tested heat & cool'],
+            ['qc_pressures', 'Pressures / SH / SC verified'],
+            ['qc_temps', 'ΔT confirmed in spec'],
+            ['qc_amps', 'Amp draws verified'],
+            ['qc_safeties', 'Safeties confirmed'],
+            ['qc_leak_check', 'Leak check passed'],
+            ['qc_thermostat', 'Thermostat / controls verified'],
+            ['qc_no_callbacks', 'No callback risk identified'],
+            ['qc_warranty_logged', 'Warranty / job notes logged']
+          ]);
+          if (qcChecks.length) { html += renderChChecks('Quality Check / Post-Work', qcChecks); anyDetail = true; }
+          if (sw.postReadings) { html += renderChField('Post-Work Readings', sw.postReadings); anyDetail = true; }
+          var closeChecks = collectChecks(sw, [
+            ['close_walkthrough', 'Walkthrough with customer'],
+            ['close_after_photos', 'After photos uploaded'],
+            ['close_warranty_explained', 'Warranty explained to customer'],
+            ['close_membership_offered', 'Membership offered'],
+            ['close_invoice_signed', 'Invoice presented & signed'],
+            ['close_payment_collected', 'Payment / financing finalized'],
+            ['close_review', 'Review / referral asked'],
+            ['close_jobsite_clean', 'Jobsite cleaner than we found it']
+          ]);
+          if (closeChecks.length) { html += renderChChecks('Customer Closeout', closeChecks); anyDetail = true; }
+          if (sw.satisfaction) { html += renderChField('Customer Satisfaction Read', sw.satisfaction); anyDetail = true; }
+          if (sw.followUp) { html += renderChField('Follow-Up Needed', sw.followUp); anyDetail = true; }
+          if (sw.leftIn) { html += renderChField('System Left In', sw.leftIn); anyDetail = true; }
         }
 
         if (d.debriefManagerBetter) { html += renderChField('Debrief — Manager: What could be better', d.debriefManagerBetter); anyDetail = true; }
@@ -9470,6 +9535,7 @@ if (typeof Chart !== 'undefined') {
       const callType = data.callType || '';
       const maint = data.maintenance || {};
       const demand = data.demand || {};
+      const sold = data.soldWork || {};
 
       const existingRTime = existing && existing.time ? existing.time : (data.time || '');
       const html = `
@@ -9480,6 +9546,7 @@ if (typeof Chart !== 'undefined') {
               <div class="mgr-radio-group" id="r_callTypeGroup">
                 <label class="mgr-radio"><input type="radio" name="r_callType" value="maintenance" ${callType==='maintenance'?'checked':''} onchange="mgrToggleCallTypeSections()" required> Maintenance Call</label>
                 <label class="mgr-radio"><input type="radio" name="r_callType" value="demand" ${callType==='demand'?'checked':''} onchange="mgrToggleCallTypeSections()" required> Demand / Service Call</label>
+                <label class="mgr-radio"><input type="radio" name="r_callType" value="soldWork" ${callType==='soldWork'?'checked':''} onchange="mgrToggleCallTypeSections()" required> Sold Work / Repair</label>
               </div>
               <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Select a call type to load the matching ride-along checklist.</div>
             </div>
@@ -9727,6 +9794,136 @@ if (typeof Chart !== 'undefined') {
             </div>
           </div>
 
+          <div id="r_soldWorkSections" style="display:none;">
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Job Brief \u2014 What Was Sold</div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Scope of work sold</label>
+                <textarea class="mgr-textarea" id="r_sold_scope" rows="2" placeholder="e.g. Replace failed dual-run capacitor (45/5) + condenser fan motor; install hard-start kit">${mgrEscape(sold.scope||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Sold by / when</label>
+                <input type="text" class="mgr-input" id="r_sold_soldBy" placeholder="e.g. Dewone on 4/28 demand call" value="${mgrEscape(sold.soldBy||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Quoted / approved amount</label>
+                <input type="text" class="mgr-input" id="r_sold_amount" placeholder="e.g. $1,485 approved" value="${mgrEscape(sold.amount||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Equipment age & history</label>
+                <input type="text" class="mgr-input" id="r_sold_history" placeholder="e.g. 12yr Carrier \u2014 2 prior repairs" value="${mgrEscape(sold.history||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Customer expectations for this visit</label>
+                <textarea class="mgr-textarea" id="r_sold_expectations" rows="2" placeholder="What does the customer expect when we leave?">${mgrEscape(sold.expectations||'')}</textarea>
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Pre-Work Verification</div>
+              <div class="mgr-check-list">
+                <label class="mgr-check"><input type="checkbox" data-sold="pre_invoice_reviewed" ${sold.pre_invoice_reviewed?'checked':''}><span>Sold invoice / scope reviewed before arrival</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="pre_parts_loaded" ${sold.pre_parts_loaded?'checked':''}><span>All parts / materials confirmed on truck</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="pre_customer_confirm" ${sold.pre_customer_confirm?'checked':''}><span>Confirmed scope with customer on arrival</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="pre_floor_protect" ${sold.pre_floor_protect?'checked':''}><span>Floor / shoe protection in place</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="pre_power_off" ${sold.pre_power_off?'checked':''}><span>Power locked / tagged out before work</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="pre_baseline_readings" ${sold.pre_baseline_readings?'checked':''}><span>Baseline readings taken (pre-repair)</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="pre_photos" ${sold.pre_photos?'checked':''}><span>Before photos uploaded</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="pre_safety_ppe" ${sold.pre_safety_ppe?'checked':''}><span>PPE / safety setup verified</span></label>
+              </div>
+              <div class="mgr-form-row" style="margin-top:10px;">
+                <label class="mgr-form-label">Baseline readings (pre-repair)</label>
+                <textarea class="mgr-textarea" id="r_sold_baselineReadings" rows="2" placeholder="Pressures / SH / SC / amps / \u0394T before work...">${mgrEscape(sold.baselineReadings||'')}</textarea>
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Repair Execution</div>
+              <div class="mgr-check-list">
+                <label class="mgr-check"><input type="checkbox" data-sold="exec_followed_scope" ${sold.exec_followed_scope?'checked':''}><span>Work performed exactly to sold scope</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="exec_used_correct_parts" ${sold.exec_used_correct_parts?'checked':''}><span>Correct OEM / approved parts used</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="exec_brazing" ${sold.exec_brazing?'checked':''}><span>Brazing / refrigerant work performed properly (if applicable)</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="exec_evac" ${sold.exec_evac?'checked':''}><span>System pulled into vacuum (if line set opened)</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="exec_charged" ${sold.exec_charged?'checked':''}><span>Charged / weighed in to spec</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="exec_torqued" ${sold.exec_torqued?'checked':''}><span>Electrical connections torqued / re-checked</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="exec_workspace_clean" ${sold.exec_workspace_clean?'checked':''}><span>Workspace kept clean during job</span></label>
+              </div>
+              <div class="mgr-form-row" style="margin-top:10px;">
+                <label class="mgr-form-label">Repair walkthrough \u2014 step by step</label>
+                <textarea class="mgr-textarea" id="r_sold_walkthrough" rows="3" placeholder="Walk through what the tech did, in order...">${mgrEscape(sold.walkthrough||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Issues / surprises encountered</label>
+                <textarea class="mgr-textarea" id="r_sold_issues" rows="2" placeholder="Anything unexpected? Hidden damage, wrong part, etc.">${mgrEscape(sold.issues||'')}</textarea>
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Materials & Time</div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Parts / materials used</label>
+                <textarea class="mgr-textarea" id="r_sold_partsUsed" rows="2" placeholder="e.g. 45/5 dual cap, 1/3 HP cond fan motor, hard-start kit, 2 lb R-410A">${mgrEscape(sold.partsUsed||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Labor hours on job</label>
+                <input type="text" class="mgr-input" id="r_sold_laborHours" placeholder="e.g. 2.5 hrs" value="${mgrEscape(sold.laborHours||'')}">
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Additional findings during work</label>
+                <textarea class="mgr-textarea" id="r_sold_addlFindings" rows="2" placeholder="Anything new the tech found while on site...">${mgrEscape(sold.addlFindings||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Add-ons sold today (if any)</label>
+                <input type="text" class="mgr-input" id="r_sold_addOns" placeholder="e.g. Surge protector +$165, IAQ UV +$385" value="${mgrEscape(sold.addOns||'')}">
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Quality Check \u2014 Post-Work Verification</div>
+              <div class="mgr-check-list">
+                <label class="mgr-check"><input type="checkbox" data-sold="qc_cycle" ${sold.qc_cycle?'checked':''}><span>System cycle-tested heat & cool</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="qc_pressures" ${sold.qc_pressures?'checked':''}><span>Pressures / SH / SC re-verified post-repair</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="qc_temps" ${sold.qc_temps?'checked':''}><span>\u0394T confirmed in spec</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="qc_amps" ${sold.qc_amps?'checked':''}><span>Amp draws re-measured & in range</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="qc_safeties" ${sold.qc_safeties?'checked':''}><span>Safeties confirmed operational</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="qc_leak_check" ${sold.qc_leak_check?'checked':''}><span>Leak check performed (if refrigerant work)</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="qc_thermostat" ${sold.qc_thermostat?'checked':''}><span>Thermostat verified / set to customer preference</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="qc_no_callbacks" ${sold.qc_no_callbacks?'checked':''}><span>Tech confident this won't be a callback</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="qc_warranty_logged" ${sold.qc_warranty_logged?'checked':''}><span>Parts warranty logged in ServiceTitan</span></label>
+              </div>
+              <div class="mgr-form-row" style="margin-top:10px;">
+                <label class="mgr-form-label">Verification readings (post-repair)</label>
+                <textarea class="mgr-textarea" id="r_sold_postReadings" rows="2" placeholder="Pressures, \u0394T, amps after repair...">${mgrEscape(sold.postReadings||'')}</textarea>
+              </div>
+            </div>
+
+            <div class="mgr-form-section">
+              <div class="mgr-form-section-title">Customer Closeout</div>
+              <div class="mgr-check-list">
+                <label class="mgr-check"><input type="checkbox" data-sold="close_walkthrough" ${sold.close_walkthrough?'checked':''}><span>Walkthrough with customer (showed work performed)</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="close_after_photos" ${sold.close_after_photos?'checked':''}><span>After photos uploaded</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="close_warranty_explained" ${sold.close_warranty_explained?'checked':''}><span>Parts / labor warranty explained to customer</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="close_membership_offered" ${sold.close_membership_offered?'checked':''}><span>Membership offered (if not already on plan)</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="close_invoice_signed" ${sold.close_invoice_signed?'checked':''}><span>Invoice presented & customer signed</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="close_payment_collected" ${sold.close_payment_collected?'checked':''}><span>Payment / financing finalized</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="close_review" ${sold.close_review?'checked':''}><span>Review / referral asked</span></label>
+                <label class="mgr-check"><input type="checkbox" data-sold="close_jobsite_clean" ${sold.close_jobsite_clean?'checked':''}><span>Jobsite cleaner than we found it</span></label>
+              </div>
+              <div class="mgr-form-row" style="margin-top:10px;">
+                <label class="mgr-form-label">Customer satisfaction read</label>
+                <textarea class="mgr-textarea" id="r_sold_satisfaction" rows="2" placeholder="How did the customer seem at the end? Verbal feedback?">${mgrEscape(sold.satisfaction||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">Follow-up needed</label>
+                <textarea class="mgr-textarea" id="r_sold_followUp" rows="2" placeholder="Return visit? Parts on order? Reminder to call back?">${mgrEscape(sold.followUp||'')}</textarea>
+              </div>
+              <div class="mgr-form-row">
+                <label class="mgr-form-label">System left in\u2026</label>
+                <textarea class="mgr-textarea" id="r_sold_leftIn" rows="2" placeholder="Final state \u2014 status, follow-ups, customer notes...">${mgrEscape(sold.leftIn||'')}</textarea>
+              </div>
+            </div>
+          </div>
+
           <div class="mgr-form-section">
             <div class="mgr-form-section-title">Summary of Call — Actual Diagnostic Summary</div>
             <div class="mgr-form-row">
@@ -9837,14 +10034,16 @@ if (typeof Chart !== 'undefined') {
       mgrToggleCallTypeSections();
     }
 
-    // Show/hide maintenance vs demand sections based on selected Call Type
+    // Show/hide maintenance vs demand vs soldWork sections based on selected Call Type
     function mgrToggleCallTypeSections() {
       const sel = document.querySelector('#mgrRideAlongForm input[name="r_callType"]:checked');
       const val = sel ? sel.value : '';
       const maintEl = document.getElementById('r_maintenanceSections');
       const demandEl = document.getElementById('r_demandSections');
+      const soldEl = document.getElementById('r_soldWorkSections');
       if (maintEl) maintEl.style.display = (val === 'maintenance') ? '' : 'none';
       if (demandEl) demandEl.style.display = (val === 'demand') ? '' : 'none';
+      if (soldEl) soldEl.style.display = (val === 'soldWork') ? '' : 'none';
     }
 
     function mgrWireNssGreetStars() {
@@ -9953,7 +10152,7 @@ if (typeof Chart !== 'undefined') {
       var callTypeSel = document.querySelector('#mgrRideAlongForm input[name="r_callType"]:checked');
       var callType = callTypeSel ? callTypeSel.value : '';
       if (!callType) {
-        alert('Please select a Call Type (Maintenance Call or Demand / Service Call).');
+        alert('Please select a Call Type (Maintenance Call, Demand / Service Call, or Sold Work / Repair).');
         return false;
       }
       // Collect maintenance section data
@@ -9990,6 +10189,27 @@ if (typeof Chart !== 'undefined') {
       demand.decision = _mGet('r_dem_decision');
       demand.postReadings = _mGet('r_dem_postReadings');
       demand.leftIn = _mGet('r_dem_leftIn');
+      // Collect soldWork section data
+      var soldWork = {};
+      document.querySelectorAll('#mgrRideAlongForm [data-sold]').forEach(function(cb) {
+        soldWork[cb.dataset.sold] = cb.checked;
+      });
+      soldWork.scope = _mGet('r_sold_scope');
+      soldWork.soldBy = _mGet('r_sold_soldBy');
+      soldWork.amount = _mGet('r_sold_amount');
+      soldWork.history = _mGet('r_sold_history');
+      soldWork.expectations = _mGet('r_sold_expectations');
+      soldWork.baselineReadings = _mGet('r_sold_baselineReadings');
+      soldWork.walkthrough = _mGet('r_sold_walkthrough');
+      soldWork.issues = _mGet('r_sold_issues');
+      soldWork.partsUsed = _mGet('r_sold_partsUsed');
+      soldWork.laborHours = _mGet('r_sold_laborHours');
+      soldWork.addlFindings = _mGet('r_sold_addlFindings');
+      soldWork.addOns = _mGet('r_sold_addOns');
+      soldWork.postReadings = _mGet('r_sold_postReadings');
+      soldWork.satisfaction = _mGet('r_sold_satisfaction');
+      soldWork.followUp = _mGet('r_sold_followUp');
+      soldWork.leftIn = _mGet('r_sold_leftIn');
       // Reschedule: pull date/time/reason
       var rDateEl = document.getElementById('r_date');
       var rTimeEl = document.getElementById('r_time');
@@ -10001,6 +10221,7 @@ if (typeof Chart !== 'undefined') {
         callType,
         maintenance,
         demand,
+        soldWork,
         ackObservation: document.getElementById('r_ackObs').checked,
         calls,
         custIssue: document.getElementById('r_custIssue').value,
@@ -16044,7 +16265,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v203 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v204 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
