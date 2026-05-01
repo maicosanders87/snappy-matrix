@@ -2194,6 +2194,62 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260430IfNeeded failed', e); }
     }
 
+    // v206: One-shot Friday May 1, 2026 ADD-ON seed for week 2026-04-27.
+    // First day of the new month \u2014 day 1 of May, but still falls in the Mon Apr 27 \u2014 Sun May 3 work week.
+    // Sources: IMG_0208 (Nexstar daily 5/1), IMG_0209 (Memberships 5/1), IMG_0210 (Brayden install \u2014 Denise Cartier $14,606.68).
+    // Daily 5/1 per tech:
+    //   Chris:  $2,563 svc, 100% conv, 2.3 sold hrs, 3.5 tasks/call, 0 mem opps
+    //   Daniel: $1,329 svc, 100% conv, 1 SPP, 3.2 sold hrs, 3 tasks/call, 1 mem sold / 1 mem opp
+    //   Benji:  $883 svc, 100% conv, 5.1 sold hrs, 4 tasks/call, 0 sold / 1 mem opp
+    //   Dewone: $383 svc, 100% conv, 1 TGL, 3.7 sold hrs, 2 tasks/call, 0 mem opps
+    //   Dee:    $79 svc, 0% conv, 1 TGL, 2.1 sold hrs, 0 tasks/call, 0 mem opps
+    // Brayden install: Denise Cartier $14,606.68 (Job/Invoice 91767937) \u2014 first install of May.
+    function _wlbSeedDay20260501IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_01_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var d = _wlbLoad();
+        var WEEK = '2026-04-27';
+        var existing = d[WEEK] || {};
+        function add(short, svc, ic, ir, ms, mo) {
+          var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+          existing[short] = {
+            service:      (prev.service || 0)      + svc,
+            installCount: (prev.installCount || 0) + ic,
+            installRev:   (prev.installRev || 0)   + ir,
+            memSold:      (prev.memSold || 0)      + ms,
+            memOpps:      (prev.memOpps || 0)      + mo
+          };
+        }
+        add('Chris',  2563, 0, 0, 0, 0);
+        add('Daniel', 1329, 0, 0, 1, 1);
+        add('Benji',   883, 0, 0, 0, 1);
+        add('Dewone',  383, 0, 0, 0, 0);
+        add('Dee',      79, 0, 0, 0, 0);
+        d[WEEK] = existing;
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260501IfNeeded failed', e); }
+    }
+
+    // v206: One-shot seed of Brayden's 5/1 install (Denise Cartier $14,606.68) into braydenStats.mtd_revenue
+    // Only seeds if mtd_revenue is currently empty/zero (preserves any later manual edits).
+    function _braydenSeedMay20260501IfNeeded() {
+      try {
+        var FLAG = 'snappy_brayden_seeded_2026_05_01_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var stats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : {};
+        var current = Number(stats.mtd_revenue || 0);
+        if (!current || current < 14607) {
+          stats.mtd_revenue = '14607';
+          stats.mtd_closed = stats.mtd_closed && Number(stats.mtd_closed) > 0 ? stats.mtd_closed : '1';
+          if (typeof braydenSaveStats === 'function') braydenSaveStats(stats);
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_braydenSeedMay20260501IfNeeded failed', e); }
+    }
+
     // v189: One-shot Wednesday Apr 29, 2026 ADD-ON seed for week 2026-04-27.
     // Adds Wednesday's daily numbers on top of Mon+Tue totals already seeded by v167+v175.
     // Sources: IMG_0196 (Nexstar daily), IMG_0197 (Memberships).
@@ -4776,7 +4832,8 @@ document.addEventListener('visibilitychange', function() {
         'st_update_20260427_mtd': { date: '2026-04-27', text: 'MTD refresh (4/27/26). Dewone +1 install ($24,316 \u2014 Martha Futral) bumps installs to 3 / $51,363. Daniel service rev +$602 \u2192 $8,484 MTD. Dee service rev +$322 \u2192 $2,854 MTD with first membership sold (1/1, 100%). Chris adds 1 mem opp (4/8 = 50%). Team MTD service rev $36,267 \u2022 Team MTD installs 10 ($137K).' },
         'st_update_20260428_mtd': { date: '2026-04-28', text: 'Daily refresh (4/28/26). Benji +$444 svc + 1 install $9,060 (Nellie Ellis) \u2192 8,620 svc / 3 installs / $29,514 install rev MTD. Daniel +$1,287 svc \u2192 $9,771 MTD. Chris +$275 svc + 2 mem opps (no sale) \u2192 $6,860 svc / 4-of-10 mem (40%) MTD. Dee, Dewone $0 daily. Brayden 1 mem opp. Team MTD service rev $38,273 \u2022 Team MTD installs 11 ($146K). Nick Goehler day 1 \u2014 onboarding only.' },
         'st_update_20260429_mtd': { date: '2026-04-29', text: 'Daily refresh (4/29/26). No installs today. Dee +$1,064 svc (100% conv, $1,064 avg) \u2192 $3,918 svc MTD. Chris +$1,064 svc (100% conv, $1,064 avg) \u2192 $7,924 svc / 4-of-10 mem (40%) MTD. Dewone +$158 svc + 1 TGL \u2192 $10,326 svc / 12 TGL MTD. Benji $0 svc (3.5 billable hrs, no opps) \u2192 $8,620 svc MTD held. Daniel $0 svc (1 sold hr, no opps) \u2192 $9,771 svc MTD held. Team daily $2,286 svc / 9.7 sold hrs / 1 TGL. Team MTD service rev $40,559 \u2022 Team MTD installs 11 ($146K) held.' },
-        'st_update_20260430_mtd': { date: '2026-04-30', text: 'Daily refresh (4/30/26). No installs today. Dewone +$362 svc (100% conv on 1 call, $362 avg, 2.5 sold hrs, 2 tasks/call) \u2192 $10,688 svc MTD. Benji (Ben Tinahui) $0 svc (4.0 sold hrs, 0.5 tech sold-hr efficiency, no opps). Dee $0 svc (1.0 sold hr, no opps). Daniel $0 svc (4.0 sold hrs, no opps). Chris $0 svc (2.5 sold hrs, 1 TGL, no opps). Memberships: 2 sold / 2 opps team-wide today (Chris 1/1, Daniel 1/1). Team daily $362 svc / 16.75 sold hrs / 1 TGL / 0 installs. Team MTD installs 11 ($146K) held.' }
+        'st_update_20260430_mtd': { date: '2026-04-30', text: 'Daily refresh (4/30/26). No installs today. Dewone +$362 svc (100% conv on 1 call, $362 avg, 2.5 sold hrs, 2 tasks/call) \u2192 $10,688 svc MTD. Benji (Ben Tinahui) $0 svc (4.0 sold hrs, 0.5 tech sold-hr efficiency, no opps). Dee $0 svc (1.0 sold hr, no opps). Daniel $0 svc (4.0 sold hrs, no opps). Chris $0 svc (2.5 sold hrs, 1 TGL, no opps). Memberships: 2 sold / 2 opps team-wide today (Chris 1/1, Daniel 1/1). Team daily $362 svc / 16.75 sold hrs / 1 TGL / 0 installs. Team MTD installs 11 ($146K) held.' },
+        'st_update_20260501_mtd': { date: '2026-05-01', text: 'May Day 1 (5/1/26) \u2014 fresh month. Chris $2,563 svc (100% conv, $1,282 avg, 2.3 sold hrs, 3.5 tasks/call) leads. Daniel $1,329 svc (100% conv, $665 avg, 1 SPP, 3.2 sold hrs) + 1 mem sold (1/1, 100%). Benji $883 svc (100% conv, $804 avg, 5.1 sold hrs, 0.61 eff, 0/1 mem). Dewone $383 svc (100% conv, 1 TGL, 3.7 sold hrs). Dee $79 svc (0% conv, 1 TGL, 2.1 sold hrs). 1 install today \u2014 Brayden Bond sold Denise Cartier $14,607 HVAC install (Job 91767937). Team day-1 totals: $5,238 svc / 16.4 sold hrs / 2 TGL / 1 SPP / 1 mem sold (1/2 = 50%) / 1 install ($14,607).' }
       };
       var changed = false;
       Object.keys(seededIds).forEach(function(sid) {
@@ -6415,14 +6472,14 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Dewone",
         color: "#E07B3A",
-        // v203: May 2026 starts \u2014 live MTD scalars reset to zero. April archived in monthly_archive['2026-04'].
-        mtd_service_rev: 0,
+        // v206: May 2026 day 1 (5/1) live cascade.
+        mtd_service_rev: 383,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, flat_rate_tasks: 0 },
-        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 383, avg_sale: 192, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 3.7, flat_rate_tasks: 2 },
+        mtd_productivity: { rev_hr: 103, billable_hours: 3.7, sold_hrs_on_job_pct: 0, tasks_per_opp: 2, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
         mtd_sales: { close_rate: 0 },
@@ -6453,17 +6510,17 @@ if (typeof Chart !== 'undefined') {
         name: "Benji",
         displayName: "Ben Tinahui",
         color: "#5B4A8A",
-        // v203: May 2026 starts \u2014 live MTD scalars reset to zero. April archived.
-        mtd_service_rev: 0,
+        // v206: May 2026 day 1 (5/1) live cascade.
+        mtd_service_rev: 883,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 },
-        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 883, avg_sale: 804, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 0, sold_hours: 5.1, tech_sold_hr_eff: 0.61, flat_rate_tasks: 4 },
+        mtd_productivity: { rev_hr: 173, billable_hours: 5.1, sold_hrs_on_job_pct: 0, tasks_per_opp: 4, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
-        mtd_sales: { close_rate: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 1, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -6490,17 +6547,17 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Daniel",
         color: "#C47F17",
-        // v203: May 2026 starts \u2014 live MTD scalars reset to zero. April archived.
-        mtd_service_rev: 0,
+        // v206: May 2026 day 1 (5/1) live cascade.
+        mtd_service_rev: 1329,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, flat_rate_tasks: 0 },
-        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 1329, avg_sale: 665, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 0, sold_hours: 3.2, flat_rate_tasks: 3 },
+        mtd_productivity: { rev_hr: 415, billable_hours: 3.2, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
-        mtd_sales: { close_rate: 0 },
+        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 1, total_mem_pct: 100 },
+        mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -6527,18 +6584,18 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Chris",
         color: "#8B3A3A",
-        // v203: May 2026 starts \u2014 live MTD scalars reset to zero. April archived.
-        mtd_service_rev: 0,
+        // v206: May 2026 day 1 (5/1) live cascade.
+        mtd_service_rev: 2563,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_install_tgl_for_others: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, flat_rate_tasks: 0 },
-        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 2563, avg_sale: 1282, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 0, sold_hours: 2.3, flat_rate_tasks: 3.5 },
+        mtd_productivity: { rev_hr: 1114, billable_hours: 2.3, sold_hrs_on_job_pct: 0, tasks_per_opp: 3.5, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
-        mtd_sales: { close_rate: 0 },
+        mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -6566,14 +6623,14 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Dee",
         color: "#2D6A6A",
-        // v203: May 2026 starts \u2014 live MTD scalars reset to zero. April archived.
-        mtd_service_rev: 0,
+        // v206: May 2026 day 1 (5/1) live cascade.
+        mtd_service_rev: 79,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, flat_rate_tasks: 0 },
-        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 79, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 1, sold_hours: 2.1, flat_rate_tasks: 0 },
+        mtd_productivity: { rev_hr: 38, billable_hours: 2.1, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
         mtd_sales: { close_rate: 0 },
@@ -7492,8 +7549,10 @@ if (typeof Chart !== 'undefined') {
         </div>
       `;
 
-      // Sales card — Brayden Bond, B-Tier (no flip, metrics TBD)
-      const bbStats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : { mtd_revenue: '', mtd_closed: '', close_rate: '', avg_ticket: '' };
+      // Sales card — Brayden Bond, B-Tier (no flip).
+      // v207: track Equipment Sales (MTD Revenue), Flip Conversion %, Inbound Close %, Lead Conversion %.
+      // "Close Rate" tile removed \u2014 redundant with the conversion tiles.
+      const bbStats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : { mtd_revenue: '', flipped_close_rate: '', inbound_close_rate: '', lead_conv_rate: '' };
       const bbCompBarColor = '#60A5FA';
       html += `
         <div class="rookie-flip-container no-flip">
@@ -7514,17 +7573,17 @@ if (typeof Chart !== 'undefined') {
                   <div class="rookie-stats">
                     <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('mtd_revenue','MTD Equipment Revenue ($)','${bbStats.mtd_revenue||''}')">
                       <div class="rookie-stat-value">${bbStats.mtd_revenue ? '$'+Number(bbStats.mtd_revenue).toLocaleString() : '—'}</div>
-                      <div class="rookie-stat-label">MTD Revenue</div>
-                      <div class="rookie-stat-period">equipment sales</div>
+                      <div class="rookie-stat-label">Equipment Sales</div>
+                      <div class="rookie-stat-period">MTD revenue</div>
                     </div>
-                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('close_rate','Close Rate % (MTD)','${bbStats.close_rate||''}')">
-                      <div class="rookie-stat-value">${bbStats.close_rate ? bbStats.close_rate+'%' : '—'}</div>
-                      <div class="rookie-stat-label">Close Rate</div>
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('flipped_close_rate','Flip Conversion % (MTD)','${bbStats.flipped_close_rate||''}')">
+                      <div class="rookie-stat-value">${bbStats.flipped_close_rate ? bbStats.flipped_close_rate+'%' : '—'}</div>
+                      <div class="rookie-stat-label">Flip Conversion</div>
                       <div class="rookie-stat-period">MTD</div>
                     </div>
-                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('flipped_close_rate','Flipped Close % (MTD)','${bbStats.flipped_close_rate||''}')">
-                      <div class="rookie-stat-value">${bbStats.flipped_close_rate ? bbStats.flipped_close_rate+'%' : '—'}</div>
-                      <div class="rookie-stat-label">Flipped Close %</div>
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('lead_conv_rate','Lead Conversion % (MTD)','${bbStats.lead_conv_rate||''}')">
+                      <div class="rookie-stat-value">${bbStats.lead_conv_rate ? bbStats.lead_conv_rate+'%' : '—'}</div>
+                      <div class="rookie-stat-label">Lead Conversion</div>
                       <div class="rookie-stat-period">MTD</div>
                     </div>
                     <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('inbound_close_rate','Inbound Close % (MTD)','${bbStats.inbound_close_rate||''}')">
@@ -13229,6 +13288,8 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260428IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260429IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260430IfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260501IfNeeded(); } catch(e) {}
+    try { _braydenSeedMay20260501IfNeeded(); } catch(e) {}
     try { renderWeeklyLeaderboard(); } catch(e) { console.warn('renderWeeklyLeaderboard init failed', e); }
     renderProgression();
     renderSTKPIs();
@@ -16272,7 +16333,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v205 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v207 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
