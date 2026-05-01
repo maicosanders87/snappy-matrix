@@ -4037,12 +4037,25 @@ document.addEventListener('visibilitychange', function() {
         }
         // Animate counters when switching to overview
         if (v === 'overview') { setTimeout(animateCounters, 300); }
-        // Re-render Overview tab content when switching back
+        // v202: Re-render Overview tab content (incl. MTD KPI tiles) when switching back.
+        // Previously only renderBulletinBoard() ran here, so the MTD tiles
+        // (Service Revenue, MTD Installs, Install Revenue, etc.) showed stale numbers
+        // until a full page reload after data updates.
         if (v === 'overview') {
+          try { renderOverviewTab(); } catch(e) { console.warn('renderOverviewTab on tab switch failed:', e); }
           renderBulletinBoard();
           if (!radar3dRendered) {
             setTimeout(renderRadar, 200);
           }
+        }
+        // v202: Re-render Scorecards KPI row + tables on every visit so MTD tiles stay live.
+        if (v === 'scorecards') {
+          try { renderSTKPIs(); } catch(e) { console.warn('renderSTKPIs on tab switch failed:', e); }
+          try { renderSTTables(); } catch(e) { console.warn('renderSTTables on tab switch failed:', e); }
+        }
+        // v202: Re-render Manager content when entering manager tab.
+        if (v === 'manager') {
+          try { if (typeof renderMgrToday === 'function') renderMgrToday(); } catch(e) {}
         }
         // Re-render rookie cards when switching to rookie tab — picks up latest recalls/complaints from dispatch
         if (v === 'rookie') {
@@ -6304,13 +6317,14 @@ if (typeof Chart !== 'undefined') {
         color: "#E07B3A",
         // v189: +$158 svc, +1 TGL, +3.2 sold hrs on 4/29 (low-volume callback day, no installs)
         // v198: MTD Recalls (4/30/2026): completed 61, warranty 2, recalls caused 1, recall % 4.35, recall jobs 1
-        mtd_service_rev: 10326,
+        // v202: +$362 svc on 4/30 (100% conv on 1 call, $362 avg, 2.5 sold hrs, 2 tasks, +1 TGL)
+        mtd_service_rev: 10688,
         mtd_installs: 3,
         mtd_install_rev: 51363,
         mtd_install_self_sourced: 3,
-        mtd_on_job_pct: 50,
-        mtd_nexstar: { total_revenue: 10326, avg_sale: 419, conversion_rate: 86, spps_sold: 5, tech_gen_leads: 12, sold_hours: 46.95, flat_rate_tasks: 1.72 },
-        mtd_productivity: { rev_hr: 104, billable_hours: 46.95, sold_hrs_on_job_pct: 50, tasks_per_opp: 2.15, options_per_opp: 3, recalls: 1 },
+        mtd_on_job_pct: 49,
+        mtd_nexstar: { total_revenue: 10688, avg_sale: 412, conversion_rate: 84, spps_sold: 5, tech_gen_leads: 13, sold_hours: 49.45, flat_rate_tasks: 1.74 },
+        mtd_productivity: { rev_hr: 102, billable_hours: 49.45, sold_hrs_on_job_pct: 49, tasks_per_opp: 2.13, options_per_opp: 3, recalls: 1 },
         mtd_recalls: { completed_jobs: 61, warranty_jobs: 2, recalls_caused: 1, tech_recall_pct: 4.35, recall_jobs: 1 },
         mtd_memberships: { total_mem_sold: 5, total_mem_opps: 7, total_mem_pct: 71 },
         mtd_sales: { close_rate: 88 },
@@ -6329,13 +6343,14 @@ if (typeof Chart !== 'undefined') {
         // v175: +$444 svc, +1 install $9,059.59 (Nellie Ellis), +1 mem opp (no sale) on 4/28
         // v189: $0 svc on 4/29 (no opps), +3.5 billable hrs (efficiency 0.41) — efficiency drag
         // v198: MTD Recalls (4/30/2026): completed 62, warranty 1, recalls caused 0, recall % 0.00, recall jobs 0
+        // v202: $0 svc on 4/30 (no opps), +4.0 sold hrs (eff 0.5) — second straight zero-rev day
         mtd_service_rev: 8620,
         mtd_installs: 3,
         mtd_install_rev: 29514,
         mtd_install_self_sourced: 1,
-        mtd_on_job_pct: 53,
-        mtd_nexstar: { total_revenue: 8620, avg_sale: 437, conversion_rate: 73, spps_sold: 2, tech_gen_leads: 2, sold_hours: 54.35, tech_sold_hr_eff: 0.66, flat_rate_tasks: 2.13 },
-        mtd_productivity: { rev_hr: 89, billable_hours: 54.35, sold_hrs_on_job_pct: 53, tasks_per_opp: 2.22, options_per_opp: 1.37, recalls: 0 },
+        mtd_on_job_pct: 50,
+        mtd_nexstar: { total_revenue: 8620, avg_sale: 437, conversion_rate: 73, spps_sold: 2, tech_gen_leads: 2, sold_hours: 58.35, tech_sold_hr_eff: 0.62, flat_rate_tasks: 2.13 },
+        mtd_productivity: { rev_hr: 83, billable_hours: 58.35, sold_hrs_on_job_pct: 50, tasks_per_opp: 2.22, options_per_opp: 1.37, recalls: 0 },
         mtd_recalls: { completed_jobs: 62, warranty_jobs: 1, recalls_caused: 0, tech_recall_pct: 0.00, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 2, total_mem_opps: 9, total_mem_pct: 22 },
         mtd_sales: { close_rate: 72 },
@@ -6353,13 +6368,14 @@ if (typeof Chart !== 'undefined') {
         // v175: +$1,287 svc on 4/28 (avg $643, 100% conv, 2 sold hrs, 2 tasks)
         // v189: $0 svc on 4/29 (no opps closed), +1.0 sold hr — efficiency drag
         // v198: MTD Recalls (4/30/2026): completed 51, warranty 0, recalls caused 2, recall % 11.11, recall jobs 1
+        // v202: $0 svc on 4/30 (no opps), +4.0 sold hrs — third zero-rev day in a row
         mtd_service_rev: 9771,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
-        mtd_on_job_pct: 27,
-        mtd_nexstar: { total_revenue: 9771, avg_sale: 502, conversion_rate: 82, spps_sold: 0, tech_gen_leads: 1, sold_hours: 42.15, flat_rate_tasks: 1.89 },
-        mtd_productivity: { rev_hr: 55, billable_hours: 42.15, sold_hrs_on_job_pct: 27, tasks_per_opp: 2.13, options_per_opp: 0.86, recalls: 2 },
+        mtd_on_job_pct: 24,
+        mtd_nexstar: { total_revenue: 9771, avg_sale: 502, conversion_rate: 82, spps_sold: 0, tech_gen_leads: 1, sold_hours: 46.15, flat_rate_tasks: 1.89 },
+        mtd_productivity: { rev_hr: 50, billable_hours: 46.15, sold_hrs_on_job_pct: 24, tasks_per_opp: 2.13, options_per_opp: 0.86, recalls: 2 },
         mtd_recalls: { completed_jobs: 51, warranty_jobs: 0, recalls_caused: 2, tech_recall_pct: 11.11, recall_jobs: 1 },
         mtd_memberships: { total_mem_sold: 0, total_mem_opps: 4, total_mem_pct: 0 },
         mtd_sales: { close_rate: 80 },
@@ -6377,14 +6393,15 @@ if (typeof Chart !== 'undefined') {
         // v175: +$275 svc on 4/28 ($206 avg, 100% conv, 1 tech-gen lead, 2.8 sold hrs, 2 tasks, 2 mem opps no sale)
         // v189: +$1,064 svc on 4/29 (100% conv, $1,064 avg, 1.0 sold hr, 3 tasks)
         // v198: MTD Recalls (4/30/2026): completed 72, warranty 1, recalls caused 1, recall % 5.26, recall jobs 2
+        // v202: $0 svc on 4/30 (no opps), +2.5 sold hrs, +1 TGL
         mtd_service_rev: 7924,
         mtd_installs: 3,
         mtd_install_rev: 37485,
         mtd_install_self_sourced: 2,
         mtd_install_tgl_for_others: 1,
-        mtd_on_job_pct: 51,
-        mtd_nexstar: { total_revenue: 7924, avg_sale: 379, conversion_rate: 67, spps_sold: 4, tech_gen_leads: 7, sold_hours: 52.4, flat_rate_tasks: 1.91 },
-        mtd_productivity: { rev_hr: 73, billable_hours: 52.4, sold_hrs_on_job_pct: 51, tasks_per_opp: 1.58, options_per_opp: 2.11, recalls: 1 },
+        mtd_on_job_pct: 49,
+        mtd_nexstar: { total_revenue: 7924, avg_sale: 379, conversion_rate: 67, spps_sold: 4, tech_gen_leads: 8, sold_hours: 54.9, flat_rate_tasks: 1.91 },
+        mtd_productivity: { rev_hr: 70, billable_hours: 54.9, sold_hrs_on_job_pct: 49, tasks_per_opp: 1.58, options_per_opp: 2.11, recalls: 1 },
         mtd_recalls: { completed_jobs: 72, warranty_jobs: 1, recalls_caused: 1, tech_recall_pct: 5.26, recall_jobs: 2 },
         mtd_memberships: { total_mem_sold: 4, total_mem_opps: 10, total_mem_pct: 40 },
         mtd_sales: { close_rate: 63 },
@@ -6401,13 +6418,14 @@ if (typeof Chart !== 'undefined') {
         color: "#2D6A6A",
         // v189: +$1,064 svc on 4/29 (100% conv, $1,064 avg, 1.0 sold hr, 3 tasks)
         // v198: MTD Recalls (4/30/2026): completed 35, warranty 0, recalls caused 2, recall % 40.00, recall jobs 1 — highest recall rate on team
+        // v202: $0 svc on 4/30 (no opps), +1.0 sold hr
         mtd_service_rev: 3918,
         mtd_installs: 1,
         mtd_install_rev: 13410,
         mtd_install_self_sourced: 1,
-        mtd_on_job_pct: 38,
-        mtd_nexstar: { total_revenue: 3918, avg_sale: 891, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 25.85, flat_rate_tasks: 5.5 },
-        mtd_productivity: { rev_hr: 32, billable_hours: 25.85, sold_hrs_on_job_pct: 38, tasks_per_opp: 4.30, options_per_opp: 2, recalls: 2 },
+        mtd_on_job_pct: 36,
+        mtd_nexstar: { total_revenue: 3918, avg_sale: 891, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 26.85, flat_rate_tasks: 5.5 },
+        mtd_productivity: { rev_hr: 31, billable_hours: 26.85, sold_hrs_on_job_pct: 36, tasks_per_opp: 4.30, options_per_opp: 2, recalls: 2 },
         mtd_recalls: { completed_jobs: 35, warranty_jobs: 0, recalls_caused: 2, tech_recall_pct: 40.00, recall_jobs: 1 },
         mtd_memberships: { total_mem_sold: 1, total_mem_opps: 1, total_mem_pct: 100 },
         mtd_sales: { close_rate: 100 },
@@ -12390,6 +12408,20 @@ if (typeof Chart !== 'undefined') {
       return {}; // { 'Chris': [{id, date, jobNum, ts}], ... }
     }
 
+    // v202: unified MTD tile refresher \u2014 call after any data write
+    // that affects month-to-date totals so tiles update without tab switch.
+    function renderMTDTiles() {
+      try { if (typeof renderOverviewTab === 'function') renderOverviewTab(); } catch(e) { console.warn('renderMTDTiles overview', e); }
+      try { if (typeof renderSTKPIs === 'function') renderSTKPIs(); } catch(e) { console.warn('renderMTDTiles stkpis', e); }
+      try { if (typeof renderSTTables === 'function') renderSTTables(); } catch(e) {}
+      try { if (typeof renderProfiles === 'function') renderProfiles(); } catch(e) {}
+      try { if (typeof renderRookieCards === 'function') renderRookieCards(); } catch(e) {}
+      try { if (typeof renderBulletinBoard === 'function') renderBulletinBoard(); } catch(e) {}
+      try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
+    }
+    // Expose globally so any handler can trigger an MTD refresh
+    try { window.renderMTDTiles = renderMTDTiles; } catch(e) {}
+
     function saveLogData(storageKey, data) {
       localStorage.setItem(storageKey, JSON.stringify(data));
       // Mark as recently modified so cloud sync won't stomp it on next reload
@@ -12399,10 +12431,8 @@ if (typeof Chart !== 'undefined') {
         if (storageKey === RECALL_STORAGE) SyncEngine.write('recall', data);
         if (storageKey === COMPLAINT_STORAGE) SyncEngine.write('complaint', data);
       }
-      // Re-render tech profiles + overview + rookie cards so recall/complaint counts stay in sync
-      try { if (typeof renderProfiles === 'function') renderProfiles(); } catch(e) {}
-      try { if (typeof renderOverviewTab === 'function') renderOverviewTab(); } catch(e) {}
-      try { if (typeof renderRookieCards === 'function') renderRookieCards(); } catch(e) {}
+      // v202: unified MTD refresh keeps tiles, profiles, and rookie cards aligned
+      try { renderMTDTiles(); } catch(e) {}
     }
 
     function addLogEntry(storageKey, tech) {
@@ -15830,7 +15860,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v201 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v202 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
