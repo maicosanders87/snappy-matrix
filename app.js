@@ -7550,9 +7550,8 @@ if (typeof Chart !== 'undefined') {
       `;
 
       // Sales card — Brayden Bond, B-Tier (no flip).
-      // v207: track Equipment Sales (MTD Revenue), Flip Conversion %, Inbound Close %, Lead Conversion %.
-      // "Close Rate" tile removed \u2014 redundant with the conversion tiles.
-      const bbStats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : { mtd_revenue: '', flipped_close_rate: '', inbound_close_rate: '', lead_conv_rate: '' };
+      // v208: 6 tiles \u2014 Equipment Sales, Flip Count, Flip Conversion %, Lead Count, Lead Conversion %, Inbound Close %.
+      const bbStats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : { mtd_revenue: '', flipped_close_rate: '', inbound_close_rate: '', lead_conv_rate: '', flip_count: '', lead_count: '' };
       const bbCompBarColor = '#60A5FA';
       html += `
         <div class="rookie-flip-container no-flip">
@@ -7576,10 +7575,20 @@ if (typeof Chart !== 'undefined') {
                       <div class="rookie-stat-label">Equipment Sales</div>
                       <div class="rookie-stat-period">MTD revenue</div>
                     </div>
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('flip_count','Flips Worked (MTD)','${bbStats.flip_count||''}')">
+                      <div class="rookie-stat-value">${bbStats.flip_count || '—'}</div>
+                      <div class="rookie-stat-label">Flips Worked</div>
+                      <div class="rookie-stat-period">MTD count</div>
+                    </div>
                     <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('flipped_close_rate','Flip Conversion % (MTD)','${bbStats.flipped_close_rate||''}')">
                       <div class="rookie-stat-value">${bbStats.flipped_close_rate ? bbStats.flipped_close_rate+'%' : '—'}</div>
                       <div class="rookie-stat-label">Flip Conversion</div>
                       <div class="rookie-stat-period">MTD</div>
+                    </div>
+                    <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('lead_count','Leads Worked (MTD)','${bbStats.lead_count||''}')">
+                      <div class="rookie-stat-value">${bbStats.lead_count || '—'}</div>
+                      <div class="rookie-stat-label">Leads Worked</div>
+                      <div class="rookie-stat-period">MTD count</div>
                     </div>
                     <div class="rookie-stat mgr-stat-editable" onclick="event.stopPropagation();braydenEditStat('lead_conv_rate','Lead Conversion % (MTD)','${bbStats.lead_conv_rate||''}')">
                       <div class="rookie-stat-value">${bbStats.lead_conv_rate ? bbStats.lead_conv_rate+'%' : '—'}</div>
@@ -16333,7 +16342,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v207 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v208 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
