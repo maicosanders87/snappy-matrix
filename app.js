@@ -2151,19 +2151,20 @@ document.addEventListener('visibilitychange', function() {
     //   Thomas Gilbert:   2 / 0 / 0 /  0.00% / 0   — Snappy partner / not on Matrix roster, recorded for completeness only
     // Tasks-per-Opportunity also refreshed to match the 4/30 MTD pull (Dee 4.30, Daniel 2.13, Chris 1.58, Dewone 2.15, Benji 2.22).
 
-    // v197: One-shot Thursday Apr 30, 2026 ADD-ON seed for week 2026-04-27.
+    // v197 (revised v205): One-shot Thursday Apr 30, 2026 ADD-ON seed for week 2026-04-27.
     // Adds Thursday's daily numbers on top of Mon+Tue+Wed totals already seeded.
     // Sources: today's Nexstar productivity + Membership screenshots (4/30/26).
+    // v205 update: Chris and Daniel each sold 1 membership (1/1 = 100%) on 4/30. Re-seed via bumped FLAG.
     // Daily 4/30 per tech:
     //   Dewone:  $362 svc, 100% conv, 2.5 sold hrs, 2 tasks/call, 0 mem opps
     //   Benji (Ben Tinahui): $0 svc, 4.0 sold hrs, 0 mem opps
     //   Dee:     $0 svc, 1.0 sold hr, 0 mem opps
-    //   Daniel:  $0 svc, 4.0 sold hrs, 0 mem opps
-    //   Chris:   $0 svc, 1 TGL, 2.5 sold hrs, 0 mem opps
+    //   Daniel:  $0 svc, 4.0 sold hrs, 1 mem sold / 1 mem opp
+    //   Chris:   $0 svc, 1 TGL, 2.5 sold hrs, 1 mem sold / 1 mem opp
     // No installs today (team-wide). Mark Sanders shown in Nexstar table as manager (2.75 sold hrs) — not a WLB tech.
     function _wlbSeedDay20260430IfNeeded() {
       try {
-        var FLAG = 'snappy_wlb_day_seeded_2026_04_30_v1';
+        var FLAG = 'snappy_wlb_day_seeded_2026_04_30_v2';
         if (localStorage.getItem(FLAG) === '1') return;
         var d = _wlbLoad();
         var WEEK = '2026-04-27';
@@ -2178,8 +2179,14 @@ document.addEventListener('visibilitychange', function() {
             memOpps:      (prev.memOpps || 0)      + mo
           };
         }
-        add('Dewone', 362, 0, 0, 0, 0);
-        // Benji, Dee, Daniel, Chris all $0 svc / 0 installs / 0 mem opps today — nothing to add
+        // v205: re-seed handles users who already had v1 flag set. Old v1 flag added Dewone $362 with 0/0 mem.
+        // If v1 flag is set, only add the membership delta to avoid double-counting service rev.
+        var v1Already = localStorage.getItem('snappy_wlb_day_seeded_2026_04_30_v1') === '1';
+        if (!v1Already) {
+          add('Dewone', 362, 0, 0, 0, 0);
+        }
+        add('Chris', 0, 0, 0, 1, 1);
+        add('Daniel', 0, 0, 0, 1, 1);
         d[WEEK] = existing;
         _wlbSave(d);
         try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
@@ -4769,7 +4776,7 @@ document.addEventListener('visibilitychange', function() {
         'st_update_20260427_mtd': { date: '2026-04-27', text: 'MTD refresh (4/27/26). Dewone +1 install ($24,316 \u2014 Martha Futral) bumps installs to 3 / $51,363. Daniel service rev +$602 \u2192 $8,484 MTD. Dee service rev +$322 \u2192 $2,854 MTD with first membership sold (1/1, 100%). Chris adds 1 mem opp (4/8 = 50%). Team MTD service rev $36,267 \u2022 Team MTD installs 10 ($137K).' },
         'st_update_20260428_mtd': { date: '2026-04-28', text: 'Daily refresh (4/28/26). Benji +$444 svc + 1 install $9,060 (Nellie Ellis) \u2192 8,620 svc / 3 installs / $29,514 install rev MTD. Daniel +$1,287 svc \u2192 $9,771 MTD. Chris +$275 svc + 2 mem opps (no sale) \u2192 $6,860 svc / 4-of-10 mem (40%) MTD. Dee, Dewone $0 daily. Brayden 1 mem opp. Team MTD service rev $38,273 \u2022 Team MTD installs 11 ($146K). Nick Goehler day 1 \u2014 onboarding only.' },
         'st_update_20260429_mtd': { date: '2026-04-29', text: 'Daily refresh (4/29/26). No installs today. Dee +$1,064 svc (100% conv, $1,064 avg) \u2192 $3,918 svc MTD. Chris +$1,064 svc (100% conv, $1,064 avg) \u2192 $7,924 svc / 4-of-10 mem (40%) MTD. Dewone +$158 svc + 1 TGL \u2192 $10,326 svc / 12 TGL MTD. Benji $0 svc (3.5 billable hrs, no opps) \u2192 $8,620 svc MTD held. Daniel $0 svc (1 sold hr, no opps) \u2192 $9,771 svc MTD held. Team daily $2,286 svc / 9.7 sold hrs / 1 TGL. Team MTD service rev $40,559 \u2022 Team MTD installs 11 ($146K) held.' },
-        'st_update_20260430_mtd': { date: '2026-04-30', text: 'Daily refresh (4/30/26). No installs today. Dewone +$362 svc (100% conv on 1 call, $362 avg, 2.5 sold hrs, 2 tasks/call) \u2192 $10,688 svc MTD. Benji (Ben Tinahui) $0 svc (4.0 sold hrs, 0.5 tech sold-hr efficiency, no opps). Dee $0 svc (1.0 sold hr, no opps). Daniel $0 svc (4.0 sold hrs, no opps). Chris $0 svc (2.5 sold hrs, 1 TGL, no opps). Memberships: 0 sold / 0 opps team-wide today. Team daily $362 svc / 16.75 sold hrs / 1 TGL / 0 installs. Team MTD installs 11 ($146K) held.' }
+        'st_update_20260430_mtd': { date: '2026-04-30', text: 'Daily refresh (4/30/26). No installs today. Dewone +$362 svc (100% conv on 1 call, $362 avg, 2.5 sold hrs, 2 tasks/call) \u2192 $10,688 svc MTD. Benji (Ben Tinahui) $0 svc (4.0 sold hrs, 0.5 tech sold-hr efficiency, no opps). Dee $0 svc (1.0 sold hr, no opps). Daniel $0 svc (4.0 sold hrs, no opps). Chris $0 svc (2.5 sold hrs, 1 TGL, no opps). Memberships: 2 sold / 2 opps team-wide today (Chris 1/1, Daniel 1/1). Team daily $362 svc / 16.75 sold hrs / 1 TGL / 0 installs. Team MTD installs 11 ($146K) held.' }
       };
       var changed = false;
       Object.keys(seededIds).forEach(function(sid) {
@@ -6505,14 +6512,14 @@ if (typeof Chart !== 'undefined') {
             mtd_nexstar: { total_revenue: 9771, avg_sale: 502, conversion_rate: 82, spps_sold: 0, tech_gen_leads: 1, sold_hours: 46.15, flat_rate_tasks: 1.89 },
             mtd_productivity: { rev_hr: 50, billable_hours: 46.15, sold_hrs_on_job_pct: 24, tasks_per_opp: 2.13, options_per_opp: 0.86, recalls: 2 },
             mtd_recalls: { completed_jobs: 51, warranty_jobs: 0, recalls_caused: 2, tech_recall_pct: 11.11, recall_jobs: 1 },
-            mtd_memberships: { total_mem_sold: 0, total_mem_opps: 4, total_mem_pct: 0 },
+            mtd_memberships: { total_mem_sold: 1, total_mem_opps: 5, total_mem_pct: 20 },
             mtd_sales: { close_rate: 80 }
           }
         },
         nexstar: { total_revenue: 19162, avg_sale: 547, conversion_rate: 64, spps_sold: 4, tech_gen_leads: 5, sold_hours: 120.75, tech_sold_hr_eff: 0, flat_rate_tasks: 2.03 },
         overview: { revenue: 19162, total_job_avg: 121, opp_job_avg: 355, opp_conversion: 64, opps: 53, converted_jobs: 34 },
         leads: { opps: 53, leads_set: 5, conv_rate: 9, avg_sale: 547 },
-        memberships: { total_mem_sold: 4, total_mem_opps: 15, total_mem_pct: 27 },
+        memberships: { total_mem_sold: 5, total_mem_opps: 16, total_mem_pct: 31 },
         productivity: { rev_hr: 43, billable_hours: 120.75, sold_hrs_on_job_pct: 27, tasks_per_opp: 1.57, options_per_opp: 0.56, recalls: 2 },
         sales: { total_sales: 8761, avg_sale_s: 876, close_rate: 24, sales_opps: 41, options_per_opp_s: 0.56 },
         installs: { count: 1, total_revenue: 9926, avg_sale: 9926, leads_generated: 1, self_sourced: 1 }
@@ -6544,14 +6551,14 @@ if (typeof Chart !== 'undefined') {
             mtd_nexstar: { total_revenue: 7924, avg_sale: 379, conversion_rate: 67, spps_sold: 4, tech_gen_leads: 8, sold_hours: 54.9, flat_rate_tasks: 1.91 },
             mtd_productivity: { rev_hr: 70, billable_hours: 54.9, sold_hrs_on_job_pct: 49, tasks_per_opp: 1.58, options_per_opp: 2.11, recalls: 1 },
             mtd_recalls: { completed_jobs: 72, warranty_jobs: 1, recalls_caused: 1, tech_recall_pct: 5.26, recall_jobs: 2 },
-            mtd_memberships: { total_mem_sold: 4, total_mem_opps: 10, total_mem_pct: 40 },
+            mtd_memberships: { total_mem_sold: 5, total_mem_opps: 11, total_mem_pct: 45 },
             mtd_sales: { close_rate: 63 }
           }
         },
         nexstar: { total_revenue: 15359, avg_sale: 360, conversion_rate: 55, spps_sold: 6, tech_gen_leads: 26, sold_hours: 127.67, tech_sold_hr_eff: 0, flat_rate_tasks: 1.91 },
         overview: { revenue: 15359, total_job_avg: 86, opp_job_avg: 203, opp_conversion: 55, opps: 73, converted_jobs: 40 },
         leads: { opps: 73, leads_set: 26, conv_rate: 36, avg_sale: 360 },
-        memberships: { total_mem_sold: 6, total_mem_opps: 19, total_mem_pct: 32 },
+        memberships: { total_mem_sold: 7, total_mem_opps: 20, total_mem_pct: 35 },
         productivity: { rev_hr: 51, billable_hours: 127.67, sold_hrs_on_job_pct: 42, tasks_per_opp: 1.45, options_per_opp: 1.9, recalls: 1 },
         sales: { total_sales: 38480, avg_sale_s: 924, close_rate: 50, sales_opps: 78, options_per_opp_s: 1.9 },
         installs: { count: 12, total_revenue: 151465, avg_sale: 12622, leads_generated: 12, self_sourced: 12 }
@@ -16265,7 +16272,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v204 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v205 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
