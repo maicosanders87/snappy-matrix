@@ -15830,7 +15830,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v200 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v201 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
@@ -15930,21 +15930,46 @@ function openEmbeddedPDF(filename) {
       '</div>';
     }
 
+    // v201 fix: helper actions now use the real nav attributes (data-view / view-<name>)
+    // and route 'goto-recall' to the dispatch view (where the Recall Log lives) with
+    // a scroll-into-view on #recallLogSection. Also closes the helper panel after a nav
+    // action so the destination is visible.
     function handleHelperAction(kind) {
       try {
-        if (kind === 'goto-mgr' || kind === 'goto-actions') {
+        function closePanel() {
+          var p = document.getElementById('matrixHelperPanel');
+          if (p) p.classList.remove('open');
+        }
+        if (kind === 'goto-mgr') {
           activateMainTab('manager');
+          if (typeof window.mgrSwitchSubTab === 'function') window.mgrSwitchSubTab('today');
+          closePanel();
+        } else if (kind === 'goto-actions') {
+          // Action items live inside session-log entries and tech profile modals.
+          // Route to manager > today (overdue items surface there).
+          activateMainTab('manager');
+          if (typeof window.mgrSwitchSubTab === 'function') window.mgrSwitchSubTab('today');
+          closePanel();
         } else if (kind === 'goto-cal') {
           activateMainTab('manager');
           if (typeof window.mgrSwitchSubTab === 'function') window.mgrSwitchSubTab('calendar');
+          closePanel();
         } else if (kind === 'goto-log') {
           activateMainTab('manager');
           if (typeof window.mgrSwitchSubTab === 'function') window.mgrSwitchSubTab('log');
+          closePanel();
         } else if (kind === 'goto-recall') {
-          activateMainTab('quality');
+          // Recall Log lives inside the Dispatch view (id=recallLogSection).
+          activateMainTab('dispatch');
+          setTimeout(function() {
+            var sec = document.getElementById('recallLogSection');
+            if (sec && sec.scrollIntoView) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 250);
+          closePanel();
         } else if (kind === 'goto-profiles') {
           activateMainTab('manager');
           if (typeof window.mgrSwitchSubTab === 'function') window.mgrSwitchSubTab('profiles');
+          closePanel();
         } else if (kind === 'snap-all') {
           var n = 0;
           V200_TECH_ORDER.forEach(function(tech) {
@@ -15959,15 +15984,20 @@ function openEmbeddedPDF(filename) {
       } catch(e) { console.warn('helper action failed', e); }
     }
 
+    // v201 fix: real main-nav uses data-view + #view-<name>, NOT data-tab + #tab-<name>.
+    // The previous implementation looked for the wrong attribute and silently failed,
+    // breaking every helper button that tried to navigate.
     function activateMainTab(name) {
-      // Try common tab patterns
-      var btn = document.querySelector('[data-tab="' + name + '"]');
+      // Primary: top nav (data-view)
+      var btn = document.querySelector('.nav-tab[data-view="' + name + '"]');
       if (btn) { btn.click(); return; }
-      // sidebar nav variant
-      btn = document.querySelector('.nav-link[data-tab="' + name + '"]');
+      // Legacy fallback in case of older builds
+      btn = document.querySelector('[data-tab="' + name + '"]');
       if (btn) { btn.click(); return; }
-      // last resort: scroll to id
-      var sec = document.getElementById('tab-' + name) || document.getElementById(name);
+      // Last resort: scroll to the view section directly
+      var sec = document.getElementById('view-' + name)
+             || document.getElementById('tab-' + name)
+             || document.getElementById(name);
       if (sec && sec.scrollIntoView) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
