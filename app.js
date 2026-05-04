@@ -8719,6 +8719,228 @@ if (typeof Chart !== 'undefined') {
     window.mgrCloseInstallPaySheetHistory = mgrCloseInstallPaySheetHistory;
     window.mgrDeleteInstallPaySheet = mgrDeleteInstallPaySheet;
 
+    // =================================================================
+    // RECALL REPORT (v214) — daily duty + tech-attributed log
+    // Tracks recalls and complaints. Visible per-tech for awareness only —
+    // does NOT subtract from composite score (per user rule: helpers, not hurters).
+    // Source: Service Titan exports + manual entry.
+    // =================================================================
+    const RECALL_REPORT_KEY = 'snappy_recall_reports';
+    function mgrLoadRecallReports() {
+      try { return JSON.parse(localStorage.getItem(RECALL_REPORT_KEY)) || []; } catch(e) { return []; }
+    }
+    function mgrSaveRecallReports(arr) {
+      localStorage.setItem(RECALL_REPORT_KEY, JSON.stringify(arr));
+      if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured()) {
+        try { SyncEngine.write('recallreports', arr); } catch(e) {}
+      }
+    }
+    function mgrRecallTechOptions() {
+      // All techs (matches Install Pay Sheet pattern, but no Brayden/Other since these are tech-attributed)
+      var opts = [];
+      try {
+        if (Array.isArray(techs)) {
+          techs.forEach(function(t) {
+            var short = t.short || t.name;
+            var disp = t.displayName || t.name || short;
+            opts.push({ value: short, label: disp });
+          });
+        }
+      } catch(e) {}
+      opts.push({ value: 'Unassigned', label: 'Unassigned / Unknown' });
+      return opts;
+    }
+    function mgrRecallCountForTech(techShort) {
+      var all = mgrLoadRecallReports();
+      return all.filter(function(r){ return r.tech === techShort; }).length;
+    }
+    function mgrRecallCountForTechMTD(techShort, monthStr) {
+      // monthStr = 'YYYY-MM' (defaults to current)
+      var m = monthStr || (mgrFmtDate(mgrToday())).slice(0,7);
+      var all = mgrLoadRecallReports();
+      return all.filter(function(r){
+        return r.tech === techShort && (r.incidentDate || '').slice(0,7) === m;
+      }).length;
+    }
+    function mgrOpenRecallReport(dateStr, prefilledId) {
+      var reports = mgrLoadRecallReports();
+      var existing = prefilledId ? reports.find(function(r){ return r.id === prefilledId; }) : null;
+      var techOpts = mgrRecallTechOptions();
+      var techOptionsHtml = techOpts.map(function(o) {
+        var sel = (existing && existing.tech === o.value) ? ' selected' : '';
+        return '<option value="' + o.value + '"' + sel + '>' + o.label + '</option>';
+      }).join('');
+      var typeOptions = ['Recall', 'Complaint', 'Callback (no charge)', 'Warranty'];
+      var typeOptionsHtml = typeOptions.map(function(t) {
+        var sel = (existing && existing.type === t) ? ' selected' : '';
+        return '<option value="' + t + '"' + sel + '>' + t + '</option>';
+      }).join('');
+      var todayIso = (dateStr || mgrFmtDate(mgrToday()));
+      var initIncidentDate = (existing && existing.incidentDate) || todayIso;
+      var modal = document.createElement('div');
+      modal.id = 'recallReportModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML =
+        '<div style="background:#0F1B2E;color:#f1f5f9;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;border:1px solid #1e3a5f;border-radius:14px;padding:22px;box-shadow:0 24px 48px rgba(0,0,0,0.5);">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">' +
+            '<div>' +
+              '<div style="font-size:18px;font-weight:700;letter-spacing:0.2px;">Recall / Complaint Entry</div>' +
+              '<div style="font-size:12px;color:#94a3b8;margin-top:2px;">' + (existing ? 'Edit entry' : 'New entry') + ' \u2022 source: ServiceTitan or manual</div>' +
+            '</div>' +
+            '<button onclick="mgrCloseRecallReport()" style="background:transparent;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;" aria-label="Close">\u00d7</button>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+            '<label style="font-size:12px;color:#94a3b8;">Incident date<input id="rec_incidentDate" type="date" value="' + initIncidentDate + '" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;"></label>' +
+            '<label style="font-size:12px;color:#94a3b8;">Type<select id="rec_type" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;">' + typeOptionsHtml + '</select></label>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">' +
+            '<label style="font-size:12px;color:#94a3b8;">Tech<select id="rec_tech" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;">' + techOptionsHtml + '</select></label>' +
+            '<label style="font-size:12px;color:#94a3b8;">Job # / Invoice<input id="rec_jobNumber" type="text" value="' + ((existing && existing.jobNumber) || '') + '" placeholder="e.g. 91767937" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;"></label>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="font-size:12px;color:#94a3b8;display:block;">Customer<input id="rec_customer" type="text" value="' + ((existing && existing.customer) || '') + '" placeholder="Customer name" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;"></label>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="font-size:12px;color:#94a3b8;display:block;">Original work / system<input id="rec_originalWork" type="text" value="' + ((existing && existing.originalWork) || '') + '" placeholder="e.g. Trane XR16 cap replacement, 5/1/26" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;"></label>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="font-size:12px;color:#94a3b8;display:block;">Reason / customer report<textarea id="rec_reason" rows="2" placeholder="e.g. Same issue returned within 7 days; no cooling" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;resize:vertical;">' + ((existing && existing.reason) || '') + '</textarea></label>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="font-size:12px;color:#94a3b8;display:block;">Resolution / coaching note<textarea id="rec_resolution" rows="2" placeholder="What was found, how it was resolved, coaching takeaway" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;resize:vertical;">' + ((existing && existing.resolution) || '') + '</textarea></label>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="font-size:12px;color:#94a3b8;display:block;">ServiceTitan notes (optional)<textarea id="rec_stNotes" rows="2" placeholder="Pasted from ST job notes if available" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;resize:vertical;">' + ((existing && existing.stNotes) || '') + '</textarea></label>' +
+          '</div>' +
+          '<div style="margin-top:14px;padding:8px 10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;font-size:11px;color:#fbbf24;">' +
+            '\ud83d\udcca Tracked for awareness and coaching only. Recall counts do NOT reduce composite score \u2014 they surface in tech profiles to identify training opportunities.' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">' +
+            '<button onclick="mgrCloseRecallReport()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;">Cancel</button>' +
+            '<button onclick="mgrSubmitRecallReport(\'' + (existing ? existing.id : '') + '\',\'' + (dateStr || todayIso) + '\')" style="background:linear-gradient(135deg,#DC2626,#B91C1C);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Save entry</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+    function mgrCloseRecallReport() {
+      var m = document.getElementById('recallReportModal');
+      if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+    function mgrSubmitRecallReport(existingId, dutyDateStr) {
+      var customer = (document.getElementById('rec_customer') || {}).value || '';
+      var jobNumber = (document.getElementById('rec_jobNumber') || {}).value || '';
+      var incidentDate = (document.getElementById('rec_incidentDate') || {}).value || dutyDateStr;
+      var type = (document.getElementById('rec_type') || {}).value || 'Recall';
+      var tech = (document.getElementById('rec_tech') || {}).value || 'Unassigned';
+      var originalWork = (document.getElementById('rec_originalWork') || {}).value || '';
+      var reason = (document.getElementById('rec_reason') || {}).value || '';
+      var resolution = (document.getElementById('rec_resolution') || {}).value || '';
+      var stNotes = (document.getElementById('rec_stNotes') || {}).value || '';
+      if (!customer.trim()) {
+        alert('Customer is required.');
+        return;
+      }
+      var reports = mgrLoadRecallReports();
+      if (existingId) {
+        var idx = reports.findIndex(function(r){ return r.id === existingId; });
+        if (idx >= 0) {
+          reports[idx] = Object.assign({}, reports[idx], {
+            incidentDate: incidentDate, type: type, tech: tech,
+            customer: customer.trim(), jobNumber: jobNumber.trim(),
+            originalWork: originalWork.trim(), reason: reason.trim(),
+            resolution: resolution.trim(), stNotes: stNotes.trim(),
+            dateUpdated: new Date().toISOString()
+          });
+        }
+      } else {
+        reports.unshift({
+          id: 'rec_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+          dateSubmitted: new Date().toISOString(),
+          incidentDate: incidentDate,
+          type: type,
+          tech: tech,
+          customer: customer.trim(),
+          jobNumber: jobNumber.trim(),
+          originalWork: originalWork.trim(),
+          reason: reason.trim(),
+          resolution: resolution.trim(),
+          stNotes: stNotes.trim()
+        });
+      }
+      mgrSaveRecallReports(reports);
+      mgrToggleDailyDuty(dutyDateStr, 'recall_report', true);
+      mgrCloseRecallReport();
+      try { renderMgrToday(); } catch(e) {}
+    }
+    function mgrViewRecallReports() {
+      var reports = mgrLoadRecallReports();
+      // Build per-tech summary
+      var techOpts = mgrRecallTechOptions();
+      var summaryRows = techOpts.map(function(o) {
+        var count = reports.filter(function(r){ return r.tech === o.value; }).length;
+        if (count === 0) return '';
+        return '<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 8px;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.35);border-radius:12px;font-size:11px;color:#fca5a5;">' + o.label + ': <strong>' + count + '</strong></span>';
+      }).filter(Boolean).join('');
+      var typeColor = { 'Recall': '#DC2626', 'Complaint': '#F59E0B', 'Callback (no charge)': '#94a3b8', 'Warranty': '#10B981' };
+      var rows = reports.length ? reports.map(function(r) {
+        var color = typeColor[r.type] || '#94a3b8';
+        return '<tr style="border-bottom:1px solid #1e3a5f;">' +
+          '<td style="padding:8px 6px;font-size:12px;color:#94a3b8;">' + (r.incidentDate || '\u2014') + '</td>' +
+          '<td style="padding:8px 6px;font-size:12px;"><span style="display:inline-block;padding:2px 8px;background:' + color + '22;color:' + color + ';border:1px solid ' + color + '55;border-radius:10px;font-size:10px;font-weight:600;">' + (r.type || 'Recall') + '</span></td>' +
+          '<td style="padding:8px 6px;font-size:13px;color:#fbbf24;">' + (r.tech || '\u2014') + '</td>' +
+          '<td style="padding:8px 6px;font-size:13px;">' + (r.customer || '\u2014') + '</td>' +
+          '<td style="padding:8px 6px;font-size:12px;color:#94a3b8;">' + (r.jobNumber || '\u2014') + '</td>' +
+          '<td style="padding:8px 6px;font-size:12px;color:#cbd5e1;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + mgrEscape(r.reason || '') + '">' + mgrEscape((r.reason || '').slice(0, 60)) + ((r.reason||'').length > 60 ? '\u2026' : '') + '</td>' +
+          '<td style="padding:8px 6px;text-align:right;">' +
+            '<button onclick="mgrCloseRecallReportHistory();mgrOpenRecallReport(null,\'' + r.id + '\')" style="background:transparent;border:1px solid #1e3a5f;color:#94a3b8;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Edit</button>' +
+            ' <button onclick="mgrDeleteRecallReport(\'' + r.id + '\')" style="background:transparent;border:1px solid #7c2d2d;color:#dc2626;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Delete</button>' +
+          '</td>' +
+        '</tr>';
+      }).join('') : '<tr><td colspan="7" style="padding:20px;text-align:center;color:#64748b;font-size:13px;">No recall/complaint entries yet.</td></tr>';
+      var modal = document.createElement('div');
+      modal.id = 'recallReportHistoryModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML =
+        '<div style="background:#0F1B2E;color:#f1f5f9;width:100%;max-width:1000px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;border:1px solid #1e3a5f;border-radius:14px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1e3a5f;">' +
+            '<div>' +
+              '<div style="font-size:16px;font-weight:700;">Recall / Complaint Log</div>' +
+              '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">' + (summaryRows || '<span style="color:#64748b;">No entries yet</span>') + '</div>' +
+            '</div>' +
+            '<button onclick="mgrCloseRecallReportHistory()" style="background:transparent;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;" aria-label="Close">\u00d7</button>' +
+          '</div>' +
+          '<div style="overflow-y:auto;padding:8px 16px 16px;">' +
+            '<table style="width:100%;border-collapse:collapse;">' +
+              '<thead><tr style="text-align:left;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;">' +
+                '<th style="padding:8px 6px;">Date</th><th style="padding:8px 6px;">Type</th><th style="padding:8px 6px;">Tech</th><th style="padding:8px 6px;">Customer</th><th style="padding:8px 6px;">Job #</th><th style="padding:8px 6px;">Reason</th><th></th>' +
+              '</tr></thead>' +
+              '<tbody>' + rows + '</tbody>' +
+            '</table>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+    function mgrCloseRecallReportHistory() {
+      var m = document.getElementById('recallReportHistoryModal');
+      if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+    function mgrDeleteRecallReport(id) {
+      if (!confirm('Delete this recall/complaint entry?')) return;
+      var reports = mgrLoadRecallReports().filter(function(r){ return r.id !== id; });
+      mgrSaveRecallReports(reports);
+      mgrCloseRecallReportHistory();
+      mgrViewRecallReports();
+    }
+    // Expose to window for inline onclick handlers
+    window.mgrOpenRecallReport = mgrOpenRecallReport;
+    window.mgrCloseRecallReport = mgrCloseRecallReport;
+    window.mgrSubmitRecallReport = mgrSubmitRecallReport;
+    window.mgrViewRecallReports = mgrViewRecallReports;
+    window.mgrCloseRecallReportHistory = mgrCloseRecallReportHistory;
+    window.mgrDeleteRecallReport = mgrDeleteRecallReport;
+    window.mgrRecallCountForTech = mgrRecallCountForTech;
+    window.mgrRecallCountForTechMTD = mgrRecallCountForTechMTD;
+
     // ----- Day Notes persistence -----
     const DAY_NOTES_KEY = 'snappy_day_notes';
     function mgrLoadDayNotes() {
@@ -9107,17 +9329,25 @@ if (typeof Chart !== 'undefined') {
         { key: 'daily_huddle', label: 'Daily huddle with HVAC (Slack)' },
         { key: 'check_trello', label: 'Check Trello board' },
         { key: 'update_matrix', label: 'Update Matrix' },
-        { key: 'install_pay_sheet', label: 'Install pay sheet', hasForm: true }
+        { key: 'install_pay_sheet', label: 'Install pay sheet', hasForm: 'install', formColor: '#10B981', formColor2: '#059669' },
+        { key: 'recall_report', label: 'Recall / complaint report', hasForm: 'recall', formColor: '#DC2626', formColor2: '#B91C1C' }
       ];
       dailyItems.forEach(function(item) {
         var checked = mgrGetDailyDuty(dateStr, item.key);
         html += '<label class="mgr-today-check' + (checked ? ' is-done' : '') + '">';
         html += '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="mgrToggleDailyDuty(\'' + dateStr + '\',\'' + item.key + '\',this.checked);renderMgrToday()">';
         html += '<span>' + item.label + '</span></label>';
-        if (item.hasForm) {
+        if (item.hasForm === 'install') {
           html += '<div style="display:flex;gap:6px;margin:-4px 0 6px 24px;">';
-          html += '<button onclick="mgrOpenInstallPaySheet(\'' + dateStr + '\')" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Open form</button>';
+          html += '<button onclick="mgrOpenInstallPaySheet(\'' + dateStr + '\')" style="background:linear-gradient(135deg,' + item.formColor + ',' + item.formColor2 + ');color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Open form</button>';
           html += '<button onclick="mgrViewInstallPaySheets()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">View history</button>';
+          html += '</div>';
+        } else if (item.hasForm === 'recall') {
+          // v214: Recall / complaint report
+          var recallTotal = mgrLoadRecallReports().length;
+          html += '<div style="display:flex;gap:6px;margin:-4px 0 6px 24px;align-items:center;">';
+          html += '<button onclick="mgrOpenRecallReport(\'' + dateStr + '\')" style="background:linear-gradient(135deg,' + item.formColor + ',' + item.formColor2 + ');color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Open form</button>';
+          html += '<button onclick="mgrViewRecallReports()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">View log' + (recallTotal ? ' \u00b7 ' + recallTotal : '') + '</button>';
           html += '</div>';
         }
       });
@@ -9505,6 +9735,11 @@ if (typeof Chart !== 'undefined') {
             <div style="display:flex;gap:8px;margin:6px 0 0 24px;">
               <button type="button" onclick="mgrOpenInstallPaySheet('${dateStr}')" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Open install pay sheet form</button>
               <button type="button" onclick="mgrViewInstallPaySheets()" style="background:transparent;color:var(--text-secondary);border:1px solid var(--border);padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;">View history</button>
+            </div>
+            <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','recall_report',this.checked)" ${mgrGetDailyDuty(dateStr,'recall_report')?'checked':''}><span>Recall / complaint report (per tech)</span></label>
+            <div style="display:flex;gap:8px;margin:6px 0 0 24px;">
+              <button type="button" onclick="mgrOpenRecallReport('${dateStr}')" style="background:linear-gradient(135deg,#DC2626,#B91C1C);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Open recall form</button>
+              <button type="button" onclick="mgrViewRecallReports()" style="background:transparent;color:var(--text-secondary);border:1px solid var(--border);padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;">View log</button>
             </div>
           </div>
         </div>
@@ -16650,7 +16885,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v213 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v214 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
