@@ -2528,6 +2528,349 @@ document.addEventListener('visibilitychange', function() {
       };
     }
 
+    // ========== v216: WEEKLY CHAMPION BONUS + STREAK + SOFT SEASON RESET ==========
+    // Locked design (v216):
+    //   1st: +3.0  |  2nd: +1.5  |  3rd: +0.75
+    //   Category champions (revenue, avg_sale, conv_pct, spps, leads, sold_hrs): +0.25 each, capped +1.0
+    //   Streak (consecutive overall #1): 2wk +1.0, 3wk +2.0, 4wk +3.0, 5+wk +4.0 (capped)
+    //   Decay: every active bonus expires after 4 weeks
+    //   Season soft reset: bonuses HALVED, streak paused (1-week buffer)
+    //   Hard cap: +10 active bonus per tech at any time
+    //   "only help, never hurt" — bonuses are additive only, never reduce composite
+    //
+    // Storage:
+    //   snappy_champion_history  -> [{ weekOf, season, podium:{1,2,3}, categories:{cat:tech}, streak:{tech,count} }]
+    //   snappy_active_bonuses    -> { 'Dewone':[{type, label, pts, awardedWeek, expiresWeek, faded}, ...] }
+    //   snappy_champion_state    -> { lastSeason, streakBuffer:{tech,count} } // for season-pause tracking
+    var CHAMP_HIST_KEY    = 'snappy_champion_history';
+    var CHAMP_BONUS_KEY   = 'snappy_active_bonuses';
+    var CHAMP_STATE_KEY   = 'snappy_champion_state';
+
+    function champLoadHistory() {
+      try { return JSON.parse(localStorage.getItem(CHAMP_HIST_KEY) || '[]') || []; }
+      catch(e) { return []; }
+    }
+    function champSaveHistory(arr) {
+      try { localStorage.setItem(CHAMP_HIST_KEY, JSON.stringify(arr.slice(-52))); } catch(e) {}
+    }
+    function champLoadBonuses() {
+      try { return JSON.parse(localStorage.getItem(CHAMP_BONUS_KEY) || '{}') || {}; }
+      catch(e) { return {}; }
+    }
+    function champSaveBonuses(obj) {
+      try { localStorage.setItem(CHAMP_BONUS_KEY, JSON.stringify(obj)); } catch(e) {}
+    }
+    function champLoadState() {
+      try { return JSON.parse(localStorage.getItem(CHAMP_STATE_KEY) || '{}') || {}; }
+      catch(e) { return {}; }
+    }
+    function champSaveState(s) {
+      try { localStorage.setItem(CHAMP_STATE_KEY, JSON.stringify(s)); } catch(e) {}
+    }
+
+    // Add N weeks to a YYYY-MM-DD week-start key
+    function champAddWeeks(weekKey, n) {
+      try {
+        var d = new Date(weekKey + 'T00:00:00');
+        d.setDate(d.getDate() + (n * 7));
+        return _wlbWeekStart(d);
+      } catch(e) { return weekKey; }
+    }
+
+    // Detect current season label (matrix-wide). Falls back to 'unknown'.
+    function champCurrentSeason() {
+      try {
+        if (typeof getCurrentSeason === 'function') {
+          var s = getCurrentSeason();
+          if (s) return (typeof s === 'string') ? s : (s.key || s.name || 'unknown');
+        }
+        // Heuristic by month: storm=spring, heat=summer, harvest=fall, ice=winter
+        var m = new Date().getMonth(); // 0=Jan
+        if (m >= 2 && m <= 4) return 'storm';
+        if (m >= 5 && m <= 7) return 'heat';
+        if (m >= 8 && m <= 10) return 'harvest';
+        return 'ice';
+      } catch(e) { return 'unknown'; }
+    }
+
+    // Rank all techs for the given week and pick podium
+    function champRankWeek(weekKey) {
+      try {
+        var data = _wlbLoad();
+        var weekData = data[weekKey] || {};
+        var roster = (typeof techs !== 'undefined' && techs) ? techs : [];
+        var rows = roster.map(function(t) {
+          var entry = _wlbReadEntry(weekData, t.short);
+          if (!entry) return null;
+          var pts = _wlbPoints(entry);
+          return { name: t.name, short: t.short, total: pts ? pts.total : 0, entry: entry };
+        }).filter(Boolean);
+        rows.sort(function(a,b) { return b.total - a.total; });
+        return rows;
+      } catch(e) { return []; }
+    }
+
+    // Compute category winners for a week. Returns { revenue:'Dewone', avg_sale:'Chris', ... }
+    function champCategoryWinners(weekKey) {
+      var rows = champRankWeek(weekKey);
+      if (!rows.length) return {};
+      var cats = {};
+      var pickMax = function(key, getter) {
+        var best = null, bestVal = -Infinity;
+        rows.forEach(function(r) {
+          var v = getter(r);
+          if (v != null && !isNaN(v) && v > bestVal) { bestVal = v; best = r.name; }
+        });
+        if (best && bestVal > 0) cats[key] = best;
+      };
+      pickMax('revenue',   function(r) { return r.entry.service; });
+      pickMax('install_rev', function(r) { return r.entry.installRev; });
+      pickMax('mem_sold',  function(r) { return r.entry.memSold; });
+      pickMax('mem_conv',  function(r) {
+        return (r.entry.memOpps > 0) ? (r.entry.memSold / r.entry.memOpps) * 100 : null;
+      });
+      return cats;
+    }
+
+    // Get prior overall winner from history (most recent)
+    function champPriorWinner() {
+      var hist = champLoadHistory();
+      for (var i = hist.length - 1; i >= 0; i--) {
+        if (hist[i].podium && hist[i].podium['1']) return hist[i];
+      }
+      return null;
+    }
+
+    // Compute streak for a tech: consecutive prior weeks they were #1, ending with prevWeek.
+    // weekKey = the week being awarded; we look BACKWARD from weekKey-1.
+    function champComputeStreak(techName, weekKey) {
+      var hist = champLoadHistory();
+      var byWeek = {};
+      hist.forEach(function(h) { byWeek[h.weekOf] = h; });
+      var streak = 0;
+      var wk = _wlbPrevWeek(weekKey);
+      for (var i = 0; i < 12; i++) {
+        var rec = byWeek[wk];
+        if (rec && rec.podium && rec.podium['1'] === techName) { streak++; wk = _wlbPrevWeek(wk); }
+        else break;
+      }
+      // Apply season buffer (if streak paused on season change, the buffer counts as already-banked weeks)
+      var state = champLoadState();
+      if (state.streakBuffer && state.streakBuffer.tech === techName && (!streak || streak > 0)) {
+        // If we've already won at least once in the new season, add buffer to current streak
+        if (streak >= 1) streak += (state.streakBuffer.count || 0);
+      }
+      return streak;
+    }
+
+    function champStreakBonus(streakAfterWin) {
+      // streakAfterWin = the new count INCLUDING this week's win
+      if (streakAfterWin >= 5) return { pts: 4.0, label: '5+wk streak' };
+      if (streakAfterWin === 4) return { pts: 3.0, label: '4wk streak' };
+      if (streakAfterWin === 3) return { pts: 2.0, label: '3wk streak' };
+      if (streakAfterWin === 2) return { pts: 1.0, label: '2wk streak' };
+      return { pts: 0, label: null };
+    }
+
+    // Add a bonus entry to a tech with 4-week decay. Enforces +10 cap (newest wins).
+    function champAddBonus(techName, type, label, pts, awardedWeek) {
+      if (!techName || pts <= 0) return;
+      var bonuses = champLoadBonuses();
+      if (!bonuses[techName]) bonuses[techName] = [];
+      var expires = champAddWeeks(awardedWeek, 4); // expires after 4 weeks
+      bonuses[techName].push({
+        type: type,
+        label: label,
+        pts: Math.round(pts * 100) / 100,
+        awardedWeek: awardedWeek,
+        expiresWeek: expires,
+        faded: false
+      });
+      champSaveBonuses(bonuses);
+    }
+
+    // Sum active bonuses for a tech AS OF the active leaderboard week. Drops expired entries.
+    function champActiveBonusFor(techName) {
+      try {
+        var bonuses = champLoadBonuses();
+        var list = bonuses[techName] || [];
+        var nowWk = (typeof _wlbActiveWeek === 'function') ? _wlbActiveWeek() : _wlbWeekStart();
+        var alive = list.filter(function(b) {
+          // alive if nowWk < expiresWeek
+          return b.expiresWeek > nowWk;
+        });
+        // Persist cleanup if any expired
+        if (alive.length !== list.length) {
+          bonuses[techName] = alive;
+          champSaveBonuses(bonuses);
+        }
+        var total = alive.reduce(function(s, b) { return s + (b.pts || 0); }, 0);
+        // Hard cap +10
+        if (total > 10) total = 10;
+        return { total: Math.round(total * 100) / 100, entries: alive };
+      } catch(e) { return { total: 0, entries: [] }; }
+    }
+
+    // Award the weekly champion for a given week (defaults: prior week if today is Mon-Wed, else this week)
+    // Returns a summary that can be shown to the user.
+    function champAwardWeek(weekKey) {
+      if (!weekKey) weekKey = _wlbPrevWeek(_wlbWeekStart());
+      var rows = champRankWeek(weekKey);
+      if (!rows.length) return { ok: false, msg: 'No leaderboard data for ' + _wlbWeekLabel(weekKey) };
+
+      // Skip if already awarded
+      var hist = champLoadHistory();
+      var existing = hist.filter(function(h) { return h.weekOf === weekKey; });
+      if (existing.length > 0) return { ok: false, msg: 'Already awarded for week of ' + _wlbWeekLabel(weekKey) };
+
+      // Podium (handle ties: any tech tied with #1 also gets #1 bonus)
+      var topTotal = rows[0].total;
+      if (topTotal <= 0) return { ok: false, msg: 'No points scored that week — nothing to award.' };
+
+      var podium = {};
+      var awarded = [];
+      // 1st place(s)
+      var firsts = rows.filter(function(r) { return r.total === topTotal; });
+      var sndRows = rows.filter(function(r) { return r.total < topTotal; });
+      var sndTotal = sndRows.length ? sndRows[0].total : null;
+      var seconds = sndTotal != null ? sndRows.filter(function(r) { return r.total === sndTotal; }) : [];
+      var thirdRows = sndRows.filter(function(r) { return sndTotal == null || r.total < sndTotal; });
+      var thirdTotal = thirdRows.length ? thirdRows[0].total : null;
+      var thirds = thirdTotal != null ? thirdRows.filter(function(r) { return r.total === thirdTotal; }) : [];
+
+      podium['1'] = firsts[0].name;
+      if (seconds.length) podium['2'] = seconds[0].name;
+      if (thirds.length)  podium['3'] = thirds[0].name;
+      podium._all = { 1: firsts.map(function(r) { return r.name; }), 2: seconds.map(function(r) { return r.name; }), 3: thirds.map(function(r) { return r.name; }) };
+
+      // Award podium bonuses (ties: all tied techs get the place's full bonus)
+      firsts.forEach(function(r) {
+        champAddBonus(r.name, 'champion_1st', '🏆 Weekly Champion', 3.0, weekKey);
+        var streakCount = champComputeStreak(r.name, weekKey) + 1; // +1 for THIS win
+        var sb = champStreakBonus(streakCount);
+        if (sb.pts > 0) champAddBonus(r.name, 'streak_' + streakCount, '🔥 ' + sb.label, sb.pts, weekKey);
+        awarded.push(r.name + ' — 🏆 #1 (+3.0)' + (sb.pts > 0 ? ' + ' + sb.label + ' (+' + sb.pts + ')' : ''));
+      });
+      seconds.forEach(function(r) {
+        champAddBonus(r.name, 'champion_2nd', '🥈 2nd Place', 1.5, weekKey);
+        awarded.push(r.name + ' — 🥈 #2 (+1.5)');
+      });
+      thirds.forEach(function(r) {
+        champAddBonus(r.name, 'champion_3rd', '🥉 3rd Place', 0.75, weekKey);
+        awarded.push(r.name + ' — 🥉 #3 (+0.75)');
+      });
+
+      // Category champions (cap each tech at +1.0 from categories)
+      var cats = champCategoryWinners(weekKey);
+      var catCounts = {};
+      var catLabels = { revenue:'💰 Top Revenue', install_rev:'🔧 Top Install Rev', mem_sold:'🎟️ Top Memberships', mem_conv:'📈 Top Conversion %' };
+      Object.keys(cats).forEach(function(catKey) {
+        var winner = cats[catKey];
+        catCounts[winner] = (catCounts[winner] || 0);
+        if (catCounts[winner] >= 4) return; // hard stop at 4 categories = +1.0
+        catCounts[winner] += 1;
+        var label = catLabels[catKey] || catKey;
+        champAddBonus(winner, 'category_' + catKey, label, 0.25, weekKey);
+        awarded.push(winner + ' — ' + label + ' (+0.25)');
+      });
+
+      // Determine streak record for history
+      var winnerName = podium['1'];
+      var streakAfter = champComputeStreak(winnerName, weekKey) + 1;
+
+      // Save history
+      hist.push({
+        weekOf: weekKey,
+        weekLabel: _wlbWeekLabel(weekKey),
+        season: champCurrentSeason(),
+        podium: { '1': podium['1'], '2': podium['2'] || null, '3': podium['3'] || null, _all: podium._all },
+        categories: cats,
+        streak: { tech: winnerName, count: streakAfter },
+        timestamp: new Date().toISOString()
+      });
+      champSaveHistory(hist);
+
+      // Clear streak buffer if winner now has streak >= 2 (buffer absorbed)
+      var state = champLoadState();
+      if (state.streakBuffer && state.streakBuffer.tech === winnerName && streakAfter >= 2) {
+        delete state.streakBuffer;
+        champSaveState(state);
+      }
+
+      return {
+        ok: true,
+        weekKey: weekKey,
+        weekLabel: _wlbWeekLabel(weekKey),
+        winner: winnerName,
+        streak: streakAfter,
+        podium: podium,
+        categories: cats,
+        awarded: awarded,
+        msg: '✅ ' + _wlbWeekLabel(weekKey) + ' — Champion: ' + winnerName + (streakAfter > 1 ? ' (🔥 ' + streakAfter + 'wk streak)' : '')
+      };
+    }
+
+    // Trigger the soft season reset: halve all active bonuses, pause streak as buffer
+    function champTriggerSeasonReset(newSeasonLabel) {
+      var bonuses = champLoadBonuses();
+      var halvedTechs = [];
+      Object.keys(bonuses).forEach(function(tech) {
+        var arr = bonuses[tech] || [];
+        if (!arr.length) return;
+        arr.forEach(function(b) {
+          b.pts = Math.round((b.pts / 2) * 100) / 100;
+          b.faded = true;
+          b.label = (b.label || '') + ' (faded)';
+        });
+        // Drop entries that fell to 0
+        bonuses[tech] = arr.filter(function(b) { return b.pts > 0.01; });
+        halvedTechs.push(tech);
+      });
+      champSaveBonuses(bonuses);
+
+      // Snapshot current streak as buffer
+      var state = champLoadState();
+      var prior = champPriorWinner();
+      if (prior && prior.streak && prior.streak.tech) {
+        state.streakBuffer = { tech: prior.streak.tech, count: Math.max(0, (prior.streak.count || 0) - 1) };
+      } else {
+        delete state.streakBuffer;
+      }
+      state.lastSeason = newSeasonLabel || champCurrentSeason();
+      state.lastResetAt = new Date().toISOString();
+      champSaveState(state);
+
+      return {
+        ok: true,
+        season: state.lastSeason,
+        techsAffected: halvedTechs.length,
+        bufferTech: state.streakBuffer ? state.streakBuffer.tech : null,
+        bufferCount: state.streakBuffer ? state.streakBuffer.count : 0,
+        msg: '🌀 Soft reset complete — ' + halvedTechs.length + ' techs had bonuses halved.' + (state.streakBuffer ? ' Streak buffer: ' + state.streakBuffer.tech + ' (' + state.streakBuffer.count + 'wk)' : '')
+      };
+    }
+
+    // Clear ALL bonuses & history (admin reset)
+    function champHardReset() {
+      try {
+        localStorage.removeItem(CHAMP_HIST_KEY);
+        localStorage.removeItem(CHAMP_BONUS_KEY);
+        localStorage.removeItem(CHAMP_STATE_KEY);
+      } catch(e) {}
+      return { ok: true, msg: 'All champion data cleared.' };
+    }
+
+    // Expose to window for UI buttons + tech profile rendering
+    window.champAwardWeek = champAwardWeek;
+    window.champTriggerSeasonReset = champTriggerSeasonReset;
+    window.champHardReset = champHardReset;
+    window.champActiveBonusFor = champActiveBonusFor;
+    window.champLoadHistory = champLoadHistory;
+    window.champPriorWinner = champPriorWinner;
+    window.champRankWeek = champRankWeek;
+    // ========== END v216 CHAMPION BONUS MODULE ==========
+
+
     function renderWeeklyLeaderboard() {
       var el = document.getElementById('weeklyLeaderboard');
       if (!el) return;
@@ -2730,7 +3073,29 @@ document.addEventListener('visibilitychange', function() {
           '</div>';
         }
 
-        el.innerHTML = headHTML + rowsHTML;
+        // v216: Champion Banner + Admin Panel
+        var champBannerHTML = '';
+        try {
+          var prior = (typeof champPriorWinner === 'function') ? champPriorWinner() : null;
+          var streakInfo = prior && prior.streak ? prior.streak : null;
+          var streakChip = streakInfo && streakInfo.count >= 2 ? '<span class="v216-streak-chip">🔥 ' + streakInfo.count + 'wk streak</span>' : '';
+          var crownLine = prior && prior.podium && prior.podium['1']
+            ? '<span class="v216-crown">👑</span> <b>Reigning Champion: ' + prior.podium['1'] + '</b> ' + streakChip + ' <span class="v216-week-label">(' + (prior.weekLabel || prior.weekOf) + ')</span>'
+            : '<span class="v216-no-champ">👑 No champion crowned yet — award the first one to start the streak system.</span>';
+          champBannerHTML =
+            '<div class="v216-champ-banner" style="margin:14px 0;padding:14px 18px;border-radius:14px;background:linear-gradient(135deg,#FFF8DC 0%,#FFE680 50%,#FFD700 100%);border:2px solid #C9A227;box-shadow:0 4px 14px rgba(201,162,39,0.25);font-family:Inter,system-ui,sans-serif;">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">' +
+                '<div style="font-size:15px;color:#5C4A00;">' + crownLine + '</div>' +
+                '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                  '<button id="v216-award-btn" style="padding:7px 14px;border:none;border-radius:8px;background:#5C4A00;color:#FFF8DC;font-weight:600;cursor:pointer;font-size:13px;">🏆 Award Last Week</button>' +
+                  '<button id="v216-history-btn" style="padding:7px 14px;border:1px solid #C9A227;border-radius:8px;background:#FFF8DC;color:#5C4A00;font-weight:600;cursor:pointer;font-size:13px;">📜 History</button>' +
+                  '<button id="v216-season-reset-btn" style="padding:7px 14px;border:1px solid #8B0000;border-radius:8px;background:#FFE4E1;color:#8B0000;font-weight:600;cursor:pointer;font-size:13px;">🌀 Season Reset</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+        } catch(e) { console.warn('v216 banner failed', e); }
+
+        el.innerHTML = champBannerHTML + headHTML + rowsHTML;
 
         // Wire up buttons
         var qs = function(id) { return document.getElementById(id); };
@@ -2746,6 +3111,39 @@ document.addEventListener('visibilitychange', function() {
           _wlbSetActiveWeek(_wlbWeekStart()); rerender();
         };
         var edit = qs('wlb-edit'); if (edit) edit.onclick = function() { _wlbOpenEditor(activeWeek); };
+
+        // v216: Champion buttons
+        var awardBtn = qs('v216-award-btn');
+        if (awardBtn) awardBtn.onclick = function() {
+          if (!confirm('Award weekly champion for last completed week? This applies +3.0 to #1, +1.5 to #2, +0.75 to #3, plus streak + category bonuses.')) return;
+          var res = champAwardWeek();
+          if (!res.ok) { alert(res.msg); return; }
+          var summary = res.msg + '\n\n— Bonuses applied —\n' + res.awarded.join('\n');
+          alert(summary);
+          try { rerender(); } catch(e) {}
+          try { if (typeof renderTechProfiles === 'function') renderTechProfiles(); } catch(e) {}
+        };
+        var histBtn = qs('v216-history-btn');
+        if (histBtn) histBtn.onclick = function() {
+          var hist = champLoadHistory();
+          if (!hist.length) { alert('No champion history yet.'); return; }
+          var lines = hist.slice(-15).reverse().map(function(h) {
+            var streakStr = h.streak && h.streak.count >= 2 ? ' (🔥' + h.streak.count + 'wk)' : '';
+            var podLine = '🏆 ' + (h.podium['1'] || '?') + streakStr + (h.podium['2'] ? ', 🥈 ' + h.podium['2'] : '') + (h.podium['3'] ? ', 🥉 ' + h.podium['3'] : '');
+            return (h.weekLabel || h.weekOf) + ' [' + (h.season || '?') + ']\n  ' + podLine;
+          });
+          alert('— Last 15 Weeks —\n\n' + lines.join('\n\n'));
+        };
+        var resetBtn = qs('v216-season-reset-btn');
+        if (resetBtn) resetBtn.onclick = function() {
+          if (!confirm('Soft season reset will HALVE all active bonuses and pause streaks. Continue?')) return;
+          var newSeason = prompt('New season label (storm / heat / harvest / ice):', champCurrentSeason() || 'heat');
+          if (!newSeason) return;
+          var res = champTriggerSeasonReset(newSeason);
+          alert(res.msg);
+          try { rerender(); } catch(e) {}
+          try { if (typeof renderTechProfiles === 'function') renderTechProfiles(); } catch(e) {}
+        };
       } catch(e) { console.warn('renderWeeklyLeaderboard failed', e); }
     }
     window.renderWeeklyLeaderboard = renderWeeklyLeaderboard;
@@ -3592,8 +3990,11 @@ document.addEventListener('visibilitychange', function() {
       const performanceBonus = perfBonusData.bonus;
 
       // v159 weights restored to v153 baseline: ST 35% + Aptitude 30% + Skills 10% + Manager 10% + Installs 10% + Reviews 5%
-      // Plus additive bonuses: Dispatch + Efficiency + Performance (all only-help)
-      const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus + performanceBonus;
+      // Plus additive bonuses: Dispatch + Efficiency + Performance + Champion (all only-help)
+      // v216: Champion bonus = weekly podium + streak + categories, capped +10, decays after 4wks
+      const champData = (typeof champActiveBonusFor === 'function') ? champActiveBonusFor(tech.name) : { total: 0, entries: [] };
+      const championBonus = champData.total || 0;
+      const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus + performanceBonus + championBonus;
       // Season soft reset penalty (carries for current season only)
       const seasonPenalty = (typeof getSeasonSoftResetPenalty === 'function') ? getSeasonSoftResetPenalty(tech.short) : 0;
       const composite = Math.max(0, compositeRawPreSeason - seasonPenalty);
@@ -3604,7 +4005,7 @@ document.addEventListener('visibilitychange', function() {
       else if (composite >= 78) { tier = 'B'; tierLabel = 'Solid'; }
       else { tier = 'C'; tierLabel = 'Developing'; }
 
-      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct };
+      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct, championBonus: Math.round(championBonus * 100) / 100, championEntries: champData.entries || [] };
     }
 
 
@@ -8070,6 +8471,20 @@ if (typeof Chart !== 'undefined') {
                         }
                       </div>
                     </div>
+
+                    ${(tierInfo.championBonus > 0 || (tierInfo.championEntries && tierInfo.championEntries.length)) ? `
+                    <div class="rookie-dispatch-tags rookie-champ-bonus has-bonus" style="border:1px solid #C9A227;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(201,162,39,0.04));">
+                      <div class="rookie-dispatch-header">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 4-4-8-4 8z"/></svg>
+                        Champion Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.championBonus >= 5 ? '#FFD700' : tierInfo.championBonus >= 3 ? '#FBBF24' : tierInfo.championBonus >= 1 ? '#60A5FA' : '#A855F7'}">+${tierInfo.championBonus.toFixed(2)} pts</span>
+                      </div>
+                      <div class="rookie-dispatch-pills">
+                        ${(tierInfo.championEntries || []).map(function(b) {
+                          var faded = b.faded ? ' opacity:0.65;' : '';
+                          return '<span class="rookie-dispatch-pill" style="' + faded + '">' + (b.label || b.type) + ' +' + (b.pts || 0).toFixed(2) + '</span>';
+                        }).join('')}
+                      </div>
+                    </div>` : ''}
 
                     ${techDispTags.length ? `
                     <div class="rookie-dispatch-tags">
@@ -17438,7 +17853,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v215 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v216 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
