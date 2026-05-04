@@ -8941,6 +8941,519 @@ if (typeof Chart !== 'undefined') {
     window.mgrRecallCountForTech = mgrRecallCountForTech;
     window.mgrRecallCountForTechMTD = mgrRecallCountForTechMTD;
 
+    // =================================================================
+    // NIGHTLY IMPORT (v215) — ServiceTitan data import + undo
+    // 6 categories: truck rev, mem opps/conv, installs, leads/flips,
+    // recalls/completed jobs. Each accepts CSV upload OR pasted text.
+    // Replace daily, recompute MTD. Single-step undo via stData snapshot.
+    // =================================================================
+    const NIGHTLY_LEDGER_KEY = 'snappy_nightly_ledger';      // { 'YYYY-MM-DD': { tech: { category: {fields} } } }
+    const NIGHTLY_UNDO_KEY = 'snappy_nightly_undo';          // { stDataSnapshot, date, category, timestamp }
+    const NIGHTLY_HISTORY_KEY = 'snappy_nightly_history';    // [ { date, category, timestamp, techCount } ] (audit log only, not used for undo)
+
+    function nightlyLoadLedger() {
+      try { return JSON.parse(localStorage.getItem(NIGHTLY_LEDGER_KEY)) || {}; } catch(e) { return {}; }
+    }
+    function nightlySaveLedger(obj) {
+      localStorage.setItem(NIGHTLY_LEDGER_KEY, JSON.stringify(obj));
+      if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured()) {
+        try { SyncEngine.write('nightlyledger', obj); } catch(e) {}
+      }
+    }
+    function nightlyLoadUndo() {
+      try { return JSON.parse(localStorage.getItem(NIGHTLY_UNDO_KEY)) || null; } catch(e) { return null; }
+    }
+    function nightlySaveUndo(obj) {
+      if (obj === null) { localStorage.removeItem(NIGHTLY_UNDO_KEY); return; }
+      localStorage.setItem(NIGHTLY_UNDO_KEY, JSON.stringify(obj));
+    }
+    function nightlyLoadHistory() {
+      try { return JSON.parse(localStorage.getItem(NIGHTLY_HISTORY_KEY)) || []; } catch(e) { return []; }
+    }
+    function nightlyAppendHistory(entry) {
+      var hist = nightlyLoadHistory();
+      hist.unshift(entry);
+      if (hist.length > 50) hist = hist.slice(0, 50);
+      localStorage.setItem(NIGHTLY_HISTORY_KEY, JSON.stringify(hist));
+    }
+
+    // ----- Tech name normalization (matches uploaded names against stData) -----
+    function nightlyNormalizeTechName(input) {
+      if (!input) return null;
+      var s = String(input).trim().toLowerCase();
+      // Map common ST export name forms to our canonical short name
+      var aliases = {
+        'dewone': 'Dewone', 'dewone moore': 'Dewone',
+        'chris': 'Chris', 'chris s': 'Chris', 'chris stuart': 'Chris',
+        'benji': 'Benji', 'ben': 'Benji', 'ben tinahui': 'Benji', 'tinahui': 'Benji',
+        'daniel': 'Daniel', 'dan': 'Daniel',
+        'dee': 'Dee',
+        'nick': 'Nick'
+      };
+      if (aliases[s]) return aliases[s];
+      // Try matching against stData by short or display name
+      try {
+        for (var i = 0; i < stData.length; i++) {
+          var t = stData[i];
+          var short = (t.name || '').toLowerCase();
+          var disp = (t.displayName || '').toLowerCase();
+          if (s === short || s === disp || s.indexOf(short) === 0 || (disp && s.indexOf(disp) === 0)) return t.name;
+        }
+      } catch(e) {}
+      return null;
+    }
+
+    // ----- Number parsing (handles $, commas, %, blanks) -----
+    function nightlyParseNumber(v) {
+      if (v === null || v === undefined || v === '') return null;
+      var s = String(v).replace(/[$,\s%]/g, '').trim();
+      if (s === '' || s === '-' || s === '\u2014') return null;
+      var n = Number(s);
+      return isNaN(n) ? null : n;
+    }
+
+    // ----- Parse CSV / pasted text into rows -----
+    // Supports comma OR tab separators. First row treated as header.
+    function nightlyParseTable(text) {
+      if (!text) return { headers: [], rows: [] };
+      var lines = text.split(/\r?\n/).map(function(l){ return l.replace(/\s+$/, ''); }).filter(function(l){ return l.trim() !== ''; });
+      if (!lines.length) return { headers: [], rows: [] };
+      // Detect separator
+      var firstLine = lines[0];
+      var sep = firstLine.indexOf('\t') >= 0 ? '\t' : ',';
+      function splitRow(line) {
+        // Simple CSV split (handles quoted fields)
+        if (sep === '\t') return line.split('\t').map(function(c){ return c.trim(); });
+        var out = [], cur = '', q = false;
+        for (var i = 0; i < line.length; i++) {
+          var ch = line[i];
+          if (ch === '"') { q = !q; continue; }
+          if (ch === ',' && !q) { out.push(cur.trim()); cur = ''; continue; }
+          cur += ch;
+        }
+        out.push(cur.trim());
+        return out;
+      }
+      var headers = splitRow(lines[0]).map(function(h){ return h.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); });
+      var rows = lines.slice(1).map(function(l) {
+        var cells = splitRow(l);
+        var obj = {};
+        headers.forEach(function(h, i){ obj[h] = cells[i] || ''; });
+        return obj;
+      });
+      return { headers: headers, rows: rows };
+    }
+
+    // ----- Field mapping per category -----
+    // Returns: { headerHints: [...common header forms], fieldMap: { rowKey: 'category.field' } }
+    function nightlyCategoryConfig(category) {
+      var configs = {
+        truck_rev: {
+          title: 'Daily Truck Revenue (Tech Sales)',
+          icon: '\ud83d\udcb0',
+          color: '#10B981',
+          headerHints: 'tech, daily_revenue, mtd_revenue, std_revenue',
+          example: 'Tech\tDaily\tMTD\tSTD\nDewone\t572\t1527\t26200\nChris\t450\t3013\t29500',
+          fields: [
+            { keys: ['daily','daily_revenue','today','day_rev'], label: 'Daily $' },
+            { keys: ['mtd','mtd_revenue','month_to_date','mtd_service_rev'], label: 'MTD $', writeTo: 'mtd_service_rev' },
+            { keys: ['std','season_to_date','std_revenue','ytd'], label: 'STD $', writeTo: 'std_service_rev' }
+          ]
+        },
+        memberships: {
+          title: 'Memberships (Opportunities + Sold)',
+          icon: '\ud83c\udfc5',
+          color: '#FFD700',
+          headerHints: 'tech, mtd_opps, mtd_sold, daily_opps, daily_sold',
+          example: 'Tech\tDaily Opps\tDaily Sold\tMTD Opps\tMTD Sold\nDewone\t2\t1\t2\t1\nDaniel\t1\t1\t1\t1',
+          fields: [
+            { keys: ['daily_opps','day_opps','today_opps'], label: 'Daily Opps' },
+            { keys: ['daily_sold','day_sold','today_sold'], label: 'Daily Sold' },
+            { keys: ['mtd_opps','month_opps','total_mem_opps','opps'], label: 'MTD Opps', writeTo: 'mtd_memberships.total_mem_opps' },
+            { keys: ['mtd_sold','month_sold','total_mem_sold','sold'], label: 'MTD Sold', writeTo: 'mtd_memberships.total_mem_sold' }
+          ]
+        },
+        installs: {
+          title: 'Installs Completed',
+          icon: '\ud83d\udd27',
+          color: '#10B981',
+          headerHints: 'tech, daily_installs, daily_install_rev, mtd_installs, mtd_install_rev',
+          example: 'Tech\tDaily Installs\tDaily $\tMTD Installs\tMTD $\nBrayden\t1\t14606.68\t1\t14606.68',
+          fields: [
+            { keys: ['daily_installs','today_installs','installs_today'], label: 'Daily #' },
+            { keys: ['daily_rev','daily_install_rev','today_rev'], label: 'Daily $' },
+            { keys: ['mtd_installs','month_installs','installs'], label: 'MTD #', writeTo: 'mtd_installs' },
+            { keys: ['mtd_rev','mtd_install_rev','install_rev','total_install_rev'], label: 'MTD $', writeTo: 'mtd_install_rev' }
+          ]
+        },
+        leads_flips: {
+          title: 'Leads / Flips Set',
+          icon: '\ud83d\udcca',
+          color: '#F59E0B',
+          headerHints: 'tech, daily_leads, daily_flips, mtd_leads, mtd_flips',
+          example: 'Tech\tDaily Leads\tDaily Flips\tMTD Leads\tMTD Flips\nChris\t2\t1\t12\t6\nBenji\t1\t0\t8\t3',
+          fields: [
+            { keys: ['daily_leads','today_leads','leads_today'], label: 'Daily Leads' },
+            { keys: ['daily_flips','today_flips','flips_today'], label: 'Daily Flips' },
+            { keys: ['mtd_leads','month_leads','tech_gen_leads','leads'], label: 'MTD Leads', writeTo: 'mtd_nexstar.tech_gen_leads' },
+            { keys: ['mtd_flips','month_flips','flips','installs_set'], label: 'MTD Flips', writeTo: 'mtd_install_self_sourced' }
+          ]
+        },
+        recalls: {
+          title: 'Recalls + Completed Jobs',
+          icon: '\ud83d\udd04',
+          color: '#DC2626',
+          headerHints: 'tech, completed_jobs, recalls, warranty_jobs',
+          example: 'Tech\tCompleted Jobs\tRecalls\tWarranty\tRecall %\nDewone\t12\t0\t1\t0\nChris\t18\t1\t0\t5.5',
+          fields: [
+            { keys: ['completed_jobs','jobs_completed','total_jobs','completed'], label: 'Completed Jobs', writeTo: 'mtd_recalls.completed_jobs' },
+            { keys: ['recalls','recalls_caused','recall_count'], label: 'Recalls', writeTo: 'mtd_recalls.recalls_caused' },
+            { keys: ['warranty','warranty_jobs'], label: 'Warranty Jobs', writeTo: 'mtd_recalls.warranty_jobs' },
+            { keys: ['recall_pct','tech_recall_pct','recall_percent'], label: 'Recall %', writeTo: 'mtd_recalls.tech_recall_pct' }
+          ]
+        },
+        sales_kpis: {
+          title: 'Sales KPIs (Conversion, Avg Sale, SPP)',
+          icon: '\ud83d\udcc8',
+          color: '#14B8A6',
+          headerHints: 'tech, conv_rate, avg_sale, spps_sold, sold_hours',
+          example: 'Tech\tConv %\tAvg Sale\tSPPs\tSold Hrs\nDewone\t100\t252\t1\t7.3\nChris\t78\t440\t3\t49.45',
+          fields: [
+            { keys: ['conv','conv_rate','conversion','conversion_rate'], label: 'Conv %', writeTo: 'mtd_nexstar.conversion_rate' },
+            { keys: ['avg_sale','average_sale'], label: 'Avg Sale', writeTo: 'mtd_nexstar.avg_sale' },
+            { keys: ['spps','spps_sold','spp_count'], label: 'SPPs Sold', writeTo: 'mtd_nexstar.spps_sold' },
+            { keys: ['sold_hours','sold_hrs','billable_hours'], label: 'Sold Hours', writeTo: 'mtd_nexstar.sold_hours' }
+          ]
+        }
+      };
+      return configs[category] || null;
+    }
+
+    // ----- Set nested field on tech object (e.g. 'mtd_memberships.total_mem_sold') -----
+    function nightlySetNested(obj, path, value) {
+      var parts = path.split('.');
+      var cur = obj;
+      for (var i = 0; i < parts.length - 1; i++) {
+        if (cur[parts[i]] == null || typeof cur[parts[i]] !== 'object') cur[parts[i]] = {};
+        cur = cur[parts[i]];
+      }
+      cur[parts[parts.length - 1]] = value;
+    }
+
+    // ----- Build a deep snapshot of stData MTD-relevant fields (for undo) -----
+    function nightlySnapshotStData() {
+      // Deep clone the relevant parts only — keep snapshot small
+      try {
+        return JSON.parse(JSON.stringify(stData.map(function(t){
+          return {
+            name: t.name,
+            mtd_service_rev: t.mtd_service_rev,
+            std_service_rev: t.std_service_rev,
+            mtd_installs: t.mtd_installs,
+            mtd_install_rev: t.mtd_install_rev,
+            mtd_install_self_sourced: t.mtd_install_self_sourced,
+            mtd_nexstar: t.mtd_nexstar ? Object.assign({}, t.mtd_nexstar) : undefined,
+            mtd_memberships: t.mtd_memberships ? Object.assign({}, t.mtd_memberships) : undefined,
+            mtd_recalls: t.mtd_recalls ? Object.assign({}, t.mtd_recalls) : undefined,
+            mtd_productivity: t.mtd_productivity ? Object.assign({}, t.mtd_productivity) : undefined
+          };
+        })));
+      } catch(e) { return null; }
+    }
+
+    function nightlyRestoreStData(snapshot) {
+      if (!snapshot || !Array.isArray(snapshot)) return false;
+      snapshot.forEach(function(s) {
+        var t = stData.find(function(x){ return x.name === s.name; });
+        if (!t) return;
+        if ('mtd_service_rev' in s) t.mtd_service_rev = s.mtd_service_rev;
+        if ('std_service_rev' in s) t.std_service_rev = s.std_service_rev;
+        if ('mtd_installs' in s) t.mtd_installs = s.mtd_installs;
+        if ('mtd_install_rev' in s) t.mtd_install_rev = s.mtd_install_rev;
+        if ('mtd_install_self_sourced' in s) t.mtd_install_self_sourced = s.mtd_install_self_sourced;
+        if (s.mtd_nexstar) t.mtd_nexstar = Object.assign({}, s.mtd_nexstar);
+        if (s.mtd_memberships) t.mtd_memberships = Object.assign({}, s.mtd_memberships);
+        if (s.mtd_recalls) t.mtd_recalls = Object.assign({}, s.mtd_recalls);
+        if (s.mtd_productivity) t.mtd_productivity = Object.assign({}, s.mtd_productivity);
+      });
+      return true;
+    }
+
+    // ----- Apply parsed rows to stData and ledger -----
+    function nightlyApplyImport(category, dateStr, parsedRows) {
+      var cfg = nightlyCategoryConfig(category);
+      if (!cfg) return { success: false, error: 'Unknown category: ' + category };
+      // 1) Snapshot first for undo
+      var snapshot = nightlySnapshotStData();
+      // 2) Walk rows, find each tech, update fields
+      var applied = [];
+      var unmatched = [];
+      parsedRows.forEach(function(row) {
+        // Find tech key in row — prefer 'tech', 'technician', 'name'
+        var techRaw = row.tech || row.technician || row.name || row.employee || row.tech_name;
+        if (!techRaw) {
+          // First field might be tech name even without header
+          var keys = Object.keys(row);
+          if (keys.length) techRaw = row[keys[0]];
+        }
+        var techName = nightlyNormalizeTechName(techRaw);
+        if (!techName) { unmatched.push(techRaw || '(blank)'); return; }
+        var tech = stData.find(function(t){ return t.name === techName; });
+        if (!tech) { unmatched.push(techRaw); return; }
+        // For each configured field, find a matching row key and apply
+        var changes = {};
+        cfg.fields.forEach(function(f) {
+          var matchedKey = f.keys.find(function(k){ return row[k] !== undefined && row[k] !== ''; });
+          if (!matchedKey) return;
+          var n = nightlyParseNumber(row[matchedKey]);
+          if (n === null) return;
+          changes[f.label] = n;
+          if (f.writeTo) nightlySetNested(tech, f.writeTo, n);
+        });
+        // Recompute membership pct if we touched memberships
+        if (category === 'memberships' && tech.mtd_memberships) {
+          var sold = tech.mtd_memberships.total_mem_sold || 0;
+          var opps = tech.mtd_memberships.total_mem_opps || 0;
+          tech.mtd_memberships.total_mem_pct = opps > 0 ? Math.round(sold / opps * 100) : 0;
+        }
+        // Recompute recall % if we touched recalls (recalls / completed * 100)
+        if (category === 'recalls' && tech.mtd_recalls) {
+          var caused = tech.mtd_recalls.recalls_caused || 0;
+          var done = tech.mtd_recalls.completed_jobs || 0;
+          if (done > 0) tech.mtd_recalls.tech_recall_pct = Math.round(caused / done * 1000) / 10;
+        }
+        if (Object.keys(changes).length) applied.push({ tech: techName, changes: changes });
+      });
+      // 3) Write to daily ledger (audit trail per date)
+      var ledger = nightlyLoadLedger();
+      if (!ledger[dateStr]) ledger[dateStr] = {};
+      applied.forEach(function(a) {
+        if (!ledger[dateStr][a.tech]) ledger[dateStr][a.tech] = {};
+        ledger[dateStr][a.tech][category] = a.changes;
+      });
+      nightlySaveLedger(ledger);
+      // 4) Save undo (replaces previous — single-step undo)
+      nightlySaveUndo({
+        stDataSnapshot: snapshot,
+        date: dateStr,
+        category: category,
+        timestamp: new Date().toISOString(),
+        appliedCount: applied.length
+      });
+      // 5) Audit log
+      nightlyAppendHistory({
+        date: dateStr,
+        category: category,
+        categoryTitle: cfg.title,
+        timestamp: new Date().toISOString(),
+        techCount: applied.length,
+        unmatchedCount: unmatched.length
+      });
+      return { success: true, applied: applied, unmatched: unmatched, category: category };
+    }
+
+    function nightlyUndoLastImport() {
+      var undo = nightlyLoadUndo();
+      if (!undo || !undo.stDataSnapshot) {
+        alert('Nothing to undo.');
+        return false;
+      }
+      if (!confirm('Undo last import?\n\nDate: ' + undo.date + '\nCategory: ' + undo.category + '\nApplied to ' + (undo.appliedCount || 0) + ' tech(s)\n\nThis will restore matrix MTD values to before that import.')) return false;
+      nightlyRestoreStData(undo.stDataSnapshot);
+      // Remove that date+category from ledger too
+      var ledger = nightlyLoadLedger();
+      if (ledger[undo.date]) {
+        Object.keys(ledger[undo.date]).forEach(function(tech) {
+          if (ledger[undo.date][tech] && ledger[undo.date][tech][undo.category]) {
+            delete ledger[undo.date][tech][undo.category];
+            if (Object.keys(ledger[undo.date][tech]).length === 0) delete ledger[undo.date][tech];
+          }
+        });
+        if (Object.keys(ledger[undo.date]).length === 0) delete ledger[undo.date];
+        nightlySaveLedger(ledger);
+      }
+      nightlySaveUndo(null);
+      try { renderMgrToday(); } catch(e) {}
+      try { if (typeof renderTeamsView === 'function') renderTeamsView(); } catch(e) {}
+      return true;
+    }
+
+    // ----- UI: open import modal for a specific category -----
+    function nightlyOpenImportModal(category, dateStr) {
+      var cfg = nightlyCategoryConfig(category);
+      if (!cfg) return;
+      var todayIso = dateStr || mgrFmtDate(mgrToday());
+      var modal = document.createElement('div');
+      modal.id = 'nightlyImportModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
+      var fieldList = cfg.fields.map(function(f){ return '<code style="background:#16243d;padding:1px 6px;border-radius:4px;color:#cbd5e1;font-size:11px;">' + f.label + '</code>'; }).join(' ');
+      modal.innerHTML =
+        '<div style="background:#0F1B2E;color:#f1f5f9;width:100%;max-width:720px;max-height:92vh;overflow-y:auto;border:1px solid #1e3a5f;border-radius:14px;padding:22px;box-shadow:0 24px 48px rgba(0,0,0,0.5);">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">' +
+            '<div>' +
+              '<div style="font-size:18px;font-weight:700;letter-spacing:0.2px;">' + cfg.icon + ' Import: ' + cfg.title + '</div>' +
+              '<div style="font-size:12px;color:#94a3b8;margin-top:2px;">Date: ' + todayIso + ' \u2022 source: ServiceTitan export</div>' +
+            '</div>' +
+            '<button onclick="nightlyCloseImport()" style="background:transparent;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;" aria-label="Close">\u00d7</button>' +
+          '</div>' +
+          '<div style="padding:10px 12px;background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.25);border-radius:8px;margin-bottom:14px;">' +
+            '<div style="font-size:11px;color:#5eead4;font-weight:600;margin-bottom:4px;">Recognized fields:</div>' +
+            '<div style="font-size:11px;line-height:1.7;">' + fieldList + '</div>' +
+            '<div style="font-size:11px;color:#94a3b8;margin-top:6px;">Headers can be any case/format \u2014 spaces become underscores. First column should be the tech name.</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:8px;margin-bottom:8px;">' +
+            '<button onclick="nightlyShowMode(\'paste\')" id="nightlyTabPaste" style="flex:1;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;padding:8px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">\ud83d\udccb Paste from ST</button>' +
+            '<button onclick="nightlyShowMode(\'csv\')" id="nightlyTabCsv" style="flex:1;background:#16243d;color:#94a3b8;border:1px solid #1e3a5f;padding:8px;border-radius:8px;font-size:13px;cursor:pointer;">\ud83d\udcc1 Upload CSV</button>' +
+          '</div>' +
+          '<div id="nightlyPasteSection">' +
+            '<label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px;">Paste rows (tab- or comma-separated, first row = headers):</label>' +
+            '<textarea id="nightlyPasteText" rows="8" placeholder="' + cfg.example.replace(/"/g,'&quot;') + '" style="width:100%;padding:10px;background:#0a1425;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:12px;font-family:Consolas,Monaco,monospace;resize:vertical;"></textarea>' +
+            '<div style="font-size:11px;color:#64748b;margin-top:4px;">Example shown as placeholder. Tip: copy a table from ServiceTitan, it pastes as tab-separated.</div>' +
+          '</div>' +
+          '<div id="nightlyCsvSection" style="display:none;">' +
+            '<label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:4px;">Upload CSV file:</label>' +
+            '<input id="nightlyCsvFile" type="file" accept=".csv,.txt,.tsv" onchange="nightlyHandleCsvFile(event)" style="width:100%;padding:8px;background:#0a1425;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:12px;">' +
+            '<div style="font-size:11px;color:#64748b;margin-top:4px;">CSV will be loaded into the paste box above for review before applying.</div>' +
+          '</div>' +
+          '<div id="nightlyPreview" style="margin-top:14px;"></div>' +
+          '<div style="display:flex;gap:10px;justify-content:space-between;margin-top:16px;">' +
+            '<button onclick="nightlyPreviewImport(\'' + category + '\')" style="background:#1e3a5f;color:#cbd5e1;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;">Preview \u2192</button>' +
+            '<div style="display:flex;gap:8px;">' +
+              '<button onclick="nightlyCloseImport()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;">Cancel</button>' +
+              '<button id="nightlyApplyBtn" onclick="nightlyApplyClicked(\'' + category + '\',\'' + todayIso + '\')" style="background:linear-gradient(135deg,' + cfg.color + ',#0F1B2E);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Apply to Matrix</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+    function nightlyCloseImport() {
+      var m = document.getElementById('nightlyImportModal');
+      if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+    function nightlyShowMode(mode) {
+      var pasteSection = document.getElementById('nightlyPasteSection');
+      var csvSection = document.getElementById('nightlyCsvSection');
+      var pasteTab = document.getElementById('nightlyTabPaste');
+      var csvTab = document.getElementById('nightlyTabCsv');
+      if (mode === 'paste') {
+        pasteSection.style.display = '';
+        csvSection.style.display = 'none';
+        pasteTab.style.color = '#f1f5f9';
+        csvTab.style.color = '#94a3b8';
+      } else {
+        pasteSection.style.display = '';
+        csvSection.style.display = '';
+        pasteTab.style.color = '#94a3b8';
+        csvTab.style.color = '#f1f5f9';
+      }
+    }
+    function nightlyHandleCsvFile(ev) {
+      var file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var text = e.target.result || '';
+        var ta = document.getElementById('nightlyPasteText');
+        if (ta) {
+          ta.value = text;
+          // Switch view back to paste so user can review
+          var pasteSection = document.getElementById('nightlyPasteSection');
+          if (pasteSection) pasteSection.style.display = '';
+        }
+      };
+      reader.readAsText(file);
+    }
+    function nightlyPreviewImport(category) {
+      var text = (document.getElementById('nightlyPasteText') || {}).value || '';
+      var parsed = nightlyParseTable(text);
+      var prev = document.getElementById('nightlyPreview');
+      if (!prev) return;
+      if (!parsed.rows.length) {
+        prev.innerHTML = '<div style="padding:10px;background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.3);border-radius:8px;color:#fca5a5;font-size:12px;">No data detected. Paste rows or upload a CSV.</div>';
+        return;
+      }
+      var matchedCount = 0, unmatchedRows = [];
+      parsed.rows.forEach(function(row) {
+        var techRaw = row.tech || row.technician || row.name || row.employee || row[Object.keys(row)[0]];
+        var matched = nightlyNormalizeTechName(techRaw);
+        if (matched) matchedCount++; else unmatchedRows.push(techRaw || '(blank)');
+      });
+      var preview = '<div style="padding:10px;background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.3);border-radius:8px;font-size:12px;color:#cbd5e1;">' +
+        '<div style="color:#5eead4;font-weight:600;margin-bottom:6px;">Preview: ' + parsed.rows.length + ' row(s) detected</div>' +
+        '<div>\u2705 Will match: <strong style="color:#22c55e;">' + matchedCount + '</strong> tech(s)</div>' +
+        (unmatchedRows.length ? '<div>\u26a0\ufe0f Unmatched (will skip): <strong style="color:#f59e0b;">' + unmatchedRows.join(', ') + '</strong></div>' : '') +
+        '<div style="margin-top:6px;color:#64748b;font-size:11px;">Headers detected: ' + parsed.headers.join(', ') + '</div>' +
+        '</div>';
+      prev.innerHTML = preview;
+    }
+    function nightlyApplyClicked(category, dateStr) {
+      var text = (document.getElementById('nightlyPasteText') || {}).value || '';
+      var parsed = nightlyParseTable(text);
+      if (!parsed.rows.length) {
+        alert('No data to apply. Paste rows first.');
+        return;
+      }
+      if (!confirm('Apply this import to the matrix?\n\nThis will overwrite current MTD values for the matched fields. Use "Undo last import" to revert if needed.')) return;
+      var result = nightlyApplyImport(category, dateStr, parsed.rows);
+      if (!result.success) {
+        alert('Import failed: ' + (result.error || 'unknown error'));
+        return;
+      }
+      // Tick the corresponding nightly duty
+      mgrToggleDailyDuty(dateStr, 'nightly_' + category, true);
+      nightlyCloseImport();
+      // Toast-style confirmation
+      var unmatchedNote = result.unmatched.length ? '\n\nSkipped (no tech match): ' + result.unmatched.join(', ') : '';
+      alert('\u2705 Imported ' + result.applied.length + ' tech(s) for ' + (nightlyCategoryConfig(category).title) + unmatchedNote);
+      try { renderMgrToday(); } catch(e) {}
+      try { if (typeof renderTeamsView === 'function') renderTeamsView(); } catch(e) {}
+    }
+
+    // ----- View import history modal -----
+    function nightlyViewHistory() {
+      var hist = nightlyLoadHistory();
+      var rows = hist.length ? hist.map(function(h) {
+        var ts = new Date(h.timestamp);
+        return '<tr style="border-bottom:1px solid #1e3a5f;">' +
+          '<td style="padding:8px 6px;font-size:12px;color:#94a3b8;">' + ts.toLocaleString() + '</td>' +
+          '<td style="padding:8px 6px;font-size:12px;">' + (h.date || '\u2014') + '</td>' +
+          '<td style="padding:8px 6px;font-size:13px;color:#5eead4;">' + (h.categoryTitle || h.category) + '</td>' +
+          '<td style="padding:8px 6px;font-size:12px;text-align:right;color:#22c55e;">' + (h.techCount || 0) + ' tech(s)</td>' +
+          '<td style="padding:8px 6px;font-size:12px;text-align:right;color:#f59e0b;">' + (h.unmatchedCount || 0) + ' skipped</td>' +
+        '</tr>';
+      }).join('') : '<tr><td colspan="5" style="padding:20px;text-align:center;color:#64748b;font-size:13px;">No imports yet.</td></tr>';
+      var modal = document.createElement('div');
+      modal.id = 'nightlyHistoryModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML =
+        '<div style="background:#0F1B2E;color:#f1f5f9;width:100%;max-width:780px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;border:1px solid #1e3a5f;border-radius:14px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1e3a5f;">' +
+            '<div style="font-size:16px;font-weight:700;">Nightly Import History (last 50)</div>' +
+            '<button onclick="nightlyCloseHistory()" style="background:transparent;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;">\u00d7</button>' +
+          '</div>' +
+          '<div style="overflow-y:auto;padding:8px 16px 16px;">' +
+            '<table style="width:100%;border-collapse:collapse;"><thead><tr style="text-align:left;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;"><th style="padding:8px 6px;">When</th><th style="padding:8px 6px;">For Date</th><th style="padding:8px 6px;">Category</th><th style="padding:8px 6px;text-align:right;">Applied</th><th style="padding:8px 6px;text-align:right;">Skipped</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+    function nightlyCloseHistory() {
+      var m = document.getElementById('nightlyHistoryModal');
+      if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+
+    // Expose to window
+    window.nightlyOpenImportModal = nightlyOpenImportModal;
+    window.nightlyCloseImport = nightlyCloseImport;
+    window.nightlyShowMode = nightlyShowMode;
+    window.nightlyHandleCsvFile = nightlyHandleCsvFile;
+    window.nightlyPreviewImport = nightlyPreviewImport;
+    window.nightlyApplyClicked = nightlyApplyClicked;
+    window.nightlyUndoLastImport = nightlyUndoLastImport;
+    window.nightlyViewHistory = nightlyViewHistory;
+    window.nightlyCloseHistory = nightlyCloseHistory;
+    window.nightlyLoadUndo = nightlyLoadUndo;
+
     // ----- Day Notes persistence -----
     const DAY_NOTES_KEY = 'snappy_day_notes';
     function mgrLoadDayNotes() {
@@ -9352,6 +9865,42 @@ if (typeof Chart !== 'undefined') {
         }
       });
 
+      // ===== NIGHTLY DUTIES (v215) — ServiceTitan import section =====
+      var nightlyCategories = [
+        { key: 'truck_rev',    label: 'Daily truck revenue (tech sales)',     icon: '\ud83d\udcb0', color: '#10B981' },
+        { key: 'memberships',  label: 'Membership opportunities + sold',       icon: '\ud83c\udfc5', color: '#FFD700' },
+        { key: 'installs',     label: 'Installs completed',                    icon: '\ud83d\udd27', color: '#10B981' },
+        { key: 'leads_flips',  label: 'Leads / flips set',                     icon: '\ud83d\udcca', color: '#F59E0B' },
+        { key: 'recalls',      label: 'Recalls + completed jobs',              icon: '\ud83d\udd04', color: '#DC2626' },
+        { key: 'sales_kpis',   label: 'Sales KPIs (conv, avg sale, SPP)',      icon: '\ud83d\udcc8', color: '#14B8A6' }
+      ];
+      var lastUndo = nightlyLoadUndo();
+      html += '<div style="border-top:2px solid #1e3a5f;margin:14px 0 8px 0;padding-top:12px;">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
+      html += '<div style="font-size:12px;font-weight:700;color:#5eead4;letter-spacing:0.4px;text-transform:uppercase;">\ud83c\udf19 Nightly Duties \u2014 ServiceTitan Import</div>';
+      html += '<div style="display:flex;gap:6px;">';
+      if (lastUndo) {
+        var ts = new Date(lastUndo.timestamp);
+        var hh = ts.getHours().toString().padStart(2,'0'), mm = ts.getMinutes().toString().padStart(2,'0');
+        html += '<button onclick="nightlyUndoLastImport()" title="Undo last import (' + lastUndo.category + ' \u00b7 ' + hh + ':' + mm + ')" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">\u21b6 Undo last</button>';
+      }
+      html += '<button onclick="nightlyViewHistory()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">History</button>';
+      html += '</div></div>';
+      nightlyCategories.forEach(function(nc) {
+        var dutyKey = 'nightly_' + nc.key;
+        var checked = mgrGetDailyDuty(dateStr, dutyKey);
+        html += '<label class="mgr-today-check' + (checked ? ' is-done' : '') + '">';
+        html += '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="mgrToggleDailyDuty(\'' + dateStr + '\',\'' + dutyKey + '\',this.checked);renderMgrToday()">';
+        html += '<span>' + nc.icon + ' ' + nc.label + '</span></label>';
+        html += '<div style="display:flex;gap:6px;margin:-4px 0 6px 24px;align-items:center;">';
+        html += '<button onclick="nightlyOpenImportModal(\'' + nc.key + '\',\'' + dateStr + '\')" style="background:linear-gradient(135deg,' + nc.color + ',#0F1B2E);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">\u2b06 Import</button>';
+        html += '</div>';
+      });
+      html += '<div style="margin-top:6px;padding:6px 8px;background:rgba(20,184,166,0.05);border:1px dashed rgba(20,184,166,0.2);border-radius:6px;font-size:10px;color:#94a3b8;line-height:1.5;">';
+      html += 'Each import accepts pasted ST rows or a CSV file. Includes daily, MTD, and STD columns. MTD values flow into the matrix immediately. Single-step undo restores the last applied import.';
+      html += '</div>';
+      html += '</div>';
+
       // Day-of-week specific items
       if (dow === 1) {
         html += '<div style="border-top:1px solid var(--border);margin:8px 0;padding-top:8px;">';
@@ -9417,6 +9966,10 @@ if (typeof Chart !== 'undefined') {
       // Completion percentage
       var allChecks = dailyItems.length;
       var doneChecks = dailyItems.filter(function(i) { return mgrGetDailyDuty(dateStr, i.key); }).length;
+      // v215: Nightly Duties count toward completion (6 items)
+      var nightlyKeys = ['nightly_truck_rev','nightly_memberships','nightly_installs','nightly_leads_flips','nightly_recalls','nightly_sales_kpis'];
+      allChecks += nightlyKeys.length;
+      nightlyKeys.forEach(function(k){ if(mgrGetDailyDuty(dateStr,k)) doneChecks++; });
       if (dow === 1) { allChecks += 6; ['mon_employee_review','mon_leadership_mtg','mon_prior_week','mon_weekend_calls','mon_training_plan','mon_invoice_review'].forEach(function(k){ if(mgrGetDailyDuty(dateStr,k)) doneChecks++; }); }
       if (isNex) { allChecks += 4; var nx2 = mgrGetNexstarData(dateStr); ['joined_call','reviewed_action_items','shared_updates','new_action_items'].forEach(function(k){ if(nx2[k]) doneChecks++; }); }
       var pct = allChecks ? Math.round(doneChecks / allChecks * 100) : 0;
@@ -16885,7 +17438,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v214 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v215 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
