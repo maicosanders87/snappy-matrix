@@ -2234,13 +2234,15 @@ document.addEventListener('visibilitychange', function() {
     }
 
     // v209: One-shot Saturday May 2, 2026 ADD-ON seed for week 2026-04-27 (closes the week).
-    // Dewone is the only Saturday tech. Source: IMG_0211 (Nexstar daily).
-    //   Dewone: $572 svc, 100% conv (2/2), $252 avg, 1 SPP, 0 TGL, 3.6 sold hrs, 2 tasks/call, 1 mem sold / 1 mem opp.
+    // Dewone is the only Saturday tech. Source: IMG_0211 (Nexstar daily) + IMG_0212 (Memberships).
+    //   Dewone: $572 svc, 100% conv (2/2), $252 avg, 1 SPP, 0 TGL, 3.6 sold hrs, 2 tasks/call, 1 mem sold / 2 mem opps (50%).
     // No installs.
+    // v210: Bumped flag v1\u2192v2 to correct mem opps from 1\u21922 (IMG_0212). v1-aware guard so we add only the +1 opp delta if v1 already fired.
     function _wlbSeedDay20260502IfNeeded() {
       try {
-        var FLAG = 'snappy_wlb_day_seeded_2026_05_02_v1';
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_02_v2';
         if (localStorage.getItem(FLAG) === '1') return;
+        var v1Already = localStorage.getItem('snappy_wlb_day_seeded_2026_05_02_v1') === '1';
         var d = _wlbLoad();
         var WEEK = '2026-04-27';
         var existing = d[WEEK] || {};
@@ -2254,7 +2256,12 @@ document.addEventListener('visibilitychange', function() {
             memOpps:      (prev.memOpps || 0)      + mo
           };
         }
-        add('Dewone', 572, 0, 0, 1, 1);
+        if (v1Already) {
+          // v1 already added svc 572, mem 1/1. Only the +1 mem opp delta is missing.
+          add('Dewone', 0, 0, 0, 0, 1);
+        } else {
+          add('Dewone', 572, 0, 0, 1, 2);
+        }
         d[WEEK] = existing;
         _wlbSave(d);
         try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
@@ -4862,7 +4869,7 @@ document.addEventListener('visibilitychange', function() {
         'st_update_20260428_mtd': { date: '2026-04-28', text: 'Daily refresh (4/28/26). Benji +$444 svc + 1 install $9,060 (Nellie Ellis) \u2192 8,620 svc / 3 installs / $29,514 install rev MTD. Daniel +$1,287 svc \u2192 $9,771 MTD. Chris +$275 svc + 2 mem opps (no sale) \u2192 $6,860 svc / 4-of-10 mem (40%) MTD. Dee, Dewone $0 daily. Brayden 1 mem opp. Team MTD service rev $38,273 \u2022 Team MTD installs 11 ($146K). Nick Goehler day 1 \u2014 onboarding only.' },
         'st_update_20260429_mtd': { date: '2026-04-29', text: 'Daily refresh (4/29/26). No installs today. Dee +$1,064 svc (100% conv, $1,064 avg) \u2192 $3,918 svc MTD. Chris +$1,064 svc (100% conv, $1,064 avg) \u2192 $7,924 svc / 4-of-10 mem (40%) MTD. Dewone +$158 svc + 1 TGL \u2192 $10,326 svc / 12 TGL MTD. Benji $0 svc (3.5 billable hrs, no opps) \u2192 $8,620 svc MTD held. Daniel $0 svc (1 sold hr, no opps) \u2192 $9,771 svc MTD held. Team daily $2,286 svc / 9.7 sold hrs / 1 TGL. Team MTD service rev $40,559 \u2022 Team MTD installs 11 ($146K) held.' },
         'st_update_20260430_mtd': { date: '2026-04-30', text: 'Daily refresh (4/30/26). No installs today. Dewone +$362 svc (100% conv on 1 call, $362 avg, 2.5 sold hrs, 2 tasks/call) \u2192 $10,688 svc MTD. Benji (Ben Tinahui) $0 svc (4.0 sold hrs, 0.5 tech sold-hr efficiency, no opps). Dee $0 svc (1.0 sold hr, no opps). Daniel $0 svc (4.0 sold hrs, no opps). Chris $0 svc (2.5 sold hrs, 1 TGL, no opps). Memberships: 2 sold / 2 opps team-wide today (Chris 1/1, Daniel 1/1). Team daily $362 svc / 16.75 sold hrs / 1 TGL / 0 installs. Team MTD installs 11 ($146K) held.' },
-        'st_update_20260502_mtd': { date: '2026-05-02', text: 'Saturday 5/2/26 \u2014 Dewone solo (only Saturday tech). $572 svc, 100% conv (2/2), $252 avg sale, 1 SPP, 3.6 sold hrs, 2 tasks/call, 1 mem sold (1/1 = 100%), 0 installs. Closes week of 4/27. Dewone May MTD now $955 svc / 7.3 sold hrs / 1 SPP / 1 TGL / 1 mem (1/1, 100%) / 0 installs.' },
+        'st_update_20260502_mtd': { date: '2026-05-02', text: 'Saturday 5/2/26 \u2014 Dewone solo (only Saturday tech). $572 svc, 100% conv (2/2), $252 avg sale, 1 SPP, 3.6 sold hrs, 2 tasks/call, 1 mem sold / 2 mem opps (50%), 0 installs. Closes week of 4/27. Dewone May MTD now $955 svc / 7.3 sold hrs / 1 SPP / 1 TGL / 1-of-2 mem (50%) / 0 installs.' },
         'st_update_20260501_mtd': { date: '2026-05-01', text: 'May Day 1 (5/1/26) \u2014 fresh month. Chris $2,563 svc (100% conv, $1,282 avg, 2.3 sold hrs, 3.5 tasks/call) leads. Daniel $1,329 svc (100% conv, $665 avg, 1 SPP, 3.2 sold hrs) + 1 mem sold (1/1, 100%). Benji $883 svc (100% conv, $804 avg, 5.1 sold hrs, 0.61 eff, 0/1 mem). Dewone $383 svc (100% conv, 1 TGL, 3.7 sold hrs). Dee $79 svc (0% conv, 1 TGL, 2.1 sold hrs). 1 install today \u2014 Brayden Bond sold Denise Cartier $14,607 HVAC install (Job 91767937). Team day-1 totals: $5,238 svc / 16.4 sold hrs / 2 TGL / 1 SPP / 1 mem sold (1/2 = 50%) / 1 install ($14,607).' }
       };
       var changed = false;
@@ -6512,7 +6519,7 @@ if (typeof Chart !== 'undefined') {
         mtd_nexstar: { total_revenue: 955, avg_sale: 239, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 1, sold_hours: 7.3, flat_rate_tasks: 2 },
         mtd_productivity: { rev_hr: 131, billable_hours: 7.3, sold_hrs_on_job_pct: 0, tasks_per_opp: 2, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 1, total_mem_pct: 100 },
+        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 2, total_mem_pct: 50 },
         mtd_sales: { close_rate: 0 },
         monthly_archive: {
           '2026-04': {
@@ -16374,7 +16381,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v209 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v210 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
