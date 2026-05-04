@@ -2269,6 +2269,59 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260502IfNeeded failed', e); }
     }
 
+    // v211: One-shot seed of Wed 5/6/26 training \u2014 "Setting Proper Leads & Flips".
+    // Audience: whole team (techs + Brayden). Definition: Lead = info captured / Flip = appointment booked.
+    // Outcome: definitions, qualifying script, qualifying checklist, and handoff workflow.
+    function _trainingSeedWed20260506IfNeeded() {
+      try {
+        var FLAG = 'snappy_training_seeded_2026_05_06_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (!Array.isArray(mgrState.trainings)) mgrState.trainings = [];
+        var WEEK_OF = '2026-05-03'; // Sunday-anchored; Wed = +3 = 5/6/26
+        var existing = mgrState.trainings.find(function(t) { return t.weekOf === WEEK_OF; });
+        var entry = {
+          weekOf: WEEK_OF,
+          topic: 'Setting Proper Leads & Flips',
+          rationale: 'Team-wide alignment on what counts as a Lead vs a Flip, how to qualify each on the call, and the exact handoff to Brayden. Goal: stop losing same-day install opportunities and stop dumping unqualified "leads" into Brayden\'s queue.',
+          outline: {
+            duration: '45min',
+            keyPoints: [
+              'Definitions \u2014 LEAD = customer info captured for follow-up (name, phone, address, issue, system age). FLIP = appointment booked for Brayden while tech is still on-site or same day.',
+              'Qualifying script (5 steps): (1) Note system age + condition, (2) Ask "how long planning to stay in home?", (3) Comfort/utility-bill pain question, (4) Test budget signal ("if we could solve this today..."), (5) Confirm decision-maker present \u2014 if 4-of-5 hit, FLIP it.',
+              'Qualifying checklist \u2014 system age 10+ yrs, repeat repair, R-22 / obsolete refrigerant, capacity wrong for home, comfort issue (hot/cold rooms), high utility bills, decision-maker present, budget signal, urgency (no AC / no heat).',
+              'Handoff workflow \u2014 Slack #installs channel: tag @Brayden + customer name + address + system age + 1-line problem + tech\'s recommendation. ServiceTitan: create estimate opportunity, attach photos, set Lead Source = "Tech Generated", flag self-sourced. Tech holds the call until Brayden ETA confirmed.',
+              'Pay impact \u2014 Flips count toward tech-generated lead conversion AND install self-sourced credit (boosts composite ST score 35% weight). Leads (info-only) count toward TGL count but not install credit until they convert.',
+              'Common mistakes to avoid \u2014 calling a service ticket a "lead" without capturing decision-maker, flipping without warming the customer first, not staying on-site for the handoff, missing photos in ST.'
+            ],
+            materials: 'Print: 1-page Lead vs Flip definition card (pinned in van). Slack channel #installs. ServiceTitan estimate template. Brayden\'s standard same-day window: 11 AM \u2013 6 PM Mon\u2013Fri.',
+            redBarn: true,
+            redBarnScenario: 'Tech runs maintenance on a 12-yr-old system in a 2,400 sqft home. Owner mentions $380/mo summer power bill and "upstairs is always hot." Decision-maker present, both spouses home. Walk through: is this a Lead or a Flip? (Answer: FLIP \u2014 4 of 5 qualifiers hit. Slack Brayden, hold the customer, get photos of outdoor unit nameplate + indoor coil.)'
+          },
+          moment: {
+            hook: 'In April we generated 39 tech leads but only 10 converted to installs. That\'s a 26% conversion. Industry top-quartile is 40%+. The gap is almost entirely Leads-vs-Flips discipline.',
+            example: 'Dewone\'s 4/27 Martha Futral install ($24,316) was a textbook FLIP \u2014 he qualified on-site, photographed the failed unit, slacked Brayden, and held the customer for 2 hours. Brayden closed same-day. That\'s the playbook.',
+            takeaway: 'If 4 of the 5 script questions hit, you don\'t leave the driveway without slacking Brayden. Period.'
+          },
+          attendance: [],
+          meetingNotes: '',
+          meetingActions: ''
+        };
+        if (existing) {
+          // Don\'t overwrite a topic the manager already set; only fill blanks.
+          if (!existing.topic || existing.topic === '(not set)') {
+            Object.assign(existing, entry, { updatedAt: Date.now() });
+          }
+        } else {
+          mgrState.trainings.push(Object.assign({
+            id: (typeof mgrUID === 'function' ? mgrUID() : ('train_' + Date.now())),
+            createdAt: Date.now(), updatedAt: Date.now()
+          }, entry));
+        }
+        if (typeof mgrSave === 'function') mgrSave();
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_trainingSeedWed20260506IfNeeded failed', e); }
+    }
+
     // v206: One-shot seed of Brayden's 5/1 install (Denise Cartier $14,606.68) into braydenStats.mtd_revenue
     // Only seeds if mtd_revenue is currently empty/zero (preserves any later manual edits).
     function _braydenSeedMay20260501IfNeeded() {
@@ -13520,6 +13573,7 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260501IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260501IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
+    try { _trainingSeedWed20260506IfNeeded(); } catch(e) {}
     try { renderWeeklyLeaderboard(); } catch(e) { console.warn('renderWeeklyLeaderboard init failed', e); }
     renderProgression();
     renderSTKPIs();
@@ -16563,7 +16617,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v211 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v212 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
