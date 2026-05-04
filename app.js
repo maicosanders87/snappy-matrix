@@ -8445,6 +8445,28 @@ if (typeof Chart !== 'undefined') {
         duration: '15min',
         tags: ['NSS','Greet','Scorecard'],
         builtin: true
+      },
+      {
+        id: 'lead_vs_flip_card',
+        title: 'LEAD vs FLIP — Definition Card',
+        category: 'Sales · Lead/Flip',
+        description: '1-page van card. LEAD = info captured, FLIP = appointment booked. Includes 5-step qualifying script + FLIP handoff checklist. Print and pin in every service van.',
+        pdf: 'lead_vs_flip_card.pdf',
+        duration: 'Print',
+        tags: ['Sales','Lead','Flip','Van Card','Wed 5/6'],
+        weekOf: '2026-05-03',
+        builtin: true
+      },
+      {
+        id: 'lead_vs_flip_flight_plan',
+        title: 'Setting Proper Leads & Flips — Instructor Flight Plan',
+        category: 'Sales · Lead/Flip',
+        description: 'Wed 5/6/26 training (45min, whole team). 8 sections — hook, definitions, 5-step script, qualifying checklist, Brayden handoff workflow, Red Barn scenario, pay impact, common mistakes, close. Co-presented by Mark + Brayden.',
+        pdf: 'lead_vs_flip_flight_plan.pdf',
+        duration: '45min',
+        tags: ['Sales','Lead','Flip','Instructor','Wed 5/6'],
+        weekOf: '2026-05-03',
+        builtin: true
       }
     ];
 
@@ -10924,11 +10946,22 @@ if (typeof Chart !== 'undefined') {
           var rb = (t.outline && t.outline.redBarn) ? ' · Red Barn' : '';
           var durLine = dur ? `<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${dur}${rb}</div>` : '';
           var isActive = t.weekOf === weekOf;
+          // v213: surface attached PDFs from the Training Library (matched by weekOf)
+          var attached = mgrLibraryAllItems().filter(function(L){ return L.weekOf === t.weekOf; });
+          var attachedHtml = '';
+          if (attached.length) {
+            attachedHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;" onclick="event.stopPropagation();">' +
+              attached.map(function(L){
+                return '<button type="button" class="mgr-btn secondary sm" onclick="event.stopPropagation();mgrLibraryView(\''+L.id+'\')" style="font-size:10px;padding:4px 8px;border-color:rgba(245,158,11,0.4);color:#fbbf24;">\ud83d\udcc4 ' + mgrEscape(L.title.replace(/^.*\u2014\s*/, '')) + '</button>';
+              }).join('') +
+              '</div>';
+          }
           return `
           <div class="mgr-past-item${isActive ? ' mgr-past-active' : ''}" onclick="mgrLoadPastTraining('${t.weekOf}')" style="cursor:pointer;">
             <div class="mgr-past-item-date">Week of ${mgrFmtShort(mgrParseDate(t.weekOf))}, ${mgrParseDate(t.weekOf).getFullYear()} · ${(t.attendance||[]).length} attended</div>
             <div class="mgr-past-item-topic">${mgrEscape(t.topic || '(no topic)')}</div>
             ${durLine}
+            ${attachedHtml}
             <div style="font-size:10px; color:var(--accent); margin-top:4px;">Tap to view &rarr;</div>
           </div>`;
         }).join('');
@@ -16617,7 +16650,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v212 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v213 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
