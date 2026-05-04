@@ -8474,6 +8474,176 @@ if (typeof Chart !== 'undefined') {
       if (SyncEngine.isConfigured()) SyncEngine.write('dailyduties', duties);
     }
 
+    // ----- v211: Install Pay Sheet persistence + form -----
+    // History of every install pay sheet submitted. Keyed by id; each entry includes
+    // dateSubmitted, installDate, customer, jobNumber, installAmount, owner (Brayden/tech short),
+    // commissionNotes, and any free-text. Ticking the daily duty stamps a per-day flag too.
+    const INSTALL_PAY_SHEET_KEY = 'snappy_install_pay_sheets';
+    function mgrLoadInstallPaySheets() {
+      try { return JSON.parse(localStorage.getItem(INSTALL_PAY_SHEET_KEY)) || []; } catch(e) { return []; }
+    }
+    function mgrSaveInstallPaySheets(arr) {
+      localStorage.setItem(INSTALL_PAY_SHEET_KEY, JSON.stringify(arr));
+      if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured()) {
+        try { SyncEngine.write('installpaysheets', arr); } catch(e) {}
+      }
+    }
+    function mgrInstallPaySheetOwners() {
+      // Brayden first (sales-led installs), then techs in techs[] order, then Other.
+      var owners = [{ value: 'Brayden', label: 'Brayden Bond (Sales)' }];
+      try {
+        if (Array.isArray(techs)) {
+          techs.forEach(function(t) {
+            var short = t.short || t.name;
+            var disp = t.displayName || t.name || short;
+            owners.push({ value: short, label: disp + ' (Tech)' });
+          });
+        }
+      } catch(e) {}
+      owners.push({ value: 'Other', label: 'Other / Sub-contractor' });
+      return owners;
+    }
+    function mgrOpenInstallPaySheet(dateStr, prefilledId) {
+      var sheets = mgrLoadInstallPaySheets();
+      var existing = prefilledId ? sheets.find(function(s){ return s.id === prefilledId; }) : null;
+      var owners = mgrInstallPaySheetOwners();
+      var optionsHtml = owners.map(function(o) {
+        var sel = (existing && existing.owner === o.value) ? ' selected' : '';
+        return '<option value="' + o.value + '"' + sel + '>' + o.label + '</option>';
+      }).join('');
+      var todayIso = (dateStr || mgrFmtDate(mgrToday()));
+      var initInstallDate = (existing && existing.installDate) || todayIso;
+      var modal = document.createElement('div');
+      modal.id = 'installPaySheetModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML =
+        '<div style="background:#0F1B2E;color:#f1f5f9;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border:1px solid #1e3a5f;border-radius:14px;padding:22px;box-shadow:0 24px 48px rgba(0,0,0,0.5);">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">' +
+            '<div>' +
+              '<div style="font-size:18px;font-weight:700;letter-spacing:0.2px;">Install Pay Sheet</div>' +
+              '<div style="font-size:12px;color:#94a3b8;margin-top:2px;">' + (existing ? 'Edit submission' : 'New submission') + ' \u2022 ' + todayIso + '</div>' +
+            '</div>' +
+            '<button onclick="mgrCloseInstallPaySheet()" style="background:transparent;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;" aria-label="Close">\u00d7</button>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+            '<label style="font-size:12px;color:#94a3b8;">Install date<input id="ips_installDate" type="date" value="' + initInstallDate + '" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;"></label>' +
+            '<label style="font-size:12px;color:#94a3b8;">Job # / Invoice<input id="ips_jobNumber" type="text" value="' + ((existing && existing.jobNumber) || '') + '" placeholder="e.g. 91767937" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;"></label>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="font-size:12px;color:#94a3b8;display:block;">Customer<input id="ips_customer" type="text" value="' + ((existing && existing.customer) || '') + '" placeholder="Customer name" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;"></label>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">' +
+            '<label style="font-size:12px;color:#94a3b8;">Install amount ($)<input id="ips_installAmount" type="number" step="0.01" min="0" value="' + ((existing && existing.installAmount) || '') + '" placeholder="0.00" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;"></label>' +
+            '<label style="font-size:12px;color:#94a3b8;">Install owner<select id="ips_owner" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;">' + optionsHtml + '</select></label>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="font-size:12px;color:#94a3b8;display:block;">Commission / pay notes<textarea id="ips_commissionNotes" rows="3" placeholder="e.g. self-sourced 8% / SPIFF / draw schedule" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;resize:vertical;">' + ((existing && existing.commissionNotes) || '') + '</textarea></label>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">' +
+            '<button onclick="mgrCloseInstallPaySheet()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;">Cancel</button>' +
+            '<button onclick="mgrSubmitInstallPaySheet(\'' + (existing ? existing.id : '') + '\',\'' + (dateStr || todayIso) + '\')" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Save pay sheet</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+    function mgrCloseInstallPaySheet() {
+      var m = document.getElementById('installPaySheetModal');
+      if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+    function mgrSubmitInstallPaySheet(existingId, dutyDateStr) {
+      var customer = (document.getElementById('ips_customer') || {}).value || '';
+      var jobNumber = (document.getElementById('ips_jobNumber') || {}).value || '';
+      var installDate = (document.getElementById('ips_installDate') || {}).value || dutyDateStr;
+      var installAmount = (document.getElementById('ips_installAmount') || {}).value || '0';
+      var owner = (document.getElementById('ips_owner') || {}).value || '';
+      var commissionNotes = (document.getElementById('ips_commissionNotes') || {}).value || '';
+      if (!customer.trim() || !installAmount || Number(installAmount) <= 0) {
+        alert('Customer and install amount are required.');
+        return;
+      }
+      var sheets = mgrLoadInstallPaySheets();
+      if (existingId) {
+        var idx = sheets.findIndex(function(s){ return s.id === existingId; });
+        if (idx >= 0) {
+          sheets[idx] = Object.assign({}, sheets[idx], {
+            installDate: installDate, customer: customer.trim(), jobNumber: jobNumber.trim(),
+            installAmount: Number(installAmount), owner: owner, commissionNotes: commissionNotes.trim(),
+            dateUpdated: new Date().toISOString()
+          });
+        }
+      } else {
+        sheets.unshift({
+          id: 'ips_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+          dateSubmitted: new Date().toISOString(),
+          installDate: installDate,
+          customer: customer.trim(),
+          jobNumber: jobNumber.trim(),
+          installAmount: Number(installAmount),
+          owner: owner,
+          commissionNotes: commissionNotes.trim()
+        });
+      }
+      mgrSaveInstallPaySheets(sheets);
+      // Tick the daily duty for the day the user is filling out
+      mgrToggleDailyDuty(dutyDateStr, 'install_pay_sheet', true);
+      mgrCloseInstallPaySheet();
+      try { renderMgrToday(); } catch(e) {}
+    }
+    function mgrViewInstallPaySheets() {
+      var sheets = mgrLoadInstallPaySheets();
+      var rows = sheets.length ? sheets.map(function(s) {
+        var amt = '$' + Number(s.installAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return '<tr style="border-bottom:1px solid #1e3a5f;">' +
+          '<td style="padding:8px 6px;font-size:12px;color:#94a3b8;">' + (s.installDate || '\u2014') + '</td>' +
+          '<td style="padding:8px 6px;font-size:13px;">' + (s.customer || '\u2014') + '</td>' +
+          '<td style="padding:8px 6px;font-size:12px;color:#94a3b8;">' + (s.jobNumber || '\u2014') + '</td>' +
+          '<td style="padding:8px 6px;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;">' + amt + '</td>' +
+          '<td style="padding:8px 6px;font-size:12px;color:#10B981;">' + (s.owner || '\u2014') + '</td>' +
+          '<td style="padding:8px 6px;text-align:right;">' +
+            '<button onclick="mgrCloseInstallPaySheetHistory();mgrOpenInstallPaySheet(null,\'' + s.id + '\')" style="background:transparent;border:1px solid #1e3a5f;color:#94a3b8;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Edit</button>' +
+            ' <button onclick="mgrDeleteInstallPaySheet(\'' + s.id + '\')" style="background:transparent;border:1px solid #7c2d2d;color:#dc2626;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Delete</button>' +
+          '</td>' +
+        '</tr>';
+      }).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:#64748b;font-size:13px;">No pay sheets submitted yet.</td></tr>';
+      var modal = document.createElement('div');
+      modal.id = 'installPaySheetHistoryModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML =
+        '<div style="background:#0F1B2E;color:#f1f5f9;width:100%;max-width:820px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;border:1px solid #1e3a5f;border-radius:14px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1e3a5f;">' +
+            '<div style="font-size:16px;font-weight:700;">Install Pay Sheets \u2014 History</div>' +
+            '<button onclick="mgrCloseInstallPaySheetHistory()" style="background:transparent;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;" aria-label="Close">\u00d7</button>' +
+          '</div>' +
+          '<div style="overflow-y:auto;padding:8px 16px 16px;">' +
+            '<table style="width:100%;border-collapse:collapse;">' +
+              '<thead><tr style="text-align:left;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;">' +
+                '<th style="padding:8px 6px;">Install</th><th style="padding:8px 6px;">Customer</th><th style="padding:8px 6px;">Job #</th><th style="padding:8px 6px;text-align:right;">Amount</th><th style="padding:8px 6px;">Owner</th><th></th>' +
+              '</tr></thead>' +
+              '<tbody>' + rows + '</tbody>' +
+            '</table>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+    function mgrCloseInstallPaySheetHistory() {
+      var m = document.getElementById('installPaySheetHistoryModal');
+      if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+    function mgrDeleteInstallPaySheet(id) {
+      if (!confirm('Delete this pay sheet entry?')) return;
+      var sheets = mgrLoadInstallPaySheets().filter(function(s){ return s.id !== id; });
+      mgrSaveInstallPaySheets(sheets);
+      mgrCloseInstallPaySheetHistory();
+      mgrViewInstallPaySheets();
+    }
+    // Expose to window for inline onclick handlers
+    window.mgrOpenInstallPaySheet = mgrOpenInstallPaySheet;
+    window.mgrCloseInstallPaySheet = mgrCloseInstallPaySheet;
+    window.mgrSubmitInstallPaySheet = mgrSubmitInstallPaySheet;
+    window.mgrViewInstallPaySheets = mgrViewInstallPaySheets;
+    window.mgrCloseInstallPaySheetHistory = mgrCloseInstallPaySheetHistory;
+    window.mgrDeleteInstallPaySheet = mgrDeleteInstallPaySheet;
+
     // ----- Day Notes persistence -----
     const DAY_NOTES_KEY = 'snappy_day_notes';
     function mgrLoadDayNotes() {
@@ -8861,13 +9031,20 @@ if (typeof Chart !== 'undefined') {
         { key: 'clear_cases', label: 'Task management — clear ST cases' },
         { key: 'daily_huddle', label: 'Daily huddle with HVAC (Slack)' },
         { key: 'check_trello', label: 'Check Trello board' },
-        { key: 'update_matrix', label: 'Update Matrix' }
+        { key: 'update_matrix', label: 'Update Matrix' },
+        { key: 'install_pay_sheet', label: 'Install pay sheet', hasForm: true }
       ];
       dailyItems.forEach(function(item) {
         var checked = mgrGetDailyDuty(dateStr, item.key);
         html += '<label class="mgr-today-check' + (checked ? ' is-done' : '') + '">';
         html += '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="mgrToggleDailyDuty(\'' + dateStr + '\',\'' + item.key + '\',this.checked);renderMgrToday()">';
         html += '<span>' + item.label + '</span></label>';
+        if (item.hasForm) {
+          html += '<div style="display:flex;gap:6px;margin:-4px 0 6px 24px;">';
+          html += '<button onclick="mgrOpenInstallPaySheet(\'' + dateStr + '\')" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Open form</button>';
+          html += '<button onclick="mgrViewInstallPaySheets()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">View history</button>';
+          html += '</div>';
+        }
       });
 
       // Day-of-week specific items
@@ -9249,6 +9426,11 @@ if (typeof Chart !== 'undefined') {
             <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','clear_cases',this.checked)" ${mgrGetDailyDuty(dateStr,'clear_cases')?'checked':''}><span>Task management on Service Titan (clear cases)</span></label>
             <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','daily_huddle',this.checked)" ${mgrGetDailyDuty(dateStr,'daily_huddle')?'checked':''}><span>Daily huddle with HVAC through Slack app</span></label>
             <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','update_matrix',this.checked)" ${mgrGetDailyDuty(dateStr,'update_matrix')?'checked':''}><span>Update Matrix</span></label>
+            <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','install_pay_sheet',this.checked)" ${mgrGetDailyDuty(dateStr,'install_pay_sheet')?'checked':''}><span>Install pay sheet</span></label>
+            <div style="display:flex;gap:8px;margin:6px 0 0 24px;">
+              <button type="button" onclick="mgrOpenInstallPaySheet('${dateStr}')" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Open install pay sheet form</button>
+              <button type="button" onclick="mgrViewInstallPaySheets()" style="background:transparent;color:var(--text-secondary);border:1px solid var(--border);padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;">View history</button>
+            </div>
           </div>
         </div>
       `;
@@ -16381,7 +16563,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v210 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v211 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
