@@ -2269,6 +2269,83 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260502IfNeeded failed', e); }
     }
 
+    // v217: One-shot Monday May 4, 2026 daily seed for week 2026-05-03 (NEW WEEK).
+    // Source: IMG_0215 (Nexstar daily) + IMG_0216 (Memberships) + IMG_0217 (Brayden install).
+    //   Daniel: $1,381 svc, 100% conv, $690 avg, 0 SPP, 0 TGL, 4.0 sold hrs, 0 TSHE, 3.5 FRT/call, mem 0/1.
+    //   Dee:    $218 svc, 100% conv, $218 avg, 0 SPP, 0 TGL, 3.3 sold hrs, 0 TSHE, 1 FRT/call, mem 0/0.
+    //   Benji:  $89 svc,  0% conv,   $0 avg, 0 SPP, 1 TGL, 2.75 sold hrs, 0.29 TSHE, 0 FRT/call, mem 0/1.
+    //   Chris:  $0 svc,   0% conv,   $0 avg, 0 SPP, 1 TGL, 1.5 sold hrs, 0 TSHE, 0 FRT/call, mem 0/0.
+    // Brayden install: $30,271.55 (HVAC Install, Job 91881584, lead by Chris Monahan, completed 5/4).
+    // Dewone & Nick: no data 5/4.
+    function _wlbSeedDay20260504IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_04_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var d = _wlbLoad();
+        var WEEK = '2026-05-03';
+        var existing = d[WEEK] || {};
+        function add(short, svc, ic, ir, ms, mo) {
+          var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+          existing[short] = {
+            service:      (prev.service || 0)      + svc,
+            installCount: (prev.installCount || 0) + ic,
+            installRev:   (prev.installRev || 0)   + ir,
+            memSold:      (prev.memSold || 0)      + ms,
+            memOpps:      (prev.memOpps || 0)      + mo
+          };
+        }
+        add('Daniel', 1381, 0, 0,        0, 1);
+        add('Dee',     218, 0, 0,        0, 0);
+        add('Benji',    89, 0, 0,        0, 1);
+        add('Chris',     0, 1, 30271.55, 0, 0); // Chris credited with TGL = 1 install lead-generated for Brayden
+        d[WEEK] = existing;
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260504IfNeeded failed', e); }
+    }
+
+    // v217: One-shot Brayden install seed for May 4, 2026 ($30,271.55, sold by Brayden Bond, lead by Chris Monahan).
+    function _braydenSeedMay20260504IfNeeded() {
+      try {
+        var FLAG = 'snappy_brayden_install_2026_05_04_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var raw = localStorage.getItem('snappy_brayden_installs');
+        var arr = [];
+        try { arr = raw ? JSON.parse(raw) : []; } catch(e) { arr = []; }
+        if (!Array.isArray(arr)) arr = [];
+        // De-dupe by job number
+        var dup = arr.some(function(x) { return x && (x.jobNumber === '91881584' || x.invoice === '91881584'); });
+        if (!dup) {
+          arr.push({
+            id: 'brayden_2026_05_04_91881584',
+            date: '2026-05-04',
+            customer: 'HVAC Install',
+            jobNumber: '91881584',
+            invoice: '91881584',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Brayden Bond',
+            leadGeneratedBy: 'Chris Monahan',
+            jobsTotal: 30271.55,
+            completionDate: '2026-05-04'
+          });
+          localStorage.setItem('snappy_brayden_installs', JSON.stringify(arr));
+        }
+        // Also bump Brayden's mtd_revenue / mtd_closed to reflect the new install
+        try {
+          var stats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : {};
+          var current = Number(stats.mtd_revenue || 0);
+          var target = 14607 + 30272; // 5/1 + 5/4 rounded
+          if (current < target) {
+            stats.mtd_revenue = String(target);
+            stats.mtd_closed = '2';
+            if (typeof braydenSaveStats === 'function') braydenSaveStats(stats);
+          }
+        } catch(e) {}
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_braydenSeedMay20260504IfNeeded failed', e); }
+    }
+
     // v211: One-shot seed of Wed 5/6/26 training \u2014 "Setting Proper Leads & Flips".
     // Audience: whole team (techs + Brayden). Definition: Lead = info captured / Flip = appointment booked.
     // Outcome: definitions, qualifying script, qualifying checklist, and handoff workflow.
@@ -2869,6 +2946,276 @@ document.addEventListener('visibilitychange', function() {
     window.champPriorWinner = champPriorWinner;
     window.champRankWeek = champRankWeek;
     // ========== END v216 CHAMPION BONUS MODULE ==========
+
+
+    // ========== v217: SALES SCORECARD MODULE — Maico, Brayden, Adam ==========
+    // Sales team is separate from techs[] (techs is service techs only).
+    // Each rep tracks: equipment installs sold, revenue, install close rate.
+    // LEADS are NOT re-entered here — they auto-pull from the existing weekly leaderboard
+    // (any TGL credited to a tech that resulted in an install sold by Maico/Brayden/Adam
+    // shows up here read-only via "Lead Source" linkage).
+    //
+    // Storage:
+    //   snappy_sales_team_data -> {
+    //     'Maico':   { equipment: [...], notes: '...' },
+    //     'Brayden': { equipment: [...], notes: '...' },
+    //     'Adam':    { equipment: [...], notes: '...' }
+    //   }
+    // Each equipment record: { id, date, customer, jobNumber, soldBy, leadGeneratedBy,
+    //                          systemType, brand, tonnage, model, jobsTotal, completionDate, notes }
+    //
+    // Existing data sources auto-merged:
+    //   snappy_brayden_installs (already-seeded Brayden installs from prior sessions)
+    //   stData manager.installs.* (Maico's 90-day equipment sales)
+
+    var SALES_TEAM_KEY = 'snappy_sales_team_data';
+    var SALES_REPS = [
+      { name: 'Maico',   fullName: 'Mark Sanders',  role: 'Service Manager',     avatar: 'maico_avatar.png?v=20260427v168',   color: '#3B82F6' },
+      { name: 'Brayden', fullName: 'Brayden Bond',   role: 'HVAC Sales',          avatar: 'brayden_avatar.png?v=20260427v168', color: '#10B981' },
+      { name: 'Adam',    fullName: 'Adam',           role: 'Sales',               avatar: '',                                  color: '#F59E0B' }
+    ];
+
+    function salesLoadAll() {
+      try { return JSON.parse(localStorage.getItem(SALES_TEAM_KEY)) || {}; }
+      catch(e) { return {}; }
+    }
+    function salesSaveAll(data) {
+      try { localStorage.setItem(SALES_TEAM_KEY, JSON.stringify(data)); } catch(e) {}
+    }
+    function salesGetRepData(repName) {
+      var all = salesLoadAll();
+      if (!all[repName]) all[repName] = { equipment: [], notes: '' };
+      return all[repName];
+    }
+    function salesSaveRepData(repName, repData) {
+      var all = salesLoadAll();
+      all[repName] = repData;
+      salesSaveAll(all);
+    }
+
+    // Pull all equipment for a rep — merges manual entries + Brayden's seeded installs.
+    function salesGetEquipmentFor(repName) {
+      var rep = salesGetRepData(repName);
+      var equip = (rep.equipment || []).slice();
+      // Merge Brayden's existing snappy_brayden_installs into Brayden's view
+      if (repName === 'Brayden') {
+        try {
+          var raw = localStorage.getItem('snappy_brayden_installs');
+          if (raw) {
+            var existing = JSON.parse(raw);
+            if (Array.isArray(existing)) {
+              existing.forEach(function(it) {
+                // De-dupe by jobNumber
+                var dup = equip.some(function(e) { return e.jobNumber && it.jobNumber && e.jobNumber === it.jobNumber; });
+                if (!dup) {
+                  equip.push({
+                    id: it.id || ('brayden_' + (it.jobNumber || Date.now())),
+                    date: it.date || it.completionDate || '',
+                    customer: it.customer || '',
+                    jobNumber: it.jobNumber || it.invoice || '',
+                    soldBy: 'Brayden Bond',
+                    leadGeneratedBy: it.leadGeneratedBy || '',
+                    systemType: it.systemType || (it.businessUnit || 'HVAC Install'),
+                    brand: it.brand || '',
+                    tonnage: it.tonnage || '',
+                    model: it.model || '',
+                    jobsTotal: it.jobsTotal || 0,
+                    completionDate: it.completionDate || it.date || '',
+                    notes: it.notes || '',
+                    _source: 'auto'
+                  });
+                }
+              });
+            }
+          }
+        } catch(e) {}
+      }
+      // Sort newest first
+      equip.sort(function(a, b) {
+        var ad = a.completionDate || a.date || '';
+        var bd = b.completionDate || b.date || '';
+        return bd.localeCompare(ad);
+      });
+      return equip;
+    }
+
+    // Compute MTD stats for a rep (from current month equipment)
+    function salesComputeMTD(repName) {
+      var equip = salesGetEquipmentFor(repName);
+      var now = new Date();
+      var monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      var mtd = equip.filter(function(e) {
+        var d = e.completionDate || e.date || '';
+        return d.indexOf(monthKey) === 0;
+      });
+      var revenue = mtd.reduce(function(s, e) { return s + (parseFloat(e.jobsTotal) || 0); }, 0);
+      return {
+        installsCount: mtd.length,
+        revenue: Math.round(revenue * 100) / 100,
+        avgTicket: mtd.length ? Math.round((revenue / mtd.length) * 100) / 100 : 0,
+        items: mtd
+      };
+    }
+
+    // Auto-pull TGL credit info: which techs generated leads that became installs sold by sales reps.
+    function salesGetLeadCredits(repName) {
+      var equip = salesGetEquipmentFor(repName);
+      var credits = {};
+      equip.forEach(function(e) {
+        if (e.leadGeneratedBy && e.leadGeneratedBy !== '' && e.leadGeneratedBy.toLowerCase() !== 'self') {
+          if (!credits[e.leadGeneratedBy]) credits[e.leadGeneratedBy] = { count: 0, revenue: 0, items: [] };
+          credits[e.leadGeneratedBy].count++;
+          credits[e.leadGeneratedBy].revenue += (parseFloat(e.jobsTotal) || 0);
+          credits[e.leadGeneratedBy].items.push(e);
+        }
+      });
+      return credits;
+    }
+
+    // Add an equipment record
+    function salesAddEquipment(repName, record) {
+      var rep = salesGetRepData(repName);
+      if (!rep.equipment) rep.equipment = [];
+      record.id = record.id || ('eq_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8));
+      record._source = 'manual';
+      rep.equipment.push(record);
+      salesSaveRepData(repName, rep);
+      return record;
+    }
+    function salesDeleteEquipment(repName, id) {
+      var rep = salesGetRepData(repName);
+      if (!rep.equipment) return;
+      rep.equipment = rep.equipment.filter(function(e) { return e.id !== id; });
+      salesSaveRepData(repName, rep);
+    }
+
+    // Open the equipment-add modal for a rep
+    function salesOpenAddModal(repName) {
+      var existing = document.getElementById('sales-add-modal');
+      if (existing) existing.remove();
+      var modal = document.createElement('div');
+      modal.id = 'sales-add-modal';
+      modal.className = 'mh-modal-backdrop';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML =
+        '<div style="background:#1a1f2e;border-radius:14px;max-width:560px;width:100%;max-height:90vh;overflow:auto;border:1px solid #334155;font-family:Inter,system-ui,sans-serif;color:#E2E8F0;">' +
+          '<div style="padding:18px 22px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">' +
+            '<div style="font-size:17px;font-weight:600;">🔧 Add Equipment Sale — ' + repName + '</div>' +
+            '<button onclick="document.getElementById(\'sales-add-modal\').remove()" style="background:none;border:none;color:#94A3B8;font-size:24px;cursor:pointer;">×</button>' +
+          '</div>' +
+          '<div style="padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+            '<label style="grid-column:span 2;">Customer Name<input id="sa-customer" type="text" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Job/Invoice #<input id="sa-job" type="text" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Completion Date<input id="sa-date" type="date" value="' + (new Date().toISOString().slice(0,10)) + '" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>System Type<select id="sa-systype" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"><option>HVAC Install</option><option>AC Only</option><option>Furnace Only</option><option>Heat Pump</option><option>Mini-Split</option><option>Package Unit</option><option>IAQ / Add-on</option></select></label>' +
+            '<label>Brand<input id="sa-brand" type="text" placeholder="Trane / Carrier / etc." style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Tonnage<input id="sa-tonnage" type="text" placeholder="3 ton" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Model #<input id="sa-model" type="text" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Jobs Total ($)<input id="sa-total" type="number" step="0.01" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Lead Generated By<select id="sa-leadby" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"><option value="">— Self / Direct —</option><option>Dewone</option><option>Chris Monahan</option><option>Ben Tinahui</option><option>Daniel Gazaway</option><option>Dee Williams</option><option>Nick Goehler</option><option>Marketing</option></select></label>' +
+            '<label style="grid-column:span 2;">Notes (optional)<textarea id="sa-notes" rows="2" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;font-family:inherit;"></textarea></label>' +
+          '</div>' +
+          '<div style="padding:14px 22px;border-top:1px solid #334155;display:flex;gap:10px;justify-content:flex-end;">' +
+            '<button onclick="document.getElementById(\'sales-add-modal\').remove()" style="padding:8px 16px;background:#334155;color:#E2E8F0;border:none;border-radius:6px;cursor:pointer;">Cancel</button>' +
+            '<button onclick="salesSubmitAdd(\'' + repName + '\')" style="padding:8px 16px;background:#10B981;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">💾 Save Equipment</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+
+    function salesSubmitAdd(repName) {
+      var customer = (document.getElementById('sa-customer') || {}).value || '';
+      var job = (document.getElementById('sa-job') || {}).value || '';
+      var date = (document.getElementById('sa-date') || {}).value || '';
+      var systype = (document.getElementById('sa-systype') || {}).value || '';
+      var brand = (document.getElementById('sa-brand') || {}).value || '';
+      var tonnage = (document.getElementById('sa-tonnage') || {}).value || '';
+      var model = (document.getElementById('sa-model') || {}).value || '';
+      var total = parseFloat((document.getElementById('sa-total') || {}).value || 0);
+      var leadby = (document.getElementById('sa-leadby') || {}).value || '';
+      var notes = (document.getElementById('sa-notes') || {}).value || '';
+      if (!customer.trim()) { alert('Customer name is required.'); return; }
+      if (!total || total <= 0) { alert('Jobs Total must be > 0.'); return; }
+      salesAddEquipment(repName, {
+        date: date, completionDate: date,
+        customer: customer.trim(), jobNumber: job.trim(),
+        soldBy: repName, leadGeneratedBy: leadby,
+        systemType: systype, brand: brand, tonnage: tonnage, model: model,
+        jobsTotal: total, notes: notes
+      });
+      var modal = document.getElementById('sales-add-modal');
+      if (modal) modal.remove();
+      try { renderSalesScorecard(); } catch(e) {}
+      try { renderMgrToday(); } catch(e) {}
+    }
+
+    // Render the Sales Team tab content
+    function renderSalesScorecard() {
+      var el = document.getElementById('sales-scorecard-content');
+      if (!el) return;
+      var html = '<div style="font-family:Inter,system-ui,sans-serif;padding:14px;">';
+      html += '<div style="font-size:20px;font-weight:700;color:#E2E8F0;margin-bottom:6px;">💼 Sales Team Scorecard</div>';
+      html += '<div style="font-size:13px;color:#94A3B8;margin-bottom:18px;">Equipment sales by Mark, Brayden, and Adam. Lead-source credit auto-pulls from techs — no double-entry needed.</div>';
+
+      SALES_REPS.forEach(function(rep) {
+        var mtd = salesComputeMTD(rep.name);
+        var equip = salesGetEquipmentFor(rep.name);
+        var credits = salesGetLeadCredits(rep.name);
+        var creditsHTML = Object.keys(credits).map(function(t) {
+          return '<span style="display:inline-block;padding:3px 8px;background:rgba(59,130,246,0.15);border:1px solid #3B82F6;border-radius:12px;color:#93C5FD;font-size:11px;margin:2px;">' + t + ': ' + credits[t].count + ' install' + (credits[t].count > 1 ? 's' : '') + ' / $' + Math.round(credits[t].revenue).toLocaleString() + '</span>';
+        }).join('') || '<span style="color:#64748B;font-size:11px;">No tech-generated leads converted yet this month</span>';
+
+        var avatarBlock = rep.avatar
+          ? '<img src="' + rep.avatar + '" alt="' + rep.fullName + '" style="width:48px;height:48px;border-radius:50%;border:2px solid ' + rep.color + ';object-fit:cover;">'
+          : '<div style="width:48px;height:48px;border-radius:50%;border:2px solid ' + rep.color + ';background:linear-gradient(135deg,' + rep.color + ',' + rep.color + 'aa);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;">' + rep.name.charAt(0) + '</div>';
+
+        html += '<div style="background:#1a1f2e;border:1px solid #334155;border-left:4px solid ' + rep.color + ';border-radius:12px;padding:16px;margin-bottom:14px;">';
+        html += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between;">';
+        html += '<div style="display:flex;align-items:center;gap:12px;">' + avatarBlock +
+                '<div><div style="font-size:16px;font-weight:600;color:#E2E8F0;">' + rep.fullName + '</div>' +
+                '<div style="font-size:12px;color:#94A3B8;">' + rep.role + '</div></div></div>';
+        html += '<button onclick="salesOpenAddModal(\'' + rep.name + '\')" style="padding:7px 14px;background:' + rep.color + ';color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;">+ Add Equipment Sale</button>';
+        html += '</div>';
+
+        // MTD tiles
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:14px 0;">';
+        html += '<div style="background:#0F172A;padding:10px;border-radius:8px;border:1px solid #1E293B;"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">MTD Installs</div><div style="font-size:22px;font-weight:700;color:#E2E8F0;">' + mtd.installsCount + '</div></div>';
+        html += '<div style="background:#0F172A;padding:10px;border-radius:8px;border:1px solid #1E293B;"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">MTD Revenue</div><div style="font-size:22px;font-weight:700;color:#10B981;">$' + Math.round(mtd.revenue).toLocaleString() + '</div></div>';
+        html += '<div style="background:#0F172A;padding:10px;border-radius:8px;border:1px solid #1E293B;"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">Avg Ticket</div><div style="font-size:22px;font-weight:700;color:#60A5FA;">$' + Math.round(mtd.avgTicket).toLocaleString() + '</div></div>';
+        html += '<div style="background:#0F172A;padding:10px;border-radius:8px;border:1px solid #1E293B;"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">All-Time Records</div><div style="font-size:22px;font-weight:700;color:#A78BFA;">' + equip.length + '</div></div>';
+        html += '</div>';
+
+        // Lead credit chips
+        html += '<div style="margin:10px 0;"><div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🤝 Lead-Generated By (auto-credit, MTD):</div><div>' + creditsHTML + '</div></div>';
+
+        // Equipment table
+        if (equip.length > 0) {
+          html += '<details style="margin-top:12px;"><summary style="cursor:pointer;color:#94A3B8;font-size:13px;font-weight:600;">📋 Equipment Sales (' + equip.length + ')</summary>';
+          html += '<div style="overflow-x:auto;margin-top:8px;"><table style="width:100%;font-size:12px;color:#CBD5E1;border-collapse:collapse;">';
+          html += '<thead><tr style="background:#0F172A;"><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Date</th><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Customer</th><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Type</th><th style="padding:6px;text-align:right;border-bottom:1px solid #334155;">Total</th><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Lead</th><th style="padding:6px;text-align:right;border-bottom:1px solid #334155;"></th></tr></thead><tbody>';
+          equip.slice(0, 25).forEach(function(e) {
+            var delBtn = e._source === 'auto' ? '<span title="Auto-imported" style="color:#64748B;font-size:11px;">🔗</span>' : '<button onclick="if(confirm(\'Delete this entry?\'))salesDeleteEquipment(\'' + rep.name + '\',\'' + e.id + '\');renderSalesScorecard();" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:13px;">×</button>';
+            html += '<tr><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.completionDate || e.date || '') + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.customer || '') + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.systemType || '') + '</td><td style="padding:5px;text-align:right;border-bottom:1px solid #1E293B;">$' + Math.round(parseFloat(e.jobsTotal) || 0).toLocaleString() + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;color:#94A3B8;">' + (e.leadGeneratedBy || '—') + '</td><td style="padding:5px;text-align:right;border-bottom:1px solid #1E293B;">' + delBtn + '</td></tr>';
+          });
+          html += '</tbody></table></div></details>';
+        }
+
+        html += '</div>'; // close rep card
+      });
+
+      html += '</div>';
+      el.innerHTML = html;
+    }
+
+    // Expose
+    window.salesOpenAddModal = salesOpenAddModal;
+    window.salesSubmitAdd = salesSubmitAdd;
+    window.salesDeleteEquipment = salesDeleteEquipment;
+    window.renderSalesScorecard = renderSalesScorecard;
+    window.salesGetEquipmentFor = salesGetEquipmentFor;
+    window.salesComputeMTD = salesComputeMTD;
+    window.SALES_REPS = SALES_REPS;
+    // ========== END v217 SALES SCORECARD MODULE ==========
 
 
     function renderWeeklyLeaderboard() {
@@ -4606,6 +4953,10 @@ document.addEventListener('visibilitychange', function() {
           try { renderSTKPIs(); } catch(e) { console.warn('renderSTKPIs on tab switch failed:', e); }
           try { renderSTTables(); } catch(e) { console.warn('renderSTTables on tab switch failed:', e); }
         }
+        // v217: Sales Team scorecard
+        if (v === 'sales') {
+          try { if (typeof renderSalesScorecard === 'function') renderSalesScorecard(); } catch(e) { console.warn('renderSalesScorecard on tab switch failed:', e); }
+        }
         // v202: Re-render Manager content when entering manager tab.
         if (v === 'manager') {
           try { if (typeof renderMgrToday === 'function') renderMgrToday(); } catch(e) {}
@@ -5324,7 +5675,8 @@ document.addEventListener('visibilitychange', function() {
         'st_update_20260429_mtd': { date: '2026-04-29', text: 'Daily refresh (4/29/26). No installs today. Dee +$1,064 svc (100% conv, $1,064 avg) \u2192 $3,918 svc MTD. Chris +$1,064 svc (100% conv, $1,064 avg) \u2192 $7,924 svc / 4-of-10 mem (40%) MTD. Dewone +$158 svc + 1 TGL \u2192 $10,326 svc / 12 TGL MTD. Benji $0 svc (3.5 billable hrs, no opps) \u2192 $8,620 svc MTD held. Daniel $0 svc (1 sold hr, no opps) \u2192 $9,771 svc MTD held. Team daily $2,286 svc / 9.7 sold hrs / 1 TGL. Team MTD service rev $40,559 \u2022 Team MTD installs 11 ($146K) held.' },
         'st_update_20260430_mtd': { date: '2026-04-30', text: 'Daily refresh (4/30/26). No installs today. Dewone +$362 svc (100% conv on 1 call, $362 avg, 2.5 sold hrs, 2 tasks/call) \u2192 $10,688 svc MTD. Benji (Ben Tinahui) $0 svc (4.0 sold hrs, 0.5 tech sold-hr efficiency, no opps). Dee $0 svc (1.0 sold hr, no opps). Daniel $0 svc (4.0 sold hrs, no opps). Chris $0 svc (2.5 sold hrs, 1 TGL, no opps). Memberships: 2 sold / 2 opps team-wide today (Chris 1/1, Daniel 1/1). Team daily $362 svc / 16.75 sold hrs / 1 TGL / 0 installs. Team MTD installs 11 ($146K) held.' },
         'st_update_20260502_mtd': { date: '2026-05-02', text: 'Saturday 5/2/26 \u2014 Dewone solo (only Saturday tech). $572 svc, 100% conv (2/2), $252 avg sale, 1 SPP, 3.6 sold hrs, 2 tasks/call, 1 mem sold / 2 mem opps (50%), 0 installs. Closes week of 4/27. Dewone May MTD now $955 svc / 7.3 sold hrs / 1 SPP / 1 TGL / 1-of-2 mem (50%) / 0 installs.' },
-        'st_update_20260501_mtd': { date: '2026-05-01', text: 'May Day 1 (5/1/26) \u2014 fresh month. Chris $2,563 svc (100% conv, $1,282 avg, 2.3 sold hrs, 3.5 tasks/call) leads. Daniel $1,329 svc (100% conv, $665 avg, 1 SPP, 3.2 sold hrs) + 1 mem sold (1/1, 100%). Benji $883 svc (100% conv, $804 avg, 5.1 sold hrs, 0.61 eff, 0/1 mem). Dewone $383 svc (100% conv, 1 TGL, 3.7 sold hrs). Dee $79 svc (0% conv, 1 TGL, 2.1 sold hrs). 1 install today \u2014 Brayden Bond sold Denise Cartier $14,607 HVAC install (Job 91767937). Team day-1 totals: $5,238 svc / 16.4 sold hrs / 2 TGL / 1 SPP / 1 mem sold (1/2 = 50%) / 1 install ($14,607).' }
+        'st_update_20260501_mtd': { date: '2026-05-01', text: 'May Day 1 (5/1/26) \u2014 fresh month. Chris $2,563 svc (100% conv, $1,282 avg, 2.3 sold hrs, 3.5 tasks/call) leads. Daniel $1,329 svc (100% conv, $665 avg, 1 SPP, 3.2 sold hrs) + 1 mem sold (1/1, 100%). Benji $883 svc (100% conv, $804 avg, 5.1 sold hrs, 0.61 eff, 0/1 mem). Dewone $383 svc (100% conv, 1 TGL, 3.7 sold hrs). Dee $79 svc (0% conv, 1 TGL, 2.1 sold hrs). 1 install today \u2014 Brayden Bond sold Denise Cartier $14,607 HVAC install (Job 91767937). Team day-1 totals: $5,238 svc / 16.4 sold hrs / 2 TGL / 1 SPP / 1 mem sold (1/2 = 50%) / 1 install ($14,607).' },
+        'st_update_20260504_mtd': { date: '2026-05-04', text: 'Monday 5/4/26 \u2014 first day of new week (week of 5/3). Daniel $1,381 svc (100% conv, $690 avg, 4.0 hrs, 3.5 FRT/call, 0/1 mem). Dee $218 svc (100% conv, $218 avg, 3.3 hrs, 1 FRT/call). Benji $89 svc (0% conv on 1 opp, 2.75 hrs, 0.29 TSHE, 1 TGL, 0/1 mem). Chris $0 svc (0% conv, 1.5 hrs, 1 TGL credited \u2192 Brayden $30,272 install). Brayden Bond install $30,271.55 (Job 91881584, lead by Chris Monahan). Dewone & Nick: no data. Team daily $1,688 svc / 11.55 sold hrs / 2 TGL / 1 install ($30,272). May MTD totals: Daniel $2,710 \u00b7 Chris $2,563 \u00b7 Benji $972 \u00b7 Dewone $955 \u00b7 Dee $297 \u00b7 Nick $0. Brayden install MTD: 2 / $44,879.' }
       };
       var changed = false;
       Object.keys(seededIds).forEach(function(sid) {
@@ -7002,17 +7354,17 @@ if (typeof Chart !== 'undefined') {
         name: "Benji",
         displayName: "Ben Tinahui",
         color: "#5B4A8A",
-        // v206: May 2026 day 1 (5/1) live cascade.
-        mtd_service_rev: 883,
+        // v217: May 2026 through Mon 5/4. 5/4: $89 svc / 0% conv / 1 TGL / 2.75 hrs / 0.29 TSHE / mem 0/1.
+        mtd_service_rev: 972,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 883, avg_sale: 804, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 0, sold_hours: 5.1, tech_sold_hr_eff: 0.61, flat_rate_tasks: 4 },
-        mtd_productivity: { rev_hr: 173, billable_hours: 5.1, sold_hrs_on_job_pct: 0, tasks_per_opp: 4, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 972, avg_sale: 486, conversion_rate: 50, spps_sold: 0, tech_gen_leads: 1, sold_hours: 7.85, tech_sold_hr_eff: 0.45, flat_rate_tasks: 3 },
+        mtd_productivity: { rev_hr: 124, billable_hours: 7.85, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 1, total_mem_pct: 0 },
-        mtd_sales: { close_rate: 100 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 2, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 50 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -7039,16 +7391,16 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Daniel",
         color: "#C47F17",
-        // v206: May 2026 day 1 (5/1) live cascade.
-        mtd_service_rev: 1329,
+        // v217: May 2026 through Mon 5/4. 5/4: $1,381 svc / 100% conv / $690 avg / 4.0 hrs / 3.5 FRT / 0/1 mem.
+        mtd_service_rev: 2710,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 1329, avg_sale: 665, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 0, sold_hours: 3.2, flat_rate_tasks: 3 },
-        mtd_productivity: { rev_hr: 415, billable_hours: 3.2, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 2710, avg_sale: 678, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 0, sold_hours: 7.2, flat_rate_tasks: 3.25 },
+        mtd_productivity: { rev_hr: 376, billable_hours: 7.2, sold_hrs_on_job_pct: 0, tasks_per_opp: 3.25, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 1, total_mem_pct: 100 },
+        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 2, total_mem_pct: 50 },
         mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
@@ -7076,18 +7428,18 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Chris",
         color: "#8B3A3A",
-        // v206: May 2026 day 1 (5/1) live cascade.
+        // v217: May 2026 through Mon 5/4. 5/4: $0 svc / 0% conv / 1 TGL ($30,271.55 Brayden install) / 1.5 hrs.
         mtd_service_rev: 2563,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
-        mtd_install_tgl_for_others: 0,
+        mtd_install_tgl_for_others: 1,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 2563, avg_sale: 1282, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 0, sold_hours: 2.3, flat_rate_tasks: 3.5 },
-        mtd_productivity: { rev_hr: 1114, billable_hours: 2.3, sold_hrs_on_job_pct: 0, tasks_per_opp: 3.5, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 2563, avg_sale: 1282, conversion_rate: 50, spps_sold: 0, tech_gen_leads: 1, sold_hours: 3.8, flat_rate_tasks: 1.75 },
+        mtd_productivity: { rev_hr: 675, billable_hours: 3.8, sold_hrs_on_job_pct: 0, tasks_per_opp: 1.75, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
-        mtd_sales: { close_rate: 100 },
+        mtd_sales: { close_rate: 50 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -7115,17 +7467,17 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Dee",
         color: "#2D6A6A",
-        // v206: May 2026 day 1 (5/1) live cascade.
-        mtd_service_rev: 79,
+        // v217: May 2026 through Mon 5/4. 5/4: $218 svc / 100% conv / $218 avg / 3.3 hrs / 1 FRT.
+        mtd_service_rev: 297,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 79, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 1, sold_hours: 2.1, flat_rate_tasks: 0 },
-        mtd_productivity: { rev_hr: 38, billable_hours: 2.1, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 297, avg_sale: 218, conversion_rate: 50, spps_sold: 0, tech_gen_leads: 1, sold_hours: 5.4, flat_rate_tasks: 0.5 },
+        mtd_productivity: { rev_hr: 55, billable_hours: 5.4, sold_hrs_on_job_pct: 0, tasks_per_opp: 0.5, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
-        mtd_sales: { close_rate: 0 },
+        mtd_sales: { close_rate: 50 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -10280,14 +10632,15 @@ if (typeof Chart !== 'undefined') {
         }
       });
 
-      // ===== NIGHTLY DUTIES (v215) — ServiceTitan import section =====
+      // ===== NIGHTLY DUTIES (v215, v217) — ServiceTitan import section =====
       var nightlyCategories = [
         { key: 'truck_rev',    label: 'Daily truck revenue (tech sales)',     icon: '\ud83d\udcb0', color: '#10B981' },
         { key: 'memberships',  label: 'Membership opportunities + sold',       icon: '\ud83c\udfc5', color: '#FFD700' },
         { key: 'installs',     label: 'Installs completed',                    icon: '\ud83d\udd27', color: '#10B981' },
         { key: 'leads_flips',  label: 'Leads / flips set',                     icon: '\ud83d\udcca', color: '#F59E0B' },
         { key: 'recalls',      label: 'Recalls + completed jobs',              icon: '\ud83d\udd04', color: '#DC2626' },
-        { key: 'sales_kpis',   label: 'Sales KPIs (conv, avg sale, SPP)',      icon: '\ud83d\udcc8', color: '#14B8A6' }
+        { key: 'sales_kpis',   label: 'Sales KPIs (conv, avg sale, SPP)',      icon: '\ud83d\udcc8', color: '#14B8A6' },
+        { key: 'sales_equipment', label: 'Sales equipment log (Maico/Brayden/Adam)', icon: '\ud83d\udca1', color: '#8B5CF6', custom: 'sales' }
       ];
       var lastUndo = nightlyLoadUndo();
       html += '<div style="border-top:2px solid #1e3a5f;margin:14px 0 8px 0;padding-top:12px;">';
@@ -10307,8 +10660,16 @@ if (typeof Chart !== 'undefined') {
         html += '<label class="mgr-today-check' + (checked ? ' is-done' : '') + '">';
         html += '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="mgrToggleDailyDuty(\'' + dateStr + '\',\'' + dutyKey + '\',this.checked);renderMgrToday()">';
         html += '<span>' + nc.icon + ' ' + nc.label + '</span></label>';
-        html += '<div style="display:flex;gap:6px;margin:-4px 0 6px 24px;align-items:center;">';
-        html += '<button onclick="nightlyOpenImportModal(\'' + nc.key + '\',\'' + dateStr + '\')" style="background:linear-gradient(135deg,' + nc.color + ',#0F1B2E);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">\u2b06 Import</button>';
+        html += '<div style="display:flex;gap:6px;margin:-4px 0 6px 24px;align-items:center;flex-wrap:wrap;">';
+        if (nc.custom === 'sales') {
+          // v217: Sales equipment quick-fill \u2014 dropdown picks rep, opens add modal
+          html += '<button onclick="salesOpenAddModal(\'Maico\')" style="background:linear-gradient(135deg,#3B82F6,#0F1B2E);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">+ Maico</button>';
+          html += '<button onclick="salesOpenAddModal(\'Brayden\')" style="background:linear-gradient(135deg,#10B981,#0F1B2E);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">+ Brayden</button>';
+          html += '<button onclick="salesOpenAddModal(\'Adam\')" style="background:linear-gradient(135deg,#F59E0B,#0F1B2E);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">+ Adam</button>';
+          html += '<button onclick="document.querySelector(\'.nav-tab[data-view=&quot;sales&quot;]\').click()" style="background:transparent;color:#a78bfa;border:1px solid #8B5CF6;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">View Sales Tab \u2192</button>';
+        } else {
+          html += '<button onclick="nightlyOpenImportModal(\'' + nc.key + '\',\'' + dateStr + '\')" style="background:linear-gradient(135deg,' + nc.color + ',#0F1B2E);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">\u2b06 Import</button>';
+        }
         html += '</div>';
       });
       html += '<div style="margin-top:6px;padding:6px 8px;background:rgba(20,184,166,0.05);border:1px dashed rgba(20,184,166,0.2);border-radius:6px;font-size:10px;color:#94a3b8;line-height:1.5;">';
@@ -10382,7 +10743,7 @@ if (typeof Chart !== 'undefined') {
       var allChecks = dailyItems.length;
       var doneChecks = dailyItems.filter(function(i) { return mgrGetDailyDuty(dateStr, i.key); }).length;
       // v215: Nightly Duties count toward completion (6 items)
-      var nightlyKeys = ['nightly_truck_rev','nightly_memberships','nightly_installs','nightly_leads_flips','nightly_recalls','nightly_sales_kpis'];
+      var nightlyKeys = ['nightly_truck_rev','nightly_memberships','nightly_installs','nightly_leads_flips','nightly_recalls','nightly_sales_kpis','nightly_sales_equipment'];
       allChecks += nightlyKeys.length;
       nightlyKeys.forEach(function(k){ if(mgrGetDailyDuty(dateStr,k)) doneChecks++; });
       if (dow === 1) { allChecks += 6; ['mon_employee_review','mon_leadership_mtg','mon_prior_week','mon_weekend_calls','mon_training_plan','mon_invoice_review'].forEach(function(k){ if(mgrGetDailyDuty(dateStr,k)) doneChecks++; }); }
@@ -14809,6 +15170,8 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260501IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260501IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
+    try { _braydenSeedMay20260504IfNeeded(); } catch(e) {}
     try { _trainingSeedWed20260506IfNeeded(); } catch(e) {}
     try { renderWeeklyLeaderboard(); } catch(e) { console.warn('renderWeeklyLeaderboard init failed', e); }
     renderProgression();
@@ -17853,7 +18216,7 @@ function openEmbeddedPDF(filename) {
         '<button data-mh-tab="quick">Quick Actions</button>' +
       '</div>' +
       '<div class="mh-body" id="mhBody"></div>' +
-      '<div class="mh-foot">v216 — rule-based assistant · ' + esc(todayISO()) + '</div>';
+      '<div class="mh-foot">v217 — rule-based assistant · ' + esc(todayISO()) + '</div>';
     root.appendChild(panel);
 
     var ui = loadHelperUi();
