@@ -3315,6 +3315,629 @@ document.addEventListener('visibilitychange', function() {
     window.renderSalesScorecard = renderSalesScorecard;
     window.salesGetEquipmentFor = salesGetEquipmentFor;
     window.salesComputeMTD = salesComputeMTD;
+
+    // ===================================================================
+    // v218.4 — INSTALL PAY TRACKER (PIN-locked, Maico-only)
+    // ===================================================================
+    // Private install pay tracking for the manager (Maico). Captures per-job
+    // installer pay using SPIFF rate cards by installer, generates the Mon–Sat
+    // weekly sheet, and exports a payroll PDF for accounting handoff.
+    //
+    // Privacy model:
+    //  • Tab is hidden from nav unless `snappy_install_pay_unlocked` session flag is set.
+    //  • Unlock requires PIN (default 0323; user-changeable). PIN hash stored locally.
+    //  • Storage is purely localStorage — never written to SyncEngine / cloud.
+    //  • Section closes on tab switch to non-install-pay tab if user clicks "lock".
+    // ===================================================================
+
+    const INSTALL_PAY_DATA_KEY = 'snappy_install_pay_data_v1'; // jobs + rate overrides
+    const INSTALL_PAY_PIN_KEY = 'snappy_install_pay_pin_hash_v1';
+    const INSTALL_PAY_UNLOCK_KEY = 'snappy_install_pay_unlocked'; // session-style
+    const INSTALL_PAY_DEFAULT_PIN = '0323';
+
+    // Default rate cards (confirmed 5/5/2026 by Maico from IMG_3712)
+    const INSTALL_PAY_DEFAULT_RATES = {
+      'Terrell Upshur': {
+        'Full Install (1.5–3.5 Ton)': 500,
+        'Full Install (4–5 Ton)': 550,
+        'Cooling Only': 300,
+        'Furnace Only': 250,
+        'Flu Pipe Modifications': 100,
+        'Per Plenum': 60,
+        'Per Duct Run': 50,
+        'Per Zone Motor': 30
+      },
+      'Thomas Gilbert': {
+        'Full Install (1.5–3.5 Ton)': 700,
+        'Full Install (4–5 Ton)': 750,
+        'Cooling Only': 400,
+        'Furnace Only': 300,
+        'Flu Pipe Modifications': 100,
+        'Per Plenum': 60,
+        'Per Duct Run': 50,
+        'Per Zone Motor': 30
+      },
+      'Dee / Daniel / Other SVC Tech': {
+        'Full Install (1.5–3.5 Ton)': 500,
+        'Full Install (4–5 Ton)': 550,
+        'Cooling Only': 300,
+        'Furnace Only': 250,
+        'Flu Pipe Modifications': 100,
+        'Per Plenum': 60,
+        'Per Duct Run': 50,
+        'Per Zone Motor': 30
+      }
+    };
+    const INSTALL_PAY_JOB_TYPES = ['Full Install (1.5–3.5 Ton)','Full Install (4–5 Ton)','Cooling Only','Furnace Only'];
+
+    function ipLoadData() {
+      try {
+        var raw = localStorage.getItem(INSTALL_PAY_DATA_KEY);
+        if (!raw) return { jobs: [], rates: JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES)) };
+        var d = JSON.parse(raw);
+        if (!d.rates) d.rates = JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES));
+        if (!d.jobs) d.jobs = [];
+        return d;
+      } catch(e) { return { jobs: [], rates: JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES)) }; }
+    }
+    function ipSaveData(d) {
+      // Local-only — never sync to cloud
+      try { localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(d)); } catch(e) { console.warn('ipSaveData failed', e); }
+    }
+
+    // Simple PIN hash (not cryptographic — obfuscation only; data is local anyway)
+    function ipHashPin(pin) {
+      var s = String(pin || '');
+      var h = 5381;
+      for (var i = 0; i < s.length; i++) h = ((h << 5) + h) + s.charCodeAt(i);
+      return 'h' + (h >>> 0).toString(16);
+    }
+    function ipGetPinHash() {
+      var stored = localStorage.getItem(INSTALL_PAY_PIN_KEY);
+      if (!stored) {
+        // First-time setup: install the default PIN so 0323 unlocks immediately
+        stored = ipHashPin(INSTALL_PAY_DEFAULT_PIN);
+        localStorage.setItem(INSTALL_PAY_PIN_KEY, stored);
+      }
+      return stored;
+    }
+    function ipCheckPin(pin) { return ipHashPin(pin) === ipGetPinHash(); }
+    function ipSetPin(newPin) { localStorage.setItem(INSTALL_PAY_PIN_KEY, ipHashPin(newPin)); }
+    function ipIsUnlocked() {
+      try { return sessionStorage.getItem(INSTALL_PAY_UNLOCK_KEY) === '1'; } catch(e) { return false; }
+    }
+    function ipUnlock() { try { sessionStorage.setItem(INSTALL_PAY_UNLOCK_KEY, '1'); } catch(e) {} ipApplyVisibility(); }
+    function ipLock() { try { sessionStorage.removeItem(INSTALL_PAY_UNLOCK_KEY); } catch(e) {} ipApplyVisibility(); }
+
+    function ipApplyVisibility() {
+      var tab = document.querySelector('.nav-tab[data-view="installpay"]');
+      var view = document.getElementById('view-installpay');
+      var unlocked = ipIsUnlocked();
+      if (tab) tab.style.display = unlocked ? '' : 'none';
+      if (view && !unlocked) {
+        view.classList.remove('active');
+        // If user is currently on it, send them to overview
+        if (view.classList.contains('active')) {
+          var ov = document.querySelector('.nav-tab[data-view="overview"]');
+          if (ov) ov.click();
+        }
+      }
+    }
+
+    // Compute per-job total based on job type + add-ons
+    function ipComputeJobTotal(job, rates) {
+      var card = (rates && rates[job.installer]) || {};
+      var base = job.jobType ? (card[job.jobType] || 0) : 0;
+      var fluPipe = job.fluPipe ? (card['Flu Pipe Modifications'] || 0) : 0;
+      var plenums = (Number(job.plenums) || 0) * (card['Per Plenum'] || 0);
+      var ductRuns = (Number(job.ductRuns) || 0) * (card['Per Duct Run'] || 0);
+      var zoneMotors = (Number(job.zoneMotors) || 0) * (card['Per Zone Motor'] || 0);
+      var basePay = Number(job.basePay) || 0;
+      return {
+        baseSpiff: base,
+        fluPipe: fluPipe,
+        plenums: plenums,
+        ductRuns: ductRuns,
+        zoneMotors: zoneMotors,
+        basePay: basePay,
+        total: base + fluPipe + plenums + ductRuns + zoneMotors + basePay
+      };
+    }
+
+    // Week-ending Saturday helper. Given any ISO date, returns the YYYY-MM-DD of that week's Saturday.
+    // Week is Monday→Saturday; if the date is Sunday, it belongs to the upcoming Mon–Sat week.
+    function ipWeekEndingSat(isoDate) {
+      var d = new Date(isoDate + 'T12:00:00');
+      var dow = d.getDay(); // 0=Sun..6=Sat
+      // Days to add to reach Saturday of the Mon–Sat week containing this date
+      var addDays;
+      if (dow === 0) addDays = 6;            // Sunday → next Saturday
+      else if (dow === 6) addDays = 0;       // Saturday → today
+      else addDays = 6 - dow;                // Mon..Fri → upcoming Saturday
+      var sat = new Date(d.getTime() + addDays * 86400000);
+      return sat.toISOString().slice(0, 10);
+    }
+    function ipWeekStartMon(weekEndingSat) {
+      var d = new Date(weekEndingSat + 'T12:00:00');
+      var mon = new Date(d.getTime() - 5 * 86400000);
+      return mon.toISOString().slice(0, 10);
+    }
+    function ipFmtDateShort(iso) {
+      if (!iso) return '';
+      var d = new Date(iso + 'T12:00:00');
+      var dn = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+      return dn + ' ' + (d.getMonth()+1) + '/' + d.getDate();
+    }
+
+    // ----- PIN gate UI -----
+    function ipPromptPin() {
+      var modal = document.createElement('div');
+      modal.id = 'ipPinModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML =
+        '<div style="background:#0F1B2E;color:#f1f5f9;width:100%;max-width:380px;border:1px solid #1e3a5f;border-radius:14px;padding:24px;text-align:center;box-shadow:0 24px 48px rgba(0,0,0,0.6);">' +
+          '<div style="font-size:38px;margin-bottom:8px;">🔒</div>' +
+          '<div style="font-size:18px;font-weight:700;margin-bottom:4px;">Install Pay — Private</div>' +
+          '<div style="font-size:12px;color:#94a3b8;margin-bottom:16px;">Enter PIN to unlock</div>' +
+          '<input id="ipPinInput" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="••••" style="width:100%;padding:12px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:18px;letter-spacing:6px;text-align:center;font-variant-numeric:tabular-nums;">' +
+          '<div id="ipPinErr" style="color:#dc2626;font-size:12px;margin-top:8px;min-height:14px;"></div>' +
+          '<div style="display:flex;gap:8px;margin-top:14px;">' +
+            '<button onclick="ipClosePinModal()" style="flex:1;background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:10px;border-radius:8px;font-size:13px;cursor:pointer;">Cancel</button>' +
+            '<button onclick="ipSubmitPin()" style="flex:2;background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Unlock</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      setTimeout(function(){ var i = document.getElementById('ipPinInput'); if (i) { i.focus(); i.addEventListener('keydown', function(e){ if (e.key === 'Enter') ipSubmitPin(); }); } }, 50);
+    }
+    function ipClosePinModal() { var m = document.getElementById('ipPinModal'); if (m && m.parentNode) m.parentNode.removeChild(m); }
+    function ipSubmitPin() {
+      var inp = document.getElementById('ipPinInput');
+      var err = document.getElementById('ipPinErr');
+      if (!inp) return;
+      if (ipCheckPin(inp.value)) {
+        ipClosePinModal();
+        ipUnlock();
+        // Now navigate to the install-pay tab
+        var tab = document.querySelector('.nav-tab[data-view="installpay"]');
+        if (tab) tab.click();
+      } else {
+        if (err) err.textContent = 'Incorrect PIN';
+        inp.value = '';
+        inp.focus();
+      }
+    }
+    window.ipClosePinModal = ipClosePinModal;
+    window.ipSubmitPin = ipSubmitPin;
+    window.ipPromptPin = ipPromptPin;
+
+    // ----- Main render -----
+    function renderInstallPay() {
+      var el = document.getElementById('installpay-content');
+      if (!el) return;
+      if (!ipIsUnlocked()) {
+        el.innerHTML = '<div style="text-align:center;padding:60px 20px;"><div style="font-size:42px;">🔒</div><div style="font-size:16px;color:#94a3b8;margin-top:8px;">Locked</div><button onclick="ipPromptPin()" style="margin-top:16px;background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Unlock with PIN</button></div>';
+        return;
+      }
+      var data = ipLoadData();
+      var todayIso = new Date().toISOString().slice(0,10);
+      var defaultWeek = ipWeekEndingSat(todayIso);
+      var selectedWeek = el.dataset.selectedWeek || defaultWeek;
+      var weekStart = ipWeekStartMon(selectedWeek);
+      var weekJobs = data.jobs.filter(function(j) { return ipWeekEndingSat(j.date) === selectedWeek; });
+      // Group jobs by date for the Mon–Sat sheet
+      var byDate = {};
+      for (var i = 0; i < 6; i++) {
+        var d = new Date(weekStart + 'T12:00:00').getTime() + i * 86400000;
+        var iso = new Date(d).toISOString().slice(0,10);
+        byDate[iso] = [];
+      }
+      weekJobs.forEach(function(j){ if (byDate[j.date]) byDate[j.date].push(j); });
+
+      // Past weeks list (last 12)
+      var allWeeks = {};
+      data.jobs.forEach(function(j){ var w = ipWeekEndingSat(j.date); allWeeks[w] = (allWeeks[w]||0) + 1; });
+      var pastWeeks = Object.keys(allWeeks).sort().reverse().slice(0, 12);
+      if (pastWeeks.indexOf(selectedWeek) === -1) pastWeeks.unshift(selectedWeek);
+
+      // Compute weekly totals
+      var weekTotal = 0, weekCount = weekJobs.length;
+      var totalsByInstaller = {};
+      weekJobs.forEach(function(j){
+        var c = ipComputeJobTotal(j, data.rates);
+        weekTotal += c.total;
+        if (!totalsByInstaller[j.installer]) totalsByInstaller[j.installer] = { count:0, total:0 };
+        totalsByInstaller[j.installer].count++;
+        totalsByInstaller[j.installer].total += c.total;
+      });
+
+      var html = '';
+      // Top bar: lock button + week picker + actions
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:12px 14px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;">';
+      html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
+      html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Week ending</div>';
+      html += '<select onchange="document.getElementById(\'installpay-content\').dataset.selectedWeek=this.value;renderInstallPay()" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;padding:6px 10px;font-size:13px;">';
+      pastWeeks.forEach(function(w){
+        var sel = w === selectedWeek ? ' selected' : '';
+        html += '<option value="'+w+'"'+sel+'>'+w+(w === defaultWeek ? ' (current)' : '')+'</option>';
+      });
+      html += '</select>';
+      html += '<button onclick="ipNewWeekPrompt()" style="background:transparent;color:#94a3b8;border:1px dashed #1e3a5f;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;">+ Pick custom date</button>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+      html += '<button onclick="ipOpenAddJob(\''+todayIso+'\')" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">+ Add install</button>';
+      html += '<button onclick="ipOpenRateEditor()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;">Rate cards</button>';
+      html += '<button onclick="ipExportPdf(\''+selectedWeek+'\')" style="background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">📄 Payroll PDF</button>';
+      html += '<button onclick="ipChangePinPrompt()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Change PIN</button>';
+      html += '<button onclick="ipLock();renderInstallPay();" style="background:transparent;color:#dc2626;border:1px solid #7c2d2d;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;">🔒 Lock</button>';
+      html += '</div>';
+      html += '</div>';
+
+      // Week summary tiles
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">';
+      html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Week ending</div><div style="font-size:18px;font-weight:700;margin-top:4px;">'+selectedWeek+'</div></div>';
+      html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Installs</div><div style="font-size:22px;font-weight:700;margin-top:4px;color:#10B981;">'+weekCount+'</div></div>';
+      html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Total pay</div><div style="font-size:22px;font-weight:700;margin-top:4px;color:#10B981;font-variant-numeric:tabular-nums;">$'+weekTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>';
+      Object.keys(totalsByInstaller).forEach(function(inst){
+        var t = totalsByInstaller[inst];
+        html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">'+inst.split(' /')[0]+'</div><div style="font-size:11px;color:#64748b;">'+t.count+' jobs</div><div style="font-size:18px;font-weight:700;margin-top:2px;color:#3B82F6;font-variant-numeric:tabular-nums;">$'+t.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>';
+      });
+      html += '</div>';
+
+      // Mon–Sat sheet
+      html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;">';
+      html += '<div style="font-size:14px;font-weight:700;margin-bottom:10px;">Mon–Sat Sheet · Week ending '+selectedWeek+'</div>';
+      var dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      Object.keys(byDate).sort().forEach(function(iso, idx){
+        var dayJobs = byDate[iso];
+        var dayTotal = dayJobs.reduce(function(s,j){ return s + ipComputeJobTotal(j, data.rates).total; }, 0);
+        html += '<div style="margin-bottom:14px;border-top:1px solid #1e3a5f;padding-top:10px;">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-size:13px;font-weight:600;color:#94a3b8;">'+dayNames[idx]+' — '+iso+'</div>';
+        html += '<div style="display:flex;gap:8px;align-items:center;"><div style="font-size:12px;color:#64748b;">'+dayJobs.length+' job'+(dayJobs.length===1?'':'s')+' · $'+dayTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div>';
+        html += '<button onclick="ipOpenAddJob(\''+iso+'\')" style="background:transparent;color:#10B981;border:1px solid #065f46;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;">+ Add</button></div>';
+        html += '</div>';
+        if (dayJobs.length === 0) {
+          html += '<div style="font-size:12px;color:#475569;font-style:italic;padding:6px 0;">No installs logged.</div>';
+        } else {
+          html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+          html += '<thead><tr style="color:#64748b;text-transform:uppercase;font-size:10px;letter-spacing:0.4px;">';
+          html += '<th style="text-align:left;padding:4px 6px;">Customer</th><th style="text-align:left;padding:4px 6px;">Installer</th><th style="text-align:left;padding:4px 6px;">Job Type</th><th style="text-align:right;padding:4px 6px;">Plen</th><th style="text-align:right;padding:4px 6px;">Duct</th><th style="text-align:right;padding:4px 6px;">Zone</th><th style="text-align:center;padding:4px 6px;">Flu</th><th style="text-align:right;padding:4px 6px;">Base</th><th style="text-align:right;padding:4px 6px;">Total</th><th></th>';
+          html += '</tr></thead><tbody>';
+          dayJobs.forEach(function(j){
+            var c = ipComputeJobTotal(j, data.rates);
+            html += '<tr style="border-top:1px solid #1e3a5f;">';
+            html += '<td style="padding:6px;">'+(j.customer||'—')+(j.jobNumber?'<div style="font-size:10px;color:#64748b;">#'+j.jobNumber+'</div>':'')+'</td>';
+            html += '<td style="padding:6px;">'+(j.installer||'—')+'</td>';
+            html += '<td style="padding:6px;">'+(j.jobType||'—')+'</td>';
+            html += '<td style="padding:6px;text-align:right;font-variant-numeric:tabular-nums;">'+(j.plenums||0)+'</td>';
+            html += '<td style="padding:6px;text-align:right;font-variant-numeric:tabular-nums;">'+(j.ductRuns||0)+'</td>';
+            html += '<td style="padding:6px;text-align:right;font-variant-numeric:tabular-nums;">'+(j.zoneMotors||0)+'</td>';
+            html += '<td style="padding:6px;text-align:center;">'+(j.fluPipe?'✓':'')+'</td>';
+            html += '<td style="padding:6px;text-align:right;font-variant-numeric:tabular-nums;">$'+(c.basePay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>';
+            html += '<td style="padding:6px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:#10B981;">$'+c.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>';
+            html += '<td style="padding:6px;text-align:right;"><button onclick="ipOpenAddJob(null,\''+j.id+'\')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:11px;">edit</button> <button onclick="ipDeleteJob(\''+j.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:11px;">×</button></td>';
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+
+      el.innerHTML = html;
+    }
+    window.renderInstallPay = renderInstallPay;
+
+    // ----- Add/Edit job modal -----
+    function ipOpenAddJob(dateStr, existingId) {
+      var data = ipLoadData();
+      var existing = existingId ? data.jobs.find(function(j){ return j.id === existingId; }) : null;
+      var initDate = (existing && existing.date) || dateStr || new Date().toISOString().slice(0,10);
+      var installers = Object.keys(data.rates);
+      var instOpts = installers.map(function(n){ var s = (existing && existing.installer === n) ? ' selected' : ''; return '<option value="'+n+'"'+s+'>'+n+'</option>'; }).join('');
+      var jobTypeOpts = ['<option value="">— Select job type —</option>'].concat(INSTALL_PAY_JOB_TYPES.map(function(t){ var s = (existing && existing.jobType === t) ? ' selected' : ''; return '<option value="'+t+'"'+s+'>'+t+'</option>'; })).join('');
+      var modal = document.createElement('div');
+      modal.id = 'ipAddJobModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML =
+        '<div style="background:#0F1B2E;color:#f1f5f9;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border:1px solid #1e3a5f;border-radius:14px;padding:20px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">' +
+            '<div style="font-size:17px;font-weight:700;">'+(existing?'Edit Install':'Add Install')+'</div>' +
+            '<button onclick="ipCloseAddJob()" style="background:transparent;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">×</button>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+            '<label style="font-size:11px;color:#94a3b8;">Date<input id="ip_date" type="date" value="'+initDate+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
+            '<label style="font-size:11px;color:#94a3b8;">Installer<select id="ip_installer" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;">'+instOpts+'</select></label>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:10px;">' +
+            '<label style="font-size:11px;color:#94a3b8;">Customer<input id="ip_customer" type="text" placeholder="Customer name" value="'+((existing&&existing.customer)||'').replace(/"/g,'&quot;')+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
+            '<label style="font-size:11px;color:#94a3b8;">Job # / Invoice<input id="ip_jobNumber" type="text" placeholder="91767937" value="'+((existing&&existing.jobNumber)||'').replace(/"/g,'&quot;')+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="font-size:11px;color:#94a3b8;">Job Type<select id="ip_jobType" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;">'+jobTypeOpts+'</select></label>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;">' +
+            '<label style="font-size:11px;color:#94a3b8;">Plenums<input id="ip_plenums" type="number" min="0" step="1" value="'+((existing&&existing.plenums)||0)+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
+            '<label style="font-size:11px;color:#94a3b8;">Duct Runs<input id="ip_ductRuns" type="number" min="0" step="1" value="'+((existing&&existing.ductRuns)||0)+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
+            '<label style="font-size:11px;color:#94a3b8;">Zone Motors<input id="ip_zoneMotors" type="number" min="0" step="1" value="'+((existing&&existing.zoneMotors)||0)+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
+            '<label style="font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:6px;background:#16243d;border:1px solid #1e3a5f;border-radius:6px;padding:8px;margin-top:14px;cursor:pointer;"><input id="ip_fluPipe" type="checkbox"'+((existing&&existing.fluPipe)?' checked':'')+'> Flu Pipe Mods</label>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:10px;">' +
+            '<label style="font-size:11px;color:#94a3b8;">Base Pay ($)<input id="ip_basePay" type="number" min="0" step="0.01" value="'+((existing&&existing.basePay)||0)+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
+            '<label style="font-size:11px;color:#94a3b8;">Notes<input id="ip_notes" type="text" placeholder="Optional notes" value="'+((existing&&existing.notes)||'').replace(/"/g,'&quot;')+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
+          '</div>' +
+          '<div id="ip_livePreview" style="margin-top:14px;padding:10px 12px;background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;font-size:12px;color:#94a3b8;">Pricing preview will appear once installer + job type are selected.</div>' +
+          '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">' +
+            '<button onclick="ipCloseAddJob()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;">Cancel</button>' +
+            (existing ? '<button onclick="ipDeleteJob(\''+existing.id+'\');ipCloseAddJob();" style="background:transparent;color:#dc2626;border:1px solid #7c2d2d;padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;">Delete</button>' : '') +
+            '<button onclick="ipSubmitJob(\''+(existing?existing.id:'')+'\')" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Save</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      // Wire live preview
+      ['ip_installer','ip_jobType','ip_plenums','ip_ductRuns','ip_zoneMotors','ip_fluPipe','ip_basePay'].forEach(function(id){
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', ipUpdateLivePreview);
+        if (el) el.addEventListener('change', ipUpdateLivePreview);
+      });
+      ipUpdateLivePreview();
+    }
+    function ipUpdateLivePreview() {
+      var data = ipLoadData();
+      var job = {
+        installer: (document.getElementById('ip_installer')||{}).value,
+        jobType: (document.getElementById('ip_jobType')||{}).value,
+        plenums: (document.getElementById('ip_plenums')||{}).value,
+        ductRuns: (document.getElementById('ip_ductRuns')||{}).value,
+        zoneMotors: (document.getElementById('ip_zoneMotors')||{}).value,
+        fluPipe: !!((document.getElementById('ip_fluPipe')||{}).checked),
+        basePay: (document.getElementById('ip_basePay')||{}).value
+      };
+      var c = ipComputeJobTotal(job, data.rates);
+      var prev = document.getElementById('ip_livePreview');
+      if (!prev) return;
+      if (!job.installer || !job.jobType) {
+        prev.innerHTML = '<span style="color:#64748b;">Pricing preview will appear once installer + job type are selected.</span>';
+        return;
+      }
+      var rows = [];
+      if (c.baseSpiff) rows.push(['Base spiff ('+job.jobType+')', c.baseSpiff]);
+      if (c.fluPipe) rows.push(['Flu Pipe Mods', c.fluPipe]);
+      if (c.plenums) rows.push([(job.plenums||0)+' × Plenum', c.plenums]);
+      if (c.ductRuns) rows.push([(job.ductRuns||0)+' × Duct Run', c.ductRuns]);
+      if (c.zoneMotors) rows.push([(job.zoneMotors||0)+' × Zone Motor', c.zoneMotors]);
+      if (c.basePay) rows.push(['Base Pay', c.basePay]);
+      var html = '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Live preview</div>';
+      rows.forEach(function(r){ html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:#cbd5e1;"><span>'+r[0]+'</span><span style="font-variant-numeric:tabular-nums;">$'+r[1].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span></div>'; });
+      html += '<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:#10B981;border-top:1px solid #1e3a5f;margin-top:6px;padding-top:6px;"><span>Total</span><span style="font-variant-numeric:tabular-nums;">$'+c.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span></div>';
+      prev.innerHTML = html;
+    }
+    function ipCloseAddJob() { var m = document.getElementById('ipAddJobModal'); if (m && m.parentNode) m.parentNode.removeChild(m); }
+    function ipSubmitJob(existingId) {
+      var data = ipLoadData();
+      var job = {
+        id: existingId || ('ipj_' + Date.now() + '_' + Math.random().toString(36).slice(2,7)),
+        date: (document.getElementById('ip_date')||{}).value,
+        installer: (document.getElementById('ip_installer')||{}).value,
+        customer: ((document.getElementById('ip_customer')||{}).value||'').trim(),
+        jobNumber: ((document.getElementById('ip_jobNumber')||{}).value||'').trim(),
+        jobType: (document.getElementById('ip_jobType')||{}).value,
+        plenums: Number((document.getElementById('ip_plenums')||{}).value) || 0,
+        ductRuns: Number((document.getElementById('ip_ductRuns')||{}).value) || 0,
+        zoneMotors: Number((document.getElementById('ip_zoneMotors')||{}).value) || 0,
+        fluPipe: !!((document.getElementById('ip_fluPipe')||{}).checked),
+        basePay: Number((document.getElementById('ip_basePay')||{}).value) || 0,
+        notes: ((document.getElementById('ip_notes')||{}).value||'').trim(),
+        dateUpdated: new Date().toISOString()
+      };
+      if (!job.date || !job.installer || !job.customer || !job.jobType) {
+        alert('Date, installer, customer, and job type are required.');
+        return;
+      }
+      if (existingId) {
+        var idx = data.jobs.findIndex(function(j){ return j.id === existingId; });
+        if (idx >= 0) data.jobs[idx] = job;
+        else data.jobs.unshift(job);
+      } else {
+        data.jobs.unshift(job);
+      }
+      ipSaveData(data);
+      ipCloseAddJob();
+      renderInstallPay();
+    }
+    function ipDeleteJob(id) {
+      if (!confirm('Delete this install entry?')) return;
+      var data = ipLoadData();
+      data.jobs = data.jobs.filter(function(j){ return j.id !== id; });
+      ipSaveData(data);
+      renderInstallPay();
+    }
+    window.ipOpenAddJob = ipOpenAddJob;
+    window.ipCloseAddJob = ipCloseAddJob;
+    window.ipSubmitJob = ipSubmitJob;
+    window.ipDeleteJob = ipDeleteJob;
+    window.ipUpdateLivePreview = ipUpdateLivePreview;
+
+    // ----- Rate editor -----
+    function ipOpenRateEditor() {
+      var data = ipLoadData();
+      var modal = document.createElement('div');
+      modal.id = 'ipRateModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
+      var inner = '<div style="background:#0F1B2E;color:#f1f5f9;width:100%;max-width:680px;max-height:92vh;overflow-y:auto;border:1px solid #1e3a5f;border-radius:14px;padding:20px;">';
+      inner += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><div style="font-size:17px;font-weight:700;">Rate Cards</div><button onclick="ipCloseRateEditor()" style="background:transparent;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">×</button></div>';
+      inner += '<div style="font-size:12px;color:#64748b;margin-bottom:14px;">Edit per-installer SPIFF rates. Saves immediately. Use \"Add installer\" to expand the roster.</div>';
+      Object.keys(data.rates).forEach(function(installer){
+        var card = data.rates[installer];
+        inner += '<div style="background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;padding:14px;margin-bottom:12px;">';
+        inner += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><input type="text" value="'+installer.replace(/"/g,'&quot;')+'" data-orig="'+installer.replace(/"/g,'&quot;')+'" onchange="ipRenameInstaller(this.dataset.orig,this.value)" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;padding:6px 10px;font-size:14px;font-weight:600;flex:1;"><button onclick="ipDeleteInstaller(\''+installer.replace(/'/g,"\\'")+'\')" style="background:transparent;color:#dc2626;border:1px solid #7c2d2d;padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer;margin-left:8px;">Remove</button></div>';
+        inner += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+        Object.keys(card).forEach(function(rateLabel){
+          inner += '<label style="font-size:11px;color:#94a3b8;display:flex;justify-content:space-between;align-items:center;gap:8px;background:#0F1B2E;padding:6px 10px;border:1px solid #1e3a5f;border-radius:6px;"><span>'+rateLabel+'</span><input type="number" min="0" step="1" value="'+card[rateLabel]+'" onchange="ipUpdateRate(\''+installer.replace(/'/g,"\\'")+'\',\''+rateLabel.replace(/'/g,"\\'")+'\',this.value)" style="width:80px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:5px;padding:4px 6px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;"></label>';
+        });
+        inner += '</div></div>';
+      });
+      inner += '<button onclick="ipAddInstaller()" style="background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">+ Add installer</button>';
+      inner += '<div style="display:flex;justify-content:flex-end;margin-top:12px;"><button onclick="ipCloseRateEditor();renderInstallPay();" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Done</button></div>';
+      inner += '</div>';
+      modal.innerHTML = inner;
+      document.body.appendChild(modal);
+    }
+    function ipCloseRateEditor() { var m = document.getElementById('ipRateModal'); if (m && m.parentNode) m.parentNode.removeChild(m); }
+    function ipUpdateRate(installer, rateLabel, val) {
+      var data = ipLoadData();
+      if (!data.rates[installer]) data.rates[installer] = {};
+      data.rates[installer][rateLabel] = Number(val) || 0;
+      ipSaveData(data);
+    }
+    function ipRenameInstaller(oldName, newName) {
+      newName = (newName||'').trim();
+      if (!newName || newName === oldName) return;
+      var data = ipLoadData();
+      if (!data.rates[oldName]) return;
+      data.rates[newName] = data.rates[oldName];
+      delete data.rates[oldName];
+      // update existing jobs
+      data.jobs.forEach(function(j){ if (j.installer === oldName) j.installer = newName; });
+      ipSaveData(data);
+      ipCloseRateEditor();
+      ipOpenRateEditor();
+    }
+    function ipDeleteInstaller(installer) {
+      if (!confirm('Remove installer "'+installer+'" from the rate card? Existing jobs are kept but lose pricing.')) return;
+      var data = ipLoadData();
+      delete data.rates[installer];
+      ipSaveData(data);
+      ipCloseRateEditor();
+      ipOpenRateEditor();
+    }
+    function ipAddInstaller() {
+      var name = prompt('New installer name:');
+      if (!name || !name.trim()) return;
+      name = name.trim();
+      var data = ipLoadData();
+      if (data.rates[name]) { alert('Installer already exists.'); return; }
+      data.rates[name] = {
+        'Full Install (1.5–3.5 Ton)': 500,
+        'Full Install (4–5 Ton)': 550,
+        'Cooling Only': 300,
+        'Furnace Only': 250,
+        'Flu Pipe Modifications': 100,
+        'Per Plenum': 60,
+        'Per Duct Run': 50,
+        'Per Zone Motor': 30
+      };
+      ipSaveData(data);
+      ipCloseRateEditor();
+      ipOpenRateEditor();
+    }
+    window.ipOpenRateEditor = ipOpenRateEditor;
+    window.ipCloseRateEditor = ipCloseRateEditor;
+    window.ipUpdateRate = ipUpdateRate;
+    window.ipRenameInstaller = ipRenameInstaller;
+    window.ipDeleteInstaller = ipDeleteInstaller;
+    window.ipAddInstaller = ipAddInstaller;
+
+    // ----- Change PIN -----
+    function ipChangePinPrompt() {
+      var cur = prompt('Enter current PIN:');
+      if (cur == null) return;
+      if (!ipCheckPin(cur)) { alert('Incorrect PIN.'); return; }
+      var newPin = prompt('Enter new PIN (4–8 digits):');
+      if (!newPin || !/^\d{4,8}$/.test(newPin)) { alert('PIN must be 4–8 digits.'); return; }
+      var confirmPin = prompt('Confirm new PIN:');
+      if (confirmPin !== newPin) { alert('PINs do not match.'); return; }
+      ipSetPin(newPin);
+      alert('PIN updated.');
+    }
+    window.ipChangePinPrompt = ipChangePinPrompt;
+
+    function ipNewWeekPrompt() {
+      var d = prompt('Pick any date in the week (YYYY-MM-DD):');
+      if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+      var w = ipWeekEndingSat(d);
+      var el = document.getElementById('installpay-content');
+      if (el) el.dataset.selectedWeek = w;
+      renderInstallPay();
+    }
+    window.ipNewWeekPrompt = ipNewWeekPrompt;
+
+    // ----- Payroll PDF export -----
+    function ipExportPdf(weekEndingSat) {
+      var data = ipLoadData();
+      var weekStart = ipWeekStartMon(weekEndingSat);
+      var jobs = data.jobs.filter(function(j){ return ipWeekEndingSat(j.date) === weekEndingSat; });
+      // Build a printable HTML window and trigger print → save as PDF
+      var dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      var byDate = {};
+      for (var i = 0; i < 6; i++) {
+        var iso = new Date(new Date(weekStart+'T12:00:00').getTime() + i*86400000).toISOString().slice(0,10);
+        byDate[iso] = [];
+      }
+      jobs.forEach(function(j){ if (byDate[j.date]) byDate[j.date].push(j); });
+      // Group by installer
+      var byInstaller = {};
+      jobs.forEach(function(j){
+        if (!byInstaller[j.installer]) byInstaller[j.installer] = [];
+        byInstaller[j.installer].push(j);
+      });
+
+      var weekTotal = 0;
+      var instSections = '';
+      Object.keys(byInstaller).forEach(function(inst){
+        var instJobs = byInstaller[inst];
+        var instTotal = 0;
+        var rows = '';
+        // Mon–Sat order
+        Object.keys(byDate).sort().forEach(function(iso, idx){
+          var jobsToday = instJobs.filter(function(j){ return j.date === iso; });
+          if (jobsToday.length === 0) return;
+          jobsToday.forEach(function(j){
+            var c = ipComputeJobTotal(j, data.rates);
+            instTotal += c.total;
+            rows += '<tr>'
+              + '<td>'+dayNames[idx]+' '+iso+'</td>'
+              + '<td>'+escapeHtml(j.customer||'')+(j.jobNumber?'<br/><span style="color:#666;font-size:10px;">#'+escapeHtml(j.jobNumber)+'</span>':'')+'</td>'
+              + '<td>'+escapeHtml(j.jobType||'')+'</td>'
+              + '<td style="text-align:right;">'+(j.plenums||0)+'</td>'
+              + '<td style="text-align:right;">'+(j.ductRuns||0)+'</td>'
+              + '<td style="text-align:right;">'+(j.zoneMotors||0)+'</td>'
+              + '<td style="text-align:center;">'+(j.fluPipe?'✓':'')+'</td>'
+              + '<td style="text-align:right;">$'+(c.basePay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>'
+              + '<td style="text-align:right;font-weight:600;">$'+c.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>'
+            + '</tr>';
+          });
+        });
+        weekTotal += instTotal;
+        instSections += '<h2 style="margin:18px 0 6px;font-size:13pt;border-bottom:2px solid #000;padding-bottom:3px;">'+escapeHtml(inst)+' — Total: $'+instTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</h2>';
+        instSections += '<table style="width:100%;border-collapse:collapse;font-size:9pt;"><thead><tr style="background:#eee;"><th style="text-align:left;padding:4px;border:1px solid #888;">Date</th><th style="text-align:left;padding:4px;border:1px solid #888;">Customer / Job#</th><th style="text-align:left;padding:4px;border:1px solid #888;">Job Type</th><th style="padding:4px;border:1px solid #888;">Plen</th><th style="padding:4px;border:1px solid #888;">Duct</th><th style="padding:4px;border:1px solid #888;">Zone</th><th style="padding:4px;border:1px solid #888;">Flu</th><th style="padding:4px;border:1px solid #888;">Base Pay</th><th style="padding:4px;border:1px solid #888;">Total</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      });
+
+      function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+      var doc = '<html><head><title>Payroll Sheet — Week Ending '+weekEndingSat+'</title>' +
+        '<style>body{font-family:Arial,sans-serif;color:#000;margin:24px;}h1{font-size:18pt;margin:0;}h2{margin-top:18px;}table{width:100%;border-collapse:collapse;}td,th{border:1px solid #888;padding:4px;font-size:9pt;}@media print{body{margin:12mm;}}</style>' +
+        '</head><body>' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #000;padding-bottom:10px;">' +
+            '<div><h1>Install Pay Sheet</h1><div style="font-size:10pt;color:#444;">Week ending Saturday '+weekEndingSat+' (Mon '+weekStart+' → Sat '+weekEndingSat+')</div></div>' +
+            '<div style="text-align:right;font-size:10pt;"><div><b>Total Pay for Week:</b></div><div style="font-size:18pt;font-weight:700;">$'+weekTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div><div style="color:#666;">'+jobs.length+' job'+(jobs.length===1?'':'s')+'</div></div>' +
+          '</div>' +
+          (instSections || '<div style="padding:30px;text-align:center;color:#666;font-style:italic;">No installs logged for this week.</div>') +
+          '<div style="margin-top:30px;font-size:9pt;color:#666;">Generated by Snappy Matrix · Submitted by Maico Sanders · '+new Date().toISOString().slice(0,10)+'</div>' +
+        '</body></html>';
+      var w = window.open('', '_blank', 'width=900,height=1100');
+      if (!w) { alert('Pop-up blocked. Allow pop-ups to export the payroll PDF.'); return; }
+      w.document.write(doc);
+      w.document.close();
+      setTimeout(function(){ w.focus(); w.print(); }, 250);
+    }
+    window.ipExportPdf = ipExportPdf;
+
+    // Initialize: install default PIN, apply visibility on load
+    try { ipGetPinHash(); } catch(e) {}
+    setTimeout(function(){ try { ipApplyVisibility(); } catch(e) {} }, 500);
+    // ===================================================================
+    // END Install Pay Tracker
+    // ===================================================================
+
     window.SALES_REPS = SALES_REPS;
     // ========== END v217 SALES SCORECARD MODULE ==========
 
@@ -5057,6 +5680,16 @@ document.addEventListener('visibilitychange', function() {
         // v217: Sales Team scorecard
         if (v === 'sales') {
           try { if (typeof renderSalesScorecard === 'function') renderSalesScorecard(); } catch(e) { console.warn('renderSalesScorecard on tab switch failed:', e); }
+        }
+        // v218.4: Install Pay tracker (PIN-locked, local-only)
+        if (v === 'installpay') {
+          try {
+            if (typeof ipIsUnlocked === 'function' && !ipIsUnlocked()) {
+              if (typeof ipPromptPin === 'function') ipPromptPin();
+            } else if (typeof renderInstallPay === 'function') {
+              renderInstallPay();
+            }
+          } catch(e) { console.warn('renderInstallPay on tab switch failed:', e); }
         }
         // v202: Re-render Manager content when entering manager tab.
         if (v === 'manager') {
