@@ -23,6 +23,45 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
   <link rel="stylesheet" href="styles.css?v=20260505v218.5">
+
+  <!-- v218.5: Auto cache-buster — force reload if version changed since last visit -->
+  <script>
+    (function(){
+      try {
+        var APP_VERSION = 'v218.5';
+        var KEY = 'snappy_app_version';
+        var stored = localStorage.getItem(KEY);
+        if (stored && stored !== APP_VERSION) {
+          // Version changed — nuke caches and hard reload once
+          if (!sessionStorage.getItem('snappy_cache_busted_' + APP_VERSION)) {
+            sessionStorage.setItem('snappy_cache_busted_' + APP_VERSION, '1');
+            localStorage.setItem(KEY, APP_VERSION);
+            // Clear all Cache Storage entries
+            if ('caches' in window) {
+              caches.keys().then(function(names){
+                return Promise.all(names.map(function(n){ return caches.delete(n); }));
+              }).finally(function(){
+                // Unregister any service workers
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(regs){
+                    regs.forEach(function(r){ r.unregister(); });
+                  }).finally(function(){
+                    window.location.replace(window.location.pathname + '?_v=' + APP_VERSION + '&t=' + Date.now());
+                  });
+                } else {
+                  window.location.replace(window.location.pathname + '?_v=' + APP_VERSION + '&t=' + Date.now());
+                }
+              });
+            } else {
+              window.location.replace(window.location.pathname + '?_v=' + APP_VERSION + '&t=' + Date.now());
+            }
+          }
+        } else {
+          localStorage.setItem(KEY, APP_VERSION);
+        }
+      } catch(e) { /* localStorage blocked — skip */ }
+    })();
+  </script>
 </head>
 <body>
   <!-- v193: Intro splash video (click anywhere to skip) — replaced with team movie 4/29/26 -->
