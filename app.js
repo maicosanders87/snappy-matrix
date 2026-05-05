@@ -6831,7 +6831,7 @@ document.addEventListener('visibilitychange', function() {
         { icon: '\ud83d\udd04', value: recallsValue, label: 'Recalls', sub: recallSub, nav: 'dispatch', stSub: null },
         { icon: '\u26a0\ufe0f', value: complaintsValue, label: 'Complaints', sub: complaintSub, nav: 'dispatch', stSub: null },
         { icon: '\ud83d\udcb0', value: '$' + totalRevenue.toLocaleString(), label: 'Service Revenue', sub: svcSub, nav: 'scorecards', stSub: 'overview' },
-        { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'Last 90 days', nav: 'profiles', stSub: null },
+        { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'Storm 2026 STD', nav: 'profiles', stSub: null },
         { icon: '\ud83c\udfe0', value: '$' + totalMtdInstallRev.toLocaleString(), label: 'Install Revenue', sub: monthSub, nav: 'scorecards', stSub: 'installs' },
         { icon: '\ud83d\udee0\ufe0f', value: totalMtdInstalls, label: 'Installs', sub: isCurrentMonth ? 'Month-to-date completed' : monthLabel + ' completed', nav: 'scorecards', stSub: 'installs' }
       ];
@@ -7981,42 +7981,57 @@ if (typeof Chart !== 'undefined') {
 
     // ========== TECH PROFILES (with Manager Notes + ServiceTitan) ==========
     // ST Insights per tech
-    // Google Reviews data (Last 90 days)
+    // v218.6: Google Reviews data — STORM 2026 SEASON-TO-DATE (April 1, 2026 – May 5, 2026)
+    // Refreshed via direct collection from Google Maps reviews on 5/5/26.
+    // Scope changed from "Last 90 days" → "Storm 2026 STD" to align with rookie cards STD toggle.
     const googleReviews = {
       "Dee": {
-        count: 2,
-        fiveStar: 2,
+        count: 0,
+        fiveStar: 0,
+        fourStar: 0,
         threeStar: 0,
-        highlight: '"I am truly thankful to meet Braybon, Ben, Adam, Jason, and Dee." — Bro B',
-        note: "2 reviews in 90 days — both 5-star. Dee\'s warranty and cross-department role limits his customer-facing service calls, which explains the lower review count. Second review from Laura IV specifically mentions him as HVAC technician."
+        highlight: '',
+        note: "No mentions yet in Storm 2026 STD (4/1\u20135/5). Dee\'s warranty + cross-department role keeps him off most customer-facing service calls, which limits review opportunities. Push reviews on every direct customer touchpoint."
       },
       "Daniel": {
-        count: 57,
-        fiveStar: 55,
-        threeStar: 2,
-        highlight: '"Daniel is awesome. He is very reliable and an excellent worker. Give him a raise." — Cecile H',
-        note: "Most-reviewed tech in the last 90 days with 57 total. 55 five-star, 2 three-star. Customers consistently praise friendliness, professionalism, and quality work. One 3-star noted cost concerns, another praised courtesy but had service reservations. Keywords: professional, thorough, friendly, knowledgeable, reliable, courteous."
+        count: 13,
+        fiveStar: 12,
+        fourStar: 0,
+        threeStar: 1,
+        highlight: '"Daniel G. came out, diagnosed a fan issue and fixed it right away. Fantastic service!" \u2014 Ben F',
+        note: "13 reviews in Storm 2026 STD \u2014 12 five-star, 1 three-star. HVAC work including fan repairs, furnace service, AC maintenance, refrigerant line leak. Themes: friendly, knowledgeable, thorough, professional. The single 3-star noted the visit fixed the outside fan but felt the capacitor swap was simple work."
       },
       "Chris": {
-        count: 3,
-        fiveStar: 3,
+        count: 0,
+        fiveStar: 0,
+        fourStar: 0,
         threeStar: 0,
-        highlight: '"Technician Chris Monahan was knowledgeable and professional and did a great job on our yearly inspection." — Penny Tapia',
-        note: "3 reviews in 90 days — all 5-star. Low review count despite high opportunity volume. His reserved, introverted style may mean fewer customers are prompted to leave reviews. Recent mentions from Penny Tapia, Michael Sapinski, and Sean Allen — all praise professionalism and knowledge."
+        highlight: '',
+        note: "No mentions in Storm 2026 STD (4/1\u20135/5). His most recent review (Penny Tapia) sits just before the season window in early March. Quiet style + few customer prompts is the pattern \u2014 worth coaching the ask."
       },
       "Benji": {
-        count: 3,
-        fiveStar: 3,
+        count: 1,
+        fiveStar: 1,
+        fourStar: 0,
         threeStar: 0,
-        highlight: '"Thank you so much to Ben T. for coming out to tuneup my AC unit. He broke things down for me so I understood everything, showed me areas of concern, gave improvement suggestions and real actionable solutions." — Ren F',
-        note: "3 HVAC reviews in 90 days — all 5-star (electrical mentions excluded per rule). Confirmed HVAC reviews from Ren F (Ben T.), Rana Drake (Ben Tinahui), and Chuck Cain (Benji HVAC). Customers highlight his ability to break things down and explain clearly."
+        highlight: '"Thank you so much to Ben T. for coming out to tuneup my AC unit. He broke things down for me so I understood everything." \u2014 Ren F',
+        note: "1 confirmed HVAC review in Storm 2026 STD (Ren F, 4/21, 5\u2013star, AC tune-up). Multiple \"Ben Johnson\" electrical mentions correctly excluded. High service volume \u2192 low review yield: needs a deliberate ask after each call."
       },
       "Dewone": {
-        count: 46,
-        fiveStar: 46,
+        count: 25,
+        fiveStar: 25,
+        fourStar: 0,
         threeStar: 0,
-        highlight: '"Dewone was excellent and satisfied all my A.C needs. Will make sure to request him next time." — Janice Zivitz',
-        note: "46 reviews in 90 days — all perfect 5-star. Second-most reviewed tech but holds a flawless record. Customers consistently request him by name. Recurring themes: punctual, thorough, detailed explanations, friendly, efficient, knowledgeable. Multiple reviews call him \"the man\" and \"awesome.\""
+        highlight: '"Dewone provided excellent, friendly and comprehensive service. He explained exactly what was needed and the different service options available. Highly recommend Snappy!" \u2014 Karin',
+        note: "25 reviews in Storm 2026 STD \u2014 perfect 25/25 five-star run. Most-reviewed tech of the season despite Sat-only schedule. AC tune-ups, annual HVAC inspections, service calls. Themes: professional, punctual, clear explanations, attention to detail, customers request him by name."
+      },
+      "Nick": {
+        count: 0,
+        fiveStar: 0,
+        fourStar: 0,
+        threeStar: 0,
+        highlight: '',
+        note: "No mentions in Storm 2026 STD (4/1\u20135/5). Onboarding tech \u2014 first review will land once he\'s running solo calls."
       }
     };
 
@@ -16312,6 +16327,7 @@ if (typeof Chart !== 'undefined') {
     try { _braydenSeedMay20260501IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260504IfNeeded(); } catch(e) {}
     try { _trainingSeedWed20260506IfNeeded(); } catch(e) {}
     try { renderWeeklyLeaderboard(); } catch(e) { console.warn('renderWeeklyLeaderboard init failed', e); }
