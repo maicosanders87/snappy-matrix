@@ -1414,6 +1414,107 @@ document.addEventListener('visibilitychange', function() {
 
     function getCurrentSeason() { return getSeasonForDate(new Date()); }
 
+    // v218: Aggregate Season-to-Date stats for a tech.
+    // Sums all monthly_archive entries within the current season's month range
+    // PLUS the current MTD numbers (since current month is in-progress).
+    // Returns the same shape as buildStGrid expects: {nexstar, productivity, memberships, sales, label}.
+    function computeSeasonToDateForTech(st) {
+      var now = new Date();
+      var curSeason = getCurrentSeason();
+      var curYear = now.getFullYear();
+      var curMonth = now.getMonth() + 1; // 1-indexed
+      // Build list of YYYY-MM keys in the current season range
+      var seasonDef = SEASONS.find(function(s){ return curMonth >= s.startMonth && curMonth <= s.endMonth; }) || SEASONS[0];
+      var monthKeys = [];
+      for (var m = seasonDef.startMonth; m <= seasonDef.endMonth; m++) {
+        var mk = curYear + '-' + (m < 10 ? '0' + m : '' + m);
+        monthKeys.push(mk);
+      }
+      var currentMonthKey = curYear + '-' + (curMonth < 10 ? '0' + curMonth : '' + curMonth);
+
+      // Initialize accumulators
+      var aggNx = { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 };
+      var aggPr = { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 };
+      var aggMb = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
+      var aggSl = { close_rate: 0 };
+      var monthsCounted = 0;
+      var monthsLabels = [];
+
+      function addMonth(srcNx, srcPr, srcMb, srcSl, label) {
+        if (!srcNx) return;
+        aggNx.total_revenue += (srcNx.total_revenue || 0);
+        aggNx.spps_sold += (srcNx.spps_sold || 0);
+        aggNx.tech_gen_leads += (srcNx.tech_gen_leads || 0);
+        aggNx.sold_hours += (srcNx.sold_hours || 0);
+        aggNx.flat_rate_tasks += (srcNx.flat_rate_tasks || 0);
+        if (srcPr) {
+          aggPr.billable_hours += (srcPr.billable_hours || 0);
+          aggPr.recalls += (srcPr.recalls || 0);
+        }
+        if (srcMb) {
+          aggMb.total_mem_sold += (srcMb.total_mem_sold || 0);
+          aggMb.total_mem_opps += (srcMb.total_mem_opps || 0);
+        }
+        // Track rate-style fields for averaging at the end
+        aggNx._convSum = (aggNx._convSum || 0) + (srcNx.conversion_rate || 0);
+        aggNx._avgSaleSum = (aggNx._avgSaleSum || 0) + (srcNx.avg_sale || 0);
+        if (srcPr) {
+          aggPr._revHrSum = (aggPr._revHrSum || 0) + (srcPr.rev_hr || 0);
+          aggPr._soldPctSum = (aggPr._soldPctSum || 0) + (srcPr.sold_hrs_on_job_pct || 0);
+          aggPr._tasksPerOppSum = (aggPr._tasksPerOppSum || 0) + (srcPr.tasks_per_opp || 0);
+          aggPr._optsPerOppSum = (aggPr._optsPerOppSum || 0) + (srcPr.options_per_opp || 0);
+        }
+        if (srcSl) {
+          aggSl._closeRateSum = (aggSl._closeRateSum || 0) + (srcSl.close_rate || 0);
+        }
+        monthsCounted++;
+        if (label) monthsLabels.push(label);
+      }
+
+      // Add archived months in season window
+      monthKeys.forEach(function(mk) {
+        if (mk === currentMonthKey) return; // skip current month archive (use MTD instead)
+        var arch = st && st.monthly_archive && st.monthly_archive[mk];
+        if (arch) {
+          addMonth(arch.mtd_nexstar, arch.mtd_productivity, arch.mtd_memberships, arch.mtd_sales, arch.label || mk);
+        }
+      });
+      // Add current month MTD
+      if (st) {
+        addMonth(st.mtd_nexstar || st.nexstar, st.mtd_productivity || st.productivity, st.mtd_memberships || st.memberships, st.mtd_sales || st.sales, 'Current MTD');
+      }
+
+      // Compute weighted/averaged rate fields
+      var n = Math.max(1, monthsCounted);
+      // Revenue-weighted conversion + avg sale where possible; fall back to simple avg
+      aggNx.conversion_rate = Math.round((aggNx._convSum || 0) / n);
+      aggNx.avg_sale = aggNx.spps_sold > 0
+        ? Math.round(aggNx.total_revenue / Math.max(1, aggNx.spps_sold + (aggNx.flat_rate_tasks || 0)))
+        : Math.round((aggNx._avgSaleSum || 0) / n);
+      aggPr.rev_hr = aggPr.billable_hours > 0
+        ? Math.round(aggNx.total_revenue / aggPr.billable_hours)
+        : Math.round((aggPr._revHrSum || 0) / n);
+      aggPr.sold_hrs_on_job_pct = Math.round((aggPr._soldPctSum || 0) / n);
+      aggPr.tasks_per_opp = +(((aggPr._tasksPerOppSum || 0) / n).toFixed(2));
+      aggPr.options_per_opp = +(((aggPr._optsPerOppSum || 0) / n).toFixed(2));
+      aggMb.total_mem_pct = aggMb.total_mem_opps > 0 ? Math.round((aggMb.total_mem_sold / aggMb.total_mem_opps) * 100) : 0;
+      aggSl.close_rate = Math.round((aggSl._closeRateSum || 0) / n);
+
+      // Round numeric totals
+      aggNx.sold_hours = +aggNx.sold_hours.toFixed(1);
+      aggNx.flat_rate_tasks = +aggNx.flat_rate_tasks.toFixed(2);
+      aggPr.billable_hours = +aggPr.billable_hours.toFixed(1);
+
+      // Strip private accumulators
+      delete aggNx._convSum; delete aggNx._avgSaleSum;
+      delete aggPr._revHrSum; delete aggPr._soldPctSum; delete aggPr._tasksPerOppSum; delete aggPr._optsPerOppSum;
+      delete aggSl._closeRateSum;
+
+      var label = curSeason.emoji + ' ' + curSeason.name + ' ' + curYear + ' (' + monthsCounted + ' mo)';
+      return { nexstar: aggNx, productivity: aggPr, memberships: aggMb, sales: aggSl, label: label, monthsCounted: monthsCounted, monthsLabels: monthsLabels, season: curSeason };
+    }
+    window.computeSeasonToDateForTech = computeSeasonToDateForTech;
+
     function getNextSeason() {
       var now = new Date();
       var cur = getSeasonForDate(now);
@@ -8500,7 +8601,7 @@ if (typeof Chart !== 'undefined') {
         const tierBadgeText = isRookie ? 'ROOKIE' : (tierInfo.tier + '-TIER');
         const compBarColorFinal = isRookie ? 'linear-gradient(90deg, #3A6BA5, #60A5FA, #FCD9A5)' : compBarColor;
 
-        // Build ST stat rows — MTD / 90-Day toggle
+        // Build ST stat rows — MTD / STD / 90-Day toggle (v218)
         var stRows = '';
         if (st) {
           var isW = st.isWarrantyTech;
@@ -8514,6 +8615,12 @@ if (typeof Chart !== 'undefined') {
           var p90 = st.productivity;
           var m90 = st.memberships;
           var s90 = st.sales;
+          // Season-to-Date data (sum of all months in current season's archive + current MTD)
+          var stdAgg = computeSeasonToDateForTech(st);
+          var sn = stdAgg.nexstar;
+          var sp = stdAgg.productivity;
+          var sm = stdAgg.memberships;
+          var ss = stdAgg.sales;
           var cardId = 'rookie-st-' + t.short;
 
           function buildStGrid(nx, pr, mb, sl, label, isWarranty, stObj) {
@@ -8583,15 +8690,19 @@ if (typeof Chart !== 'undefined') {
             <div class="rookie-st-section">
               <div class="rookie-st-header">
                 ServiceTitan Performance
-                <div class="rookie-st-toggle" onclick="event.stopPropagation();rookieStToggle('${cardId}')">
-                  <span class="rookie-st-toggle-opt is-active" data-view="mtd">MTD</span>
-                  <span class="rookie-st-toggle-opt" data-view="90d">90-Day</span>
+                <div class="rookie-st-toggle" onclick="event.stopPropagation();" title="MTD = month-to-date | STD = season-to-date (${stdAgg.label}) | 90-Day = trailing 90 days">
+                  <span class="rookie-st-toggle-opt is-active" data-view="mtd" onclick="event.stopPropagation();rookieStToggle(this,'mtd')">MTD</span>
+                  <span class="rookie-st-toggle-opt" data-view="std" onclick="event.stopPropagation();rookieStToggle(this,'std')">STD</span>
+                  <span class="rookie-st-toggle-opt" data-view="90d" onclick="event.stopPropagation();rookieStToggle(this,'90d')">90-Day</span>
                 </div>
               </div>
-              <div id="${cardId}-mtd" class="rookie-st-view is-visible">
+              <div id="${cardId}-mtd" class="rookie-st-view is-visible" data-view="mtd">
                 ${buildStGrid(mn, mp, mm, ms, 'MTD', isW, st)}
               </div>
-              <div id="${cardId}-90d" class="rookie-st-view">
+              <div id="${cardId}-std" class="rookie-st-view" data-view="std">
+                ${buildStGrid(sn, sp, sm, ss, 'STD', isW, st)}
+              </div>
+              <div id="${cardId}-90d" class="rookie-st-view" data-view="90d">
                 ${buildStGrid(n90, p90, m90, s90, '90-Day', isW, st)}
               </div>
             </div>
@@ -8942,44 +9053,54 @@ if (typeof Chart !== 'undefined') {
       }
     }
 
-    // Toggle MTD / 90-Day view on Rookie Card ST section.
-    // Accepts a cardId (legacy — uses getElementById) OR a DOM element (scoped).
-    // Always prefers scope-based lookup when the cardId lookup finds the wrong element
-    // (e.g. when cards are cloned into seasonal grid + modal, IDs duplicate across the DOM).
-    function rookieStToggle(cardIdOrEvent) {
+    // v218: Toggle MTD / STD / 90-Day view on Rookie Card ST section.
+    // Now supports 3 views with explicit data-view targeting.
+    // Signature: rookieStToggle(targetEl, viewKey)  -- new 3-way usage
+    //            rookieStToggle(cardId)             -- legacy 2-way fallback
+    function rookieStToggle(targetOrCardId, viewKey) {
       var section = null;
-      // If invoked from inline onclick with the toggle element as context, find section directly
-      if (cardIdOrEvent && cardIdOrEvent.nodeType === 1) {
-        section = cardIdOrEvent.closest('.rookie-st-section');
-      } else if (typeof cardIdOrEvent === 'string') {
-        // Try scope first via the triggering click event (if set on window._lastStToggleClick)
+      // Resolve scope: prefer DOM element, fall back to ID lookup
+      if (targetOrCardId && targetOrCardId.nodeType === 1) {
+        section = targetOrCardId.closest('.rookie-st-section');
+      } else if (typeof targetOrCardId === 'string') {
         var trigger = window._lastStToggleTrigger;
-        if (trigger && trigger.nodeType === 1) {
-          section = trigger.closest('.rookie-st-section');
-        }
+        if (trigger && trigger.nodeType === 1) section = trigger.closest('.rookie-st-section');
         if (!section) {
-          // Fall back to ID-based lookup
-          var mtdEl = document.getElementById(cardIdOrEvent + '-mtd');
+          var mtdEl = document.getElementById(targetOrCardId + '-mtd');
           if (mtdEl) section = mtdEl.closest('.rookie-st-section');
         }
       }
       if (!section) return;
 
-      var mtdView = section.querySelector('.rookie-st-view.is-visible + .rookie-st-view, .rookie-st-view:nth-of-type(1)');
-      // Simpler: grab both views by order
       var views = section.querySelectorAll('.rookie-st-view');
       if (views.length < 2) return;
-      var first = views[0];   // MTD
-      var second = views[1];  // 90-Day
-      var isMtdVisible = first.classList.contains('is-visible');
-      first.classList.toggle('is-visible', !isMtdVisible);
-      second.classList.toggle('is-visible', isMtdVisible);
 
-      var toggle = section.querySelector('.rookie-st-toggle');
-      if (toggle) {
-        toggle.querySelectorAll('.rookie-st-toggle-opt').forEach(function(opt) {
-          var v = opt.getAttribute('data-view');
-          opt.classList.toggle('is-active', (v === 'mtd' && !isMtdVisible) || (v === '90d' && isMtdVisible));
+      // 3-way mode: explicit viewKey provided
+      if (typeof viewKey === 'string') {
+        views.forEach(function(v) {
+          v.classList.toggle('is-visible', v.getAttribute('data-view') === viewKey);
+        });
+        var toggle = section.querySelector('.rookie-st-toggle');
+        if (toggle) {
+          toggle.querySelectorAll('.rookie-st-toggle-opt').forEach(function(opt) {
+            opt.classList.toggle('is-active', opt.getAttribute('data-view') === viewKey);
+          });
+        }
+        return;
+      }
+
+      // Legacy 2-way fallback (rotates through visible views in order)
+      var visibleIdx = -1;
+      for (var i = 0; i < views.length; i++) {
+        if (views[i].classList.contains('is-visible')) { visibleIdx = i; break; }
+      }
+      var nextIdx = (visibleIdx + 1) % views.length;
+      views.forEach(function(v, idx) { v.classList.toggle('is-visible', idx === nextIdx); });
+      var nextKey = views[nextIdx].getAttribute('data-view') || '';
+      var toggle2 = section.querySelector('.rookie-st-toggle');
+      if (toggle2 && nextKey) {
+        toggle2.querySelectorAll('.rookie-st-toggle-opt').forEach(function(opt) {
+          opt.classList.toggle('is-active', opt.getAttribute('data-view') === nextKey);
         });
       }
     }
