@@ -14881,12 +14881,18 @@ if (typeof Chart !== 'undefined') {
 
     // v202: unified MTD tile refresher \u2014 call after any data write
     // that affects month-to-date totals so tiles update without tab switch.
+    // v218: also rebuilds the top-row Team Average / Strongest / Top Scorer / etc.
+    // KPI tiles plus matrix grid + tier progression so the whole Matrix view
+    // recalculates in lockstep when daily/weekly cascades fire.
     function renderMTDTiles() {
+      try { if (typeof renderKPIs === 'function') renderKPIs(); } catch(e) { console.warn('renderMTDTiles kpis (top row)', e); }
       try { if (typeof renderOverviewTab === 'function') renderOverviewTab(); } catch(e) { console.warn('renderMTDTiles overview', e); }
       try { if (typeof renderSTKPIs === 'function') renderSTKPIs(); } catch(e) { console.warn('renderMTDTiles stkpis', e); }
       try { if (typeof renderSTTables === 'function') renderSTTables(); } catch(e) {}
       try { if (typeof renderProfiles === 'function') renderProfiles(); } catch(e) {}
       try { if (typeof renderRookieCards === 'function') renderRookieCards(); } catch(e) {}
+      try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+      try { if (typeof renderProgression === 'function') renderProgression(); } catch(e) {}
       try { if (typeof renderBulletinBoard === 'function') renderBulletinBoard(); } catch(e) {}
       try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
     }
