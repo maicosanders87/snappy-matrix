@@ -9515,6 +9515,10 @@ if (typeof Chart !== 'undefined') {
             '</div>' +
             '<button onclick="mgrCloseInstallPaySheet()" style="background:transparent;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;" aria-label="Close">\u00d7</button>' +
           '</div>' +
+          '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#94a3b8;background:#0b1426;border:1px dashed #1e3a5f;padding:8px 10px;border-radius:8px;margin-bottom:10px;cursor:pointer;" title="Tick this if today had no installs. Customer/amount fields will be skipped.">' +
+            '<input id="ips_noInstallDay" type="checkbox"' + (existing && existing.isNoInstallDay ? ' checked' : '') + ' onchange="mgrToggleNoInstallDayUI(this.checked)">' +
+            '<span>No installs today</span>' +
+          '</label>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
             '<label style="font-size:12px;color:#94a3b8;">Install date<input id="ips_installDate" type="date" value="' + initInstallDate + '" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;"></label>' +
             '<label style="font-size:12px;color:#94a3b8;">Job # / Invoice<input id="ips_jobNumber" type="text" value="' + ((existing && existing.jobNumber) || '') + '" placeholder="e.g. 91767937" style="width:100%;margin-top:4px;padding:8px 10px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;"></label>' +
@@ -9541,14 +9545,21 @@ if (typeof Chart !== 'undefined') {
       if (m && m.parentNode) m.parentNode.removeChild(m);
     }
     function mgrSubmitInstallPaySheet(existingId, dutyDateStr) {
+      var noInstallDay = !!(document.getElementById('ips_noInstallDay') && document.getElementById('ips_noInstallDay').checked);
       var customer = (document.getElementById('ips_customer') || {}).value || '';
       var jobNumber = (document.getElementById('ips_jobNumber') || {}).value || '';
       var installDate = (document.getElementById('ips_installDate') || {}).value || dutyDateStr;
       var installAmount = (document.getElementById('ips_installAmount') || {}).value || '0';
       var owner = (document.getElementById('ips_owner') || {}).value || '';
       var commissionNotes = (document.getElementById('ips_commissionNotes') || {}).value || '';
+      if (noInstallDay) {
+        // Short-circuit: file a no-install entry and tick the duty.
+        mgrCloseInstallPaySheet();
+        mgrLogNoInstallDay(installDate || dutyDateStr);
+        return;
+      }
       if (!customer.trim() || !installAmount || Number(installAmount) <= 0) {
-        alert('Customer and install amount are required.');
+        alert('Customer and install amount are required. Or tick "No installs today" if there were none.');
         return;
       }
       var sheets = mgrLoadInstallPaySheets();
@@ -9558,6 +9569,7 @@ if (typeof Chart !== 'undefined') {
           sheets[idx] = Object.assign({}, sheets[idx], {
             installDate: installDate, customer: customer.trim(), jobNumber: jobNumber.trim(),
             installAmount: Number(installAmount), owner: owner, commissionNotes: commissionNotes.trim(),
+            isNoInstallDay: false,
             dateUpdated: new Date().toISOString()
           });
         }
@@ -9583,12 +9595,17 @@ if (typeof Chart !== 'undefined') {
       var sheets = mgrLoadInstallPaySheets();
       var rows = sheets.length ? sheets.map(function(s) {
         var amt = '$' + Number(s.installAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        return '<tr style="border-bottom:1px solid #1e3a5f;">' +
+        var isNo = !!s.isNoInstallDay;
+        var rowStyle = isNo ? 'border-bottom:1px solid #1e3a5f;opacity:0.6;background:rgba(15,27,46,0.5);' : 'border-bottom:1px solid #1e3a5f;';
+        var custCell = isNo ? '<span style="font-style:italic;color:#94a3b8;">No installs</span>' : (s.customer || '\u2014');
+        var amtCell = isNo ? '\u2014' : amt;
+        var ownerCell = isNo ? '\u2014' : (s.owner || '\u2014');
+        return '<tr style="' + rowStyle + '">' +
           '<td style="padding:8px 6px;font-size:12px;color:#94a3b8;">' + (s.installDate || '\u2014') + '</td>' +
-          '<td style="padding:8px 6px;font-size:13px;">' + (s.customer || '\u2014') + '</td>' +
+          '<td style="padding:8px 6px;font-size:13px;">' + custCell + '</td>' +
           '<td style="padding:8px 6px;font-size:12px;color:#94a3b8;">' + (s.jobNumber || '\u2014') + '</td>' +
-          '<td style="padding:8px 6px;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;">' + amt + '</td>' +
-          '<td style="padding:8px 6px;font-size:12px;color:#10B981;">' + (s.owner || '\u2014') + '</td>' +
+          '<td style="padding:8px 6px;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;">' + amtCell + '</td>' +
+          '<td style="padding:8px 6px;font-size:12px;color:#10B981;">' + ownerCell + '</td>' +
           '<td style="padding:8px 6px;text-align:right;">' +
             '<button onclick="mgrCloseInstallPaySheetHistory();mgrOpenInstallPaySheet(null,\'' + s.id + '\')" style="background:transparent;border:1px solid #1e3a5f;color:#94a3b8;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Edit</button>' +
             ' <button onclick="mgrDeleteInstallPaySheet(\'' + s.id + '\')" style="background:transparent;border:1px solid #7c2d2d;color:#dc2626;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Delete</button>' +
@@ -9628,6 +9645,44 @@ if (typeof Chart !== 'undefined') {
     }
     // Expose to window for inline onclick handlers
     window.mgrOpenInstallPaySheet = mgrOpenInstallPaySheet;
+
+    // v218.3: Quick-log a "no installs today" entry. Records a flagged sheet so the
+    // history is honest ("no installs" rather than missing) and ticks the duty.
+    function mgrLogNoInstallDay(dutyDateStr) {
+      var dateStr = dutyDateStr || mgrFmtDate(mgrToday());
+      var sheets = mgrLoadInstallPaySheets();
+      // If a no-install entry already exists for this date, just ensure duty is ticked.
+      var existing = sheets.find(function(s){ return s.installDate === dateStr && s.isNoInstallDay; });
+      if (!existing) {
+        sheets.unshift({
+          id: 'ips_noinst_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+          dateSubmitted: new Date().toISOString(),
+          installDate: dateStr,
+          customer: '\u2014 No installs \u2014',
+          jobNumber: '',
+          installAmount: 0,
+          owner: '',
+          commissionNotes: '',
+          isNoInstallDay: true
+        });
+        mgrSaveInstallPaySheets(sheets);
+      }
+      mgrToggleDailyDuty(dateStr, 'install_pay_sheet', true);
+      try { renderMgrToday(); } catch(e) {}
+      try { if (typeof toast === 'function') toast('Logged no-install day for ' + dateStr); } catch(e) {}
+    }
+    window.mgrLogNoInstallDay = mgrLogNoInstallDay;
+
+    // v218.3: Toggle modal field state when "No installs today" is checked.
+    function mgrToggleNoInstallDayUI(checked) {
+      ['ips_jobNumber','ips_customer','ips_installAmount','ips_owner','ips_commissionNotes'].forEach(function(id){
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.disabled = !!checked;
+        el.style.opacity = checked ? '0.45' : '1';
+      });
+    }
+    window.mgrToggleNoInstallDayUI = mgrToggleNoInstallDayUI;
     window.mgrCloseInstallPaySheet = mgrCloseInstallPaySheet;
     window.mgrSubmitInstallPaySheet = mgrSubmitInstallPaySheet;
     window.mgrViewInstallPaySheets = mgrViewInstallPaySheets;
@@ -10766,8 +10821,9 @@ if (typeof Chart !== 'undefined') {
         html += '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="mgrToggleDailyDuty(\'' + dateStr + '\',\'' + item.key + '\',this.checked);renderMgrToday()">';
         html += '<span>' + item.label + '</span></label>';
         if (item.hasForm === 'install') {
-          html += '<div style="display:flex;gap:6px;margin:-4px 0 6px 24px;">';
+          html += '<div style="display:flex;gap:6px;margin:-4px 0 6px 24px;flex-wrap:wrap;">';
           html += '<button onclick="mgrOpenInstallPaySheet(\'' + dateStr + '\')" style="background:linear-gradient(135deg,' + item.formColor + ',' + item.formColor2 + ');color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Open form</button>';
+          html += '<button onclick="mgrLogNoInstallDay(\'' + dateStr + '\')" style="background:transparent;color:#94a3b8;border:1px dashed #1e3a5f;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;" title="Mark this day as no installs and tick the duty">No installs today</button>';
           html += '<button onclick="mgrViewInstallPaySheets()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">View history</button>';
           html += '</div>';
         } else if (item.hasForm === 'recall') {
@@ -11209,8 +11265,9 @@ if (typeof Chart !== 'undefined') {
             <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','daily_huddle',this.checked)" ${mgrGetDailyDuty(dateStr,'daily_huddle')?'checked':''}><span>Daily huddle with HVAC through Slack app</span></label>
             <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','update_matrix',this.checked)" ${mgrGetDailyDuty(dateStr,'update_matrix')?'checked':''}><span>Update Matrix</span></label>
             <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','install_pay_sheet',this.checked)" ${mgrGetDailyDuty(dateStr,'install_pay_sheet')?'checked':''}><span>Install pay sheet</span></label>
-            <div style="display:flex;gap:8px;margin:6px 0 0 24px;">
+            <div style="display:flex;gap:8px;margin:6px 0 0 24px;flex-wrap:wrap;">
               <button type="button" onclick="mgrOpenInstallPaySheet('${dateStr}')" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Open install pay sheet form</button>
+              <button type="button" onclick="mgrLogNoInstallDay('${dateStr}')" style="background:transparent;color:var(--text-secondary);border:1px dashed var(--border);padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;" title="Mark this day as no installs and tick the duty">No installs today</button>
               <button type="button" onclick="mgrViewInstallPaySheets()" style="background:transparent;color:var(--text-secondary);border:1px solid var(--border);padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;">View history</button>
             </div>
             <label class="mgr-check-item"><input type="checkbox" onchange="mgrToggleDailyDuty('${dateStr}','recall_report',this.checked)" ${mgrGetDailyDuty(dateStr,'recall_report')?'checked':''}><span>Recall / complaint report (per tech)</span></label>
