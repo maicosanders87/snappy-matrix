@@ -2540,11 +2540,16 @@ document.addEventListener('visibilitychange', function() {
     }
 
     // v206: One-shot seed of Brayden's 5/1 install (Denise Cartier $14,606.68) into braydenStats.mtd_revenue
+    // v218.9: Also push the install into snappy_brayden_installs so the team-overview
+    // Install KPI tile and Sales rep equipment list both pick it up. Without this entry,
+    // the team Install tile shows only 1 install MTD when it should show 2.
     // Only seeds if mtd_revenue is currently empty/zero (preserves any later manual edits).
     function _braydenSeedMay20260501IfNeeded() {
       try {
-        var FLAG = 'snappy_brayden_seeded_2026_05_01_v1';
+        var FLAG = 'snappy_brayden_seeded_2026_05_01_v2';
+        var OLD_FLAG = 'snappy_brayden_seeded_2026_05_01_v1';
         if (localStorage.getItem(FLAG) === '1') return;
+        // 1) Bump stats blob (mtd_revenue / mtd_closed)
         var stats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : {};
         var current = Number(stats.mtd_revenue || 0);
         if (!current || current < 14607) {
@@ -2552,7 +2557,31 @@ document.addEventListener('visibilitychange', function() {
           stats.mtd_closed = stats.mtd_closed && Number(stats.mtd_closed) > 0 ? stats.mtd_closed : '1';
           if (typeof braydenSaveStats === 'function') braydenSaveStats(stats);
         }
+        // 2) Push entry into snappy_brayden_installs so MTD Installs tile counts it
+        try {
+          var raw = localStorage.getItem('snappy_brayden_installs');
+          var arr = [];
+          try { arr = raw ? JSON.parse(raw) : []; } catch(e) { arr = []; }
+          if (!Array.isArray(arr)) arr = [];
+          var dup = arr.some(function(x) { return x && (x.jobNumber === '91767937' || x.invoice === '91767937'); });
+          if (!dup) {
+            arr.push({
+              id: 'brayden_2026_05_01_91767937',
+              date: '2026-05-01',
+              customer: 'Denise Cartier',
+              jobNumber: '91767937',
+              invoice: '91767937',
+              businessUnit: 'HVAC Install',
+              soldBy: 'Brayden Bond',
+              leadGeneratedBy: '',
+              jobsTotal: 14606.68,
+              completionDate: '2026-05-01'
+            });
+            localStorage.setItem('snappy_brayden_installs', JSON.stringify(arr));
+          }
+        } catch(e) { console.warn('5/1 install entry seed failed', e); }
         localStorage.setItem(FLAG, '1');
+        localStorage.setItem(OLD_FLAG, '1'); // keep legacy flag set so other code paths stay idempotent
       } catch(e) { console.warn('_braydenSeedMay20260501IfNeeded failed', e); }
     }
 
