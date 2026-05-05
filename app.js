@@ -3512,12 +3512,16 @@ document.addEventListener('visibilitychange', function() {
 
     // ----- Main render -----
     function renderInstallPay() {
-      var el = document.getElementById('installpay-content');
-      if (!el) return;
+      // v218.5: render into BOTH containers (standalone tab + Manager sub-tab)
+      var containers = [document.getElementById('installpay-content'), document.getElementById('installpay-content-mgr')].filter(Boolean);
+      if (!containers.length) return;
       if (!ipIsUnlocked()) {
-        el.innerHTML = '<div style="text-align:center;padding:60px 20px;"><div style="font-size:42px;">🔒</div><div style="font-size:16px;color:#94a3b8;margin-top:8px;">Locked</div><button onclick="ipPromptPin()" style="margin-top:16px;background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Unlock with PIN</button></div>';
+        var lockedHtml = '<div style="text-align:center;padding:60px 20px;"><div style="font-size:42px;">\ud83d\udd12</div><div style="font-size:16px;color:#94a3b8;margin-top:8px;">Locked</div><button onclick="ipPromptPin()" style="margin-top:16px;background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Unlock with PIN</button></div>';
+        containers.forEach(function(c){ c.innerHTML = lockedHtml; });
         return;
       }
+      // Use first container's dataset for state (selectedWeek, mode)
+      var el = containers[0];
       var data = ipLoadData();
       var todayIso = new Date().toISOString().slice(0,10);
       var defaultWeek = ipWeekEndingSat(todayIso);
@@ -3623,9 +3627,294 @@ document.addEventListener('visibilitychange', function() {
       });
       html += '</div>';
 
-      el.innerHTML = html;
+      // v218.5: Bulk fillable grid (Mon–Sat spreadsheet-style entry)
+      html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;margin-top:14px;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
+      html += '<div style="font-size:14px;font-weight:700;">\u2728 Bulk Grid \u00b7 Quick entry</div>';
+      html += '<div style="font-size:11px;color:#64748b;">Type rows directly. Auto-saves on blur.</div>';
+      html += '</div>';
+      html += '<div style="overflow-x:auto;">';
+      html += '<table id="ipBulkGrid" style="width:100%;min-width:1100px;border-collapse:collapse;font-size:12px;">';
+      html += '<thead><tr style="color:#64748b;text-transform:uppercase;font-size:10px;letter-spacing:0.4px;background:#0b1426;">';
+      html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Date</th>';
+      html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Customer</th>';
+      html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Job #</th>';
+      html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Installer</th>';
+      html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Job Type</th>';
+      html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Plen</th>';
+      html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Duct</th>';
+      html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Zone</th>';
+      html += '<th style="text-align:center;padding:6px;border:1px solid #1e3a5f;">Flu</th>';
+      html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Base $</th>';
+      html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;color:#10B981;">Total</th>';
+      html += '<th style="padding:6px;border:1px solid #1e3a5f;"></th>';
+      html += '</tr></thead><tbody>';
+      // Render existing weekJobs as editable rows
+      var sortedWeekJobs = weekJobs.slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+      sortedWeekJobs.forEach(function(j){
+        var c = ipComputeJobTotal(j, data.rates);
+        html += ipBulkRowHtml(j, c, data);
+      });
+      // Always show 3 blank rows for quick entry
+      for (var br = 0; br < 3; br++) {
+        html += ipBulkRowHtml(null, null, data, weekStart);
+      }
+      html += '</tbody></table>';
+      html += '</div>'; // overflow-x
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px;">';
+      html += '<div style="font-size:11px;color:#64748b;">Tip: leave a row blank to skip it. Tab to next field.</div>';
+      html += '<button onclick="ipBulkAddBlankRow()" style="background:transparent;color:#10B981;border:1px dashed #065f46;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">+ More blank rows</button>';
+      html += '</div>';
+      html += '</div>';
+
+      // v218.5: PDF Import section
+      html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;margin-top:14px;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
+      html += '<div style="font-size:14px;font-weight:700;">\ud83d\udcc4 Import from PDF</div>';
+      html += '<div style="font-size:11px;color:#64748b;">ServiceTitan exports, dispatch reports, etc.</div>';
+      html += '</div>';
+      html += '<div id="ipDropZone" ondragover="event.preventDefault();this.style.background=\'#0b1f3a\';" ondragleave="this.style.background=\'transparent\';" ondrop="ipHandleDropPdf(event)" style="border:2px dashed #1e3a5f;border-radius:10px;padding:24px;text-align:center;background:transparent;transition:background 0.2s;">';
+      html += '<div style="font-size:32px;margin-bottom:6px;">\ud83d\udcc4</div>';
+      html += '<div style="font-size:13px;color:#cbd5e1;margin-bottom:10px;">Drag a PDF here, or pick a file</div>';
+      html += '<input type="file" id="ipPdfInput" accept="application/pdf" onchange="ipHandlePdfFile(this.files[0])" style="display:none;">';
+      html += '<button onclick="document.getElementById(\'ipPdfInput\').click()" style="background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Choose PDF</button>';
+      html += '<div id="ipPdfStatus" style="font-size:11px;color:#64748b;margin-top:10px;"></div>';
+      html += '</div>';
+      html += '<div id="ipImportPreview" style="margin-top:12px;"></div>';
+      html += '</div>';
+
+      // Paint into all containers
+      containers.forEach(function(c){ c.innerHTML = html; });
     }
     window.renderInstallPay = renderInstallPay;
+
+    // ---- v218.5: Bulk Grid helpers ----
+    function ipBulkRowHtml(job, computed, data, defaultDate) {
+      var jobTypes = ['Full Install (1.5\u20133.5 Ton)','Full Install (4\u20135 Ton)','Cooling Only','Furnace Only'];
+      var installers = Object.keys(data.rates || {});
+      if (!installers.length) installers = ['Terrell Upshur','Thomas Gilbert','Dee','Daniel','Other SVC Tech'];
+      var rid = job ? job.id : ('new_' + Math.random().toString(36).slice(2,8));
+      var d = job ? (job.date||'') : (defaultDate||'');
+      var cust = job ? (job.customer||'') : '';
+      var jn = job ? (job.jobNumber||'') : '';
+      var inst = job ? (job.installer||'') : '';
+      var jt = job ? (job.jobType||'') : '';
+      var pl = job ? (job.plenums||0) : '';
+      var dr = job ? (job.ductRuns||0) : '';
+      var zm = job ? (job.zoneMotors||0) : '';
+      var fp = job && job.fluPipe;
+      var bp = job ? (job.basePay||'') : '';
+      var tot = computed ? ('$' + computed.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})) : '\u2014';
+      var input = function(field, val, type, extra) {
+        type = type || 'text';
+        extra = extra || '';
+        return '<input data-ip-rid="'+rid+'" data-ip-field="'+field+'" type="'+type+'" value="'+(val==null?'':String(val).replace(/"/g,'&quot;'))+'" onchange="ipBulkSaveRow(\''+rid+'\')" style="width:100%;background:transparent;color:#f1f5f9;border:none;padding:4px;font-size:12px;'+extra+'">';
+      };
+      var instOpts = '<option value="">\u2014</option>' + installers.map(function(n){ var s = (n===inst)?' selected':''; return '<option value="'+n+'"'+s+'>'+n+'</option>'; }).join('');
+      var jtOpts = '<option value="">\u2014</option>' + jobTypes.map(function(n){ var s = (n===jt)?' selected':''; return '<option value="'+n+'"'+s+'>'+n+'</option>'; }).join('');
+      var html = '<tr data-ip-rid="'+rid+'" style="border:1px solid #1e3a5f;">';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;">'+input('date',d,'date')+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;">'+input('customer',cust)+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;">'+input('jobNumber',jn)+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;"><select data-ip-rid="'+rid+'" data-ip-field="installer" onchange="ipBulkSaveRow(\''+rid+'\')" style="width:100%;background:transparent;color:#f1f5f9;border:none;padding:4px;font-size:12px;">'+instOpts+'</select></td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;"><select data-ip-rid="'+rid+'" data-ip-field="jobType" onchange="ipBulkSaveRow(\''+rid+'\')" style="width:100%;background:transparent;color:#f1f5f9;border:none;padding:4px;font-size:12px;">'+jtOpts+'</select></td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('plenums',pl,'number','text-align:right;')+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('ductRuns',dr,'number','text-align:right;')+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('zoneMotors',zm,'number','text-align:right;')+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:center;"><input data-ip-rid="'+rid+'" data-ip-field="fluPipe" type="checkbox" '+(fp?'checked':'')+' onchange="ipBulkSaveRow(\''+rid+'\')"></td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('basePay',bp,'number','text-align:right;')+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;color:#10B981;font-weight:600;">'+tot+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:center;">';
+      if (job) html += '<button onclick="ipDeleteJob(\''+job.id+'\')" title="Delete" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:13px;">\u00d7</button>';
+      html += '</td>';
+      html += '</tr>';
+      return html;
+    }
+    function ipBulkReadRow(rid) {
+      var row = document.querySelector('tr[data-ip-rid="'+rid+'"]');
+      if (!row) return null;
+      var get = function(field) {
+        var el = row.querySelector('[data-ip-field="'+field+'"]');
+        if (!el) return '';
+        if (el.type === 'checkbox') return el.checked;
+        return el.value;
+      };
+      return {
+        date: get('date'), customer: get('customer'), jobNumber: get('jobNumber'),
+        installer: get('installer'), jobType: get('jobType'),
+        plenums: parseInt(get('plenums'))||0, ductRuns: parseInt(get('ductRuns'))||0,
+        zoneMotors: parseInt(get('zoneMotors'))||0, fluPipe: !!get('fluPipe'),
+        basePay: parseFloat(get('basePay'))||0, notes: ''
+      };
+    }
+    function ipBulkSaveRow(rid) {
+      var rowData = ipBulkReadRow(rid);
+      if (!rowData) return;
+      // Skip empty rows
+      if (!rowData.date && !rowData.customer && !rowData.installer) return;
+      var data = ipLoadData();
+      if (rid.indexOf('new_') === 0) {
+        // Create new job
+        if (!rowData.date || !rowData.installer) return; // require minimum fields
+        rowData.id = 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+        data.jobs.push(rowData);
+      } else {
+        var idx = data.jobs.findIndex(function(j){ return j.id === rid; });
+        if (idx >= 0) {
+          rowData.id = rid;
+          data.jobs[idx] = Object.assign(data.jobs[idx], rowData);
+        }
+      }
+      ipSaveData(data);
+      renderInstallPay();
+    }
+    function ipBulkAddBlankRow() {
+      var tbody = document.querySelector('#ipBulkGrid tbody');
+      if (!tbody) return;
+      var data = ipLoadData();
+      var todayIso = new Date().toISOString().slice(0,10);
+      var weekStart = ipWeekStartMon(ipWeekEndingSat(todayIso));
+      var tr = document.createElement('tr');
+      tr.outerHTML = ipBulkRowHtml(null, null, data, weekStart);
+      tbody.insertAdjacentHTML('beforeend', ipBulkRowHtml(null, null, data, weekStart));
+    }
+    window.ipBulkSaveRow = ipBulkSaveRow;
+    window.ipBulkAddBlankRow = ipBulkAddBlankRow;
+
+    // ---- v218.5: PDF Import (uses pdf.js already loaded for the app) ----
+    function ipHandleDropPdf(e) {
+      e.preventDefault();
+      var dz = document.getElementById('ipDropZone');
+      if (dz) dz.style.background = 'transparent';
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) ipHandlePdfFile(f);
+    }
+    function ipHandlePdfFile(file) {
+      if (!file) return;
+      var status = document.getElementById('ipPdfStatus');
+      if (status) status.textContent = 'Reading ' + file.name + '\u2026';
+      if (typeof pdfjsLib === 'undefined') {
+        if (status) status.textContent = 'PDF reader not available';
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var typedarray = new Uint8Array(ev.target.result);
+        pdfjsLib.getDocument({data: typedarray}).promise.then(function(pdf) {
+          var pages = [];
+          var promises = [];
+          for (var i = 1; i <= pdf.numPages; i++) {
+            promises.push(pdf.getPage(i).then(function(page){ return page.getTextContent(); }).then(function(tc){ pages.push(tc.items.map(function(it){ return it.str; }).join(' ')); }));
+          }
+          Promise.all(promises).then(function(){
+            var fullText = pages.join('\n');
+            ipParseAndPreview(fullText, file.name);
+          });
+        }).catch(function(err){
+          if (status) status.textContent = 'Failed to read PDF: ' + err.message;
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    }
+    function ipParseAndPreview(text, fileName) {
+      var status = document.getElementById('ipPdfStatus');
+      var preview = document.getElementById('ipImportPreview');
+      // Heuristic parser: look for lines with date + dollar amount
+      var lines = text.split(/\n|(?=\d{1,2}\/\d{1,2}\/\d{2,4})/).map(function(s){ return s.trim(); }).filter(Boolean);
+      var candidates = [];
+      lines.forEach(function(line) {
+        var dateMatch = line.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+        var amtMatch = line.match(/\$\s?([\d,]+\.?\d*)/);
+        // Job number: look for 6+ digit number
+        var jobMatch = line.match(/\b(\d{6,})\b/);
+        if (dateMatch) {
+          // Customer: text before date or between date and dollar amount
+          var customer = line.replace(dateMatch[0],'').replace(amtMatch?amtMatch[0]:'','').replace(jobMatch?jobMatch[0]:'','').trim().slice(0,60);
+          var dateParts = dateMatch[1].split('/');
+          var yr = dateParts[2].length === 2 ? '20'+dateParts[2] : dateParts[2];
+          var iso = yr + '-' + dateParts[0].padStart(2,'0') + '-' + dateParts[1].padStart(2,'0');
+          candidates.push({
+            date: iso,
+            customer: customer,
+            jobNumber: jobMatch ? jobMatch[1] : '',
+            amount: amtMatch ? parseFloat(amtMatch[1].replace(/,/g,'')) : 0,
+            raw: line.slice(0, 120)
+          });
+        }
+      });
+      if (status) status.textContent = 'Found ' + candidates.length + ' candidate row' + (candidates.length===1?'':'s') + ' in ' + fileName;
+      if (!preview) return;
+      if (!candidates.length) {
+        preview.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:10px;background:#0b1426;border-radius:8px;">No date+amount rows detected. You can still add jobs manually.</div>';
+        return;
+      }
+      // Cache for confirm
+      window._ipImportCache = candidates;
+      var data = ipLoadData();
+      var installers = Object.keys(data.rates||{});
+      if (!installers.length) installers = ['Terrell Upshur','Thomas Gilbert','Dee','Daniel','Other SVC Tech'];
+      var instOpts = installers.map(function(n){ return '<option value="'+n+'">'+n+'</option>'; }).join('');
+      var html = '<div style="background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;padding:12px;">';
+      html += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#10B981;">Review & assign installer for each row, then import:</div>';
+      html += '<div style="max-height:300px;overflow-y:auto;">';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:11px;">';
+      html += '<thead><tr style="color:#64748b;text-transform:uppercase;font-size:10px;"><th style="text-align:left;padding:4px;"><input type="checkbox" id="ipImpCheckAll" checked onchange="document.querySelectorAll(\'.ip-imp-row\').forEach(function(c){c.checked=this.checked}.bind(this))"></th><th style="text-align:left;padding:4px;">Date</th><th style="text-align:left;padding:4px;">Customer</th><th style="text-align:left;padding:4px;">Job #</th><th style="text-align:right;padding:4px;">Amount</th><th style="text-align:left;padding:4px;">Installer</th></tr></thead><tbody>';
+      candidates.forEach(function(cand, idx){
+        html += '<tr style="border-top:1px solid #1e3a5f;">';
+        html += '<td style="padding:4px;"><input type="checkbox" class="ip-imp-row" data-ip-imp-idx="'+idx+'" checked></td>';
+        html += '<td style="padding:4px;">'+cand.date+'</td>';
+        html += '<td style="padding:4px;">'+(cand.customer||'\u2014')+'</td>';
+        html += '<td style="padding:4px;">'+(cand.jobNumber||'\u2014')+'</td>';
+        html += '<td style="padding:4px;text-align:right;font-variant-numeric:tabular-nums;">$'+cand.amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>';
+        html += '<td style="padding:4px;"><select data-ip-imp-installer="'+idx+'" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:4px;padding:2px 4px;font-size:11px;"><option value="">\u2014</option>'+instOpts+'</select></td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">';
+      html += '<button onclick="ipCancelImport()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Cancel</button>';
+      html += '<button onclick="ipConfirmImport()" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Import selected</button>';
+      html += '</div>';
+      html += '</div>';
+      preview.innerHTML = html;
+    }
+    function ipCancelImport() {
+      var preview = document.getElementById('ipImportPreview');
+      if (preview) preview.innerHTML = '';
+      window._ipImportCache = null;
+    }
+    function ipConfirmImport() {
+      var cands = window._ipImportCache || [];
+      var data = ipLoadData();
+      var imported = 0;
+      document.querySelectorAll('.ip-imp-row').forEach(function(cb){
+        if (!cb.checked) return;
+        var idx = parseInt(cb.getAttribute('data-ip-imp-idx'));
+        var c = cands[idx];
+        if (!c) return;
+        var instSel = document.querySelector('[data-ip-imp-installer="'+idx+'"]');
+        var installer = instSel ? instSel.value : '';
+        data.jobs.push({
+          id: 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2,7) + '_' + idx,
+          date: c.date,
+          customer: c.customer || '',
+          jobNumber: c.jobNumber || '',
+          installer: installer,
+          jobType: '',
+          plenums: 0, ductRuns: 0, zoneMotors: 0, fluPipe: false,
+          basePay: c.amount || 0,
+          notes: 'Imported from PDF'
+        });
+        imported++;
+      });
+      ipSaveData(data);
+      window._ipImportCache = null;
+      alert('Imported ' + imported + ' job' + (imported===1?'':'s') + '. Review and assign installers/job types in the bulk grid.');
+      renderInstallPay();
+    }
+    window.ipHandleDropPdf = ipHandleDropPdf;
+    window.ipHandlePdfFile = ipHandlePdfFile;
+    window.ipCancelImport = ipCancelImport;
+    window.ipConfirmImport = ipConfirmImport;
 
     // ----- Add/Edit job modal -----
     function ipOpenAddJob(dateStr, existingId) {
@@ -14379,11 +14668,19 @@ if (typeof Chart !== 'undefined') {
       // Sub-tab navigation
       document.querySelectorAll('#mgr-sub-tabs .nav-tab').forEach(tab => {
         tab.addEventListener('click', () => {
+          // v218.5: Install Pay sub-tab requires PIN unlock
+          if (tab.dataset.mgr === 'installpay') {
+            if (typeof ipIsUnlocked === 'function' && !ipIsUnlocked()) {
+              if (typeof ipPromptPin === 'function') ipPromptPin();
+              return;
+            }
+          }
           document.querySelectorAll('#mgr-sub-tabs .nav-tab').forEach(t => t.classList.remove('active'));
           document.querySelectorAll('.mgr-section').forEach(s => s.classList.remove('active'));
           tab.classList.add('active');
           document.getElementById('mgr-' + tab.dataset.mgr).classList.add('active');
           if (tab.dataset.mgr === 'profiles' && typeof renderMgrProfiles === 'function') renderMgrProfiles();
+          if (tab.dataset.mgr === 'installpay' && typeof renderInstallPay === 'function') renderInstallPay();
         });
       });
 
