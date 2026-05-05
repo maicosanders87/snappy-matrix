@@ -5842,8 +5842,35 @@ document.addEventListener('visibilitychange', function() {
         totalMtdInstalls += (m && m.mtd_installs) || 0;
         totalMtdInstallRev += (m && m.mtd_install_rev) || 0;
       });
-      // Team MTD install totals (sum of techs' mtd_installs + 1 manager-sold install (Adam) = 8, but the
-      // KPI tile shows team tech installs only, so we use the computed sum above.)
+
+      // v218.2: Fold sales-rep installs (Maico, Brayden, Adam) into team Install
+      // Revenue + Installs tiles. Tech tiles already separately track Tech-Generated
+      // Lead credits, so this avoids double-counting while still surfacing all
+      // company installs at the team-overview level.
+      try {
+        // Determine the month-key being viewed. 'current' \u2192 today's YYYY-MM,
+        // archived months use the picker's key directly (e.g. '2026-04').
+        var salesMonthKey;
+        if (isCurrentMonth) {
+          var _now = new Date();
+          salesMonthKey = _now.getFullYear() + '-' + String(_now.getMonth() + 1).padStart(2, '0');
+        } else {
+          salesMonthKey = currentMtdMonth;
+        }
+        var reps = (typeof SALES_REPS !== 'undefined' && SALES_REPS) ? SALES_REPS : (window.SALES_REPS || []);
+        if (typeof salesGetEquipmentFor === 'function') {
+          reps.forEach(function(rep) {
+            var equip = salesGetEquipmentFor(rep.name) || [];
+            equip.forEach(function(e) {
+              var d = e.completionDate || e.date || '';
+              if (d.indexOf(salesMonthKey) === 0) {
+                totalMtdInstalls += 1;
+                totalMtdInstallRev += parseFloat(e.jobsTotal) || 0;
+              }
+            });
+          });
+        }
+      } catch(e) { console.warn('sales-rep install rollup failed', e); }
 
       try {
         var tfRaw = localStorage.getItem('snappy_tech_files');
