@@ -24,42 +24,133 @@
 
   <link rel="stylesheet" href="styles.css?v=20260505v218.5">
 
-  <!-- v218.5: Auto cache-buster — force reload if version changed since last visit -->
+  <!-- v218.5: Service Worker registration + auto cache-buster.
+       Strategy:
+         1. Register sw.js (network-first for HTML, SWR for JS/CSS).
+         2. On every page load, fetch version.json (cache-busted) and compare
+            against the APP_VERSION baked into this HTML. If they don't match,
+            it means a new deploy is live but we're still running an old shell —
+            tell the SW to skipWaiting, clear caches, and hard-reload once.
+         3. Listen for controllerchange so a new SW activating in the background
+            auto-reloads the page (covers iOS Safari standalone PWA case).
+         4. Keep the legacy localStorage version-mismatch reload as a fallback
+            for browsers/contexts where the SW never installs. -->
   <script>
     (function(){
+      var APP_VERSION = 'v218.5';
+      var VERSION_KEY = 'snappy_app_version';
+      var BUSTED_KEY  = 'snappy_cache_busted_' + APP_VERSION;
+
+      // ---------- Hard reload helper (used by every path below) ----------
+      function hardReload() {
+        var sep = window.location.search ? '&' : '?';
+        window.location.replace(
+          window.location.pathname + window.location.search + sep +
+          '_v=' + encodeURIComponent(APP_VERSION) + '&t=' + Date.now()
+        );
+      }
+
+      function nukeCachesAndReload() {
+        var done = false;
+        function finish() {
+          if (done) return;
+          done = true;
+          hardReload();
+        }
+        // Safety net in case any promise hangs on iOS Safari.
+        setTimeout(finish, 4000);
+
+        var jobs = [];
+        if ('caches' in window) {
+          jobs.push(
+            caches.keys().then(function(names){
+              return Promise.all(names.map(function(n){ return caches.delete(n); }));
+            }).catch(function(){})
+          );
+        }
+        if ('serviceWorker' in navigator) {
+          jobs.push(
+            navigator.serviceWorker.getRegistrations().then(function(regs){
+              return Promise.all(regs.map(function(r){
+                // Tell waiting workers to take over, then drop them so the next
+                // page load re-registers a fresh one.
+                if (r.waiting) { try { r.waiting.postMessage({ type: 'SKIP_WAITING' }); } catch(e){} }
+                return r.unregister();
+              }));
+            }).catch(function(){})
+          );
+        }
+        Promise.all(jobs).finally(finish);
+      }
+
+      // ---------- 1. Legacy localStorage mismatch fallback ----------
       try {
-        var APP_VERSION = 'v218.5';
-        var KEY = 'snappy_app_version';
-        var stored = localStorage.getItem(KEY);
+        var stored = localStorage.getItem(VERSION_KEY);
         if (stored && stored !== APP_VERSION) {
-          // Version changed — nuke caches and hard reload once
-          if (!sessionStorage.getItem('snappy_cache_busted_' + APP_VERSION)) {
-            sessionStorage.setItem('snappy_cache_busted_' + APP_VERSION, '1');
-            localStorage.setItem(KEY, APP_VERSION);
-            // Clear all Cache Storage entries
-            if ('caches' in window) {
-              caches.keys().then(function(names){
-                return Promise.all(names.map(function(n){ return caches.delete(n); }));
-              }).finally(function(){
-                // Unregister any service workers
-                if ('serviceWorker' in navigator) {
-                  navigator.serviceWorker.getRegistrations().then(function(regs){
-                    regs.forEach(function(r){ r.unregister(); });
-                  }).finally(function(){
-                    window.location.replace(window.location.pathname + '?_v=' + APP_VERSION + '&t=' + Date.now());
-                  });
-                } else {
-                  window.location.replace(window.location.pathname + '?_v=' + APP_VERSION + '&t=' + Date.now());
-                }
-              });
-            } else {
-              window.location.replace(window.location.pathname + '?_v=' + APP_VERSION + '&t=' + Date.now());
-            }
+          if (!sessionStorage.getItem(BUSTED_KEY)) {
+            sessionStorage.setItem(BUSTED_KEY, '1');
+            localStorage.setItem(VERSION_KEY, APP_VERSION);
+            nukeCachesAndReload();
+            return; // bail — page is reloading
           }
         } else {
-          localStorage.setItem(KEY, APP_VERSION);
+          localStorage.setItem(VERSION_KEY, APP_VERSION);
         }
-      } catch(e) { /* localStorage blocked — skip */ }
+      } catch(e) { /* storage blocked — keep going */ }
+
+      // ---------- 2. Register service worker ----------
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function(){
+          navigator.serviceWorker.register('sw.js', { scope: './' })
+            .then(function(reg){
+              // If a new SW is already waiting at registration time, activate it.
+              if (reg.waiting) {
+                try { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); } catch(e){}
+              }
+              // Watch for updates that arrive while the page is open.
+              reg.addEventListener('updatefound', function(){
+                var nw = reg.installing;
+                if (!nw) return;
+                nw.addEventListener('statechange', function(){
+                  if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New version installed alongside an old controller — swap.
+                    try { nw.postMessage({ type: 'SKIP_WAITING' }); } catch(e){}
+                  }
+                });
+              });
+              // Proactively poll for SW updates every 60s while the tab is open.
+              setInterval(function(){ try { reg.update(); } catch(e){} }, 60000);
+            })
+            .catch(function(){ /* registration failed — app still works */ });
+        });
+
+        // When the active SW changes, reload exactly once so the new shell wins.
+        var swReloaded = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function(){
+          if (swReloaded) return;
+          swReloaded = true;
+          window.location.reload();
+        });
+      }
+
+      // ---------- 3. Version-check ping on every page load ----------
+      // Fetch version.json with cache:'no-store' + cache-buster query so iOS
+      // Safari can't serve a stale copy. If the server's advertised version
+      // doesn't match the version compiled into this HTML, force a clean reload.
+      try {
+        fetch('version.json?cb=' + Date.now(), { cache: 'no-store' })
+          .then(function(r){ return r && r.ok ? r.json() : null; })
+          .then(function(data){
+            if (!data || !data.version) return;
+            if (data.version !== APP_VERSION) {
+              if (!sessionStorage.getItem('snappy_pinged_' + data.version)) {
+                sessionStorage.setItem('snappy_pinged_' + data.version, '1');
+                nukeCachesAndReload();
+              }
+            }
+          })
+          .catch(function(){ /* offline — ignore */ });
+      } catch(e) { /* fetch unavailable — ignore */ }
     })();
   </script>
 </head>
