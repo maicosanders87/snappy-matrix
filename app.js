@@ -3620,11 +3620,65 @@ document.addEventListener('visibilitychange', function() {
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Week ending</div><div style="font-size:18px;font-weight:700;margin-top:4px;">'+selectedWeek+'</div></div>';
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Installs</div><div style="font-size:22px;font-weight:700;margin-top:4px;color:#10B981;">'+weekCount+'</div></div>';
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Total pay</div><div style="font-size:22px;font-weight:700;margin-top:4px;color:#10B981;font-variant-numeric:tabular-nums;">$'+weekTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>';
+      // v218.8: Always show Thomas + Terrell tiles (even when 0 jobs); then any other installers with jobs
+      var pinnedInstallers = ['Thomas Gilbert', 'Terrell Upshur'];
+      pinnedInstallers.forEach(function(inst){
+        var t = totalsByInstaller[inst] || { count: 0, total: 0 };
+        var bg = t.count > 0 ? '#0F1B2E' : '#0b1426';
+        var color = t.count > 0 ? '#3B82F6' : '#64748b';
+        html += '<div style="background:'+bg+';border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">'+inst+'</div><div style="font-size:11px;color:#64748b;">'+t.count+' job'+(t.count===1?'':'s')+'</div><div style="font-size:18px;font-weight:700;margin-top:2px;color:'+color+';font-variant-numeric:tabular-nums;">$'+t.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>';
+      });
       Object.keys(totalsByInstaller).forEach(function(inst){
+        if (pinnedInstallers.indexOf(inst) !== -1) return; // already rendered
         var t = totalsByInstaller[inst];
         html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">'+inst.split(' /')[0]+'</div><div style="font-size:11px;color:#64748b;">'+t.count+' jobs</div><div style="font-size:18px;font-weight:700;margin-top:2px;color:#3B82F6;font-variant-numeric:tabular-nums;">$'+t.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>';
       });
       html += '</div>';
+
+      // v218.8: Per-installer dedicated sections (Thomas + Terrell)
+      pinnedInstallers.forEach(function(inst){
+        var instJobs = weekJobs.filter(function(j){ return j.installer === inst; })
+          .sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+        var instTotal = instJobs.reduce(function(s,j){ return s + ipComputeJobTotal(j, data.rates).total; }, 0);
+        var firstName = inst.split(' ')[0];
+        html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;margin-bottom:14px;">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
+        html += '<div style="font-size:14px;font-weight:700;">\ud83d\udc77 '+inst+' \u00b7 This Week</div>';
+        html += '<div style="display:flex;gap:10px;align-items:center;">';
+        html += '<div style="font-size:12px;color:#94a3b8;">'+instJobs.length+' job'+(instJobs.length===1?'':'s')+' \u00b7 <span style="color:#10B981;font-weight:600;">$'+instTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span></div>';
+        html += '<button onclick="ipOpenAddJob(\''+todayIso+'\',null,\''+inst.replace(/'/g,"\\'")+'\')" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">+ Add for '+firstName+'</button>';
+        html += '</div></div>';
+        html += '<div style="overflow-x:auto;">';
+        html += '<table style="width:100%;min-width:1000px;border-collapse:collapse;font-size:12px;">';
+        html += '<thead><tr style="color:#64748b;text-transform:uppercase;font-size:10px;letter-spacing:0.4px;background:#0b1426;">';
+        html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Date</th>';
+        html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Customer</th>';
+        html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Job #</th>';
+        html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Job Type</th>';
+        html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Plen</th>';
+        html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Duct</th>';
+        html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Zone</th>';
+        html += '<th style="text-align:center;padding:6px;border:1px solid #1e3a5f;">Flu</th>';
+        html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Base $</th>';
+        html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;color:#10B981;">Total</th>';
+        html += '<th style="padding:6px;border:1px solid #1e3a5f;"></th>';
+        html += '</tr></thead><tbody>';
+        if (instJobs.length === 0) {
+          html += '<tr><td colspan="11" style="padding:10px;color:#475569;font-style:italic;text-align:center;border:1px solid #1e3a5f;">No installs logged for '+firstName+' this week. Add rows below or click "+ Add for '+firstName+'".</td></tr>';
+        } else {
+          instJobs.forEach(function(j){
+            var c = ipComputeJobTotal(j, data.rates);
+            html += ipInstallerRowHtml(j, c, data, inst);
+          });
+        }
+        // Always show 2 blank quick-entry rows pre-bound to this installer
+        for (var br = 0; br < 2; br++) {
+          html += ipInstallerRowHtml(null, null, data, inst, weekStart);
+        }
+        html += '</tbody></table>';
+        html += '</div>';
+        html += '</div>';
+      });
 
       // Mon–Sat sheet
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;">';
@@ -3770,6 +3824,10 @@ document.addEventListener('visibilitychange', function() {
       return html;
     }
     function ipBulkReadRow(rid) {
+      // v218.8: there can be multiple rows in different sections sharing the same
+      // rid prefix when the same job appears in both per-installer + bulk grids.
+      // We only read the first match — that's fine because all rows for an existing
+      // job share state via the underlying data store and re-render together.
       var row = document.querySelector('tr[data-ip-rid="'+rid+'"]');
       if (!row) return null;
       var get = function(field) {
@@ -3778,9 +3836,13 @@ document.addEventListener('visibilitychange', function() {
         if (el.type === 'checkbox') return el.checked;
         return el.value;
       };
+      // v218.8: per-installer rows don't have a visible installer field;
+      // the row carries data-ip-locked-installer="<name>" instead.
+      var installer = get('installer');
+      if (!installer) installer = row.getAttribute('data-ip-locked-installer') || '';
       return {
         date: get('date'), customer: get('customer'), jobNumber: get('jobNumber'),
-        installer: get('installer'), jobType: get('jobType'),
+        installer: installer, jobType: get('jobType'),
         plenums: parseInt(get('plenums'))||0, ductRuns: parseInt(get('ductRuns'))||0,
         zoneMotors: parseInt(get('zoneMotors'))||0, fluPipe: !!get('fluPipe'),
         basePay: parseFloat(get('basePay'))||0, notes: ''
@@ -3792,15 +3854,22 @@ document.addEventListener('visibilitychange', function() {
       // Skip empty rows
       if (!rowData.date && !rowData.customer && !rowData.installer) return;
       var data = ipLoadData();
-      if (rid.indexOf('new_') === 0) {
+      // v218.8: per-installer rids are prefixed 'inst_<slug>__<actualId>'
+      // Strip the prefix so we operate on the real job id.
+      var actualRid = rid;
+      var prefixIdx = rid.indexOf('__');
+      if (rid.indexOf('inst_') === 0 && prefixIdx > 0) {
+        actualRid = rid.slice(prefixIdx + 2);
+      }
+      if (actualRid.indexOf('new_') === 0) {
         // Create new job
         if (!rowData.date || !rowData.installer) return; // require minimum fields
         rowData.id = 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
         data.jobs.push(rowData);
       } else {
-        var idx = data.jobs.findIndex(function(j){ return j.id === rid; });
+        var idx = data.jobs.findIndex(function(j){ return j.id === actualRid; });
         if (idx >= 0) {
-          rowData.id = rid;
+          rowData.id = actualRid;
           data.jobs[idx] = Object.assign(data.jobs[idx], rowData);
         }
       }
@@ -3819,6 +3888,51 @@ document.addEventListener('visibilitychange', function() {
     }
     window.ipBulkSaveRow = ipBulkSaveRow;
     window.ipBulkAddBlankRow = ipBulkAddBlankRow;
+
+    // ---- v218.8: Installer-locked row (used by per-installer sections) ----
+    // Same as ipBulkRowHtml but the installer column is rendered as fixed text
+    // and the row carries data-ip-locked-installer so save logic restores it.
+    // Per-installer rids are prefixed with 'inst_<slug>__' so they don't collide
+    // with the bulk grid (which renders the same job below in the same DOM).
+    function ipInstallerRowHtml(job, computed, data, lockedInstaller, defaultDate) {
+      var jobTypes = ['Full Install (1.5\u20133.5 Ton)','Full Install (4\u20135 Ton)','Cooling Only','Furnace Only'];
+      var slug = lockedInstaller.replace(/[^A-Za-z0-9]/g,'').toLowerCase();
+      var rid = 'inst_' + slug + '__' + (job ? job.id : ('new_' + Math.random().toString(36).slice(2,8)));
+      var d = job ? (job.date||'') : (defaultDate||'');
+      var cust = job ? (job.customer||'') : '';
+      var jn = job ? (job.jobNumber||'') : '';
+      var jt = job ? (job.jobType||'') : '';
+      var pl = job ? (job.plenums||0) : '';
+      var dr = job ? (job.ductRuns||0) : '';
+      var zm = job ? (job.zoneMotors||0) : '';
+      var fp = job && job.fluPipe;
+      var bp = job ? (job.basePay||'') : '';
+      var tot = computed ? ('$' + computed.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})) : '\u2014';
+      var lockedAttr = ' data-ip-locked-installer="'+lockedInstaller.replace(/"/g,'&quot;')+'"';
+      var input = function(field, val, type, extra) {
+        type = type || 'text';
+        extra = extra || '';
+        return '<input data-ip-rid="'+rid+'" data-ip-field="'+field+'" type="'+type+'" value="'+(val==null?'':String(val).replace(/"/g,'&quot;'))+'" onchange="ipBulkSaveRow(\''+rid+'\')" style="width:100%;background:transparent;color:#f1f5f9;border:none;padding:4px;font-size:12px;'+extra+'">';
+      };
+      var jtOpts = '<option value="">\u2014</option>' + jobTypes.map(function(n){ var s = (n===jt)?' selected':''; return '<option value="'+n+'"'+s+'>'+n+'</option>'; }).join('');
+      // hidden installer input so ipBulkReadRow picks it up; visible label = locked name
+      var html = '<tr data-ip-rid="'+rid+'"'+lockedAttr+' style="border:1px solid #1e3a5f;">';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;">'+input('date',d,'date')+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;">'+input('customer',cust)+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;">'+input('jobNumber',jn)+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;"><select data-ip-rid="'+rid+'" data-ip-field="jobType" onchange="ipBulkSaveRow(\''+rid+'\')" style="width:100%;background:transparent;color:#f1f5f9;border:none;padding:4px;font-size:12px;">'+jtOpts+'</select></td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('plenums',pl,'number','text-align:right;')+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('ductRuns',dr,'number','text-align:right;')+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('zoneMotors',zm,'number','text-align:right;')+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:center;"><input data-ip-rid="'+rid+'" data-ip-field="fluPipe" type="checkbox" '+(fp?'checked':'')+' onchange="ipBulkSaveRow(\''+rid+'\')"></td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('basePay',bp,'number','text-align:right;')+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;color:#10B981;font-weight:600;">'+tot+'</td>';
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:center;">';
+      if (job) html += '<button onclick="ipDeleteJob(\''+job.id+'\')" title="Delete" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:13px;">\u00d7</button>';
+      html += '</td>';
+      html += '</tr>';
+      return html;
+    }
 
     // ---- v218.5: PDF Import (uses pdf.js already loaded for the app) ----
     function ipHandleDropPdf(e) {
@@ -3956,12 +4070,14 @@ document.addEventListener('visibilitychange', function() {
     window.ipConfirmImport = ipConfirmImport;
 
     // ----- Add/Edit job modal -----
-    function ipOpenAddJob(dateStr, existingId) {
+    function ipOpenAddJob(dateStr, existingId, prefilledInstaller) {
       var data = ipLoadData();
       var existing = existingId ? data.jobs.find(function(j){ return j.id === existingId; }) : null;
       var initDate = (existing && existing.date) || dateStr || new Date().toISOString().slice(0,10);
       var installers = Object.keys(data.rates);
-      var instOpts = installers.map(function(n){ var s = (existing && existing.installer === n) ? ' selected' : ''; return '<option value="'+n+'"'+s+'>'+n+'</option>'; }).join('');
+      // v218.8: pre-select installer when launched from per-installer section
+      var preInst = (existing && existing.installer) || prefilledInstaller || '';
+      var instOpts = installers.map(function(n){ var s = (n === preInst) ? ' selected' : ''; return '<option value="'+n+'"'+s+'>'+n+'</option>'; }).join('');
       var jobTypeOpts = ['<option value="">— Select job type —</option>'].concat(INSTALL_PAY_JOB_TYPES.map(function(t){ var s = (existing && existing.jobType === t) ? ' selected' : ''; return '<option value="'+t+'"'+s+'>'+t+'</option>'; })).join('');
       var modal = document.createElement('div');
       modal.id = 'ipAddJobModal';
