@@ -3449,9 +3449,271 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { return { jobs: [], rates: JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES)) }; }
     }
     function ipSaveData(d) {
-      // Local-only — never sync to cloud
-      try { localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(d)); } catch(e) { console.warn('ipSaveData failed', e); }
+      // v218.10: stamp local update so cloud sync can compare timestamps
+      try {
+        d.lastUpdated = new Date().toISOString();
+        localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(d));
+      } catch(e) { console.warn('ipSaveData failed', e); }
+      // Schedule a debounced cloud push if sync is configured
+      try { ipCloudSchedulePush(); } catch(e) {}
     }
+
+    // ===========================================================================
+    // v218.10: Cloud sync for Install Pay (private GitHub repo)
+    // ---------------------------------------------------------------------------
+    // Strategy: snappy-matrix is a static site, so we can't hold a server-side
+    // secret. Each device prompts the user once for a fine-scoped GitHub PAT and
+    // stores it in localStorage. The app reads/writes a single JSON file in the
+    // PRIVATE repo maicosanders87/snappy-matrix-data via the GitHub Contents API.
+    // - Pull on every renderInstallPay() if cloud is enabled and last-pulled > 30s ago
+    // - Push debounced 2s after each ipSaveData()
+    // - Last-write-wins via the data.lastUpdated ISO timestamp
+    // - PAT scope required: 'Contents: Read and write' on the snappy-matrix-data repo
+    // ===========================================================================
+    const IP_CLOUD_PAT_KEY = 'snappy_install_pay_cloud_pat_v1';
+    const IP_CLOUD_LAST_PULL_KEY = 'snappy_install_pay_cloud_last_pull_v1';
+    const IP_CLOUD_LAST_PUSH_KEY = 'snappy_install_pay_cloud_last_push_v1';
+    const IP_CLOUD_SHA_KEY = 'snappy_install_pay_cloud_sha_v1';
+    const IP_CLOUD_REPO = 'maicosanders87/snappy-matrix-data';
+    const IP_CLOUD_PATH = 'install_pay.json';
+    const IP_CLOUD_BRANCH = 'main';
+    let _ipCloudPushTimer = null;
+    let _ipCloudInflight = false;
+    let _ipCloudLastError = null;
+
+    function ipCloudGetPat() {
+      try { return localStorage.getItem(IP_CLOUD_PAT_KEY) || ''; } catch(e) { return ''; }
+    }
+    function ipCloudSetPat(pat) {
+      try { localStorage.setItem(IP_CLOUD_PAT_KEY, pat || ''); } catch(e) {}
+    }
+    function ipCloudClearPat() {
+      try { localStorage.removeItem(IP_CLOUD_PAT_KEY); } catch(e) {}
+      try { localStorage.removeItem(IP_CLOUD_SHA_KEY); } catch(e) {}
+    }
+    function ipCloudEnabled() { return !!ipCloudGetPat(); }
+
+    function ipCloudHeaders() {
+      var pat = ipCloudGetPat();
+      return {
+        'Authorization': 'Bearer ' + pat,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      };
+    }
+
+    function ipCloudUrl() {
+      return 'https://api.github.com/repos/' + IP_CLOUD_REPO + '/contents/' + IP_CLOUD_PATH + '?ref=' + IP_CLOUD_BRANCH;
+    }
+
+    // Decode base64 -> string (handles UTF-8)
+    function ipB64Decode(b64) {
+      try {
+        var bin = atob((b64 || '').replace(/\n/g, ''));
+        var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new TextDecoder('utf-8').decode(bytes);
+      } catch(e) { return ''; }
+    }
+    function ipB64Encode(str) {
+      try {
+        var bytes = new TextEncoder().encode(str);
+        var bin = '';
+        for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return btoa(bin);
+      } catch(e) { return btoa(str); }
+    }
+
+    async function ipCloudPull(opts) {
+      opts = opts || {};
+      if (!ipCloudEnabled()) return { ok: false, reason: 'no-pat' };
+      if (_ipCloudInflight) return { ok: false, reason: 'inflight' };
+      _ipCloudInflight = true;
+      try {
+        var res = await fetch(ipCloudUrl(), { headers: ipCloudHeaders(), cache: 'no-store' });
+        if (res.status === 404) {
+          _ipCloudLastError = null;
+          try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
+          return { ok: true, empty: true };
+        }
+        if (!res.ok) {
+          _ipCloudLastError = 'pull HTTP ' + res.status;
+          return { ok: false, reason: 'http', status: res.status };
+        }
+        var meta = await res.json();
+        var content = ipB64Decode(meta.content || '');
+        var remote = null;
+        try { remote = JSON.parse(content); } catch(e) { remote = null; }
+        if (remote && remote.data) {
+          var local = ipLoadData();
+          var localTs = Date.parse(local.lastUpdated || '0') || 0;
+          var remoteTs = Date.parse(remote.lastUpdated || '0') || 0;
+          // Remote wins if strictly newer OR if local is empty and remote has data
+          var localEmpty = (!local.jobs || local.jobs.length === 0);
+          var remoteHasData = remote.data.jobs && remote.data.jobs.length > 0;
+          if (remoteTs > localTs || (localEmpty && remoteHasData)) {
+            var merged = {
+              jobs: remote.data.jobs || [],
+              rates: remote.data.rates || local.rates,
+              lastUpdated: remote.lastUpdated
+            };
+            try { localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(merged)); } catch(e) {}
+            try { localStorage.setItem(IP_CLOUD_SHA_KEY, meta.sha || ''); } catch(e) {}
+            try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
+            _ipCloudLastError = null;
+            return { ok: true, updated: true };
+          }
+        }
+        try { localStorage.setItem(IP_CLOUD_SHA_KEY, meta.sha || ''); } catch(e) {}
+        try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
+        _ipCloudLastError = null;
+        return { ok: true, updated: false };
+      } catch(e) {
+        _ipCloudLastError = 'pull error: ' + (e && e.message || e);
+        return { ok: false, reason: 'exception' };
+      } finally {
+        _ipCloudInflight = false;
+      }
+    }
+
+    async function ipCloudPush() {
+      if (!ipCloudEnabled()) return { ok: false, reason: 'no-pat' };
+      if (_ipCloudInflight) {
+        // retry shortly
+        ipCloudSchedulePush(1500);
+        return { ok: false, reason: 'inflight' };
+      }
+      _ipCloudInflight = true;
+      try {
+        var local = ipLoadData();
+        var payload = {
+          version: 1,
+          lastUpdated: local.lastUpdated || new Date().toISOString(),
+          lastUpdatedBy: (navigator.userAgent || '').slice(0, 80),
+          data: { jobs: local.jobs || [], rates: local.rates || null }
+        };
+        var sha = '';
+        try { sha = localStorage.getItem(IP_CLOUD_SHA_KEY) || ''; } catch(e) {}
+        // If we don't have a sha, fetch it first (file already exists in seed)
+        if (!sha) {
+          try {
+            var res0 = await fetch(ipCloudUrl(), { headers: ipCloudHeaders(), cache: 'no-store' });
+            if (res0.ok) { var meta0 = await res0.json(); sha = meta0.sha || ''; }
+          } catch(e) {}
+        }
+        var body = {
+          message: 'Install Pay sync · ' + payload.lastUpdated,
+          content: ipB64Encode(JSON.stringify(payload, null, 2)),
+          branch: IP_CLOUD_BRANCH
+        };
+        if (sha) body.sha = sha;
+        var res = await fetch('https://api.github.com/repos/' + IP_CLOUD_REPO + '/contents/' + IP_CLOUD_PATH, {
+          method: 'PUT',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, ipCloudHeaders()),
+          body: JSON.stringify(body)
+        });
+        if (res.status === 409) {
+          // sha conflict — pull then re-push once
+          _ipCloudInflight = false;
+          await ipCloudPull();
+          ipCloudSchedulePush(500);
+          return { ok: false, reason: 'conflict-retrying' };
+        }
+        if (!res.ok) {
+          _ipCloudLastError = 'push HTTP ' + res.status;
+          return { ok: false, reason: 'http', status: res.status };
+        }
+        var resp = await res.json();
+        try { localStorage.setItem(IP_CLOUD_SHA_KEY, (resp.content && resp.content.sha) || ''); } catch(e) {}
+        try { localStorage.setItem(IP_CLOUD_LAST_PUSH_KEY, new Date().toISOString()); } catch(e) {}
+        _ipCloudLastError = null;
+        return { ok: true };
+      } catch(e) {
+        _ipCloudLastError = 'push error: ' + (e && e.message || e);
+        return { ok: false, reason: 'exception' };
+      } finally {
+        _ipCloudInflight = false;
+      }
+    }
+
+    function ipCloudSchedulePush(ms) {
+      if (!ipCloudEnabled()) return;
+      ms = ms != null ? ms : 2000;
+      if (_ipCloudPushTimer) clearTimeout(_ipCloudPushTimer);
+      _ipCloudPushTimer = setTimeout(function() {
+        _ipCloudPushTimer = null;
+        ipCloudPush().then(function(r) {
+          if (typeof renderInstallPay === 'function' && document.getElementById('ipCloudStatus')) {
+            ipCloudUpdateStatusBadge();
+          }
+        });
+      }, ms);
+    }
+
+    async function ipCloudPullIfStale() {
+      if (!ipCloudEnabled()) return;
+      var lastPull = 0;
+      try { lastPull = Date.parse(localStorage.getItem(IP_CLOUD_LAST_PULL_KEY) || '') || 0; } catch(e) {}
+      if (Date.now() - lastPull < 30000) return;
+      var r = await ipCloudPull();
+      if (r && r.updated && typeof renderInstallPay === 'function') {
+        try { renderInstallPay(); } catch(e) {}
+      } else {
+        ipCloudUpdateStatusBadge();
+      }
+    }
+
+    function ipCloudUpdateStatusBadge() {
+      var el = document.getElementById('ipCloudStatus');
+      if (!el) return;
+      if (!ipCloudEnabled()) { el.textContent = 'Not connected'; el.style.color = '#dc2626'; return; }
+      var lastPush = 0, lastPull = 0;
+      try { lastPush = Date.parse(localStorage.getItem(IP_CLOUD_LAST_PUSH_KEY) || '') || 0; } catch(e) {}
+      try { lastPull = Date.parse(localStorage.getItem(IP_CLOUD_LAST_PULL_KEY) || '') || 0; } catch(e) {}
+      var newest = Math.max(lastPush, lastPull);
+      if (_ipCloudLastError) { el.textContent = '\u26a0\ufe0f ' + _ipCloudLastError; el.style.color = '#f59e0b'; return; }
+      if (!newest) { el.textContent = 'Connecting\u2026'; el.style.color = '#94a3b8'; return; }
+      var ago = Math.round((Date.now() - newest) / 1000);
+      var label = ago < 60 ? (ago + 's ago') : (ago < 3600 ? (Math.round(ago/60) + 'm ago') : (Math.round(ago/3600) + 'h ago'));
+      el.textContent = '\u2705 Synced ' + label;
+      el.style.color = '#10B981';
+    }
+
+    function ipCloudPromptPat() {
+      var existing = ipCloudGetPat();
+      var msg = 'Cloud sync uses a GitHub Personal Access Token (fine-grained).\n\n' +
+        '1) Go to https://github.com/settings/personal-access-tokens/new\n' +
+        '2) Token name: snappy-matrix sync\n' +
+        '3) Resource owner: maicosanders87\n' +
+        '4) Repository access: Only select repositories \u2192 snappy-matrix-data\n' +
+        '5) Repository permissions \u2192 Contents: Read and write\n' +
+        '6) Generate token, copy it, paste below.\n\n' +
+        'The token is stored only in this browser. Repeat once per device.';
+      var pat = window.prompt(msg, existing);
+      if (pat == null) return;
+      pat = (pat || '').trim();
+      if (!pat) { ipCloudClearPat(); ipCloudUpdateStatusBadge(); return; }
+      ipCloudSetPat(pat);
+      // Test the credentials with a pull, then push current state
+      ipCloudPull().then(function(r) {
+        if (!r.ok) {
+          alert('Cloud connect failed: ' + (r.reason || 'unknown') + (r.status ? (' [HTTP ' + r.status + ']') : ''));
+          return;
+        }
+        // Push current local state so this device's data lands in cloud immediately
+        ipCloudPush().then(function() {
+          ipCloudUpdateStatusBadge();
+          if (typeof renderInstallPay === 'function') renderInstallPay();
+        });
+      });
+    }
+    window.ipCloudPromptPat = ipCloudPromptPat;
+    window.ipCloudPull = ipCloudPull;
+    window.ipCloudPush = ipCloudPush;
+    window.ipCloudClearPat = ipCloudClearPat;
+    // ===========================================================================
+    // End cloud sync block
+    // ===========================================================================
 
     // Simple PIN hash (not cryptographic — obfuscation only; data is local anyway)
     function ipHashPin(pin) {
@@ -3623,6 +3885,28 @@ document.addEventListener('visibilitychange', function() {
       });
 
       var html = '';
+      // v218.10: Cloud sync strip
+      var cloudConnected = ipCloudEnabled();
+      var cloudPillBg = cloudConnected ? '#0F1B2E' : '#2a1410';
+      var cloudPillBorder = cloudConnected ? '#1e3a5f' : '#7f1d1d';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;padding:10px 14px;background:'+cloudPillBg+';border:1px solid '+cloudPillBorder+';border-radius:10px;">';
+      html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
+      html += '<div style="font-size:18px;">\u2601\ufe0f</div>';
+      html += '<div>';
+      html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Cross-device sync</div>';
+      html += '<div id="ipCloudStatus" style="font-size:13px;font-weight:600;color:'+(cloudConnected?'#10B981':'#dc2626')+';">'+(cloudConnected?'Connecting\u2026':'Not connected')+'</div>';
+      html += '</div>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:8px;">';
+      if (cloudConnected) {
+        html += '<button onclick="ipCloudPull().then(function(r){if(r&&r.updated)renderInstallPay();else if(typeof ipCloudUpdateStatusBadge===&quot;function&quot;)ipCloudUpdateStatusBadge();})" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">\u2b6f Pull now</button>';
+        html += '<button onclick="ipCloudPush().then(function(){if(typeof ipCloudUpdateStatusBadge===&quot;function&quot;)ipCloudUpdateStatusBadge();})" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">\u2b73 Push now</button>';
+        html += '<button onclick="if(confirm(&quot;Disconnect cloud sync on this device? Local data stays.&quot;)){ipCloudClearPat();renderInstallPay();}" style="background:#16243d;color:#94a3b8;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Disconnect</button>';
+      } else {
+        html += '<button onclick="ipCloudPromptPat()" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">\ud83d\udd17 Connect this device</button>';
+      }
+      html += '</div>';
+      html += '</div>';
       // Top bar: lock button + week picker + actions
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:12px 14px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;">';
       html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
@@ -3807,6 +4091,10 @@ document.addEventListener('visibilitychange', function() {
 
       // Paint into all containers
       containers.forEach(function(c){ c.innerHTML = html; });
+
+      // v218.10: After paint, refresh cloud status badge and pull if stale
+      try { ipCloudUpdateStatusBadge(); } catch(e) {}
+      try { ipCloudPullIfStale(); } catch(e) {}
     }
     window.renderInstallPay = renderInstallPay;
 
