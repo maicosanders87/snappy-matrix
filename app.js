@@ -2380,10 +2380,36 @@ document.addEventListener('visibilitychange', function() {
     // Dewone & Nick: no data 5/4.
     function _wlbSeedDay20260504IfNeeded() {
       try {
-        var FLAG = 'snappy_wlb_day_seeded_2026_05_04_v1';
-        if (localStorage.getItem(FLAG) === '1') return;
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_04_v2';
+        var OLD_FLAG = 'snappy_wlb_day_seeded_2026_05_04_v1';
         var d = _wlbLoad();
-        var WEEK = '2026-05-03';
+        var WEEK = '2026-05-04'; // Mon-start week (5/5 is Tuesday)
+        var OLD_WEEK = '2026-05-03';
+        // v218.6 migration: if v1 already wrote to wrong week, move entries forward
+        if (localStorage.getItem(OLD_FLAG) === '1' && localStorage.getItem(FLAG) !== '1') {
+          if (d[OLD_WEEK]) {
+            var src = d[OLD_WEEK];
+            var dst = d[WEEK] || {};
+            Object.keys(src).forEach(function(short) {
+              var s = src[short] || {};
+              var p = dst[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+              dst[short] = {
+                service:      (p.service || 0)      + (s.service || 0),
+                installCount: (p.installCount || 0) + (s.installCount || 0),
+                installRev:   (p.installRev || 0)   + (s.installRev || 0),
+                memSold:      (p.memSold || 0)      + (s.memSold || 0),
+                memOpps:      (p.memOpps || 0)      + (s.memOpps || 0)
+              };
+            });
+            d[WEEK] = dst;
+            delete d[OLD_WEEK];
+            _wlbSave(d);
+          }
+          try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+          localStorage.setItem(FLAG, '1');
+          return;
+        }
+        if (localStorage.getItem(FLAG) === '1') return;
         var existing = d[WEEK] || {};
         function add(short, svc, ic, ir, ms, mo) {
           var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
@@ -2404,6 +2430,19 @@ document.addEventListener('visibilitychange', function() {
         try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
         localStorage.setItem(FLAG, '1');
       } catch(e) { console.warn('_wlbSeedDay20260504IfNeeded failed', e); }
+    }
+
+    // v218.6: One-shot seed placeholder for 5/5/26 — ensures WEEKLY_VIEW_KEY locks to current week
+    // even if no day-data has come in yet today. Real day numbers will be overwritten when sync arrives.
+    function _wlbSeedDay20260505IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_05_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var WEEK = '2026-05-04';
+        // Just lock the active-week pointer so the leaderboard renders this week.
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260505IfNeeded failed', e); }
     }
 
     // v217: One-shot Brayden install seed for May 4, 2026 ($30,271.55, sold by Brayden Bond, lead by Chris Monahan).
