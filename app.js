@@ -2432,16 +2432,40 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260504IfNeeded failed', e); }
     }
 
-    // v218.6: One-shot seed placeholder for 5/5/26 — ensures WEEKLY_VIEW_KEY locks to current week
-    // even if no day-data has come in yet today. Real day numbers will be overwritten when sync arrives.
+    // v218.11: Tue 5/5/26 daily seed (week 2026-05-04). Source: ServiceTitan EOD screenshots.
+    // No installs today. Adds incrementally to weekly leaderboard.
+    // Daniel:  $1,439 svc · 0 mem sold / 1 mem opp
+    // Chris:   $1,097 svc · 1 mem sold / 2 mem opps · 1 SPP
+    // Dewone:    $872 svc · 0 mem sold / 0 mem opps · TGL=1
+    // Benji:     $354 svc · 0 mem sold / 1 mem opp
+    // Dee, Nick: no activity
     function _wlbSeedDay20260505IfNeeded() {
       try {
-        var FLAG = 'snappy_wlb_day_seeded_2026_05_05_v1';
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_05_v2';
+        var OLD_FLAG = 'snappy_wlb_day_seeded_2026_05_05_v1';
         if (localStorage.getItem(FLAG) === '1') return;
         var WEEK = '2026-05-04';
-        // Just lock the active-week pointer so the leaderboard renders this week.
+        var d = _wlbLoad();
+        var existing = d[WEEK] || {};
+        function add(short, svc, ic, ir, ms, mo) {
+          var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+          existing[short] = {
+            service:      (prev.service || 0)      + svc,
+            installCount: (prev.installCount || 0) + ic,
+            installRev:   (prev.installRev || 0)   + ir,
+            memSold:      (prev.memSold || 0)      + ms,
+            memOpps:      (prev.memOpps || 0)      + mo
+          };
+        }
+        add('Daniel', 1439, 0, 0, 0, 1);
+        add('Chris',  1097, 0, 0, 1, 2);
+        add('Dewone',  872, 0, 0, 0, 0);
+        add('Benji',   354, 0, 0, 0, 1);
+        d[WEEK] = existing;
+        _wlbSave(d);
         try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
         localStorage.setItem(FLAG, '1');
+        localStorage.setItem(OLD_FLAG, '1');
       } catch(e) { console.warn('_wlbSeedDay20260505IfNeeded failed', e); }
     }
 
@@ -8852,15 +8876,15 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Dewone",
         color: "#E07B3A",
-        // v209: May 2026 through Sat 5/2 live cascade. Dewone Sat-only tech.
-        // 5/1: $383 svc / 2 calls / 100% / 1 TGL / 3.7 hrs / 2 tasks. 5/2: $572 svc / 2 calls / 100% / $252 avg / 1 SPP / 3.6 hrs / 2 tasks / 1 mem sold (1/1).
-        mtd_service_rev: 955,
+        // v218.11: May 2026 through Tue 5/5 live cascade.
+        // 5/5 add: $872 svc / 1 call / 100% / TGL=1 / 5.2 hrs / 4 FRT / mem 0/0.
+        mtd_service_rev: 1827,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 955, avg_sale: 239, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 1, sold_hours: 7.3, flat_rate_tasks: 2 },
-        mtd_productivity: { rev_hr: 131, billable_hours: 7.3, sold_hrs_on_job_pct: 0, tasks_per_opp: 2, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 1827, avg_sale: 365, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 2, sold_hours: 12.5, flat_rate_tasks: 2.4 },
+        mtd_productivity: { rev_hr: 146, billable_hours: 12.5, sold_hrs_on_job_pct: 0, tasks_per_opp: 2.4, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 1, total_mem_opps: 2, total_mem_pct: 50 },
         mtd_sales: { close_rate: 0 },
@@ -8891,16 +8915,16 @@ if (typeof Chart !== 'undefined') {
         name: "Benji",
         displayName: "Ben Tinahui",
         color: "#5B4A8A",
-        // v217: May 2026 through Mon 5/4. 5/4: $89 svc / 0% conv / 1 TGL / 2.75 hrs / 0.29 TSHE / mem 0/1.
-        mtd_service_rev: 972,
+        // v218.11: May 2026 through Tue 5/5. 5/5 add: $354 svc / 1 call / 50% conv / 1 TGL / 5.3 hrs / 0.53 TSHE / 3 FRT / mem 0/1.
+        mtd_service_rev: 1326,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 972, avg_sale: 486, conversion_rate: 50, spps_sold: 0, tech_gen_leads: 1, sold_hours: 7.85, tech_sold_hr_eff: 0.45, flat_rate_tasks: 3 },
-        mtd_productivity: { rev_hr: 124, billable_hours: 7.85, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 1326, avg_sale: 663, conversion_rate: 50, spps_sold: 0, tech_gen_leads: 2, sold_hours: 13.15, tech_sold_hr_eff: 0.49, flat_rate_tasks: 3 },
+        mtd_productivity: { rev_hr: 101, billable_hours: 13.15, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 2, total_mem_pct: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 3, total_mem_pct: 0 },
         mtd_sales: { close_rate: 50 },
         monthly_archive: {
           '2026-04': {
@@ -8928,16 +8952,16 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Daniel",
         color: "#C47F17",
-        // v217: May 2026 through Mon 5/4. 5/4: $1,381 svc / 100% conv / $690 avg / 4.0 hrs / 3.5 FRT / 0/1 mem.
-        mtd_service_rev: 2710,
+        // v218.11: May 2026 through Tue 5/5. 5/5 add: $1,439 svc / 100% conv / $480 avg / 4.35 hrs / 2 FRT / mem 0/1.
+        mtd_service_rev: 4149,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 2710, avg_sale: 678, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 0, sold_hours: 7.2, flat_rate_tasks: 3.25 },
-        mtd_productivity: { rev_hr: 376, billable_hours: 7.2, sold_hrs_on_job_pct: 0, tasks_per_opp: 3.25, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 4149, avg_sale: 593, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 0, sold_hours: 11.55, flat_rate_tasks: 2.71 },
+        mtd_productivity: { rev_hr: 359, billable_hours: 11.55, sold_hrs_on_job_pct: 0, tasks_per_opp: 2.71, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 2, total_mem_pct: 50 },
+        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 3, total_mem_pct: 33 },
         mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
@@ -8965,17 +8989,17 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Chris",
         color: "#8B3A3A",
-        // v217: May 2026 through Mon 5/4. 5/4: $0 svc / 0% conv / 1 TGL ($30,271.55 Brayden install) / 1.5 hrs.
-        mtd_service_rev: 2563,
+        // v218.11: May 2026 through Tue 5/5. 5/5 add: $1,097 svc / 50% conv / $1,028 avg / 1 SPP / 2.3 hrs / 4 FRT / mem 1/2.
+        mtd_service_rev: 3660,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_install_tgl_for_others: 1,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 2563, avg_sale: 1282, conversion_rate: 50, spps_sold: 0, tech_gen_leads: 1, sold_hours: 3.8, flat_rate_tasks: 1.75 },
-        mtd_productivity: { rev_hr: 675, billable_hours: 3.8, sold_hrs_on_job_pct: 0, tasks_per_opp: 1.75, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 3660, avg_sale: 1220, conversion_rate: 50, spps_sold: 1, tech_gen_leads: 1, sold_hours: 6.1, flat_rate_tasks: 3.25 },
+        mtd_productivity: { rev_hr: 600, billable_hours: 6.1, sold_hrs_on_job_pct: 0, tasks_per_opp: 3.25, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 2, total_mem_pct: 50 },
         mtd_sales: { close_rate: 50 },
         monthly_archive: {
           '2026-04': {
