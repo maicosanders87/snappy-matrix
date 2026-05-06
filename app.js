@@ -618,7 +618,9 @@ async function initCloudSync(userInitiated) {
       'techscores': 'snappy_tech_score_overrides',
       'techstdata': 'snappy_tech_st_overrides',
       'techaptitude': 'snappy_tech_aptitude_overrides',
-      'mgrscore': 'snappy_mgr_score_overrides'
+      'mgrscore': 'snappy_mgr_score_overrides',
+      // v218.16: Install Pay — synced via Apps Script (replaces GitHub PAT flow)
+      'install_pay': 'snappy_install_pay_data_v1'
   };
 
   // Protect recently-modified local keys from being overwritten by stale cloud data.
@@ -646,6 +648,34 @@ async function initCloudSync(userInitiated) {
           localStorage.setItem(localKey, merged);
           updated = true;
         }
+      } else if (cloudKey === 'install_pay') {
+        // v218.16: Install Pay safety — NEVER let an empty cloud blob wipe non-empty local jobs.
+        // Use lastUpdated timestamp as tiebreaker; otherwise prefer whichever has more jobs.
+        try {
+          var localObj = localVal ? JSON.parse(localVal) : null;
+          var cloudObj = JSON.parse(cloudVal);
+          var localJobs = (localObj && localObj.jobs) ? localObj.jobs.length : 0;
+          var cloudJobs = (cloudObj && cloudObj.jobs) ? cloudObj.jobs.length : 0;
+          // Skip if local has data and cloud is empty
+          if (localJobs > 0 && cloudJobs === 0) {
+            console.log('[install_pay] Skipping cloud overwrite — cloud is empty, local has ' + localJobs + ' jobs');
+          } else if (localVal && _localRecentlyModified(localKey)) {
+            console.log('[install_pay] Skipping cloud overwrite — local edits newer than cloud');
+          } else if (cloudVal !== localVal) {
+            // Take the newer one based on lastUpdated when both have jobs
+            if (localJobs > 0 && cloudJobs > 0) {
+              var lt = localObj && localObj.lastUpdated ? Date.parse(localObj.lastUpdated) : 0;
+              var ct = cloudObj && cloudObj.lastUpdated ? Date.parse(cloudObj.lastUpdated) : 0;
+              if (ct > lt) {
+                localStorage.setItem(localKey, cloudVal);
+                updated = true;
+              }
+            } else {
+              localStorage.setItem(localKey, cloudVal);
+              updated = true;
+            }
+          }
+        } catch(e) { console.warn('[install_pay] merge parse failed', e); }
       } else if (cloudVal !== localVal) {
         // Skip overwrite if user recently modified this data locally (not yet pushed).
         // Always allow fresh devices (no local value) to accept cloud data.
@@ -699,8 +729,8 @@ async function manualSync() {
       SyncEngine.write('skills', skillsData.assignments);
       SyncEngine.write('manager', mgrState);
       SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
-      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons','techprofiles','techscores','techstdata','techaptitude','mgrscore'];
-      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1','snappy_tech_profiles','snappy_tech_score_overrides','snappy_tech_st_overrides','snappy_tech_aptitude_overrides','snappy_mgr_score_overrides'];
+      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons','techprofiles','techscores','techstdata','techaptitude','mgrscore','install_pay'];
+      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1','snappy_tech_profiles','snappy_tech_score_overrides','snappy_tech_st_overrides','snappy_tech_aptitude_overrides','snappy_mgr_score_overrides','snappy_install_pay_data_v1'];
       dKeys.forEach(function(k, i) {
         var v = localStorage.getItem(dLocalKeys[i]);
         if (v) {
@@ -738,7 +768,9 @@ async function manualSync() {
       'techscores': 'snappy_tech_score_overrides',
       'techstdata': 'snappy_tech_st_overrides',
       'techaptitude': 'snappy_tech_aptitude_overrides',
-      'mgrscore': 'snappy_mgr_score_overrides'
+      'mgrscore': 'snappy_mgr_score_overrides',
+      // v218.16: Install Pay
+      'install_pay': 'snappy_install_pay_data_v1'
       };
       for (var ck in keyMap) {
         if (cloudData[ck] !== undefined && cloudData[ck] !== null) {
@@ -748,6 +780,18 @@ async function manualSync() {
               // Merge tech files — never lose local files missing from cloud
               var localTf = localStorage.getItem(keyMap[ck]);
               localStorage.setItem(keyMap[ck], _mergeTechFiles(localTf, cv));
+            } else if (ck === 'install_pay') {
+              // v218.16: Install Pay safety — never let empty cloud overwrite non-empty local
+              try {
+                var ipLocalRaw = localStorage.getItem(keyMap[ck]);
+                var ipLocal = ipLocalRaw ? JSON.parse(ipLocalRaw) : null;
+                var ipCloud = JSON.parse(cv);
+                var ipLocalJobs = (ipLocal && ipLocal.jobs) ? ipLocal.jobs.length : 0;
+                var ipCloudJobs = (ipCloud && ipCloud.jobs) ? ipCloud.jobs.length : 0;
+                if (!(ipLocalJobs > 0 && ipCloudJobs === 0)) {
+                  localStorage.setItem(keyMap[ck], cv);
+                }
+              } catch(e) { localStorage.setItem(keyMap[ck], cv); }
             } else {
               localStorage.setItem(keyMap[ck], cv);
             }
@@ -3616,6 +3660,8 @@ document.addEventListener('visibilitychange', function() {
         d.lastUpdated = new Date().toISOString();
         localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(d));
       } catch(e) { console.warn('ipSaveData failed', e); }
+      // v218.16: stamp _localMod so initCloudSync's local-wins window protects this edit
+      try { localStorage.setItem(INSTALL_PAY_DATA_KEY + '_localMod', String(Date.now())); } catch(e) {}
       // v218.14: Snapshot non-empty data to recovery slot every save (rolling 5 backups).
       try {
         if (d && d.jobs && d.jobs.length > 0) {
@@ -3628,8 +3674,12 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) {}
       // v218.12: Auto-complete open TGLs when their Job# now appears in Install Pay
       try { if (typeof tglAutoCompleteFromJobs === 'function') tglAutoCompleteFromJobs(d.jobs || []); } catch(e) {}
-      // Schedule a debounced cloud push if sync is configured
-      try { ipCloudSchedulePush(); } catch(e) {}
+      // v218.16: Push to Apps Script via SyncEngine (debounced inside SyncEngine, no PAT needed)
+      try {
+        if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
+          SyncEngine.write('install_pay', d);
+        }
+      } catch(e) { console.warn('SyncEngine install_pay write failed', e); }
     }
 
     // v218.14: Recovery helpers — list local backups and restore from one.
@@ -3663,125 +3713,96 @@ document.addEventListener('visibilitychange', function() {
     window.ipRecoveryShowMenu = ipRecoveryShowMenu;
 
     // ===========================================================================
-    // v218.13: Cloud sync for Install Pay (public snappy-matrix repo)
+    // v218.16: Cloud sync for Install Pay — via existing Apps Script (SyncEngine)
     // ---------------------------------------------------------------------------
-    // Strategy: We use the SAME public snappy-matrix repo to store install pay
-    // data at data/install_pay.json. No PII is stored — just job #s, dates,
-    // installers, and dollar amounts. PIN gates the UI in-app. This means:
-    //   - READS: anonymous via raw.githubusercontent.com (no PAT) — zero setup.
-    //   - WRITES: GitHub Contents API with fine-scoped PAT (only on devices that
-    //     actually edit). PAT stored in localStorage per device.
-    // - Pull-if-stale on app boot AND on every renderInstallPay() (>30s old)
-    // - Push debounced 2s after each ipSaveData()
-    // - Last-write-wins via the data.lastUpdated ISO timestamp
+    // Replaces the v218.13/14 GitHub PAT flow. All install_pay reads/writes now
+    // route through the same Google Apps Script web app the rest of the app
+    // already uses (SyncEngine.write / SyncEngine.pull). Zero token management.
+    //   - Initial pull happens automatically in initCloudSync() on app boot.
+    //   - Every ipSaveData() pushes via SyncEngine.write('install_pay', d)
+    //     (debounced 2s inside SyncEngine).
+    //   - The legacy ipCloud* function names are kept as thin compatibility
+    //     stubs so existing UI buttons (Refresh, Push now) keep working.
     // ===========================================================================
-    const IP_CLOUD_PAT_KEY = 'snappy_install_pay_cloud_pat_v1';
     const IP_CLOUD_LAST_PULL_KEY = 'snappy_install_pay_cloud_last_pull_v1';
     const IP_CLOUD_LAST_PUSH_KEY = 'snappy_install_pay_cloud_last_push_v1';
-    const IP_CLOUD_SHA_KEY = 'snappy_install_pay_cloud_sha_v1';
-    const IP_CLOUD_REPO = 'maicosanders87/snappy-matrix';
-    const IP_CLOUD_PATH = 'data/install_pay.json';
-    const IP_CLOUD_BRANCH = 'main';
-    let _ipCloudPushTimer = null;
-    let _ipCloudInflight = false;
     let _ipCloudLastError = null;
 
-    function ipCloudGetPat() {
-      try { return localStorage.getItem(IP_CLOUD_PAT_KEY) || ''; } catch(e) { return ''; }
+    // Compatibility shims — Apps Script sync needs no PAT, no per-device enabling.
+    // ipCloudEnabled() now reflects whether SyncEngine is configured (it always is
+    // in this build), so any device can read AND write automatically.
+    function ipCloudEnabled() {
+      try { return typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured(); }
+      catch(e) { return false; }
     }
-    function ipCloudSetPat(pat) {
-      try { localStorage.setItem(IP_CLOUD_PAT_KEY, pat || ''); } catch(e) {}
-    }
-    function ipCloudClearPat() {
-      try { localStorage.removeItem(IP_CLOUD_PAT_KEY); } catch(e) {}
-      try { localStorage.removeItem(IP_CLOUD_SHA_KEY); } catch(e) {}
-    }
-    function ipCloudEnabled() { return !!ipCloudGetPat(); }
-    // v218.13: ANY device can read — reads are anonymous from raw.githubusercontent.com.
-    function ipCloudReadEnabled() { return true; }
-    function ipCloudRawUrl() {
-      // cache-busting query so iPad doesn't get a stale CDN copy
-      return 'https://raw.githubusercontent.com/' + IP_CLOUD_REPO + '/' + IP_CLOUD_BRANCH + '/' + IP_CLOUD_PATH + '?_=' + Date.now();
-    }
+    function ipCloudReadEnabled() { return ipCloudEnabled(); }
+    // No-op shims kept so any old code paths don't error.
+    function ipCloudGetPat() { return ''; }
+    function ipCloudSetPat() {}
+    function ipCloudClearPat() {}
 
-    function ipCloudHeaders() {
-      var pat = ipCloudGetPat();
-      return {
-        'Authorization': 'Bearer ' + pat,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28'
-      };
-    }
-
-    function ipCloudUrl() {
-      return 'https://api.github.com/repos/' + IP_CLOUD_REPO + '/contents/' + IP_CLOUD_PATH + '?ref=' + IP_CLOUD_BRANCH;
-    }
-
-    // Decode base64 -> string (handles UTF-8)
-    function ipB64Decode(b64) {
-      try {
-        var bin = atob((b64 || '').replace(/\n/g, ''));
-        var bytes = new Uint8Array(bin.length);
-        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        return new TextDecoder('utf-8').decode(bytes);
-      } catch(e) { return ''; }
-    }
-    function ipB64Encode(str) {
-      try {
-        var bytes = new TextEncoder().encode(str);
-        var bin = '';
-        for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-        return btoa(bin);
-      } catch(e) { return btoa(str); }
-    }
-
-    // v218.13: Anonymous read path — no PAT required. Used on iPad and any device
-    // that just views Install Pay. Falls back to authenticated pull if needed.
+    // Pull install_pay from cloud via SyncEngine. Mirrors the safety logic from
+    // initCloudSync (never let empty cloud overwrite non-empty local).
     async function ipCloudPullAnon() {
-      if (_ipCloudInflight) return { ok: false, reason: 'inflight' };
-      _ipCloudInflight = true;
+      if (!ipCloudEnabled()) {
+        _ipCloudLastError = 'sync not configured';
+        return { ok: false, reason: 'no-sync' };
+      }
       try {
-        var res = await fetch(ipCloudRawUrl(), { cache: 'no-store' });
-        if (res.status === 404) {
+        var cloudData = await SyncEngine.pull();
+        if (!cloudData) {
           _ipCloudLastError = null;
           try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
           return { ok: true, empty: true };
         }
-        if (!res.ok) {
-          _ipCloudLastError = 'pull HTTP ' + res.status;
-          return { ok: false, reason: 'http', status: res.status };
+        var raw = cloudData['install_pay'];
+        if (raw === undefined || raw === null) {
+          _ipCloudLastError = null;
+          try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
+          return { ok: true, empty: true };
         }
-        var content = await res.text();
+        var cv = (typeof _extractCloudVal === 'function') ? _extractCloudVal(raw) : null;
+        if (!cv) {
+          _ipCloudLastError = null;
+          try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
+          return { ok: true, empty: true };
+        }
         var remote = null;
-        try { remote = JSON.parse(content); } catch(e) { remote = null; }
-        if (remote && remote.data) {
-          var local = ipLoadData();
-          var localTs = Date.parse(local.lastUpdated || '0') || 0;
-          var remoteTs = Date.parse(remote.lastUpdated || '0') || 0;
-          var localJobsCount = (local.jobs || []).length;
-          var remoteJobsCount = (remote.data.jobs || []).length;
-          // v218.14: NEVER overwrite a non-empty local with an empty remote, even if remote
-          // timestamp is newer. This protects against init stubs wiping real data.
-          var safeToOverwrite = (remoteJobsCount > 0) || (localJobsCount === 0);
-          var shouldOverwrite = safeToOverwrite && (
-            remoteTs > localTs ||
-            (localJobsCount === 0 && remoteJobsCount > 0)
-          );
-          if (shouldOverwrite) {
-            var merged = {
-              jobs: remote.data.jobs || [],
-              rates: remote.data.rates || local.rates,
-              lastUpdated: remote.lastUpdated
-            };
-            try { localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(merged)); } catch(e) {}
-            try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
-            _ipCloudLastError = null;
-            return { ok: true, updated: true };
-          }
-          // If we have local jobs but remote is empty, schedule a push to re-populate cloud.
-          if (localJobsCount > 0 && remoteJobsCount === 0 && typeof ipCloudSchedulePush === 'function' && ipCloudEnabled()) {
-            try { ipCloudSchedulePush(500); } catch(e) {}
-          }
+        try { remote = JSON.parse(cv); } catch(e) { remote = null; }
+        if (!remote) {
+          _ipCloudLastError = null;
+          try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
+          return { ok: true, updated: false };
+        }
+        // Apps Script may store either {jobs,rates,lastUpdated} directly OR the
+        // legacy {data:{jobs,rates},lastUpdated} envelope. Normalize.
+        var remoteJobs = remote.jobs || (remote.data && remote.data.jobs) || [];
+        var remoteRates = remote.rates || (remote.data && remote.data.rates) || null;
+        var remoteUpdated = remote.lastUpdated || '';
+        var local = ipLoadData();
+        var localJobs = (local.jobs || []).length;
+        var remoteJobsCount = remoteJobs.length;
+        // NEVER let empty remote wipe non-empty local
+        if (localJobs > 0 && remoteJobsCount === 0) {
+          // schedule a push so cloud catches up
+          try { ipCloudSchedulePush(500); } catch(e) {}
+          try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
+          _ipCloudLastError = null;
+          return { ok: true, updated: false, protected: true };
+        }
+        var localTs = Date.parse(local.lastUpdated || '0') || 0;
+        var remoteTs = Date.parse(remoteUpdated || '0') || 0;
+        var localEmpty = (!local.jobs || local.jobs.length === 0);
+        if (remoteTs > localTs || (localEmpty && remoteJobsCount > 0)) {
+          var merged = {
+            jobs: remoteJobs,
+            rates: remoteRates || local.rates,
+            lastUpdated: remoteUpdated || new Date().toISOString()
+          };
+          try { localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(merged)); } catch(e) {}
+          try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
+          _ipCloudLastError = null;
+          return { ok: true, updated: true };
         }
         try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
         _ipCloudLastError = null;
@@ -3789,158 +3810,49 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) {
         _ipCloudLastError = 'pull error: ' + (e && e.message || e);
         return { ok: false, reason: 'exception' };
-      } finally {
-        _ipCloudInflight = false;
       }
     }
+    // Authenticated pull is the same in this model (no PAT distinction).
+    async function ipCloudPull(opts) { return ipCloudPullAnon(); }
 
-    async function ipCloudPull(opts) {
-      opts = opts || {};
-      // v218.13: If no PAT, fall through to anonymous pull — anyone can read.
-      if (!ipCloudEnabled()) return ipCloudPullAnon();
-      if (_ipCloudInflight) return { ok: false, reason: 'inflight' };
-      _ipCloudInflight = true;
-      try {
-        var res = await fetch(ipCloudUrl(), { headers: ipCloudHeaders(), cache: 'no-store' });
-        if (res.status === 404) {
-          _ipCloudLastError = null;
-          try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
-          return { ok: true, empty: true };
-        }
-        if (!res.ok) {
-          _ipCloudLastError = 'pull HTTP ' + res.status;
-          return { ok: false, reason: 'http', status: res.status };
-        }
-        var meta = await res.json();
-        var content = ipB64Decode(meta.content || '');
-        var remote = null;
-        try { remote = JSON.parse(content); } catch(e) { remote = null; }
-        if (remote && remote.data) {
-          var localAuth = ipLoadData();
-          var localAuthCount = (localAuth.jobs || []).length;
-          var remoteAuthCount = (remote.data.jobs || []).length;
-          // v218.14: Same protection on authenticated path — never let empty remote wipe local.
-          if (remoteAuthCount === 0 && localAuthCount > 0) {
-            try { localStorage.setItem(IP_CLOUD_SHA_KEY, meta.sha || ''); } catch(e) {}
-            try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
-            try { ipCloudSchedulePush(500); } catch(e) {}
-            _ipCloudLastError = null;
-            return { ok: true, updated: false, protected: true };
-          }
-          var local = ipLoadData();
-          var localTs = Date.parse(local.lastUpdated || '0') || 0;
-          var remoteTs = Date.parse(remote.lastUpdated || '0') || 0;
-          // Remote wins if strictly newer OR if local is empty and remote has data
-          var localEmpty = (!local.jobs || local.jobs.length === 0);
-          var remoteHasData = remote.data.jobs && remote.data.jobs.length > 0;
-          if (remoteTs > localTs || (localEmpty && remoteHasData)) {
-            var merged = {
-              jobs: remote.data.jobs || [],
-              rates: remote.data.rates || local.rates,
-              lastUpdated: remote.lastUpdated
-            };
-            try { localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(merged)); } catch(e) {}
-            try { localStorage.setItem(IP_CLOUD_SHA_KEY, meta.sha || ''); } catch(e) {}
-            try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
-            _ipCloudLastError = null;
-            return { ok: true, updated: true };
-          }
-        }
-        try { localStorage.setItem(IP_CLOUD_SHA_KEY, meta.sha || ''); } catch(e) {}
-        try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
-        _ipCloudLastError = null;
-        return { ok: true, updated: false };
-      } catch(e) {
-        _ipCloudLastError = 'pull error: ' + (e && e.message || e);
-        return { ok: false, reason: 'exception' };
-      } finally {
-        _ipCloudInflight = false;
-      }
-    }
-
+    // Push current install pay state to cloud via SyncEngine.
     async function ipCloudPush() {
-      if (!ipCloudEnabled()) return { ok: false, reason: 'no-pat' };
-      if (_ipCloudInflight) {
-        // retry shortly
-        ipCloudSchedulePush(1500);
-        return { ok: false, reason: 'inflight' };
-      }
-      _ipCloudInflight = true;
+      if (!ipCloudEnabled()) return { ok: false, reason: 'no-sync' };
       try {
         var local = ipLoadData();
-        var payload = {
-          version: 1,
-          lastUpdated: local.lastUpdated || new Date().toISOString(),
-          lastUpdatedBy: (navigator.userAgent || '').slice(0, 80),
-          data: { jobs: local.jobs || [], rates: local.rates || null }
-        };
-        var sha = '';
-        try { sha = localStorage.getItem(IP_CLOUD_SHA_KEY) || ''; } catch(e) {}
-        // If we don't have a sha, fetch it first (file already exists in seed)
-        if (!sha) {
-          try {
-            var res0 = await fetch(ipCloudUrl(), { headers: ipCloudHeaders(), cache: 'no-store' });
-            if (res0.ok) { var meta0 = await res0.json(); sha = meta0.sha || ''; }
-          } catch(e) {}
-        }
-        var body = {
-          message: 'Install Pay sync · ' + payload.lastUpdated,
-          content: ipB64Encode(JSON.stringify(payload, null, 2)),
-          branch: IP_CLOUD_BRANCH
-        };
-        if (sha) body.sha = sha;
-        var res = await fetch('https://api.github.com/repos/' + IP_CLOUD_REPO + '/contents/' + IP_CLOUD_PATH, {
-          method: 'PUT',
-          headers: Object.assign({ 'Content-Type': 'application/json' }, ipCloudHeaders()),
-          body: JSON.stringify(body)
-        });
-        if (res.status === 409) {
-          // sha conflict — pull then re-push once
-          _ipCloudInflight = false;
-          await ipCloudPull();
-          ipCloudSchedulePush(500);
-          return { ok: false, reason: 'conflict-retrying' };
-        }
-        if (!res.ok) {
-          _ipCloudLastError = 'push HTTP ' + res.status;
-          return { ok: false, reason: 'http', status: res.status };
-        }
-        var resp = await res.json();
-        try { localStorage.setItem(IP_CLOUD_SHA_KEY, (resp.content && resp.content.sha) || ''); } catch(e) {}
+        local.lastUpdated = local.lastUpdated || new Date().toISOString();
+        SyncEngine.write('install_pay', local);
         try { localStorage.setItem(IP_CLOUD_LAST_PUSH_KEY, new Date().toISOString()); } catch(e) {}
         _ipCloudLastError = null;
         return { ok: true };
       } catch(e) {
         _ipCloudLastError = 'push error: ' + (e && e.message || e);
         return { ok: false, reason: 'exception' };
-      } finally {
-        _ipCloudInflight = false;
       }
     }
 
+    // Debounce schedule — SyncEngine itself debounces, so this is mostly a thin
+    // pass-through. Keeping the function so legacy callers work.
+    var _ipCloudPushTimer = null;
     function ipCloudSchedulePush(ms) {
       if (!ipCloudEnabled()) return;
-      ms = ms != null ? ms : 2000;
+      ms = ms != null ? ms : 1000;
       if (_ipCloudPushTimer) clearTimeout(_ipCloudPushTimer);
       _ipCloudPushTimer = setTimeout(function() {
         _ipCloudPushTimer = null;
-        ipCloudPush().then(function(r) {
-          if (typeof renderInstallPay === 'function' && document.getElementById('ipCloudStatus')) {
-            ipCloudUpdateStatusBadge();
-          }
+        ipCloudPush().then(function() {
+          try { ipCloudUpdateStatusBadge(); } catch(e) {}
         });
       }, ms);
     }
 
     async function ipCloudPullIfStale(opts) {
-      // v218.13: ANY device pulls (anon if no PAT). Throttle to once per 30s.
       opts = opts || {};
       var lastPull = 0;
       try { lastPull = Date.parse(localStorage.getItem(IP_CLOUD_LAST_PULL_KEY) || '') || 0; } catch(e) {}
       if (!opts.force && Date.now() - lastPull < 30000) return;
       var r = await ipCloudPull();
       if (r && r.updated && typeof renderInstallPay === 'function') {
-        // Re-render any open views that depend on install pay totals
         try { renderInstallPay(); } catch(e) {}
         try { if (typeof renderOverview === 'function') renderOverview(); } catch(e) {}
         try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
@@ -3957,44 +3869,19 @@ document.addEventListener('visibilitychange', function() {
       try { lastPull = Date.parse(localStorage.getItem(IP_CLOUD_LAST_PULL_KEY) || '') || 0; } catch(e) {}
       var newest = Math.max(lastPush, lastPull);
       if (_ipCloudLastError) { el.textContent = '\u26a0\ufe0f ' + _ipCloudLastError; el.style.color = '#f59e0b'; return; }
-      var canWrite = ipCloudEnabled();
-      if (!newest) { el.textContent = canWrite ? 'Connecting\u2026' : 'Read-only \u00b7 loading\u2026'; el.style.color = '#94a3b8'; return; }
+      if (!newest) { el.textContent = 'Connecting\u2026'; el.style.color = '#94a3b8'; return; }
       var ago = Math.round((Date.now() - newest) / 1000);
       var label = ago < 60 ? (ago + 's ago') : (ago < 3600 ? (Math.round(ago/60) + 'm ago') : (Math.round(ago/3600) + 'h ago'));
-      if (canWrite) { el.textContent = '\u2705 Synced ' + label; el.style.color = '#10B981'; }
-      else { el.textContent = '\u2705 Read-only \u00b7 last pull ' + label; el.style.color = '#10B981'; }
+      el.textContent = '\u2705 Synced ' + label;
+      el.style.color = '#10B981';
     }
 
+    // Legacy "enable edits" prompt is no longer needed. Kept as a no-op so any
+    // stray onclick references don't throw.
     function ipCloudPromptPat() {
-      var existing = ipCloudGetPat();
-      var msg = 'Enable EDIT on this device.\n\n' +
-        'Reading is automatic on every device \u2014 no setup required.\n' +
-        'Editing requires a GitHub Personal Access Token (fine-grained):\n\n' +
-        '1) Go to https://github.com/settings/personal-access-tokens/new\n' +
-        '2) Token name: snappy-matrix sync\n' +
-        '3) Resource owner: maicosanders87\n' +
-        '4) Repository access: Only select repositories \u2192 snappy-matrix\n' +
-        '5) Repository permissions \u2192 Contents: Read and write\n' +
-        '6) Generate token, copy it, paste below.\n\n' +
-        'The token is stored only in this browser. Repeat once per device that edits.';
-      var pat = window.prompt(msg, existing);
-      if (pat == null) return;
-      pat = (pat || '').trim();
-      if (!pat) { ipCloudClearPat(); ipCloudUpdateStatusBadge(); return; }
-      ipCloudSetPat(pat);
-      // Test the credentials with a pull, then push current state
-      ipCloudPull().then(function(r) {
-        if (!r.ok) {
-          alert('Cloud connect failed: ' + (r.reason || 'unknown') + (r.status ? (' [HTTP ' + r.status + ']') : ''));
-          return;
-        }
-        // Push current local state so this device's data lands in cloud immediately
-        ipCloudPush().then(function() {
-          ipCloudUpdateStatusBadge();
-          if (typeof renderInstallPay === 'function') renderInstallPay();
-        });
-      });
+      alert('Cloud sync is automatic now \u2014 no setup needed. Edits on any device sync within seconds.');
     }
+
     window.ipCloudPromptPat = ipCloudPromptPat;
     window.ipCloudPull = ipCloudPull;
     window.ipCloudPullAnon = ipCloudPullAnon;
@@ -4002,6 +3889,7 @@ document.addEventListener('visibilitychange', function() {
     window.ipCloudPush = ipCloudPush;
     window.ipCloudClearPat = ipCloudClearPat;
     window.ipCloudEnabled = ipCloudEnabled;
+    window.ipCloudUpdateStatusBadge = ipCloudUpdateStatusBadge;
     // ===========================================================================
     // End cloud sync block
     // ===========================================================================
@@ -4176,26 +4064,19 @@ document.addEventListener('visibilitychange', function() {
       });
 
       var html = '';
-      // v218.13: Cloud sync strip — read-only by default, connect a PAT to enable edits.
-      var cloudWrites = ipCloudEnabled();
-      // Pill is always green/info — reads work everywhere with no setup.
+      // v218.16: Cloud sync strip — automatic via Apps Script (no PAT, edits work on every device).
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;padding:10px 14px;background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;">';
       html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
       html += '<div style="font-size:18px;">\u2601\ufe0f</div>';
       html += '<div>';
-      html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Cross-device sync \u00b7 ' + (cloudWrites ? 'edits enabled' : 'read-only on this device') + '</div>';
-      html += '<div id="ipCloudStatus" style="font-size:13px;font-weight:600;color:#10B981;">' + (cloudWrites ? 'Connecting\u2026' : 'Read-only \u00b7 loading\u2026') + '</div>';
+      html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Cross-device sync \u00b7 automatic</div>';
+      html += '<div id="ipCloudStatus" style="font-size:13px;font-weight:600;color:#10B981;">Connecting\u2026</div>';
       html += '</div>';
       html += '</div>';
       html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
       html += '<button onclick="ipCloudPullIfStale({force:true}).then(function(){if(typeof ipCloudUpdateStatusBadge===&quot;function&quot;)ipCloudUpdateStatusBadge();})" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">\u2b6f Refresh</button>';
+      html += '<button onclick="ipCloudPush().then(function(){if(typeof ipCloudUpdateStatusBadge===&quot;function&quot;)ipCloudUpdateStatusBadge();})" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">\u2b73 Push now</button>';
       html += '<button onclick="ipRecoveryShowMenu()" title="View and restore from local backups (last 5 saves)" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">\u23ea Restore backup</button>';
-      if (cloudWrites) {
-        html += '<button onclick="ipCloudPush().then(function(){if(typeof ipCloudUpdateStatusBadge===&quot;function&quot;)ipCloudUpdateStatusBadge();})" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">\u2b73 Push now</button>';
-        html += '<button onclick="if(confirm(&quot;Disable edits on this device? It will become read-only. Data stays.&quot;)){ipCloudClearPat();renderInstallPay();}" style="background:#16243d;color:#94a3b8;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Disable edits</button>';
-      } else {
-        html += '<button onclick="ipCloudPromptPat()" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">\u270f\ufe0f Enable edits on this device</button>';
-      }
       html += '</div>';
       html += '</div>';
 

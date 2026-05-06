@@ -22,13 +22,13 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260505v218.15">
+  <link rel="stylesheet" href="styles.css?v=20260506v218.16">
 
-  <!-- v218.15: Auto cache-buster — force reload if version changed since last visit -->
+  <!-- v218.16: Auto cache-buster — force reload if version changed since last visit -->
   <script>
     (function(){
       try {
-        var APP_VERSION = 'v218.15';
+        var APP_VERSION = 'v218.16';
         var KEY = 'snappy_app_version';
         var stored = localStorage.getItem(KEY);
         if (stored && stored !== APP_VERSION) {
@@ -75,7 +75,7 @@
   </div>
 
   <!-- Version Badge (top-left, always visible) -->
-  <div id="appVersionBadge" class="app-version-badge" title="App version">v218.15</div>
+  <div id="appVersionBadge" class="app-version-badge" title="App version">v218.16</div>
 
   <!-- Background Grid Effect -->
   <div class="bg-grid-effect"></div>
@@ -117,7 +117,7 @@
       </div>
       <div class="header-right">
         <span class="badge">6 Technicians</span>
-        <span class="badge badge-date">Updated 5/5/2026 &middot; v218.15</span>
+        <span class="badge badge-date">Updated 5/6/2026 &middot; v218.16</span>
         <button class="share-matrix-btn" onclick="shareMatrix()" title="Share Matrix"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share</button>
         <button id="syncNowBtn" class="sync-now-btn mgr-only" onclick="manualSync()" title="Sync Now">&#x1f504;</button>
         <span id="syncStatusIndicator" class="sync-indicator sync-idle mgr-only" onclick="openSyncSetup()" title="Cloud Sync Settings">☁ Cloud</span>
@@ -189,13 +189,13 @@
         <span class="nav-label">Sales Team</span>
         <span class="nav-tooltip">Sales Team<small>Maico, Brayden, Adam equipment scorecard</small></span>
       </button>
-      <!-- v218.15: PIN-locked Install Pay tab (hidden until ipPromptPin() unlock) -->
+      <!-- v218.16: PIN-locked Install Pay tab (hidden until ipPromptPin() unlock) -->
       <button class="nav-tab mgr-only" data-view="installpay" id="navTabInstallPay" style="display:none" onclick="if(typeof ipIsUnlocked==='function' && !ipIsUnlocked()){event.preventDefault();event.stopPropagation();ipPromptPin();return false;}">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         <span class="nav-label">Install Pay 🔒</span>
         <span class="nav-tooltip">Install Pay<small>Private payroll tracker (PIN-locked)</small></span>
       </button>
-      <!-- v218.15: hidden lock trigger — always visible to mgr; click prompts PIN -->
+      <!-- v218.16: hidden lock trigger — always visible to mgr; click prompts PIN -->
       <button class="nav-tab mgr-only" id="navInstallPayLock" onclick="ipPromptPin()" title="Install Pay (private)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         <span class="nav-label">🔒</span>
@@ -209,8 +209,8 @@
       <!-- Team Banner (with seasonal toggle) -->
       <div id="teamPhotoCard" class="team-photo-card" data-mode="storm">
         <div class="team-photo-stack">
-          <img loading="lazy" decoding="async" class="team-photo team-photo-original" src="snappy_team.jpg?v=20260505v218.15" alt="Snappy Services Team">
-          <img loading="lazy" decoding="async" class="team-photo team-photo-storm" src="snappy_team_storm.jpg?v=20260505v218.15" alt="Snappy Services Team — Storm Season">
+          <img loading="lazy" decoding="async" class="team-photo team-photo-original" src="snappy_team.jpg?v=20260506v218.16" alt="Snappy Services Team">
+          <img loading="lazy" decoding="async" class="team-photo team-photo-storm" src="snappy_team_storm.jpg?v=20260506v218.16" alt="Snappy Services Team — Storm Season">
           <!-- Storm effects overlay (only visible in storm mode) -->
           <div class="team-storm-fx" aria-hidden="true">
             <canvas class="team-rain-canvas"></canvas>
@@ -696,7 +696,7 @@
         <button class="nav-tab" data-mgr="techfiles">Tech Files</button>
         <button class="nav-tab" data-mgr="forms">Forms (PDF)</button>
         <button class="nav-tab" data-mgr="profiles">Profiles</button>
-        <!-- v218.15: Install Pay sub-tab (PIN-locked) -->
+        <!-- v218.16: Install Pay sub-tab (PIN-locked) -->
         <button class="nav-tab" data-mgr="installpay" onclick="if(typeof ipIsUnlocked==='function' && !ipIsUnlocked()){event.preventDefault();event.stopPropagation();ipPromptPin();return false;}">Install Pay 🔒</button>
       </div>
 
@@ -893,7 +893,7 @@
         <div id="mgrProfilesGrid" class="mgr-profiles-grid"></div>
       </div>
 
-      <!-- v218.15: Install Pay (private — mgr-only, PIN-locked) -->
+      <!-- v218.16: Install Pay (private — mgr-only, PIN-locked) -->
       <div id="mgr-installpay" class="mgr-section">
         <div id="installpay-content-mgr"></div>
       </div>
@@ -1499,7 +1499,7 @@ AND 30% of advancement "votes" come from skills progress
       </div>
     </div>
 
-    <!-- v218.15: INSTALL PAY TAB (PIN-locked, mgr-only, local-only storage) -->
+    <!-- v218.16: INSTALL PAY TAB (PIN-locked, mgr-only, local-only storage) -->
     <div id="view-installpay" class="view-section">
       <div id="installpay-content"></div>
     </div>
@@ -1525,9 +1525,9 @@ AND 30% of advancement "votes" come from skills progress
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
-  <script src="score_pdfs.js?v=20260505v218.15"></script>
-  <script src="onon_packets.js?v=20260505v218.15"></script>
-  <script src="app.js?v=20260505v218.15"></script>
+  <script src="score_pdfs.js?v=20260506v218.16"></script>
+  <script src="onon_packets.js?v=20260506v218.16"></script>
+  <script src="app.js?v=20260506v218.16"></script>
 
   <!-- v193: Intro splash controller -->
   <script>
