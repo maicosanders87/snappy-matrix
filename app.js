@@ -3722,6 +3722,9 @@ document.addEventListener('visibilitychange', function() {
     // present AND jobsTotal > 0 (matches Maico's rule: installer + $ on report).
     async function tglParsePdf(file) {
       if (!file) throw new Error('No file');
+      if (typeof pdfjsLib === 'undefined') {
+        throw new Error('PDF reader (pdf.js) is not loaded. Refresh the page and try again.');
+      }
       var arr = await file.arrayBuffer();
       var pdf = await pdfjsLib.getDocument({ data: arr }).promise;
       // Collect every text item across all pages, preserving order, with y-positions
@@ -3941,28 +3944,65 @@ document.addEventListener('visibilitychange', function() {
     }
     window.tglApplyParsedRows = tglApplyParsedRows;
 
+    // v218.17: helper to find the active TGL section's status + preview elements.
+    // Section renders into BOTH installpay-content and installpay-content-mgr, so we
+    // resolve via .tgl-pdf-status / .tgl-import-preview class on whichever is visible.
+    function _tglFindActiveEls() {
+      var statusEls = document.querySelectorAll('.tgl-pdf-status');
+      var previewEls = document.querySelectorAll('.tgl-import-preview');
+      var pickVisible = function(list){
+        for (var i=0;i<list.length;i++){ var el = list[i]; if (el && el.offsetParent !== null) return el; }
+        return list[0] || null;
+      };
+      return { status: pickVisible(statusEls), preview: pickVisible(previewEls) };
+    }
+
     // Drag-drop / file-picker handler used by the TGL Import zone.
     async function tglHandlePdfFile(file) {
-      var statusEl = document.getElementById('tglPdfStatus');
-      var previewEl = document.getElementById('tglImportPreview');
+      var els = _tglFindActiveEls();
+      var statusEl = els.status;
+      var previewEl = els.preview;
       if (!file) return;
+      // v218.17: explicit guard — surface a useful error if user picked a non-PDF
+      if (file.type && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name||'')) {
+        if (statusEl) { statusEl.style.color = '#f87171'; statusEl.textContent = 'Not a PDF file. Pick the ServiceTitan TGL report PDF.'; }
+        return;
+      }
       try {
         if (statusEl) { statusEl.style.color = '#94a3b8'; statusEl.textContent = 'Reading ' + file.name + '\u2026'; }
         var parsed = await tglParsePdf(file);
-        if (statusEl) statusEl.textContent = 'Parsed ' + parsed.length + ' rows from ' + file.name + '. Review below.';
+        if (!parsed || !parsed.length) {
+          if (statusEl) { statusEl.style.color = '#f87171'; statusEl.textContent = 'No TGL rows found in ' + file.name + '. Make sure it\u2019s the ServiceTitan TGL-sales and commission report.'; }
+          if (previewEl) previewEl.innerHTML = '';
+          return;
+        }
+        if (statusEl) { statusEl.style.color = '#10B981'; statusEl.textContent = 'Parsed ' + parsed.length + ' rows from ' + file.name + '. Review below.'; }
         if (previewEl) previewEl.innerHTML = tglRenderImportPreview(parsed);
         // Stash on window so confirm button can apply
         window._tglPendingImport = parsed;
       } catch(e) {
+        console.error('[TGL] Parse failed:', e);
         if (statusEl) { statusEl.style.color = '#f87171'; statusEl.textContent = 'Parse failed: ' + (e && e.message || e); }
       }
     }
     window.tglHandlePdfFile = tglHandlePdfFile;
     function tglHandleDropPdf(ev) {
       ev.preventDefault();
+      ev.stopPropagation();
       try { ev.currentTarget.style.background = 'transparent'; } catch(e) {}
-      var f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+      var dt = ev.dataTransfer;
+      if (!dt) return;
+      var f = null;
+      if (dt.files && dt.files.length) f = dt.files[0];
+      else if (dt.items && dt.items.length) {
+        // Some browsers (Safari iPad) require items[].getAsFile()
+        for (var i=0;i<dt.items.length;i++){ if (dt.items[i].kind==='file'){ f = dt.items[i].getAsFile(); if(f) break; } }
+      }
       if (f) tglHandlePdfFile(f);
+      else {
+        var els = _tglFindActiveEls();
+        if (els.status) { els.status.style.color = '#f87171'; els.status.textContent = 'No file detected on drop. Try the Choose PDF button.'; }
+      }
     }
     window.tglHandleDropPdf = tglHandleDropPdf;
 
@@ -3999,8 +4039,9 @@ document.addEventListener('visibilitychange', function() {
       if (!parsed.length) { alert('No parsed rows to apply.'); return; }
       var result = tglApplyParsedRows(parsed);
       window._tglPendingImport = null;
-      var statusEl = document.getElementById('tglPdfStatus');
-      var previewEl = document.getElementById('tglImportPreview');
+      var els = _tglFindActiveEls();
+      var statusEl = els.status;
+      var previewEl = els.preview;
       if (statusEl) { statusEl.style.color = '#10B981'; statusEl.textContent = 'Applied: '+result.added+' new, '+result.completed+' completed, '+result.updated+' updated.'; }
       if (previewEl) previewEl.innerHTML = '';
       try { renderInstallPay(); } catch(e) {}
@@ -4011,10 +4052,9 @@ document.addEventListener('visibilitychange', function() {
     window.tglConfirmImport = tglConfirmImport;
     function tglCancelImport() {
       window._tglPendingImport = null;
-      var statusEl = document.getElementById('tglPdfStatus');
-      var previewEl = document.getElementById('tglImportPreview');
-      if (statusEl) statusEl.textContent = 'Import cancelled.';
-      if (previewEl) previewEl.innerHTML = '';
+      var els = _tglFindActiveEls();
+      if (els.status) els.status.textContent = 'Import cancelled.';
+      if (els.preview) els.preview.innerHTML = '';
     }
     window.tglCancelImport = tglCancelImport;
 
@@ -4054,14 +4094,17 @@ document.addEventListener('visibilitychange', function() {
       html += '<div style="font-size:12px;font-weight:600;color:#cbd5e1;">\ud83d\udcc4 Import TGL Report (PDF)</div>';
       html += '<div style="font-size:11px;color:#64748b;">ServiceTitan TGL-sales and commission report \u00b7 daily MTD imports auto-merge</div>';
       html += '</div>';
-      html += '<div id="tglDropZone" ondragover="event.preventDefault();this.style.background=\'#0b1f3a\';" ondragleave="this.style.background=\'transparent\';" ondrop="tglHandleDropPdf(event)" style="border:2px dashed #1e3a5f;border-radius:10px;padding:18px;text-align:center;background:transparent;transition:background 0.2s;">';
+      // v218.17 FIX: section renders into BOTH installpay-content + installpay-content-mgr,
+      // so we scope handlers to the local section instead of getElementById (which returns
+      // the first match — the wrong one). The button finds its sibling file input via DOM walk.
+      html += '<div class="tgl-drop-zone" ondragover="event.preventDefault();this.style.background=\'#0b1f3a\';" ondragleave="this.style.background=\'transparent\';" ondrop="tglHandleDropPdf(event)" style="border:2px dashed #1e3a5f;border-radius:10px;padding:18px;text-align:center;background:transparent;transition:background 0.2s;">';
       html += '<div style="font-size:28px;margin-bottom:4px;">\ud83d\udcc4</div>';
       html += '<div style="font-size:12px;color:#cbd5e1;margin-bottom:8px;">Drag the daily TGL PDF here, or pick a file</div>';
-      html += '<input type="file" id="tglPdfInput" accept="application/pdf" onchange="tglHandlePdfFile(this.files[0])" style="display:none;">';
-      html += '<button onclick="document.getElementById(\'tglPdfInput\').click()" style="background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Choose PDF</button>';
-      html += '<div id="tglPdfStatus" style="font-size:11px;color:#64748b;margin-top:8px;"></div>';
+      html += '<input type="file" class="tgl-pdf-input" accept="application/pdf" onchange="tglHandlePdfFile(this.files[0]); this.value=\'\';" style="display:none;">';
+      html += '<button onclick="this.parentElement.querySelector(\'.tgl-pdf-input\').click()" style="background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Choose PDF</button>';
+      html += '<div class="tgl-pdf-status" style="font-size:11px;color:#64748b;margin-top:8px;"></div>';
       html += '</div>';
-      html += '<div id="tglImportPreview" style="margin-top:10px;"></div>';
+      html += '<div class="tgl-import-preview" style="margin-top:10px;"></div>';
       html += '</div>';
 
       // MTD chips per tech (this month only)
