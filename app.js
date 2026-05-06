@@ -619,9 +619,9 @@ async function initCloudSync(userInitiated) {
       'techstdata': 'snappy_tech_st_overrides',
       'techaptitude': 'snappy_tech_aptitude_overrides',
       'mgrscore': 'snappy_mgr_score_overrides',
-      // v218.17: Install Pay — synced via Apps Script (replaces GitHub PAT flow)
+      // v218.18: Install Pay — synced via Apps Script (replaces GitHub PAT flow)
       'install_pay': 'snappy_install_pay_data_v1',
-      // v218.17: Open TGLs (Tech-Generated Leads)
+      // v218.18: Open TGLs (Tech-Generated Leads)
       'open_tgls': 'snappy_open_tgls_v1'
   };
 
@@ -651,7 +651,7 @@ async function initCloudSync(userInitiated) {
           updated = true;
         }
       } else if (cloudKey === 'install_pay') {
-        // v218.17: Install Pay safety — NEVER let an empty cloud blob wipe non-empty local jobs.
+        // v218.18: Install Pay safety — NEVER let an empty cloud blob wipe non-empty local jobs.
         // Use lastUpdated timestamp as tiebreaker; otherwise prefer whichever has more jobs.
         try {
           var localObj = localVal ? JSON.parse(localVal) : null;
@@ -771,9 +771,9 @@ async function manualSync() {
       'techstdata': 'snappy_tech_st_overrides',
       'techaptitude': 'snappy_tech_aptitude_overrides',
       'mgrscore': 'snappy_mgr_score_overrides',
-      // v218.17: Install Pay
+      // v218.18: Install Pay
       'install_pay': 'snappy_install_pay_data_v1',
-      // v218.17: Open TGLs
+      // v218.18: Open TGLs
       'open_tgls': 'snappy_open_tgls_v1'
       };
       for (var ck in keyMap) {
@@ -785,7 +785,7 @@ async function manualSync() {
               var localTf = localStorage.getItem(keyMap[ck]);
               localStorage.setItem(keyMap[ck], _mergeTechFiles(localTf, cv));
             } else if (ck === 'install_pay') {
-              // v218.17: Install Pay safety — never let empty cloud overwrite non-empty local
+              // v218.18: Install Pay safety — never let empty cloud overwrite non-empty local
               try {
                 var ipLocalRaw = localStorage.getItem(keyMap[ck]);
                 var ipLocal = ipLocalRaw ? JSON.parse(ipLocalRaw) : null;
@@ -3613,7 +3613,7 @@ document.addEventListener('visibilitychange', function() {
     window.tglAutoCompleteFromJobs = tglAutoCompleteFromJobs;
 
     // ===========================================================================
-    // v218.17: TGL system additions — PDF import, totals, composite bump, sync
+    // v218.18: TGL system additions — PDF import, totals, composite bump, sync
     // ===========================================================================
     // Cross-device sync: every tglSave() pushes to Apps Script via SyncEngine.
     // We wrap (don't replace) the existing tglSave so all callers benefit.
@@ -3944,7 +3944,7 @@ document.addEventListener('visibilitychange', function() {
     }
     window.tglApplyParsedRows = tglApplyParsedRows;
 
-    // v218.17: helper to find the active TGL section's status + preview elements.
+    // v218.18: helper to find the active TGL section's status + preview elements.
     // Section renders into BOTH installpay-content and installpay-content-mgr, so we
     // resolve via .tgl-pdf-status / .tgl-import-preview class on whichever is visible.
     function _tglFindActiveEls() {
@@ -3963,7 +3963,7 @@ document.addEventListener('visibilitychange', function() {
       var statusEl = els.status;
       var previewEl = els.preview;
       if (!file) return;
-      // v218.17: explicit guard — surface a useful error if user picked a non-PDF
+      // v218.18: explicit guard — surface a useful error if user picked a non-PDF
       if (file.type && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name||'')) {
         if (statusEl) { statusEl.style.color = '#f87171'; statusEl.textContent = 'Not a PDF file. Pick the ServiceTitan TGL report PDF.'; }
         return;
@@ -4214,7 +4214,7 @@ document.addEventListener('visibilitychange', function() {
         d.lastUpdated = new Date().toISOString();
         localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(d));
       } catch(e) { console.warn('ipSaveData failed', e); }
-      // v218.17: stamp _localMod so initCloudSync's local-wins window protects this edit
+      // v218.18: stamp _localMod so initCloudSync's local-wins window protects this edit
       try { localStorage.setItem(INSTALL_PAY_DATA_KEY + '_localMod', String(Date.now())); } catch(e) {}
       // v218.14: Snapshot non-empty data to recovery slot every save (rolling 5 backups).
       try {
@@ -4228,7 +4228,7 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) {}
       // v218.12: Auto-complete open TGLs when their Job# now appears in Install Pay
       try { if (typeof tglAutoCompleteFromJobs === 'function') tglAutoCompleteFromJobs(d.jobs || []); } catch(e) {}
-      // v218.17: Push to Apps Script via SyncEngine (debounced inside SyncEngine, no PAT needed)
+      // v218.18: Push to Apps Script via SyncEngine (debounced inside SyncEngine, no PAT needed)
       try {
         if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
           SyncEngine.write('install_pay', d);
@@ -4267,7 +4267,7 @@ document.addEventListener('visibilitychange', function() {
     window.ipRecoveryShowMenu = ipRecoveryShowMenu;
 
     // ===========================================================================
-    // v218.17: Cloud sync for Install Pay — via existing Apps Script (SyncEngine)
+    // v218.18: Cloud sync for Install Pay — via existing Apps Script (SyncEngine)
     // ---------------------------------------------------------------------------
     // Replaces the v218.13/14 GitHub PAT flow. All install_pay reads/writes now
     // route through the same Google Apps Script web app the rest of the app
@@ -4618,7 +4618,7 @@ document.addEventListener('visibilitychange', function() {
       });
 
       var html = '';
-      // v218.17: Cloud sync strip — automatic via Apps Script (no PAT, edits work on every device).
+      // v218.18: Cloud sync strip — automatic via Apps Script (no PAT, edits work on every device).
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;padding:10px 14px;background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;">';
       html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
       html += '<div style="font-size:18px;">\u2601\ufe0f</div>';
@@ -4634,7 +4634,7 @@ document.addEventListener('visibilitychange', function() {
       html += '</div>';
       html += '</div>';
 
-      // v218.17: Manager-side TGL section — import + MTD totals + open/closed lists
+      // v218.18: Manager-side TGL section — import + MTD totals + open/closed lists
       try {
         html += tglRenderManagerSection();
       } catch(e) { console.warn('TGL manager section render failed', e); }
@@ -4831,7 +4831,7 @@ document.addEventListener('visibilitychange', function() {
     window.renderInstallPay = renderInstallPay;
 
     // ===========================================================================
-    // v218.17: My Leads tab — each tech picks their name and sees their TGLs.
+    // v218.18: My Leads tab — each tech picks their name and sees their TGLs.
     // ===========================================================================
     const MY_LEADS_TECH_KEY = 'snappy_my_leads_active_tech_v1';
     function myLeadsGetActiveTech() {
@@ -6752,7 +6752,7 @@ document.addEventListener('visibilitychange', function() {
       // v216: Champion bonus = weekly podium + streak + categories, capped +10, decays after 4wks
       const champData = (typeof champActiveBonusFor === 'function') ? champActiveBonusFor(tech.name) : { total: 0, entries: [] };
       const championBonus = champData.total || 0;
-      // v218.17: TGL closed-lead bump — +1 per closed TGL, capped at +5 (only helps, never hurts)
+      // v218.18: TGL closed-lead bump — +1 per closed TGL, capped at +5 (only helps, never hurts)
       const tglBump = (typeof tglCompositeBump === 'function') ? (tglCompositeBump(tech.short) || 0) : 0;
       const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus + performanceBonus + championBonus + tglBump;
       // Season soft reset penalty (carries for current season only)
@@ -7370,7 +7370,7 @@ document.addEventListener('visibilitychange', function() {
         if (v === 'sales') {
           try { if (typeof renderSalesScorecard === 'function') renderSalesScorecard(); } catch(e) { console.warn('renderSalesScorecard on tab switch failed:', e); }
         }
-        // v218.17: My Leads (per-tech TGL view)
+        // v218.18: My Leads (per-tech TGL view)
         if (v === 'myleads') {
           try { renderMyLeads(); } catch(e) { console.warn('renderMyLeads on tab switch failed:', e); }
         }
