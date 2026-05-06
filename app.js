@@ -3616,11 +3616,51 @@ document.addEventListener('visibilitychange', function() {
         d.lastUpdated = new Date().toISOString();
         localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(d));
       } catch(e) { console.warn('ipSaveData failed', e); }
+      // v218.14: Snapshot non-empty data to recovery slot every save (rolling 5 backups).
+      try {
+        if (d && d.jobs && d.jobs.length > 0) {
+          var snaps = [];
+          try { snaps = JSON.parse(localStorage.getItem('snappy_install_pay_recovery_v1') || '[]'); } catch(e) { snaps = []; }
+          snaps.unshift({ at: new Date().toISOString(), data: d });
+          snaps = snaps.slice(0, 5);
+          localStorage.setItem('snappy_install_pay_recovery_v1', JSON.stringify(snaps));
+        }
+      } catch(e) {}
       // v218.12: Auto-complete open TGLs when their Job# now appears in Install Pay
       try { if (typeof tglAutoCompleteFromJobs === 'function') tglAutoCompleteFromJobs(d.jobs || []); } catch(e) {}
       // Schedule a debounced cloud push if sync is configured
       try { ipCloudSchedulePush(); } catch(e) {}
     }
+
+    // v218.14: Recovery helpers — list local backups and restore from one.
+    function ipRecoveryList() {
+      try { return JSON.parse(localStorage.getItem('snappy_install_pay_recovery_v1') || '[]'); } catch(e) { return []; }
+    }
+    function ipRecoveryRestore(idx) {
+      var snaps = ipRecoveryList();
+      if (!snaps[idx]) { alert('No backup at slot ' + idx); return false; }
+      var ok = confirm('Restore Install Pay from backup taken ' + snaps[idx].at + ' (' + (snaps[idx].data.jobs || []).length + ' jobs)? Current data will be replaced.');
+      if (!ok) return false;
+      var d = snaps[idx].data;
+      d.lastUpdated = new Date().toISOString();
+      try { localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(d)); } catch(e) {}
+      try { ipCloudSchedulePush(200); } catch(e) {}
+      try { renderInstallPay(); } catch(e) {}
+      return true;
+    }
+    function ipRecoveryShowMenu() {
+      var snaps = ipRecoveryList();
+      if (!snaps.length) { alert('No local backups found on this device. Backups are made on every save starting v218.14.'); return; }
+      var lines = snaps.map(function(s, i){ return i + ': ' + s.at + '  (' + ((s.data.jobs || []).length) + ' jobs)'; }).join('\n');
+      var pick = prompt('Local Install Pay backups on this device:\n\n' + lines + '\n\nEnter slot number to restore (or cancel):');
+      if (pick == null || pick === '') return;
+      var idx = parseInt(pick, 10);
+      if (isNaN(idx)) return;
+      ipRecoveryRestore(idx);
+    }
+    window.ipRecoveryList = ipRecoveryList;
+    window.ipRecoveryRestore = ipRecoveryRestore;
+    window.ipRecoveryShowMenu = ipRecoveryShowMenu;
 
     // ===========================================================================
     // v218.13: Cloud sync for Install Pay (public snappy-matrix repo)
@@ -3718,9 +3758,16 @@ document.addEventListener('visibilitychange', function() {
           var local = ipLoadData();
           var localTs = Date.parse(local.lastUpdated || '0') || 0;
           var remoteTs = Date.parse(remote.lastUpdated || '0') || 0;
-          var localEmpty = (!local.jobs || local.jobs.length === 0);
-          var remoteHasData = remote.data.jobs && remote.data.jobs.length > 0;
-          if (remoteTs > localTs || (localEmpty && remoteHasData)) {
+          var localJobsCount = (local.jobs || []).length;
+          var remoteJobsCount = (remote.data.jobs || []).length;
+          // v218.14: NEVER overwrite a non-empty local with an empty remote, even if remote
+          // timestamp is newer. This protects against init stubs wiping real data.
+          var safeToOverwrite = (remoteJobsCount > 0) || (localJobsCount === 0);
+          var shouldOverwrite = safeToOverwrite && (
+            remoteTs > localTs ||
+            (localJobsCount === 0 && remoteJobsCount > 0)
+          );
+          if (shouldOverwrite) {
             var merged = {
               jobs: remote.data.jobs || [],
               rates: remote.data.rates || local.rates,
@@ -3730,6 +3777,10 @@ document.addEventListener('visibilitychange', function() {
             try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
             _ipCloudLastError = null;
             return { ok: true, updated: true };
+          }
+          // If we have local jobs but remote is empty, schedule a push to re-populate cloud.
+          if (localJobsCount > 0 && remoteJobsCount === 0 && typeof ipCloudSchedulePush === 'function' && ipCloudEnabled()) {
+            try { ipCloudSchedulePush(500); } catch(e) {}
           }
         }
         try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
@@ -3765,6 +3816,17 @@ document.addEventListener('visibilitychange', function() {
         var remote = null;
         try { remote = JSON.parse(content); } catch(e) { remote = null; }
         if (remote && remote.data) {
+          var localAuth = ipLoadData();
+          var localAuthCount = (localAuth.jobs || []).length;
+          var remoteAuthCount = (remote.data.jobs || []).length;
+          // v218.14: Same protection on authenticated path — never let empty remote wipe local.
+          if (remoteAuthCount === 0 && localAuthCount > 0) {
+            try { localStorage.setItem(IP_CLOUD_SHA_KEY, meta.sha || ''); } catch(e) {}
+            try { localStorage.setItem(IP_CLOUD_LAST_PULL_KEY, new Date().toISOString()); } catch(e) {}
+            try { ipCloudSchedulePush(500); } catch(e) {}
+            _ipCloudLastError = null;
+            return { ok: true, updated: false, protected: true };
+          }
           var local = ipLoadData();
           var localTs = Date.parse(local.lastUpdated || '0') || 0;
           var remoteTs = Date.parse(remote.lastUpdated || '0') || 0;
@@ -4127,6 +4189,7 @@ document.addEventListener('visibilitychange', function() {
       html += '</div>';
       html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
       html += '<button onclick="ipCloudPullIfStale({force:true}).then(function(){if(typeof ipCloudUpdateStatusBadge===&quot;function&quot;)ipCloudUpdateStatusBadge();})" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">\u2b6f Refresh</button>';
+      html += '<button onclick="ipRecoveryShowMenu()" title="View and restore from local backups (last 5 saves)" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">\u23ea Restore backup</button>';
       if (cloudWrites) {
         html += '<button onclick="ipCloudPush().then(function(){if(typeof ipCloudUpdateStatusBadge===&quot;function&quot;)ipCloudUpdateStatusBadge();})" style="background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">\u2b73 Push now</button>';
         html += '<button onclick="if(confirm(&quot;Disable edits on this device? It will become read-only. Data stays.&quot;)){ipCloudClearPat();renderInstallPay();}" style="background:#16243d;color:#94a3b8;border:1px solid #1e3a5f;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Disable edits</button>';
