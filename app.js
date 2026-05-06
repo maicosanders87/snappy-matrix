@@ -619,9 +619,9 @@ async function initCloudSync(userInitiated) {
       'techstdata': 'snappy_tech_st_overrides',
       'techaptitude': 'snappy_tech_aptitude_overrides',
       'mgrscore': 'snappy_mgr_score_overrides',
-      // v218.19: Install Pay — synced via Apps Script (replaces GitHub PAT flow)
+      // v218.20: Install Pay — synced via Apps Script (replaces GitHub PAT flow)
       'install_pay': 'snappy_install_pay_data_v1',
-      // v218.19: Open TGLs (Tech-Generated Leads)
+      // v218.20: Open TGLs (Tech-Generated Leads)
       'open_tgls': 'snappy_open_tgls_v1'
   };
 
@@ -651,7 +651,7 @@ async function initCloudSync(userInitiated) {
           updated = true;
         }
       } else if (cloudKey === 'install_pay') {
-        // v218.19: Install Pay safety — NEVER let an empty cloud blob wipe non-empty local jobs.
+        // v218.20: Install Pay safety — NEVER let an empty cloud blob wipe non-empty local jobs.
         // Use lastUpdated timestamp as tiebreaker; otherwise prefer whichever has more jobs.
         try {
           var localObj = localVal ? JSON.parse(localVal) : null;
@@ -771,9 +771,9 @@ async function manualSync() {
       'techstdata': 'snappy_tech_st_overrides',
       'techaptitude': 'snappy_tech_aptitude_overrides',
       'mgrscore': 'snappy_mgr_score_overrides',
-      // v218.19: Install Pay
+      // v218.20: Install Pay
       'install_pay': 'snappy_install_pay_data_v1',
-      // v218.19: Open TGLs
+      // v218.20: Open TGLs
       'open_tgls': 'snappy_open_tgls_v1'
       };
       for (var ck in keyMap) {
@@ -785,7 +785,7 @@ async function manualSync() {
               var localTf = localStorage.getItem(keyMap[ck]);
               localStorage.setItem(keyMap[ck], _mergeTechFiles(localTf, cv));
             } else if (ck === 'install_pay') {
-              // v218.19: Install Pay safety — never let empty cloud overwrite non-empty local
+              // v218.20: Install Pay safety — never let empty cloud overwrite non-empty local
               try {
                 var ipLocalRaw = localStorage.getItem(keyMap[ck]);
                 var ipLocal = ipLocalRaw ? JSON.parse(ipLocalRaw) : null;
@@ -3613,7 +3613,7 @@ document.addEventListener('visibilitychange', function() {
     window.tglAutoCompleteFromJobs = tglAutoCompleteFromJobs;
 
     // ===========================================================================
-    // v218.19: TGL system additions — PDF import, totals, composite bump, sync
+    // v218.20: TGL system additions — PDF import, totals, composite bump, sync
     // ===========================================================================
     // Cross-device sync: every tglSave() pushes to Apps Script via SyncEngine.
     // We wrap (don't replace) the existing tglSave so all callers benefit.
@@ -3821,37 +3821,63 @@ document.addEventListener('visibilitychange', function() {
           var s = cells[j].str.trim();
           if (dateRe.test(s)) { dateIdx = j; break; }
         }
-        // v218.19 fix: customer is the leftmost cell that is NOT a date, job#, money,
-        // checkmark, or known column-header keyword. The previous logic blindly grabbed
-        // cells[0], which was the date when the LocationName cell wrapped to the next y.
-        var KNOWN_TECH_NAMES = ['Chris','Dewone','Benji','Daniel','Dee','Nick','Mark','Maico','Brayden','Adam','Thomas','Terrell','Jhamaal','Xia','Kathryn'];
-        var STRIP_TOKENS_RE = /^(Marketed\s*Lead|Maintenance|Service|HVAC\s*Install|HVAC\s*Replacement\s*Lead|Sales|HVAC|Yes|No|\u2713|\u2717|\-)$/i;
+        // v218.20: Location Name = customer name. ServiceTitan TGL reports always have
+        // Location as the leftmost column. Strategy:
+        //   1) Walk leftCells (everything before job#) and pick the FIRST cell that's not
+        //      a date / job# / money / checkmark / pure punctuation. Don't filter by
+        //      content keywords — customer names can legitimately be 'Service' or 'HVAC LLC'.
+        //   2) If still nothing, look at the previous row(s) on a smaller y delta
+        //      (within ~14px) for a wrapped Location cell whose x is at the leftmost
+        //      column position (roughly x < 100 in ServiceTitan layout).
+        //   3) Final fallback: any leftCell that's just non-empty text.
+        var CHECK_RE = /^[\u2713\u2717\u2714\u2718\-]+$/;
         var leftCells = cells.slice(0, jobIdx);
         var customer = '';
+        function _looksJunk(s){
+          if (!s) return true;
+          if (dateRe.test(s)) return true;
+          if (jobNumRe.test(s)) return true;
+          if (moneyRe.test(s)) return true;
+          if (CHECK_RE.test(s)) return true;
+          if (/^\d+$/.test(s)) return true;     // pure number cells (invoice/opportunity #)
+          return false;
+        }
+        // Pass 1: leftmost non-junk cell on this row
         for (var ci=0; ci<leftCells.length; ci++) {
           var raw = leftCells[ci].str.trim();
-          if (!raw) continue;
-          if (dateRe.test(raw)) continue;          // skip dates
-          if (jobNumRe.test(raw)) continue;        // skip stray digits
-          if (moneyRe.test(raw)) continue;         // skip $
-          if (STRIP_TOKENS_RE.test(raw)) continue; // skip column-header-ish words
-          // skip a leading lone tech first-name (means LocationName wrapped above)
-          if (KNOWN_TECH_NAMES.indexOf(raw) !== -1 && customer === '') continue;
+          if (_looksJunk(raw)) continue;
           customer = raw;
           break;
         }
-        // Fallback: if every left cell got filtered, fall back to the previous row's
-        // first cell when it contains a likely customer name (PDF wraps location to
-        // its own y-coordinate occasionally).
-        if (!customer && i > 0) {
-          var prev = rows[i-1];
-          if (prev && prev.cells && prev.cells.length === 1) {
-            var prevTxt = prev.cells[0].str.trim();
-            if (prevTxt && !dateRe.test(prevTxt) && !jobNumRe.test(prevTxt) && !STRIP_TOKENS_RE.test(prevTxt)) {
-              customer = prevTxt;
+        // Pass 2: scan up to 3 prior rows for a wrapped Location cell at far-left x
+        if (!customer) {
+          for (var pk=1; pk<=3 && (i-pk)>=0; pk++) {
+            var prev = rows[i-pk];
+            if (!prev || !prev.cells || !prev.cells.length) continue;
+            // skip any header rows
+            if (/Lead Generated By/i.test(prev.text||'')) break;
+            // Find prev row's leftmost cell
+            var pCell = prev.cells[0];
+            var pTxt = pCell ? pCell.str.trim() : '';
+            if (!pTxt || _looksJunk(pTxt)) continue;
+            // Prefer cells whose x is within ~30px of this row's leftmost x (column-aligned)
+            var thisLeftX = (cells[0] && cells[0].x) || 0;
+            if (Math.abs((pCell.x||0) - thisLeftX) <= 60 || (pCell.x||0) < 120) {
+              customer = pTxt;
+              break;
             }
           }
         }
+        // Pass 3 (last resort): any non-empty left cell
+        if (!customer) {
+          for (var ci2=0; ci2<leftCells.length; ci2++) {
+            var raw2 = leftCells[ci2].str.trim();
+            if (raw2) { customer = raw2; break; }
+          }
+        }
+        // v218.20: STRIP_TOKENS_RE used here (not for customer extraction) to drop
+        // column-header-ish words from the assigned-tech list.
+        var STRIP_TOKENS_RE = /^(Marketed\s*Lead|Maintenance|Service|HVAC\s*Install|HVAC\s*Replacement\s*Lead|Sales|HVAC|Yes|No|\u2713|\u2717|\-)$/i;
         var assigned = '';
         if (dateIdx > 1) {
           // assigned techs sit between customer and date; exclude the customer cell index
@@ -3966,7 +3992,7 @@ document.addEventListener('visibilitychange', function() {
     function tglApplyParsedRows(parsed) {
       var added = 0, completed = 0, updated = 0, skipped = 0, deduped = 0;
       var d = tglLoad();
-      // v218.19: dedup pre-pass — collapse any pre-existing duplicates by jobNumber
+      // v218.20: dedup pre-pass — collapse any pre-existing duplicates by jobNumber
       // (keep first-seen, prefer 'completed' if either copy is completed).
       (function _dedupExisting(){
         var seen = {};
@@ -4009,7 +4035,7 @@ document.addEventListener('visibilitychange', function() {
           deduped++;
         }
       });
-      // v218.19: cross-import dedup — match against existing rows by jobNumber, OR by
+      // v218.20: cross-import dedup — match against existing rows by jobNumber, OR by
       //          composite signature (customer|date|leadBy) when no jobNumber. If the
       //          incoming row carries no new info beyond what's already stored, count
       //          it as a duplicate skip instead of an update.
@@ -4072,7 +4098,7 @@ document.addEventListener('visibilitychange', function() {
     }
     window.tglApplyParsedRows = tglApplyParsedRows;
 
-    // v218.19: helper to find the active TGL section's status + preview elements.
+    // v218.20: helper to find the active TGL section's status + preview elements.
     // Section renders into BOTH installpay-content and installpay-content-mgr, so we
     // resolve via .tgl-pdf-status / .tgl-import-preview class on whichever is visible.
     function _tglFindActiveEls() {
@@ -4091,7 +4117,7 @@ document.addEventListener('visibilitychange', function() {
       var statusEl = els.status;
       var previewEl = els.preview;
       if (!file) return;
-      // v218.19: explicit guard — surface a useful error if user picked a non-PDF
+      // v218.20: explicit guard — surface a useful error if user picked a non-PDF
       if (file.type && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name||'')) {
         if (statusEl) { statusEl.style.color = '#f87171'; statusEl.textContent = 'Not a PDF file. Pick the ServiceTitan TGL report PDF.'; }
         return;
@@ -4187,7 +4213,7 @@ document.addEventListener('visibilitychange', function() {
     }
     window.tglCancelImport = tglCancelImport;
 
-    // v218.19: clear all imported rows — use after parser fixes when existing data is bad.
+    // v218.20: clear all imported rows — use after parser fixes when existing data is bad.
     function tglClearAll() {
       if (!confirm('Wipe ALL imported TGL rows? You\u2019ll need to re-import the daily/MTD PDF.')) return;
       try {
@@ -4226,7 +4252,7 @@ document.addEventListener('visibilitychange', function() {
       html += '<span style="font-size:12px;font-weight:700;color:#FBBF24;background:#1e1a07;border:1px solid #78350f;padding:3px 10px;border-radius:999px;">'+openRows.length+' open</span>';
       html += '<span style="font-size:12px;font-weight:700;color:#10B981;background:#062a1c;border:1px solid #064e3b;padding:3px 10px;border-radius:999px;">'+doneRows.length+' completed</span>';
       if (totalRevenue > 0) html += '<span style="font-size:12px;font-weight:700;color:#10B981;background:#062a1c;border:1px solid #064e3b;padding:3px 10px;border-radius:999px;">$'+Math.round(totalRevenue).toLocaleString()+' MTD</span>';
-      // v218.19: Clear-all button in case parser data needs reset
+      // v218.20: Clear-all button in case parser data needs reset
       html += '<button onclick="tglClearAll()" title="Wipe all imported TGL rows (use after parser fixes)" style="background:#3a1d1d;color:#fca5a5;border:1px solid #7f1d1d;padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Clear all</button>';
       html += '</div>';
       html += '</div>';
@@ -4357,7 +4383,7 @@ document.addEventListener('visibilitychange', function() {
         d.lastUpdated = new Date().toISOString();
         localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(d));
       } catch(e) { console.warn('ipSaveData failed', e); }
-      // v218.19: stamp _localMod so initCloudSync's local-wins window protects this edit
+      // v218.20: stamp _localMod so initCloudSync's local-wins window protects this edit
       try { localStorage.setItem(INSTALL_PAY_DATA_KEY + '_localMod', String(Date.now())); } catch(e) {}
       // v218.14: Snapshot non-empty data to recovery slot every save (rolling 5 backups).
       try {
@@ -4371,7 +4397,7 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) {}
       // v218.12: Auto-complete open TGLs when their Job# now appears in Install Pay
       try { if (typeof tglAutoCompleteFromJobs === 'function') tglAutoCompleteFromJobs(d.jobs || []); } catch(e) {}
-      // v218.19: Push to Apps Script via SyncEngine (debounced inside SyncEngine, no PAT needed)
+      // v218.20: Push to Apps Script via SyncEngine (debounced inside SyncEngine, no PAT needed)
       try {
         if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
           SyncEngine.write('install_pay', d);
@@ -4410,7 +4436,7 @@ document.addEventListener('visibilitychange', function() {
     window.ipRecoveryShowMenu = ipRecoveryShowMenu;
 
     // ===========================================================================
-    // v218.19: Cloud sync for Install Pay — via existing Apps Script (SyncEngine)
+    // v218.20: Cloud sync for Install Pay — via existing Apps Script (SyncEngine)
     // ---------------------------------------------------------------------------
     // Replaces the v218.13/14 GitHub PAT flow. All install_pay reads/writes now
     // route through the same Google Apps Script web app the rest of the app
@@ -4761,7 +4787,7 @@ document.addEventListener('visibilitychange', function() {
       });
 
       var html = '';
-      // v218.19: Cloud sync strip — automatic via Apps Script (no PAT, edits work on every device).
+      // v218.20: Cloud sync strip — automatic via Apps Script (no PAT, edits work on every device).
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;padding:10px 14px;background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;">';
       html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
       html += '<div style="font-size:18px;">\u2601\ufe0f</div>';
@@ -4777,7 +4803,7 @@ document.addEventListener('visibilitychange', function() {
       html += '</div>';
       html += '</div>';
 
-      // v218.19: Manager-side TGL section — import + MTD totals + open/closed lists
+      // v218.20: Manager-side TGL section — import + MTD totals + open/closed lists
       try {
         html += tglRenderManagerSection();
       } catch(e) { console.warn('TGL manager section render failed', e); }
@@ -4974,7 +5000,7 @@ document.addEventListener('visibilitychange', function() {
     window.renderInstallPay = renderInstallPay;
 
     // ===========================================================================
-    // v218.19: My Leads tab — each tech picks their name and sees their TGLs.
+    // v218.20: My Leads tab — each tech picks their name and sees their TGLs.
     // ===========================================================================
     const MY_LEADS_TECH_KEY = 'snappy_my_leads_active_tech_v1';
     function myLeadsGetActiveTech() {
@@ -6895,7 +6921,7 @@ document.addEventListener('visibilitychange', function() {
       // v216: Champion bonus = weekly podium + streak + categories, capped +10, decays after 4wks
       const champData = (typeof champActiveBonusFor === 'function') ? champActiveBonusFor(tech.name) : { total: 0, entries: [] };
       const championBonus = champData.total || 0;
-      // v218.19: TGL closed-lead bump — +1 per closed TGL, capped at +5 (only helps, never hurts)
+      // v218.20: TGL closed-lead bump — +1 per closed TGL, capped at +5 (only helps, never hurts)
       const tglBump = (typeof tglCompositeBump === 'function') ? (tglCompositeBump(tech.short) || 0) : 0;
       const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus + performanceBonus + championBonus + tglBump;
       // Season soft reset penalty (carries for current season only)
@@ -7513,7 +7539,7 @@ document.addEventListener('visibilitychange', function() {
         if (v === 'sales') {
           try { if (typeof renderSalesScorecard === 'function') renderSalesScorecard(); } catch(e) { console.warn('renderSalesScorecard on tab switch failed:', e); }
         }
-        // v218.19: My Leads (per-tech TGL view)
+        // v218.20: My Leads (per-tech TGL view)
         if (v === 'myleads') {
           try { renderMyLeads(); } catch(e) { console.warn('renderMyLeads on tab switch failed:', e); }
         }
