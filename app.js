@@ -3427,6 +3427,144 @@ document.addEventListener('visibilitychange', function() {
     const INSTALL_PAY_UNLOCK_KEY = 'snappy_install_pay_unlocked'; // session-style
     const INSTALL_PAY_DEFAULT_PIN = '0323';
 
+    // ===========================================================================
+    // v218.12: Open TGLs (Tech-Generated Leads tracker)
+    // ---------------------------------------------------------------------------
+    // Per the rule: a TGL row in ServiceTitan that has NO dollar amount = lead
+    // generated, install not yet completed. We track these so they auto-credit
+    // when the install closes (matched by Job #).
+    // Two counters per tech: open (lead-gen, no $) and completed (closed with $).
+    // "only help, not hurt" — neither counter currently feeds the composite score.
+    // ===========================================================================
+    const OPEN_TGL_KEY = 'snappy_open_tgls_v1';
+    function tglLoad() {
+      try {
+        var raw = localStorage.getItem(OPEN_TGL_KEY);
+        var d = raw ? JSON.parse(raw) : { rows: [] };
+        if (!d || !Array.isArray(d.rows)) d = { rows: [] };
+        return d;
+      } catch(e) { return { rows: [] }; }
+    }
+    function tglSave(d) {
+      try {
+        d.lastUpdated = new Date().toISOString();
+        localStorage.setItem(OPEN_TGL_KEY, JSON.stringify(d));
+      } catch(e) { console.warn('tglSave failed', e); }
+    }
+    // Add or update a TGL row (idempotent by jobNumber)
+    function tglUpsert(row) {
+      var d = tglLoad();
+      var idx = d.rows.findIndex(function(r){ return r.jobNumber === row.jobNumber; });
+      if (idx >= 0) {
+        // Don't downgrade a completed TGL back to open via re-seed
+        var existing = d.rows[idx];
+        d.rows[idx] = Object.assign({}, existing, row, {
+          status: existing.status === 'completed' ? 'completed' : (row.status || 'open')
+        });
+      } else {
+        d.rows.push(Object.assign({ status: 'open', addedAt: new Date().toISOString() }, row));
+      }
+      tglSave(d);
+    }
+    // When an install lands (Install Pay or Brayden install), check for matching
+    // Job # in open TGLs and flip to 'completed' with the install details.
+    function tglMaybeCompleteByJobNumber(jobNumber, installInfo) {
+      if (!jobNumber) return false;
+      var d = tglLoad();
+      var idx = d.rows.findIndex(function(r){ return r.jobNumber === jobNumber; });
+      if (idx < 0) return false;
+      var changed = false;
+      var prev = d.rows[idx];
+      if (prev.status !== 'completed') {
+        d.rows[idx] = Object.assign({}, prev, {
+          status: 'completed',
+          completedDate: (installInfo && installInfo.date) || new Date().toISOString().slice(0,10),
+          jobTotal: (installInfo && installInfo.jobTotal != null) ? installInfo.jobTotal : null,
+          installer: (installInfo && installInfo.installer) || prev.installer || null,
+          completedAt: new Date().toISOString()
+        });
+        changed = true;
+        tglSave(d);
+      }
+      return changed;
+    }
+    // Counters used by tech profiles / dashboard
+    function tglCountsByTech() {
+      var d = tglLoad();
+      var out = {}; // { techShort: { open: n, completed: n } }
+      d.rows.forEach(function(r){
+        if (!r.leadGeneratedBy) return; // marketed leads, etc., don't credit a tech
+        var tech = r.leadGeneratedBy;
+        if (!out[tech]) out[tech] = { open: 0, completed: 0 };
+        if (r.status === 'completed') out[tech].completed += 1;
+        else out[tech].open += 1;
+      });
+      return out;
+    }
+    // One-shot seed of the 5/4/26 TGLs from the ServiceTitan TGL screenshot
+    function _tglSeedMay20260504IfNeeded() {
+      try {
+        var FLAG = 'snappy_tgl_seeded_2026_05_04_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        // Jhamaal Patrick — Marketed Lead, no tech credit
+        tglUpsert({
+          jobNumber: '91912167', invoiceNumber: '91912167',
+          customer: 'Jhamaal Patrick',
+          dateGenerated: '2026-05-04',
+          assignedTechnicians: ['Brayden Bond'],
+          soldBy: 'Brayden Bond',
+          leadGeneratedBy: '', // null in ServiceTitan grouping
+          source: 'Marketed Lead',
+          status: 'open',
+          marketedLead: true
+        });
+        // Xia Davis — TGL by Chris from Maintenance call 91533287
+        tglUpsert({
+          jobNumber: '91910659', invoiceNumber: '91910659',
+          customer: 'Xia Davis',
+          dateGenerated: '2026-05-04',
+          assignedTechnicians: ['Brayden Bond'],
+          soldBy: 'Brayden Bond',
+          leadGeneratedBy: 'Chris',
+          source: 'Maintenance',
+          leadGeneratedFromJob: '91533287',
+          status: 'open'
+        });
+        // Kathryn Kadous — TGL by Chris, install assigned to Thomas + Terrell
+        tglUpsert({
+          jobNumber: '91881584', invoiceNumber: '91881584',
+          customer: 'Kathryn Kadous',
+          dateGenerated: '2026-05-04',
+          assignedTechnicians: ['Thomas Gilbert', 'Terrell Upshur'],
+          soldBy: '', // unknown sales rep — install techs only on this row
+          leadGeneratedBy: 'Chris',
+          source: 'Maintenance',
+          status: 'open'
+        });
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_tglSeedMay20260504IfNeeded failed', e); }
+    }
+    // Sweep helper: scan a list of installed jobs and auto-complete matching open TGLs.
+    function tglAutoCompleteFromJobs(jobs) {
+      if (!Array.isArray(jobs)) return 0;
+      var n = 0;
+      jobs.forEach(function(j){
+        if (!j || !j.jobNumber) return;
+        if (tglMaybeCompleteByJobNumber(String(j.jobNumber).trim(), {
+          date: j.date,
+          jobTotal: j.basePay != null ? j.basePay : (j.jobsTotal != null ? j.jobsTotal : null),
+          installer: j.installer || j.soldBy || null
+        })) n++;
+      });
+      return n;
+    }
+    window.tglLoad = tglLoad;
+    window.tglUpsert = tglUpsert;
+    window.tglCountsByTech = tglCountsByTech;
+    window.tglMaybeCompleteByJobNumber = tglMaybeCompleteByJobNumber;
+    window.tglAutoCompleteFromJobs = tglAutoCompleteFromJobs;
+    // ===========================================================================
+
     // Default rate cards (confirmed 5/5/2026 by Maico from IMG_3712)
     const INSTALL_PAY_DEFAULT_RATES = {
       'Terrell Upshur': {
@@ -3478,6 +3616,8 @@ document.addEventListener('visibilitychange', function() {
         d.lastUpdated = new Date().toISOString();
         localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(d));
       } catch(e) { console.warn('ipSaveData failed', e); }
+      // v218.12: Auto-complete open TGLs when their Job# now appears in Install Pay
+      try { if (typeof tglAutoCompleteFromJobs === 'function') tglAutoCompleteFromJobs(d.jobs || []); } catch(e) {}
       // Schedule a debounced cloud push if sync is configured
       try { ipCloudSchedulePush(); } catch(e) {}
     }
@@ -3931,6 +4071,47 @@ document.addEventListener('visibilitychange', function() {
       }
       html += '</div>';
       html += '</div>';
+
+      // v218.12: Open TGL tracker strip
+      try {
+        var tglData = (typeof tglLoad === 'function') ? tglLoad() : { rows: [] };
+        var tglRows = (tglData && tglData.rows) ? tglData.rows : [];
+        var openRows = tglRows.filter(function(r){ return r.status !== 'completed'; });
+        var doneRows = tglRows.filter(function(r){ return r.status === 'completed'; });
+        var counts = (typeof tglCountsByTech === 'function') ? tglCountsByTech() : {};
+        var tghTechs = Object.keys(counts).sort();
+        html += '<div style="margin-bottom:14px;padding:12px 14px;background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;">';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">';
+        html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
+        html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Open TGLs</div>';
+        html += '<div style="font-size:13px;font-weight:700;color:#FBBF24;background:#1e1a07;border:1px solid #78350f;padding:3px 10px;border-radius:999px;">'+openRows.length+' open</div>';
+        html += '<div style="font-size:13px;font-weight:700;color:#10B981;background:#062a1c;border:1px solid #064e3b;padding:3px 10px;border-radius:999px;">'+doneRows.length+' completed</div>';
+        html += '</div>';
+        html += '<div style="font-size:10px;color:#64748b;">Auto-credits when matching Job # is added below</div>';
+        html += '</div>';
+        if (tghTechs.length) {
+          html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">';
+          tghTechs.forEach(function(t){
+            var c = counts[t];
+            html += '<span style="font-size:11px;color:#cbd5e1;background:#0b1426;border:1px solid #1e3a5f;padding:3px 9px;border-radius:6px;"><b style="color:#fff;">'+t+'</b> · <span style="color:#FBBF24;">'+c.open+' open</span> · <span style="color:#10B981;">'+c.completed+' done</span></span>';
+          });
+          html += '</div>';
+        }
+        if (openRows.length) {
+          html += '<div style="max-height:180px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
+          html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:6px 10px;">Customer</th><th style="text-align:left;padding:6px 10px;">Job #</th><th style="text-align:left;padding:6px 10px;">Generated</th><th style="text-align:left;padding:6px 10px;">Lead by</th><th style="text-align:left;padding:6px 10px;">Assigned</th></tr></thead><tbody>';
+          openRows.slice().sort(function(a,b){ return (b.dateGenerated||'').localeCompare(a.dateGenerated||''); }).forEach(function(r){
+            var assigned = (r.assignedTechnicians||[]).join(', ');
+            var leadBy = r.leadGeneratedBy || (r.marketedLead ? '<span style="color:#64748b;">Marketed</span>' : '—');
+            html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:6px 10px;color:#f1f5f9;">'+(r.customer||'—')+'</td><td style="padding:6px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">'+(r.jobNumber||'—')+'</td><td style="padding:6px 10px;color:#94a3b8;">'+(r.dateGenerated||'—')+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+leadBy+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+(assigned||'—')+'</td></tr>';
+          });
+          html += '</tbody></table></div>';
+        } else {
+          html += '<div style="font-size:12px;color:#64748b;font-style:italic;">No open TGLs.</div>';
+        }
+        html += '</div>';
+      } catch(e) { console.warn('TGL strip render failed', e); }
+
       // Top bar: lock button + week picker + actions
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:12px 14px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;">';
       html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
@@ -16825,6 +17006,15 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260504IfNeeded(); } catch(e) {}
+    try { _tglSeedMay20260504IfNeeded(); } catch(e) {}
+    // After all seeds, auto-complete any open TGL whose Job# already shows up in Install Pay or Brayden installs.
+    try {
+      var _ipForSweep = (typeof ipLoadData === 'function') ? ipLoadData() : { jobs: [] };
+      tglAutoCompleteFromJobs(_ipForSweep.jobs || []);
+      var _brRaw = localStorage.getItem('snappy_brayden_installs');
+      var _brArr = _brRaw ? JSON.parse(_brRaw) : [];
+      tglAutoCompleteFromJobs(_brArr.map(function(x){ return { jobNumber: x.jobNumber || x.invoice, date: x.date || x.completionDate, basePay: x.jobsTotal, installer: x.soldBy }; }));
+    } catch(e) { console.warn('TGL init sweep failed', e); }
     try { _trainingSeedWed20260506IfNeeded(); } catch(e) {}
     try { renderWeeklyLeaderboard(); } catch(e) { console.warn('renderWeeklyLeaderboard init failed', e); }
     renderProgression();
