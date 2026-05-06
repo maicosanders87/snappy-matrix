@@ -619,8 +619,10 @@ async function initCloudSync(userInitiated) {
       'techstdata': 'snappy_tech_st_overrides',
       'techaptitude': 'snappy_tech_aptitude_overrides',
       'mgrscore': 'snappy_mgr_score_overrides',
-      // v218.16: Install Pay — synced via Apps Script (replaces GitHub PAT flow)
-      'install_pay': 'snappy_install_pay_data_v1'
+      // v218.17: Install Pay — synced via Apps Script (replaces GitHub PAT flow)
+      'install_pay': 'snappy_install_pay_data_v1',
+      // v218.17: Open TGLs (Tech-Generated Leads)
+      'open_tgls': 'snappy_open_tgls_v1'
   };
 
   // Protect recently-modified local keys from being overwritten by stale cloud data.
@@ -649,7 +651,7 @@ async function initCloudSync(userInitiated) {
           updated = true;
         }
       } else if (cloudKey === 'install_pay') {
-        // v218.16: Install Pay safety — NEVER let an empty cloud blob wipe non-empty local jobs.
+        // v218.17: Install Pay safety — NEVER let an empty cloud blob wipe non-empty local jobs.
         // Use lastUpdated timestamp as tiebreaker; otherwise prefer whichever has more jobs.
         try {
           var localObj = localVal ? JSON.parse(localVal) : null;
@@ -729,8 +731,8 @@ async function manualSync() {
       SyncEngine.write('skills', skillsData.assignments);
       SyncEngine.write('manager', mgrState);
       SyncEngine.write('bulletin', JSON.parse(localStorage.getItem('snappy_bulletin_board') || '{}'));
-      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons','techprofiles','techscores','techstdata','techaptitude','mgrscore','install_pay'];
-      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1','snappy_tech_profiles','snappy_tech_score_overrides','snappy_tech_st_overrides','snappy_tech_aptitude_overrides','snappy_mgr_score_overrides','snappy_install_pay_data_v1'];
+      var dKeys = ['techfiles','dispatch','dailyduties','mgrstats','braydenstats','daynotes','nexstar','recall','complaint','mgrnotes','seasons','techprofiles','techscores','techstdata','techaptitude','mgrscore','install_pay','open_tgls'];
+      var dLocalKeys = ['snappy_tech_files','snappy_dispatch_v1','snappy_daily_duties','snappy_mgr_stats','snappy_brayden_stats','snappy_day_notes','snappy_nexstar','snappy_recall_log_v1','snappy_complaint_log_v1','snappy_mgr_notes_v1','snappy_seasons_v1','snappy_tech_profiles','snappy_tech_score_overrides','snappy_tech_st_overrides','snappy_tech_aptitude_overrides','snappy_mgr_score_overrides','snappy_install_pay_data_v1','snappy_open_tgls_v1'];
       dKeys.forEach(function(k, i) {
         var v = localStorage.getItem(dLocalKeys[i]);
         if (v) {
@@ -769,8 +771,10 @@ async function manualSync() {
       'techstdata': 'snappy_tech_st_overrides',
       'techaptitude': 'snappy_tech_aptitude_overrides',
       'mgrscore': 'snappy_mgr_score_overrides',
-      // v218.16: Install Pay
-      'install_pay': 'snappy_install_pay_data_v1'
+      // v218.17: Install Pay
+      'install_pay': 'snappy_install_pay_data_v1',
+      // v218.17: Open TGLs
+      'open_tgls': 'snappy_open_tgls_v1'
       };
       for (var ck in keyMap) {
         if (cloudData[ck] !== undefined && cloudData[ck] !== null) {
@@ -781,7 +785,7 @@ async function manualSync() {
               var localTf = localStorage.getItem(keyMap[ck]);
               localStorage.setItem(keyMap[ck], _mergeTechFiles(localTf, cv));
             } else if (ck === 'install_pay') {
-              // v218.16: Install Pay safety — never let empty cloud overwrite non-empty local
+              // v218.17: Install Pay safety — never let empty cloud overwrite non-empty local
               try {
                 var ipLocalRaw = localStorage.getItem(keyMap[ck]);
                 var ipLocal = ipLocalRaw ? JSON.parse(ipLocalRaw) : null;
@@ -3607,6 +3611,513 @@ document.addEventListener('visibilitychange', function() {
     window.tglCountsByTech = tglCountsByTech;
     window.tglMaybeCompleteByJobNumber = tglMaybeCompleteByJobNumber;
     window.tglAutoCompleteFromJobs = tglAutoCompleteFromJobs;
+
+    // ===========================================================================
+    // v218.17: TGL system additions — PDF import, totals, composite bump, sync
+    // ===========================================================================
+    // Cross-device sync: every tglSave() pushes to Apps Script via SyncEngine.
+    // We wrap (don't replace) the existing tglSave so all callers benefit.
+    var _tglSaveBase = tglSave;
+    tglSave = function(d) {
+      _tglSaveBase(d);
+      try { localStorage.setItem(OPEN_TGL_KEY + '_localMod', String(Date.now())); } catch(e) {}
+      try {
+        if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
+          SyncEngine.write('open_tgls', d);
+        }
+      } catch(e) {}
+    };
+    window.tglSave = tglSave;
+
+    // Map first-name to canonical short used elsewhere in the app.
+    // The existing seeded data uses 'Chris', 'Dewone', 'Benji', 'Daniel', 'Dee', 'Nick'
+    // — our parser must produce the same shorts so credits roll up correctly.
+    function tglNormalizeTechName(rawName) {
+      if (!rawName) return '';
+      var n = String(rawName).trim();
+      if (!n) return '';
+      // Strip common suffixes / titles
+      n = n.replace(/\s+/g, ' ');
+      var firstWord = n.split(' ')[0];
+      // Known full-name → short mappings
+      var map = {
+        'chris': 'Chris',
+        'dewone': 'Dewone',
+        'benji': 'Benji',
+        'benjamin': 'Benji',
+        'daniel': 'Daniel',
+        'danny': 'Daniel',
+        'dee': 'Dee',
+        'nick': 'Nick',
+        'nicholas': 'Nick',
+        // Sales / mgr — these can also generate leads, so map them too
+        'brayden': 'Brayden Bond',
+        'adam': 'Adam Bunyard',
+        'mark': 'Maico',
+        'maico': 'Maico'
+      };
+      var key = firstWord.toLowerCase();
+      if (map[key]) return map[key];
+      // Fallback to capitalized first word
+      return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
+    }
+    window.tglNormalizeTechName = tglNormalizeTechName;
+
+    // MTD totals per tech — open count, completed count, completed revenue $
+    function tglMtdByTech(monthYM) {
+      // monthYM optional 'YYYY-MM' filter; default = current calendar month
+      var d = tglLoad();
+      var ym = monthYM || (new Date().toISOString().slice(0,7));
+      var out = {};
+      d.rows.forEach(function(r){
+        if (!r.leadGeneratedBy) return;
+        var rowYm = (r.dateGenerated || '').slice(0,7);
+        if (rowYm !== ym) return;
+        var t = r.leadGeneratedBy;
+        if (!out[t]) out[t] = { open: 0, completed: 0, completedRevenue: 0 };
+        if (r.status === 'completed') {
+          out[t].completed++;
+          out[t].completedRevenue += parseFloat(r.jobTotal || 0) || 0;
+        } else {
+          out[t].open++;
+        }
+      });
+      return out;
+    }
+    window.tglMtdByTech = tglMtdByTech;
+
+    // Composite bump for a tech: +1 per closed TGL this month, capped +5.
+    // Per user rule — only helps, never hurts.
+    function tglCompositeBump(techShort) {
+      try {
+        var mtd = tglMtdByTech();
+        var c = mtd[techShort];
+        if (!c) return 0;
+        return Math.min(5, c.completed);
+      } catch(e) { return 0; }
+    }
+    window.tglCompositeBump = tglCompositeBump;
+
+    // Per-tech rows (open + completed) for tech file / My Leads tab
+    function tglRowsForTech(techShort) {
+      if (!techShort) return { open: [], completed: [] };
+      var d = tglLoad();
+      var open = [], done = [];
+      d.rows.forEach(function(r){
+        if (r.leadGeneratedBy !== techShort) return;
+        if (r.status === 'completed') done.push(r);
+        else open.push(r);
+      });
+      // Newest first by dateGenerated
+      open.sort(function(a,b){ return (b.dateGenerated||'').localeCompare(a.dateGenerated||''); });
+      done.sort(function(a,b){ return (b.completedDate||b.dateGenerated||'').localeCompare(a.completedDate||a.dateGenerated||''); });
+      return { open: open, completed: done };
+    }
+    window.tglRowsForTech = tglRowsForTech;
+
+    // ----- TGL PDF parser (ServiceTitan TGL-sales and commission report) -----
+    // The PDF is a single multi-page table grouped by 'Lead Generated By: <Name>'.
+    // We extract all rows, attach the active group label as leadGeneratedBy, and
+    // upsert each into tglData. A row is 'completed' when assignedTechnicians is
+    // present AND jobsTotal > 0 (matches Maico's rule: installer + $ on report).
+    async function tglParsePdf(file) {
+      if (!file) throw new Error('No file');
+      var arr = await file.arrayBuffer();
+      var pdf = await pdfjsLib.getDocument({ data: arr }).promise;
+      // Collect every text item across all pages, preserving order, with y-positions
+      // so we can reassemble rows.
+      var allItems = [];
+      for (var p=1; p <= pdf.numPages; p++) {
+        var page = await pdf.getPage(p);
+        var content = await page.getTextContent();
+        // Each item has str + transform [a,b,c,d,e,f] where e=x, f=y
+        content.items.forEach(function(it){
+          if (!it.str) return;
+          allItems.push({
+            page: p,
+            x: it.transform[4],
+            y: it.transform[5],
+            str: it.str
+          });
+        });
+      }
+      // Group items into rows by (page, y) within ~3px tolerance, then sort by x.
+      var rows = [];
+      var byPage = {};
+      allItems.forEach(function(it){
+        var key = it.page;
+        if (!byPage[key]) byPage[key] = [];
+        byPage[key].push(it);
+      });
+      Object.keys(byPage).sort(function(a,b){ return Number(a)-Number(b); }).forEach(function(p){
+        var items = byPage[p].slice().sort(function(a,b){ return b.y - a.y; });
+        var current = null;
+        items.forEach(function(it){
+          if (!current || Math.abs(it.y - current.y) > 3) {
+            if (current) rows.push(current);
+            current = { page: it.page, y: it.y, cells: [it] };
+          } else {
+            current.cells.push(it);
+          }
+        });
+        if (current) rows.push(current);
+      });
+      rows.forEach(function(r){
+        r.cells.sort(function(a,b){ return a.x - b.x; });
+        r.text = r.cells.map(function(c){ return c.str; }).join(' ').replace(/\s+/g,' ').trim();
+      });
+      // Walk rows, track active group, parse data rows.
+      // A header row text starts with 'Lead Generated By' (or 'Lead Generated By:').
+      // A data row contains a 7-8 digit Job # cell.
+      var currentGroup = '__marketed__'; // before any 'Lead Generated By: X' header
+      var parsed = [];
+      var jobNumRe = /^\d{7,9}$/;
+      var moneyRe = /^\$\s*([\d,]+(?:\.\d+)?)$/;
+      var dateRe = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+      for (var i=0; i<rows.length; i++) {
+        var row = rows[i];
+        var t = row.text || '';
+        // Header detection
+        if (/^Lead Generated By\s*:?\s*$/.test(t)) {
+          // The actual name might be on the same row in the next cell, or on next row.
+          // Our cell grouping concatenates cells on the SAME y — if name is on a slightly
+          // different y it lands on next row. Look ahead.
+          var nameOnSame = t.replace(/^Lead Generated By\s*:?\s*/, '').trim();
+          if (nameOnSame) {
+            currentGroup = tglNormalizeTechName(nameOnSame);
+          } else if (rows[i+1]) {
+            currentGroup = tglNormalizeTechName(rows[i+1].text);
+            i++; // consume the name row
+          } else {
+            currentGroup = '__marketed__';
+          }
+          continue;
+        }
+        if (/^Lead Generated By\s*:\s*\S/.test(t)) {
+          var nm = t.replace(/^Lead Generated By\s*:\s*/, '').trim();
+          currentGroup = nm ? tglNormalizeTechName(nm) : '__marketed__';
+          continue;
+        }
+        // Data row: must contain at least one 7-9 digit job# cell
+        var jobCell = row.cells.find(function(c){ return jobNumRe.test(c.str.trim()); });
+        if (!jobCell) continue;
+        // Extract fields by scanning cells in display order. The PDF column order is:
+        // [LocationName, AssignedTechnicians, CompletionDate, Job#, Invoice#,
+        //  LeadGeneratedFromSource, LeadGeneratedBy, LeadGeneratedFrom (opp #),
+        //  Opportunity (✓), JobType, BusinessUnit, JobsTotal]
+        // But cells can wrap, so use heuristics keyed off the job# position.
+        var cells = row.cells;
+        // Index of first job#
+        var jobIdx = cells.indexOf(jobCell);
+        // Customer = everything before AssignedTechnicians, which is itself the cells
+        // before completionDate. Easiest: collect cells with x < first date or just
+        // before the job#. Use job# as anchor: customer is roughly cells[0]; assigned
+        // is cells[1..k] where k ends before the date cell.
+        var dateIdx = -1;
+        for (var j=0; j<cells.length; j++) {
+          var s = cells[j].str.trim();
+          if (dateRe.test(s)) { dateIdx = j; break; }
+        }
+        // customer = first cell text
+        var customer = cells[0] ? cells[0].str.trim() : '';
+        var assigned = '';
+        if (dateIdx > 1) {
+          assigned = cells.slice(1, dateIdx).map(function(c){ return c.str.trim(); }).filter(Boolean).join(' ');
+        } else if (dateIdx === -1 && jobIdx > 1) {
+          assigned = cells.slice(1, jobIdx).map(function(c){ return c.str.trim(); }).filter(Boolean).join(' ');
+        }
+        // Date (ServiceTitan format M/D/YYYY → ISO)
+        var dateGenerated = '';
+        if (dateIdx >= 0) {
+          var m = cells[dateIdx].str.trim().match(dateRe);
+          if (m) {
+            dateGenerated = m[3] + '-' + ('0'+m[1]).slice(-2) + '-' + ('0'+m[2]).slice(-2);
+          }
+        }
+        var jobNumber = jobCell.str.trim();
+        // Invoice# typically equals Job# — the next 7-9 digit cell after jobIdx.
+        var invoiceNumber = jobNumber;
+        for (var k=jobIdx+1; k<cells.length; k++) {
+          var s2 = cells[k].str.trim();
+          if (jobNumRe.test(s2)) { invoiceNumber = s2; break; }
+        }
+        // Money cell (last $X.XX-shaped)
+        var jobTotal = 0;
+        for (var m2=cells.length-1; m2>=0; m2--) {
+          var s3 = cells[m2].str.trim();
+          var mm = s3.match(moneyRe);
+          if (mm) { jobTotal = parseFloat(mm[1].replace(/,/g,'')) || 0; break; }
+        }
+        // Source / job type / business unit — read from joined text after job# region
+        var afterJobText = cells.slice(jobIdx+1).map(function(c){ return c.str; }).join(' ');
+        var source = '';
+        if (/Marketed\s*Lead/i.test(afterJobText)) source = 'Marketed Lead';
+        else if (/Maintenance/i.test(afterJobText)) source = 'Maintenance';
+        else if (/Service/i.test(afterJobText)) source = 'Service';
+        var businessUnit = '';
+        if (/HVAC\s*Install/i.test(afterJobText)) businessUnit = 'HVAC Install';
+        else if (/Sales/i.test(afterJobText)) businessUnit = 'Sales';
+        var jobType = '';
+        if (/HVAC\s*Install/i.test(afterJobText) && /Install/i.test(afterJobText)) jobType = 'HVAC Install';
+        else if (/HVAC\s*Replacement\s*Lead/i.test(afterJobText)) jobType = 'HVAC Replacement Lead';
+        // soldBy = first listed assigned technician (sales rep on the row in ST PDF)
+        // assignedTechnicians = split assigned by comma OR known sales/install reps
+        var assignedNames = [];
+        if (assigned) {
+          assignedNames = assigned.split(/,\s*|\s{2,}/).map(function(s){ return s.trim(); }).filter(Boolean);
+          // The PDF wraps full names across cells (e.g., 'Brayden' '\nBond') — our
+          // join uses spaces, so 'Brayden Bond' may parse correctly. But 'Thomas
+          // Gilbert, Terrell Upshur' splits on comma. Ensure each chunk has a space
+          // by collapsing internal whitespace.
+          assignedNames = assignedNames.map(function(s){ return s.replace(/\s+/g,' ').trim(); });
+        }
+        var soldBy = assignedNames.length ? assignedNames[0] : '';
+        // Determine lead generator: prefer explicit Lead Generated By cell on the row
+        // (when the parser can find it), else fall back to the active group header.
+        // ServiceTitan often repeats the name on each row. Look for a known short.
+        var rowLeadBy = '';
+        var afterText = afterJobText;
+        ['Chris','Dewone','Benji','Daniel','Dee','Nick','Mark','Maico','Brayden','Adam'].forEach(function(nm){
+          if (rowLeadBy) return;
+          var re = new RegExp('\\b' + nm + '\\b','i');
+          if (re.test(afterText)) rowLeadBy = tglNormalizeTechName(nm);
+        });
+        var leadBy = rowLeadBy || (currentGroup === '__marketed__' ? '' : currentGroup);
+        var marketed = (leadBy === '' || /Marketed/i.test(source));
+        // Status: completed if jobsTotal > 0 AND we have at least one assigned name
+        var status = (jobTotal > 0 && assignedNames.length) ? 'completed' : 'open';
+        parsed.push({
+          jobNumber: jobNumber,
+          invoiceNumber: invoiceNumber,
+          customer: customer,
+          assignedTechnicians: assignedNames,
+          soldBy: soldBy,
+          dateGenerated: dateGenerated,
+          source: source,
+          jobType: jobType,
+          businessUnit: businessUnit,
+          leadGeneratedBy: leadBy,
+          jobTotal: jobTotal,
+          marketedLead: marketed,
+          status: status,
+          completedDate: status === 'completed' ? dateGenerated : null
+        });
+      }
+      return parsed;
+    }
+    window.tglParsePdf = tglParsePdf;
+
+    // Apply parsed PDF rows to the TGL store: idempotent upsert per Job #.
+    // - New rows added.
+    // - Existing 'open' rows can be promoted to 'completed' if the new parse
+    //   shows installer + jobTotal > 0.
+    // - Never downgrade a completed row.
+    function tglApplyParsedRows(parsed) {
+      var added = 0, completed = 0, updated = 0, skipped = 0;
+      var d = tglLoad();
+      parsed.forEach(function(p){
+        if (!p.jobNumber) { skipped++; return; }
+        var idx = d.rows.findIndex(function(r){ return r.jobNumber === p.jobNumber; });
+        if (idx < 0) {
+          d.rows.push(Object.assign({ addedAt: new Date().toISOString() }, p));
+          added++;
+          if (p.status === 'completed') completed++;
+        } else {
+          var existing = d.rows[idx];
+          var nextStatus = existing.status === 'completed' ? 'completed' : p.status;
+          var wasCompleted = existing.status === 'completed';
+          d.rows[idx] = Object.assign({}, existing, p, { status: nextStatus });
+          if (nextStatus === 'completed' && !wasCompleted) {
+            d.rows[idx].completedDate = p.completedDate || p.dateGenerated || new Date().toISOString().slice(0,10);
+            d.rows[idx].completedAt = new Date().toISOString();
+            completed++;
+          } else {
+            updated++;
+          }
+        }
+      });
+      tglSave(d);
+      return { added: added, completed: completed, updated: updated, skipped: skipped, total: parsed.length };
+    }
+    window.tglApplyParsedRows = tglApplyParsedRows;
+
+    // Drag-drop / file-picker handler used by the TGL Import zone.
+    async function tglHandlePdfFile(file) {
+      var statusEl = document.getElementById('tglPdfStatus');
+      var previewEl = document.getElementById('tglImportPreview');
+      if (!file) return;
+      try {
+        if (statusEl) { statusEl.style.color = '#94a3b8'; statusEl.textContent = 'Reading ' + file.name + '\u2026'; }
+        var parsed = await tglParsePdf(file);
+        if (statusEl) statusEl.textContent = 'Parsed ' + parsed.length + ' rows from ' + file.name + '. Review below.';
+        if (previewEl) previewEl.innerHTML = tglRenderImportPreview(parsed);
+        // Stash on window so confirm button can apply
+        window._tglPendingImport = parsed;
+      } catch(e) {
+        if (statusEl) { statusEl.style.color = '#f87171'; statusEl.textContent = 'Parse failed: ' + (e && e.message || e); }
+      }
+    }
+    window.tglHandlePdfFile = tglHandlePdfFile;
+    function tglHandleDropPdf(ev) {
+      ev.preventDefault();
+      try { ev.currentTarget.style.background = 'transparent'; } catch(e) {}
+      var f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+      if (f) tglHandlePdfFile(f);
+    }
+    window.tglHandleDropPdf = tglHandleDropPdf;
+
+    function tglRenderImportPreview(rows) {
+      if (!rows || !rows.length) return '<div style="color:#64748b;font-size:12px;">No rows parsed.</div>';
+      var openCount = rows.filter(function(r){return r.status==='open';}).length;
+      var doneCount = rows.filter(function(r){return r.status==='completed';}).length;
+      var revenue = rows.reduce(function(s,r){ return s + (parseFloat(r.jobTotal)||0); }, 0);
+      var html = '';
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">';
+      html += '<span style="font-size:12px;color:#cbd5e1;"><b>'+rows.length+'</b> rows \u00b7 <span style="color:#FBBF24;">'+openCount+' open</span> \u00b7 <span style="color:#10B981;">'+doneCount+' completed</span> \u00b7 <span style="color:#10B981;">$'+Math.round(revenue).toLocaleString()+'</span> install $</span>';
+      html += '<div style="flex:1;"></div>';
+      html += '<button onclick="tglConfirmImport()" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">\u2713 Apply Import</button>';
+      html += '<button onclick="tglCancelImport()" style="background:#16243d;color:#cbd5e1;border:1px solid #1e3a5f;padding:7px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Cancel</button>';
+      html += '</div>';
+      html += '<div style="max-height:240px;overflow:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;">';
+      html += '<th style="text-align:left;padding:6px 10px;">Customer</th><th style="text-align:left;padding:6px 10px;">Job #</th><th style="text-align:left;padding:6px 10px;">Date</th><th style="text-align:left;padding:6px 10px;">Lead by</th><th style="text-align:left;padding:6px 10px;">Sold by / Assigned</th><th style="text-align:right;padding:6px 10px;">Total</th><th style="text-align:left;padding:6px 10px;">Status</th>';
+      html += '</tr></thead><tbody>';
+      rows.forEach(function(r){
+        var tot = (r.jobTotal && r.jobTotal > 0) ? ('$' + Math.round(r.jobTotal).toLocaleString()) : '<span style="color:#64748b;">$0</span>';
+        var lb = r.leadGeneratedBy || (r.marketedLead ? '<span style="color:#64748b;">Marketed</span>' : '\u2014');
+        var st = r.status === 'completed' ? '<span style="color:#10B981;font-weight:700;">Completed</span>' : '<span style="color:#FBBF24;font-weight:700;">Open</span>';
+        var assigned = (r.assignedTechnicians||[]).join(', ');
+        html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:6px 10px;color:#f1f5f9;">'+(r.customer||'\u2014')+'</td><td style="padding:6px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">'+(r.jobNumber||'\u2014')+'</td><td style="padding:6px 10px;color:#94a3b8;">'+(r.dateGenerated||'\u2014')+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+lb+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+(assigned||'\u2014')+'</td><td style="padding:6px 10px;text-align:right;color:#f1f5f9;font-variant-numeric:tabular-nums;">'+tot+'</td><td style="padding:6px 10px;">'+st+'</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      return html;
+    }
+    window.tglRenderImportPreview = tglRenderImportPreview;
+
+    function tglConfirmImport() {
+      var parsed = window._tglPendingImport || [];
+      if (!parsed.length) { alert('No parsed rows to apply.'); return; }
+      var result = tglApplyParsedRows(parsed);
+      window._tglPendingImport = null;
+      var statusEl = document.getElementById('tglPdfStatus');
+      var previewEl = document.getElementById('tglImportPreview');
+      if (statusEl) { statusEl.style.color = '#10B981'; statusEl.textContent = 'Applied: '+result.added+' new, '+result.completed+' completed, '+result.updated+' updated.'; }
+      if (previewEl) previewEl.innerHTML = '';
+      try { renderInstallPay(); } catch(e) {}
+      try { if (typeof renderMyLeads === 'function') renderMyLeads(); } catch(e) {}
+      try { if (typeof renderOverview === 'function') renderOverview(); } catch(e) {}
+      try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+    }
+    window.tglConfirmImport = tglConfirmImport;
+    function tglCancelImport() {
+      window._tglPendingImport = null;
+      var statusEl = document.getElementById('tglPdfStatus');
+      var previewEl = document.getElementById('tglImportPreview');
+      if (statusEl) statusEl.textContent = 'Import cancelled.';
+      if (previewEl) previewEl.innerHTML = '';
+    }
+    window.tglCancelImport = tglCancelImport;
+
+    // Render the manager-side TGL section that lives inside the Install Pay tab.
+    // Includes: PDF import zone, MTD by tech (with revenue), open list, closed list.
+    function tglRenderManagerSection() {
+      var d = tglLoad();
+      var rows = (d && d.rows) ? d.rows : [];
+      var openRows = rows.filter(function(r){ return r.status !== 'completed'; });
+      var doneRows = rows.filter(function(r){ return r.status === 'completed'; });
+      var mtd = tglMtdByTech();
+      var ymLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      var totalRevenue = doneRows.reduce(function(s,r){
+        var ym = (r.completedDate || r.dateGenerated || '').slice(0,7);
+        if (ym !== new Date().toISOString().slice(0,7)) return s;
+        return s + (parseFloat(r.jobTotal)||0);
+      }, 0);
+
+      var html = '';
+      html += '<div style="margin-bottom:14px;background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;overflow:hidden;">';
+      // Header bar
+      html += '<div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:1px solid #1e3a5f;">';
+      html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
+      html += '<div style="font-size:14px;font-weight:700;color:#f1f5f9;">\ud83c\udfaf TGL Tracker</div>';
+      html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">'+ymLabel+'</div>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
+      html += '<span style="font-size:12px;font-weight:700;color:#FBBF24;background:#1e1a07;border:1px solid #78350f;padding:3px 10px;border-radius:999px;">'+openRows.length+' open</span>';
+      html += '<span style="font-size:12px;font-weight:700;color:#10B981;background:#062a1c;border:1px solid #064e3b;padding:3px 10px;border-radius:999px;">'+doneRows.length+' completed</span>';
+      if (totalRevenue > 0) html += '<span style="font-size:12px;font-weight:700;color:#10B981;background:#062a1c;border:1px solid #064e3b;padding:3px 10px;border-radius:999px;">$'+Math.round(totalRevenue).toLocaleString()+' MTD</span>';
+      html += '</div>';
+      html += '</div>';
+
+      // Import zone (drag-drop + file picker)
+      html += '<div style="padding:12px 14px;border-bottom:1px solid #1e3a5f;">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">';
+      html += '<div style="font-size:12px;font-weight:600;color:#cbd5e1;">\ud83d\udcc4 Import TGL Report (PDF)</div>';
+      html += '<div style="font-size:11px;color:#64748b;">ServiceTitan TGL-sales and commission report \u00b7 daily MTD imports auto-merge</div>';
+      html += '</div>';
+      html += '<div id="tglDropZone" ondragover="event.preventDefault();this.style.background=\'#0b1f3a\';" ondragleave="this.style.background=\'transparent\';" ondrop="tglHandleDropPdf(event)" style="border:2px dashed #1e3a5f;border-radius:10px;padding:18px;text-align:center;background:transparent;transition:background 0.2s;">';
+      html += '<div style="font-size:28px;margin-bottom:4px;">\ud83d\udcc4</div>';
+      html += '<div style="font-size:12px;color:#cbd5e1;margin-bottom:8px;">Drag the daily TGL PDF here, or pick a file</div>';
+      html += '<input type="file" id="tglPdfInput" accept="application/pdf" onchange="tglHandlePdfFile(this.files[0])" style="display:none;">';
+      html += '<button onclick="document.getElementById(\'tglPdfInput\').click()" style="background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Choose PDF</button>';
+      html += '<div id="tglPdfStatus" style="font-size:11px;color:#64748b;margin-top:8px;"></div>';
+      html += '</div>';
+      html += '<div id="tglImportPreview" style="margin-top:10px;"></div>';
+      html += '</div>';
+
+      // MTD chips per tech (this month only)
+      var mtdTechs = Object.keys(mtd).sort();
+      if (mtdTechs.length) {
+        html += '<div style="padding:12px 14px;border-bottom:1px solid #1e3a5f;">';
+        html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">MTD by Tech</div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        mtdTechs.forEach(function(t){
+          var c = mtd[t];
+          var revPart = c.completedRevenue > 0 ? (' \u00b7 <span style="color:#10B981;">$' + Math.round(c.completedRevenue).toLocaleString() + '</span>') : '';
+          html += '<span style="font-size:11px;color:#cbd5e1;background:#0b1426;border:1px solid #1e3a5f;padding:4px 10px;border-radius:6px;"><b style="color:#fff;">'+t+'</b> \u00b7 <span style="color:#FBBF24;">'+c.open+' open</span> \u00b7 <span style="color:#10B981;">'+c.completed+' done</span>'+revPart+'</span>';
+        });
+        html += '</div>';
+        html += '</div>';
+      }
+
+      // Open list
+      html += '<div style="padding:12px 14px;border-bottom:1px solid #1e3a5f;">';
+      html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Open Leads (' + openRows.length + ')</div>';
+      if (openRows.length) {
+        html += '<div style="max-height:200px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:6px 10px;">Customer</th><th style="text-align:left;padding:6px 10px;">Job #</th><th style="text-align:left;padding:6px 10px;">Date</th><th style="text-align:left;padding:6px 10px;">Lead by</th><th style="text-align:left;padding:6px 10px;">Sold by / Assigned</th></tr></thead><tbody>';
+        openRows.slice().sort(function(a,b){ return (b.dateGenerated||'').localeCompare(a.dateGenerated||''); }).forEach(function(r){
+          var assigned = (r.assignedTechnicians||[]).join(', ');
+          var leadBy = r.leadGeneratedBy || (r.marketedLead ? '<span style="color:#64748b;">Marketed</span>' : '\u2014');
+          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:6px 10px;color:#f1f5f9;">'+(r.customer||'\u2014')+'</td><td style="padding:6px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">'+(r.jobNumber||'\u2014')+'</td><td style="padding:6px 10px;color:#94a3b8;">'+(r.dateGenerated||'\u2014')+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+leadBy+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+(assigned||'\u2014')+'</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else {
+        html += '<div style="font-size:12px;color:#64748b;font-style:italic;">No open leads. Import a TGL report to add some.</div>';
+      }
+      html += '</div>';
+
+      // Completed list
+      html += '<div style="padding:12px 14px;">';
+      html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Completed Leads (' + doneRows.length + ')</div>';
+      if (doneRows.length) {
+        html += '<div style="max-height:200px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:6px 10px;">Customer</th><th style="text-align:left;padding:6px 10px;">Job #</th><th style="text-align:left;padding:6px 10px;">Completed</th><th style="text-align:left;padding:6px 10px;">Lead by</th><th style="text-align:left;padding:6px 10px;">Installer(s)</th><th style="text-align:right;padding:6px 10px;">Total</th></tr></thead><tbody>';
+        doneRows.slice().sort(function(a,b){ return (b.completedDate||b.dateGenerated||'').localeCompare(a.completedDate||a.dateGenerated||''); }).forEach(function(r){
+          var assigned = (r.assignedTechnicians||[]).join(', ');
+          var leadBy = r.leadGeneratedBy || '\u2014';
+          var tot = (r.jobTotal && r.jobTotal > 0) ? ('$' + Math.round(r.jobTotal).toLocaleString()) : '\u2014';
+          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:6px 10px;color:#f1f5f9;">'+(r.customer||'\u2014')+'</td><td style="padding:6px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">'+(r.jobNumber||'\u2014')+'</td><td style="padding:6px 10px;color:#94a3b8;">'+(r.completedDate||r.dateGenerated||'\u2014')+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+leadBy+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+(assigned||'\u2014')+'</td><td style="padding:6px 10px;text-align:right;color:#10B981;font-weight:700;font-variant-numeric:tabular-nums;">'+tot+'</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else {
+        html += '<div style="font-size:12px;color:#64748b;font-style:italic;">No completed leads yet this month.</div>';
+      }
+      html += '</div>';
+
+      html += '</div>'; // outer wrapper
+      return html;
+    }
+    window.tglRenderManagerSection = tglRenderManagerSection;
     // ===========================================================================
 
     // Default rate cards (confirmed 5/5/2026 by Maico from IMG_3712)
@@ -3660,7 +4171,7 @@ document.addEventListener('visibilitychange', function() {
         d.lastUpdated = new Date().toISOString();
         localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(d));
       } catch(e) { console.warn('ipSaveData failed', e); }
-      // v218.16: stamp _localMod so initCloudSync's local-wins window protects this edit
+      // v218.17: stamp _localMod so initCloudSync's local-wins window protects this edit
       try { localStorage.setItem(INSTALL_PAY_DATA_KEY + '_localMod', String(Date.now())); } catch(e) {}
       // v218.14: Snapshot non-empty data to recovery slot every save (rolling 5 backups).
       try {
@@ -3674,7 +4185,7 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) {}
       // v218.12: Auto-complete open TGLs when their Job# now appears in Install Pay
       try { if (typeof tglAutoCompleteFromJobs === 'function') tglAutoCompleteFromJobs(d.jobs || []); } catch(e) {}
-      // v218.16: Push to Apps Script via SyncEngine (debounced inside SyncEngine, no PAT needed)
+      // v218.17: Push to Apps Script via SyncEngine (debounced inside SyncEngine, no PAT needed)
       try {
         if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
           SyncEngine.write('install_pay', d);
@@ -3713,7 +4224,7 @@ document.addEventListener('visibilitychange', function() {
     window.ipRecoveryShowMenu = ipRecoveryShowMenu;
 
     // ===========================================================================
-    // v218.16: Cloud sync for Install Pay — via existing Apps Script (SyncEngine)
+    // v218.17: Cloud sync for Install Pay — via existing Apps Script (SyncEngine)
     // ---------------------------------------------------------------------------
     // Replaces the v218.13/14 GitHub PAT flow. All install_pay reads/writes now
     // route through the same Google Apps Script web app the rest of the app
@@ -4064,7 +4575,7 @@ document.addEventListener('visibilitychange', function() {
       });
 
       var html = '';
-      // v218.16: Cloud sync strip — automatic via Apps Script (no PAT, edits work on every device).
+      // v218.17: Cloud sync strip — automatic via Apps Script (no PAT, edits work on every device).
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;padding:10px 14px;background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;">';
       html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
       html += '<div style="font-size:18px;">\u2601\ufe0f</div>';
@@ -4080,45 +4591,10 @@ document.addEventListener('visibilitychange', function() {
       html += '</div>';
       html += '</div>';
 
-      // v218.12: Open TGL tracker strip
+      // v218.17: Manager-side TGL section — import + MTD totals + open/closed lists
       try {
-        var tglData = (typeof tglLoad === 'function') ? tglLoad() : { rows: [] };
-        var tglRows = (tglData && tglData.rows) ? tglData.rows : [];
-        var openRows = tglRows.filter(function(r){ return r.status !== 'completed'; });
-        var doneRows = tglRows.filter(function(r){ return r.status === 'completed'; });
-        var counts = (typeof tglCountsByTech === 'function') ? tglCountsByTech() : {};
-        var tghTechs = Object.keys(counts).sort();
-        html += '<div style="margin-bottom:14px;padding:12px 14px;background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;">';
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">';
-        html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
-        html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Open TGLs</div>';
-        html += '<div style="font-size:13px;font-weight:700;color:#FBBF24;background:#1e1a07;border:1px solid #78350f;padding:3px 10px;border-radius:999px;">'+openRows.length+' open</div>';
-        html += '<div style="font-size:13px;font-weight:700;color:#10B981;background:#062a1c;border:1px solid #064e3b;padding:3px 10px;border-radius:999px;">'+doneRows.length+' completed</div>';
-        html += '</div>';
-        html += '<div style="font-size:10px;color:#64748b;">Auto-credits when matching Job # is added below</div>';
-        html += '</div>';
-        if (tghTechs.length) {
-          html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">';
-          tghTechs.forEach(function(t){
-            var c = counts[t];
-            html += '<span style="font-size:11px;color:#cbd5e1;background:#0b1426;border:1px solid #1e3a5f;padding:3px 9px;border-radius:6px;"><b style="color:#fff;">'+t+'</b> · <span style="color:#FBBF24;">'+c.open+' open</span> · <span style="color:#10B981;">'+c.completed+' done</span></span>';
-          });
-          html += '</div>';
-        }
-        if (openRows.length) {
-          html += '<div style="max-height:180px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
-          html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:6px 10px;">Customer</th><th style="text-align:left;padding:6px 10px;">Job #</th><th style="text-align:left;padding:6px 10px;">Generated</th><th style="text-align:left;padding:6px 10px;">Lead by</th><th style="text-align:left;padding:6px 10px;">Assigned</th></tr></thead><tbody>';
-          openRows.slice().sort(function(a,b){ return (b.dateGenerated||'').localeCompare(a.dateGenerated||''); }).forEach(function(r){
-            var assigned = (r.assignedTechnicians||[]).join(', ');
-            var leadBy = r.leadGeneratedBy || (r.marketedLead ? '<span style="color:#64748b;">Marketed</span>' : '—');
-            html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:6px 10px;color:#f1f5f9;">'+(r.customer||'—')+'</td><td style="padding:6px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">'+(r.jobNumber||'—')+'</td><td style="padding:6px 10px;color:#94a3b8;">'+(r.dateGenerated||'—')+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+leadBy+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+(assigned||'—')+'</td></tr>';
-          });
-          html += '</tbody></table></div>';
-        } else {
-          html += '<div style="font-size:12px;color:#64748b;font-style:italic;">No open TGLs.</div>';
-        }
-        html += '</div>';
-      } catch(e) { console.warn('TGL strip render failed', e); }
+        html += tglRenderManagerSection();
+      } catch(e) { console.warn('TGL manager section render failed', e); }
 
       // Top bar: lock button + week picker + actions
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:12px 14px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;">';
@@ -4310,6 +4786,142 @@ document.addEventListener('visibilitychange', function() {
       try { ipCloudPullIfStale(); } catch(e) {}
     }
     window.renderInstallPay = renderInstallPay;
+
+    // ===========================================================================
+    // v218.17: My Leads tab — each tech picks their name and sees their TGLs.
+    // ===========================================================================
+    const MY_LEADS_TECH_KEY = 'snappy_my_leads_active_tech_v1';
+    function myLeadsGetActiveTech() {
+      try { return localStorage.getItem(MY_LEADS_TECH_KEY) || ''; } catch(e) { return ''; }
+    }
+    function myLeadsSetActiveTech(name) {
+      try {
+        if (name) localStorage.setItem(MY_LEADS_TECH_KEY, name);
+        else localStorage.removeItem(MY_LEADS_TECH_KEY);
+      } catch(e) {}
+      renderMyLeads();
+    }
+    window.myLeadsSetActiveTech = myLeadsSetActiveTech;
+
+    // List of names eligible to appear on the picker. Includes the 6 techs +
+    // sales/mgr roles that can also generate leads.
+    function myLeadsPickerNames() {
+      var base = ['Chris','Dewone','Benji','Daniel','Dee','Nick','Brayden Bond','Adam Bunyard','Maico'];
+      // Also include any names already present in TGL data (in case ST shows a new generator)
+      try {
+        var d = tglLoad();
+        d.rows.forEach(function(r){
+          if (r.leadGeneratedBy && base.indexOf(r.leadGeneratedBy) < 0) base.push(r.leadGeneratedBy);
+        });
+      } catch(e) {}
+      return base;
+    }
+
+    function renderMyLeads() {
+      var el = document.getElementById('myleads-content');
+      if (!el) return;
+      var active = myLeadsGetActiveTech();
+      var picker = myLeadsPickerNames();
+      var html = '';
+
+      // Header
+      html += '<div style="max-width:1100px;margin:0 auto;padding:0 12px;">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:18px 0 14px 0;">';
+      html += '<div>';
+      html += '<div style="font-size:22px;font-weight:800;color:#f1f5f9;">\ud83c\udfaf My Leads</div>';
+      html += '<div style="font-size:12px;color:#64748b;margin-top:2px;">Your open + closed TGL credits. Closed leads bump composite +1 each (cap +5).</div>';
+      html += '</div>';
+      html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
+      html += '<label style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Who am I?</label>';
+      html += '<select onchange="myLeadsSetActiveTech(this.value)" style="background:#0F1B2E;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;padding:6px 10px;font-size:13px;min-width:160px;">';
+      html += '<option value="">\u2014 select \u2014</option>';
+      picker.forEach(function(n){
+        var sel = (n === active) ? ' selected' : '';
+        html += '<option value="' + n + '"' + sel + '>' + n + '</option>';
+      });
+      html += '</select>';
+      html += '</div>';
+      html += '</div>';
+
+      if (!active) {
+        html += '<div style="padding:40px;text-align:center;background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;color:#94a3b8;font-size:14px;">Pick your name above to see your leads.</div>';
+        html += '</div>';
+        el.innerHTML = html;
+        return;
+      }
+
+      // Render the per-tech panel
+      html += tglRenderTechLeadsPanel(active, { showHeader: false, mtdOnly: false });
+      html += '</div>';
+      el.innerHTML = html;
+    }
+    window.renderMyLeads = renderMyLeads;
+
+    // Reusable per-tech panel — shared between My Leads tab and Tech File modal.
+    // Options: { showHeader (bool), mtdOnly (bool) }
+    function tglRenderTechLeadsPanel(techShort, opts) {
+      opts = opts || {};
+      var split = tglRowsForTech(techShort);
+      var open = split.open, done = split.completed;
+      var ymNow = new Date().toISOString().slice(0,7);
+      // Filter completed to MTD for the headline number, but show all-time list below.
+      var doneMtd = done.filter(function(r){ return (r.completedDate||r.dateGenerated||'').slice(0,7) === ymNow; });
+      var revMtd = doneMtd.reduce(function(s,r){ return s + (parseFloat(r.jobTotal)||0); }, 0);
+      var bump = tglCompositeBump(techShort);
+      var html = '';
+      html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;overflow:hidden;">';
+
+      if (opts.showHeader !== false) {
+        html += '<div style="padding:12px 14px;border-bottom:1px solid #1e3a5f;display:flex;align-items:center;gap:10px;">';
+        html += '<div style="font-size:14px;font-weight:700;color:#f1f5f9;">\ud83c\udfaf TGL Leads \u00b7 ' + techShort + '</div>';
+        html += '</div>';
+      }
+
+      // Stat tiles
+      html += '<div style="padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;border-bottom:1px solid #1e3a5f;">';
+      html += '<div style="background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;padding:10px 12px;"><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Open</div><div style="font-size:22px;font-weight:800;color:#FBBF24;margin-top:2px;">' + open.length + '</div></div>';
+      html += '<div style="background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;padding:10px 12px;"><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Closed (MTD)</div><div style="font-size:22px;font-weight:800;color:#10B981;margin-top:2px;">' + doneMtd.length + '</div></div>';
+      html += '<div style="background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;padding:10px 12px;"><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Revenue (MTD)</div><div style="font-size:22px;font-weight:800;color:#10B981;margin-top:2px;">$' + Math.round(revMtd).toLocaleString() + '</div></div>';
+      html += '<div style="background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;padding:10px 12px;"><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Composite Bump</div><div style="font-size:22px;font-weight:800;color:#22D3EE;margin-top:2px;">+' + bump + '</div></div>';
+      html += '</div>';
+
+      // Open list
+      html += '<div style="padding:12px 14px;border-bottom:1px solid #1e3a5f;">';
+      html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Open Leads</div>';
+      if (open.length) {
+        html += '<div style="max-height:240px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:7px 10px;">Customer</th><th style="text-align:left;padding:7px 10px;">Job #</th><th style="text-align:left;padding:7px 10px;">Date</th><th style="text-align:left;padding:7px 10px;">Sold by / Assigned</th></tr></thead><tbody>';
+        open.forEach(function(r){
+          var assigned = (r.assignedTechnicians||[]).join(', ');
+          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:7px 10px;color:#f1f5f9;">' + (r.customer||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">' + (r.jobNumber||'\u2014') + '</td><td style="padding:7px 10px;color:#94a3b8;">' + (r.dateGenerated||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (assigned||'\u2014') + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else {
+        html += '<div style="font-size:12px;color:#64748b;font-style:italic;">No open leads right now.</div>';
+      }
+      html += '</div>';
+
+      // Closed list
+      html += '<div style="padding:12px 14px;">';
+      html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Closed Leads (all time)</div>';
+      if (done.length) {
+        html += '<div style="max-height:240px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:7px 10px;">Customer</th><th style="text-align:left;padding:7px 10px;">Job #</th><th style="text-align:left;padding:7px 10px;">Closed</th><th style="text-align:left;padding:7px 10px;">Installer(s)</th><th style="text-align:right;padding:7px 10px;">Total</th></tr></thead><tbody>';
+        done.forEach(function(r){
+          var assigned = (r.assignedTechnicians||[]).join(', ');
+          var tot = (r.jobTotal && r.jobTotal > 0) ? ('$' + Math.round(r.jobTotal).toLocaleString()) : '\u2014';
+          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:7px 10px;color:#f1f5f9;">' + (r.customer||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">' + (r.jobNumber||'\u2014') + '</td><td style="padding:7px 10px;color:#94a3b8;">' + (r.completedDate||r.dateGenerated||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (assigned||'\u2014') + '</td><td style="padding:7px 10px;text-align:right;color:#10B981;font-weight:700;font-variant-numeric:tabular-nums;">' + tot + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else {
+        html += '<div style="font-size:12px;color:#64748b;font-style:italic;">No closed leads yet. Closed = installer logs the job with a $ amount on the report.</div>';
+      }
+      html += '</div>';
+      html += '</div>';
+      return html;
+    }
+    window.tglRenderTechLeadsPanel = tglRenderTechLeadsPanel;
+    // ===========================================================================
 
     // ---- v218.5: Bulk Grid helpers ----
     function ipBulkRowHtml(job, computed, data, defaultDate) {
@@ -6097,7 +6709,9 @@ document.addEventListener('visibilitychange', function() {
       // v216: Champion bonus = weekly podium + streak + categories, capped +10, decays after 4wks
       const champData = (typeof champActiveBonusFor === 'function') ? champActiveBonusFor(tech.name) : { total: 0, entries: [] };
       const championBonus = champData.total || 0;
-      const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus + performanceBonus + championBonus;
+      // v218.17: TGL closed-lead bump — +1 per closed TGL, capped at +5 (only helps, never hurts)
+      const tglBump = (typeof tglCompositeBump === 'function') ? (tglCompositeBump(tech.short) || 0) : 0;
+      const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus + performanceBonus + championBonus + tglBump;
       // Season soft reset penalty (carries for current season only)
       const seasonPenalty = (typeof getSeasonSoftResetPenalty === 'function') ? getSeasonSoftResetPenalty(tech.short) : 0;
       const composite = Math.max(0, compositeRawPreSeason - seasonPenalty);
@@ -6108,7 +6722,7 @@ document.addEventListener('visibilitychange', function() {
       else if (composite >= 78) { tier = 'B'; tierLabel = 'Solid'; }
       else { tier = 'C'; tierLabel = 'Developing'; }
 
-      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct, championBonus: Math.round(championBonus * 100) / 100, championEntries: champData.entries || [] };
+      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct, championBonus: Math.round(championBonus * 100) / 100, championEntries: champData.entries || [], tglBump: tglBump };
     }
 
 
@@ -6712,6 +7326,10 @@ document.addEventListener('visibilitychange', function() {
         // v217: Sales Team scorecard
         if (v === 'sales') {
           try { if (typeof renderSalesScorecard === 'function') renderSalesScorecard(); } catch(e) { console.warn('renderSalesScorecard on tab switch failed:', e); }
+        }
+        // v218.17: My Leads (per-tech TGL view)
+        if (v === 'myleads') {
+          try { renderMyLeads(); } catch(e) { console.warn('renderMyLeads on tab switch failed:', e); }
         }
         // v218.4: Install Pay tracker (PIN-locked, local-only)
         if (v === 'installpay') {
@@ -17988,6 +18606,13 @@ function openEmbeddedPDF(filename) {
           statPill('Avg Score', avgScore(t.scores) || '—') +
         '</div>' +
       '</div>';
+
+      // 2b) TGL Leads panel (open + closed MTD, composite bump preview)
+      try {
+        if (typeof tglRenderTechLeadsPanel === 'function') {
+          html += tglRenderTechLeadsPanel(short, { showHeader: true });
+        }
+      } catch (e) { console.warn('tglRenderTechLeadsPanel inject failed:', e); }
 
       // 3) EDITABLE Skill scores by category — every sub-skill is an editable 0-5 number input
       if (t.scores) {
