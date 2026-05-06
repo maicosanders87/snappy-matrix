@@ -4727,6 +4727,13 @@ document.addEventListener('visibilitychange', function() {
       // v218.8: pre-select installer when launched from per-installer section
       var preInst = (existing && existing.installer) || prefilledInstaller || '';
       var instOpts = installers.map(function(n){ var s = (n === preInst) ? ' selected' : ''; return '<option value="'+n+'"'+s+'>'+n+'</option>'; }).join('');
+      // v218.15: multi-installer checkbox UI (when editing an existing entry, only the assigned installer is checked
+      // and the multi-add option is hidden so we don't accidentally fan out edits.)
+      var instCheckboxes = installers.map(function(n){
+        var checked = (n === preInst) ? ' checked' : '';
+        var safe = n.replace(/"/g,'&quot;');
+        return '<label style="display:flex;align-items:center;gap:8px;background:#16243d;border:1px solid #1e3a5f;border-radius:6px;padding:8px 10px;cursor:pointer;font-size:13px;color:#f1f5f9;"><input type="checkbox" class="ip_installer_chk" data-installer="'+safe+'" value="'+safe+'"'+checked+' onchange="ipUpdateLivePreview()" style="accent-color:#10B981;"> '+safe+'</label>';
+      }).join('');
       var jobTypeOpts = ['<option value="">— Select job type —</option>'].concat(INSTALL_PAY_JOB_TYPES.map(function(t){ var s = (existing && existing.jobType === t) ? ' selected' : ''; return '<option value="'+t+'"'+s+'>'+t+'</option>'; })).join('');
       var modal = document.createElement('div');
       modal.id = 'ipAddJobModal';
@@ -4737,9 +4744,16 @@ document.addEventListener('visibilitychange', function() {
             '<div style="font-size:17px;font-weight:700;">'+(existing?'Edit Install':'Add Install')+'</div>' +
             '<button onclick="ipCloseAddJob()" style="background:transparent;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">×</button>' +
           '</div>' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+          '<div style="display:grid;grid-template-columns:1fr;gap:10px;">' +
             '<label style="font-size:11px;color:#94a3b8;">Date<input id="ip_date" type="date" value="'+initDate+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
-            '<label style="font-size:11px;color:#94a3b8;">Installer<select id="ip_installer" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;">'+instOpts+'</select></label>' +
+          '</div>' +
+          // v218.15: Multi-installer picker. Check both Thomas + Terrell to log the same job for both with their own rate cards.
+          '<div style="margin-top:10px;">' +
+            '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Installer'+(existing?'':' <span style="color:#64748b;">\u00b7 check multiple to log the same job for both</span>')+'</div>' +
+            (existing
+              ? '<select id="ip_installer" style="width:100%;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;">'+instOpts+'</select>'
+              : '<div id="ip_installer_group" style="display:flex;flex-wrap:wrap;gap:8px;">'+instCheckboxes+'</div>'
+            ) +
           '</div>' +
           '<div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:10px;">' +
             '<label style="font-size:11px;color:#94a3b8;">Customer<input id="ip_customer" type="text" placeholder="Customer name" value="'+((existing&&existing.customer)||'').replace(/"/g,'&quot;')+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
@@ -4774,64 +4788,107 @@ document.addEventListener('visibilitychange', function() {
       });
       ipUpdateLivePreview();
     }
+
+    // v218.15: Read selected installers from either the multi-checkbox UI (new entry) or the single dropdown (edit).
+    function ipGetSelectedInstallers() {
+      var sel = document.getElementById('ip_installer');
+      if (sel && sel.value) return [sel.value];
+      var boxes = document.querySelectorAll('.ip_installer_chk');
+      var out = [];
+      boxes.forEach(function(b){ if (b.checked) out.push(b.dataset.installer || b.value); });
+      return out;
+    }
     function ipUpdateLivePreview() {
       var data = ipLoadData();
-      var job = {
-        installer: (document.getElementById('ip_installer')||{}).value,
-        jobType: (document.getElementById('ip_jobType')||{}).value,
+      var prev = document.getElementById('ip_livePreview');
+      if (!prev) return;
+      var jobType = (document.getElementById('ip_jobType')||{}).value;
+      var installers = ipGetSelectedInstallers();
+      var commonFields = {
+        jobType: jobType,
         plenums: (document.getElementById('ip_plenums')||{}).value,
         ductRuns: (document.getElementById('ip_ductRuns')||{}).value,
         zoneMotors: (document.getElementById('ip_zoneMotors')||{}).value,
         fluPipe: !!((document.getElementById('ip_fluPipe')||{}).checked),
         basePay: (document.getElementById('ip_basePay')||{}).value
       };
-      var c = ipComputeJobTotal(job, data.rates);
-      var prev = document.getElementById('ip_livePreview');
-      if (!prev) return;
-      if (!job.installer || !job.jobType) {
+      if (!installers.length || !jobType) {
         prev.innerHTML = '<span style="color:#64748b;">Pricing preview will appear once installer + job type are selected.</span>';
         return;
       }
-      var rows = [];
-      if (c.baseSpiff) rows.push(['Base spiff ('+job.jobType+')', c.baseSpiff]);
-      if (c.fluPipe) rows.push(['Flu Pipe Mods', c.fluPipe]);
-      if (c.plenums) rows.push([(job.plenums||0)+' × Plenum', c.plenums]);
-      if (c.ductRuns) rows.push([(job.ductRuns||0)+' × Duct Run', c.ductRuns]);
-      if (c.zoneMotors) rows.push([(job.zoneMotors||0)+' × Zone Motor', c.zoneMotors]);
-      if (c.basePay) rows.push(['Base Pay', c.basePay]);
-      var html = '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Live preview</div>';
-      rows.forEach(function(r){ html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:#cbd5e1;"><span>'+r[0]+'</span><span style="font-variant-numeric:tabular-nums;">$'+r[1].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span></div>'; });
-      html += '<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:#10B981;border-top:1px solid #1e3a5f;margin-top:6px;padding-top:6px;"><span>Total</span><span style="font-variant-numeric:tabular-nums;">$'+c.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span></div>';
+      var html = '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Live preview' + (installers.length > 1 ? ' \u00b7 ' + installers.length + ' installers, separate entries' : '') + '</div>';
+      var grandTotal = 0;
+      installers.forEach(function(installer){
+        var job = Object.assign({ installer: installer }, commonFields);
+        var c = ipComputeJobTotal(job, data.rates);
+        grandTotal += c.total;
+        if (installers.length > 1) {
+          html += '<div style="font-size:12px;font-weight:600;color:#f1f5f9;margin-top:8px;border-top:1px solid #1e3a5f;padding-top:6px;">'+installer+'</div>';
+        }
+        var rows = [];
+        if (c.baseSpiff) rows.push(['Base spiff ('+jobType+')', c.baseSpiff]);
+        if (c.fluPipe) rows.push(['Flu Pipe Mods', c.fluPipe]);
+        if (c.plenums) rows.push([(commonFields.plenums||0)+' \u00d7 Plenum', c.plenums]);
+        if (c.ductRuns) rows.push([(commonFields.ductRuns||0)+' \u00d7 Duct Run', c.ductRuns]);
+        if (c.zoneMotors) rows.push([(commonFields.zoneMotors||0)+' \u00d7 Zone Motor', c.zoneMotors]);
+        if (c.basePay) rows.push(['Base Pay', c.basePay]);
+        rows.forEach(function(r){ html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:#cbd5e1;"><span>'+r[0]+'</span><span style="font-variant-numeric:tabular-nums;">$'+r[1].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span></div>'; });
+        if (installers.length > 1) {
+          html += '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:#10B981;"><span>'+installer+' total</span><span style="font-variant-numeric:tabular-nums;">$'+c.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span></div>';
+        }
+      });
+      var totalLabel = installers.length > 1 ? 'Combined total' : 'Total';
+      html += '<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:#10B981;border-top:1px solid #1e3a5f;margin-top:6px;padding-top:6px;"><span>'+totalLabel+'</span><span style="font-variant-numeric:tabular-nums;">$'+grandTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span></div>';
       prev.innerHTML = html;
     }
     function ipCloseAddJob() { var m = document.getElementById('ipAddJobModal'); if (m && m.parentNode) m.parentNode.removeChild(m); }
     function ipSubmitJob(existingId) {
       var data = ipLoadData();
-      var job = {
-        id: existingId || ('ipj_' + Date.now() + '_' + Math.random().toString(36).slice(2,7)),
-        date: (document.getElementById('ip_date')||{}).value,
-        installer: (document.getElementById('ip_installer')||{}).value,
-        customer: ((document.getElementById('ip_customer')||{}).value||'').trim(),
-        jobNumber: ((document.getElementById('ip_jobNumber')||{}).value||'').trim(),
-        jobType: (document.getElementById('ip_jobType')||{}).value,
-        plenums: Number((document.getElementById('ip_plenums')||{}).value) || 0,
-        ductRuns: Number((document.getElementById('ip_ductRuns')||{}).value) || 0,
-        zoneMotors: Number((document.getElementById('ip_zoneMotors')||{}).value) || 0,
-        fluPipe: !!((document.getElementById('ip_fluPipe')||{}).checked),
-        basePay: Number((document.getElementById('ip_basePay')||{}).value) || 0,
-        notes: ((document.getElementById('ip_notes')||{}).value||'').trim(),
-        dateUpdated: new Date().toISOString()
-      };
-      if (!job.date || !job.installer || !job.customer || !job.jobType) {
+      var date = (document.getElementById('ip_date')||{}).value;
+      var customer = ((document.getElementById('ip_customer')||{}).value||'').trim();
+      var jobNumber = ((document.getElementById('ip_jobNumber')||{}).value||'').trim();
+      var jobType = (document.getElementById('ip_jobType')||{}).value;
+      var plenums = Number((document.getElementById('ip_plenums')||{}).value) || 0;
+      var ductRuns = Number((document.getElementById('ip_ductRuns')||{}).value) || 0;
+      var zoneMotors = Number((document.getElementById('ip_zoneMotors')||{}).value) || 0;
+      var fluPipe = !!((document.getElementById('ip_fluPipe')||{}).checked);
+      var basePay = Number((document.getElementById('ip_basePay')||{}).value) || 0;
+      var notes = ((document.getElementById('ip_notes')||{}).value||'').trim();
+      var nowIso = new Date().toISOString();
+      // v218.15: gather selected installers (multi-pick when adding, single when editing)
+      var installers = ipGetSelectedInstallers();
+      if (!date || !installers.length || !customer || !jobType) {
         alert('Date, installer, customer, and job type are required.');
         return;
       }
+      function buildJob(installer, idOverride) {
+        return {
+          id: idOverride || ('ipj_' + Date.now() + '_' + Math.random().toString(36).slice(2,7)),
+          date: date,
+          installer: installer,
+          customer: customer,
+          jobNumber: jobNumber,
+          jobType: jobType,
+          plenums: plenums,
+          ductRuns: ductRuns,
+          zoneMotors: zoneMotors,
+          fluPipe: fluPipe,
+          basePay: basePay,
+          notes: notes,
+          dateUpdated: nowIso
+        };
+      }
       if (existingId) {
+        // Editing keeps single-installer behavior (use first / only selected)
+        var job = buildJob(installers[0], existingId);
         var idx = data.jobs.findIndex(function(j){ return j.id === existingId; });
         if (idx >= 0) data.jobs[idx] = job;
         else data.jobs.unshift(job);
       } else {
-        data.jobs.unshift(job);
+        // Add: one entry per selected installer (each with their own rate calc downstream)
+        installers.forEach(function(installer){
+          data.jobs.unshift(buildJob(installer));
+        });
       }
       ipSaveData(data);
       ipCloseAddJob();
@@ -4849,6 +4906,7 @@ document.addEventListener('visibilitychange', function() {
     window.ipSubmitJob = ipSubmitJob;
     window.ipDeleteJob = ipDeleteJob;
     window.ipUpdateLivePreview = ipUpdateLivePreview;
+    window.ipGetSelectedInstallers = ipGetSelectedInstallers;
 
     // ----- Rate editor -----
     function ipOpenRateEditor() {
