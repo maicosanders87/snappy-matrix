@@ -3821,13 +3821,61 @@ document.addEventListener('visibilitychange', function() {
           var s = cells[j].str.trim();
           if (dateRe.test(s)) { dateIdx = j; break; }
         }
-        // customer = first cell text
-        var customer = cells[0] ? cells[0].str.trim() : '';
+        // v218.18 fix: customer is the leftmost cell that is NOT a date, job#, money,
+        // checkmark, or known column-header keyword. The previous logic blindly grabbed
+        // cells[0], which was the date when the LocationName cell wrapped to the next y.
+        var KNOWN_TECH_NAMES = ['Chris','Dewone','Benji','Daniel','Dee','Nick','Mark','Maico','Brayden','Adam','Thomas','Terrell','Jhamaal','Xia','Kathryn'];
+        var STRIP_TOKENS_RE = /^(Marketed\s*Lead|Maintenance|Service|HVAC\s*Install|HVAC\s*Replacement\s*Lead|Sales|HVAC|Yes|No|\u2713|\u2717|\-)$/i;
+        var leftCells = cells.slice(0, jobIdx);
+        var customer = '';
+        for (var ci=0; ci<leftCells.length; ci++) {
+          var raw = leftCells[ci].str.trim();
+          if (!raw) continue;
+          if (dateRe.test(raw)) continue;          // skip dates
+          if (jobNumRe.test(raw)) continue;        // skip stray digits
+          if (moneyRe.test(raw)) continue;         // skip $
+          if (STRIP_TOKENS_RE.test(raw)) continue; // skip column-header-ish words
+          // skip a leading lone tech first-name (means LocationName wrapped above)
+          if (KNOWN_TECH_NAMES.indexOf(raw) !== -1 && customer === '') continue;
+          customer = raw;
+          break;
+        }
+        // Fallback: if every left cell got filtered, fall back to the previous row's
+        // first cell when it contains a likely customer name (PDF wraps location to
+        // its own y-coordinate occasionally).
+        if (!customer && i > 0) {
+          var prev = rows[i-1];
+          if (prev && prev.cells && prev.cells.length === 1) {
+            var prevTxt = prev.cells[0].str.trim();
+            if (prevTxt && !dateRe.test(prevTxt) && !jobNumRe.test(prevTxt) && !STRIP_TOKENS_RE.test(prevTxt)) {
+              customer = prevTxt;
+            }
+          }
+        }
         var assigned = '';
         if (dateIdx > 1) {
-          assigned = cells.slice(1, dateIdx).map(function(c){ return c.str.trim(); }).filter(Boolean).join(' ');
+          // assigned techs sit between customer and date; exclude the customer cell index
+          var assignedCells = [];
+          for (var aj=0; aj<dateIdx; aj++) {
+            var ac = cells[aj];
+            if (!ac) continue;
+            var as = ac.str.trim();
+            if (!as || as === customer) continue;
+            if (dateRe.test(as) || jobNumRe.test(as) || moneyRe.test(as) || STRIP_TOKENS_RE.test(as)) continue;
+            assignedCells.push(as);
+          }
+          assigned = assignedCells.join(' ');
         } else if (dateIdx === -1 && jobIdx > 1) {
-          assigned = cells.slice(1, jobIdx).map(function(c){ return c.str.trim(); }).filter(Boolean).join(' ');
+          var assignedCells2 = [];
+          for (var aj2=0; aj2<jobIdx; aj2++) {
+            var ac2 = cells[aj2];
+            if (!ac2) continue;
+            var as2 = ac2.str.trim();
+            if (!as2 || as2 === customer) continue;
+            if (dateRe.test(as2) || jobNumRe.test(as2) || moneyRe.test(as2) || STRIP_TOKENS_RE.test(as2)) continue;
+            assignedCells2.push(as2);
+          }
+          assigned = assignedCells2.join(' ');
         }
         // Date (ServiceTitan format M/D/YYYY → ISO)
         var dateGenerated = '';
@@ -4058,6 +4106,18 @@ document.addEventListener('visibilitychange', function() {
     }
     window.tglCancelImport = tglCancelImport;
 
+    // v218.18: clear all imported rows — use after parser fixes when existing data is bad.
+    function tglClearAll() {
+      if (!confirm('Wipe ALL imported TGL rows? You\u2019ll need to re-import the daily/MTD PDF.')) return;
+      try {
+        tglSave({ rows: [], lastUpdated: new Date().toISOString() });
+      } catch (e) { console.warn('tglClearAll save failed', e); }
+      try { renderInstallPay(); } catch(e) {}
+      try { if (typeof renderMyLeads === 'function') renderMyLeads(); } catch(e) {}
+      try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+    }
+    window.tglClearAll = tglClearAll;
+
     // Render the manager-side TGL section that lives inside the Install Pay tab.
     // Includes: PDF import zone, MTD by tech (with revenue), open list, closed list.
     function tglRenderManagerSection() {
@@ -4085,6 +4145,8 @@ document.addEventListener('visibilitychange', function() {
       html += '<span style="font-size:12px;font-weight:700;color:#FBBF24;background:#1e1a07;border:1px solid #78350f;padding:3px 10px;border-radius:999px;">'+openRows.length+' open</span>';
       html += '<span style="font-size:12px;font-weight:700;color:#10B981;background:#062a1c;border:1px solid #064e3b;padding:3px 10px;border-radius:999px;">'+doneRows.length+' completed</span>';
       if (totalRevenue > 0) html += '<span style="font-size:12px;font-weight:700;color:#10B981;background:#062a1c;border:1px solid #064e3b;padding:3px 10px;border-radius:999px;">$'+Math.round(totalRevenue).toLocaleString()+' MTD</span>';
+      // v218.18: Clear-all button in case parser data needs reset
+      html += '<button onclick="tglClearAll()" title="Wipe all imported TGL rows (use after parser fixes)" style="background:#3a1d1d;color:#fca5a5;border:1px solid #7f1d1d;padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Clear all</button>';
       html += '</div>';
       html += '</div>';
 
