@@ -3964,11 +3964,54 @@ document.addEventListener('visibilitychange', function() {
     //   shows installer + jobTotal > 0.
     // - Never downgrade a completed row.
     function tglApplyParsedRows(parsed) {
-      var added = 0, completed = 0, updated = 0, skipped = 0;
+      var added = 0, completed = 0, updated = 0, skipped = 0, deduped = 0;
       var d = tglLoad();
+      // v218.18: dedup pre-pass — collapse any pre-existing duplicates by jobNumber
+      // (keep first-seen, prefer 'completed' if either copy is completed).
+      (function _dedupExisting(){
+        var seen = {};
+        var out = [];
+        d.rows.forEach(function(r){
+          var k = (r.jobNumber || '').trim();
+          if (!k) {
+            // also dedup empty-jobNumber rows by customer + date signature
+            k = '__nojob__|' + (r.customer||'') + '|' + (r.dateGenerated||'') + '|' + (r.leadGeneratedBy||'');
+          }
+          if (seen[k] == null) {
+            seen[k] = out.length;
+            out.push(r);
+          } else {
+            var prevIdx = seen[k];
+            var prev = out[prevIdx];
+            // Prefer completed-status copy; otherwise prefer the row with more $
+            var pickNew = (r.status === 'completed' && prev.status !== 'completed') ||
+                          ((parseFloat(r.jobTotal)||0) > (parseFloat(prev.jobTotal)||0) && prev.status !== 'completed');
+            if (pickNew) out[prevIdx] = Object.assign({}, prev, r);
+            deduped++;
+          }
+        });
+        d.rows = out;
+      })();
+      // Dedup the parsed batch itself before applying (in case PDF lists same Job# twice)
+      var seenInBatch = {};
+      var batch = [];
       parsed.forEach(function(p){
+        var k = (p.jobNumber || '').trim();
+        if (!k) k = '__nojob__|' + (p.customer||'') + '|' + (p.dateGenerated||'') + '|' + (p.leadGeneratedBy||'');
+        if (seenInBatch[k] == null) { seenInBatch[k] = batch.length; batch.push(p); }
+        else {
+          var bp = batch[seenInBatch[k]];
+          // prefer completed / higher-$ duplicate
+          if ((p.status === 'completed' && bp.status !== 'completed') ||
+              (parseFloat(p.jobTotal)||0) > (parseFloat(bp.jobTotal)||0)) {
+            batch[seenInBatch[k]] = Object.assign({}, bp, p);
+          }
+          deduped++;
+        }
+      });
+      batch.forEach(function(p){
         if (!p.jobNumber) { skipped++; return; }
-        var idx = d.rows.findIndex(function(r){ return r.jobNumber === p.jobNumber; });
+        var idx = d.rows.findIndex(function(r){ return (r.jobNumber||'') === p.jobNumber; });
         if (idx < 0) {
           d.rows.push(Object.assign({ addedAt: new Date().toISOString() }, p));
           added++;
@@ -3988,7 +4031,7 @@ document.addEventListener('visibilitychange', function() {
         }
       });
       tglSave(d);
-      return { added: added, completed: completed, updated: updated, skipped: skipped, total: parsed.length };
+      return { added: added, completed: completed, updated: updated, skipped: skipped, deduped: deduped, total: parsed.length };
     }
     window.tglApplyParsedRows = tglApplyParsedRows;
 
@@ -4090,7 +4133,8 @@ document.addEventListener('visibilitychange', function() {
       var els = _tglFindActiveEls();
       var statusEl = els.status;
       var previewEl = els.preview;
-      if (statusEl) { statusEl.style.color = '#10B981'; statusEl.textContent = 'Applied: '+result.added+' new, '+result.completed+' completed, '+result.updated+' updated.'; }
+      var dedupNote = result.deduped ? (' (' + result.deduped + ' duplicates removed)') : '';
+      if (statusEl) { statusEl.style.color = '#10B981'; statusEl.textContent = 'Applied: '+result.added+' new, '+result.completed+' completed, '+result.updated+' updated' + dedupNote + '.'; }
       if (previewEl) previewEl.innerHTML = '';
       try { renderInstallPay(); } catch(e) {}
       try { if (typeof renderMyLeads === 'function') renderMyLeads(); } catch(e) {}
