@@ -4547,6 +4547,30 @@ document.addEventListener('visibilitychange', function() {
       html += '</div>';
       html += '</div>';
 
+      // v218.25: Heal banner — flags stored rows whose customer name looks truncated
+      // (single token, or a known partial like just a first name). These come from
+      // pre-v218.22 imports before the column-aware parser. Re-importing the latest
+      // PDF will overwrite via _isMaterialChange. Banner counts the suspicious rows
+      // and prompts re-import.
+      var _suspicious = rows.filter(function(r){
+        var c = (r.customer||'').trim();
+        if (!c) return true;
+        // Single-token name with no space → almost certainly truncated. Allow 3+ chars
+        // single-token like 'Cher' to still flag (real customer names typically have
+        // a last name on this report).
+        if (c.indexOf(' ') === -1) return true;
+        return false;
+      });
+      if (_suspicious.length) {
+        html += '<div style="margin:12px 14px 0;padding:10px 12px;background:#2a1a07;border:1px solid #78350f;border-radius:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
+        html += '<div style="font-size:18px;">\u26a0\ufe0f</div>';
+        html += '<div style="flex:1;min-width:200px;">';
+        html += '<div style="font-size:12px;font-weight:700;color:#FBBF24;margin-bottom:2px;">' + _suspicious.length + ' lead' + (_suspicious.length===1?'':'s') + ' may have truncated customer names</div>';
+        html += '<div style="font-size:11px;color:#cbd5e1;line-height:1.4;">These were imported before the column-aware parser (v218.22). Drop the latest TGL PDF below \u2014 names will auto-heal on re-import.</div>';
+        html += '</div>';
+        html += '</div>';
+      }
+
       // Import zone (drag-drop + file picker)
       html += '<div style="padding:12px 14px;border-bottom:1px solid #1e3a5f;">';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">';
