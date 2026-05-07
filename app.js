@@ -619,9 +619,9 @@ async function initCloudSync(userInitiated) {
       'techstdata': 'snappy_tech_st_overrides',
       'techaptitude': 'snappy_tech_aptitude_overrides',
       'mgrscore': 'snappy_mgr_score_overrides',
-      // v218.21: Install Pay — synced via Apps Script (replaces GitHub PAT flow)
+      // v218.22: Install Pay — synced via Apps Script (replaces GitHub PAT flow)
       'install_pay': 'snappy_install_pay_data_v1',
-      // v218.21: Open TGLs (Tech-Generated Leads)
+      // v218.22: Open TGLs (Tech-Generated Leads)
       'open_tgls': 'snappy_open_tgls_v1'
   };
 
@@ -651,7 +651,7 @@ async function initCloudSync(userInitiated) {
           updated = true;
         }
       } else if (cloudKey === 'install_pay') {
-        // v218.21: Install Pay safety — NEVER let an empty cloud blob wipe non-empty local jobs.
+        // v218.22: Install Pay safety — NEVER let an empty cloud blob wipe non-empty local jobs.
         // Use lastUpdated timestamp as tiebreaker; otherwise prefer whichever has more jobs.
         try {
           var localObj = localVal ? JSON.parse(localVal) : null;
@@ -771,9 +771,9 @@ async function manualSync() {
       'techstdata': 'snappy_tech_st_overrides',
       'techaptitude': 'snappy_tech_aptitude_overrides',
       'mgrscore': 'snappy_mgr_score_overrides',
-      // v218.21: Install Pay
+      // v218.22: Install Pay
       'install_pay': 'snappy_install_pay_data_v1',
-      // v218.21: Open TGLs
+      // v218.22: Open TGLs
       'open_tgls': 'snappy_open_tgls_v1'
       };
       for (var ck in keyMap) {
@@ -785,7 +785,7 @@ async function manualSync() {
               var localTf = localStorage.getItem(keyMap[ck]);
               localStorage.setItem(keyMap[ck], _mergeTechFiles(localTf, cv));
             } else if (ck === 'install_pay') {
-              // v218.21: Install Pay safety — never let empty cloud overwrite non-empty local
+              // v218.22: Install Pay safety — never let empty cloud overwrite non-empty local
               try {
                 var ipLocalRaw = localStorage.getItem(keyMap[ck]);
                 var ipLocal = ipLocalRaw ? JSON.parse(ipLocalRaw) : null;
@@ -3613,7 +3613,7 @@ document.addEventListener('visibilitychange', function() {
     window.tglAutoCompleteFromJobs = tglAutoCompleteFromJobs;
 
     // ===========================================================================
-    // v218.21: TGL system additions — PDF import, totals, composite bump, sync
+    // v218.22: TGL system additions — PDF import, totals, composite bump, sync
     // ===========================================================================
     // Cross-device sync: every tglSave() pushes to Apps Script via SyncEngine.
     // We wrap (don't replace) the existing tglSave so all callers benefit.
@@ -3769,7 +3769,7 @@ document.addEventListener('visibilitychange', function() {
         r.cells.sort(function(a,b){ return a.x - b.x; });
         r.text = r.cells.map(function(c){ return c.str; }).join(' ').replace(/\s+/g,' ').trim();
       });
-      // v218.21: Detect column x-bands from the header row so we can read multi-line
+      // v218.22: Detect column x-bands from the header row so we can read multi-line
       // wrapped cells (e.g. Location 'Jhamaal' / 'Patrick' on two y-positions).
       // ServiceTitan column headers in this report:
       //   Location Name | Assigned Technicians | Completion Date | Job # | Invoice # |
@@ -3830,7 +3830,7 @@ document.addEventListener('visibilitychange', function() {
       var jobNumRe = /^\d{7,9}$/;
       var moneyRe = /^\$\s*([\d,]+(?:\.\d+)?)$/;
       var dateRe = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-      // v218.21: Pre-compute the y-anchors of all rows that contain a job# — these
+      // v218.22: Pre-compute the y-anchors of all rows that contain a job# — these
       // are the data-row anchors. The y-band of a data row extends from this anchor's
       // y down to (but not including) the next data-anchor or header-row y.
       var dataAnchorYs = []; // array of {page, y, jobIdx in rows[]}
@@ -3900,7 +3900,7 @@ document.addEventListener('visibilitychange', function() {
         var jobCell = row.cells.find(function(c){ return jobNumRe.test(c.str.trim()); });
         if (!jobCell) continue;
         _anchorIdx++;
-        // v218.21: If we have column x-bands, build cells from the y-band of this anchor
+        // v218.22: If we have column x-bands, build cells from the y-band of this anchor
         // grouped by column. This captures wrapped Location names like 'Jhamaal'\n'Patrick'
         // and assigned techs like 'Brayden'\n'Bond'.
         var colCells = null;
@@ -3925,7 +3925,7 @@ document.addEventListener('visibilitychange', function() {
           var s = cells[j].str.trim();
           if (dateRe.test(s)) { dateIdx = j; break; }
         }
-        // v218.21: Customer = column 0 (Location Name). Concat all cells in that column
+        // v218.22: Customer = column 0 (Location Name). Concat all cells in that column
         // top-to-bottom — captures multi-line wraps like 'Jhamaal' / 'Patrick' → 'Jhamaal Patrick'.
         var CHECK_RE = /^[\u2713\u2717\u2714\u2718\-]+$/;
         var STRIP_TOKENS_RE = /^(Marketed\s*Lead|Maintenance|Service|HVAC\s*Install|HVAC\s*Replacement\s*Lead|Sales|HVAC|Yes|No|\u2713|\u2717|\-)$/i;
@@ -4094,7 +4094,7 @@ document.addEventListener('visibilitychange', function() {
     function tglApplyParsedRows(parsed) {
       var added = 0, completed = 0, updated = 0, skipped = 0, deduped = 0;
       var d = tglLoad();
-      // v218.21: dedup pre-pass — collapse any pre-existing duplicates by jobNumber
+      // v218.22: dedup pre-pass — collapse any pre-existing duplicates by jobNumber
       // (keep first-seen, prefer 'completed' if either copy is completed).
       (function _dedupExisting(){
         var seen = {};
@@ -4137,7 +4137,7 @@ document.addEventListener('visibilitychange', function() {
           deduped++;
         }
       });
-      // v218.21: cross-import dedup — match against existing rows by jobNumber, OR by
+      // v218.22: cross-import dedup — match against existing rows by jobNumber, OR by
       //          composite signature (customer|date|leadBy) when no jobNumber. If the
       //          incoming row carries no new info beyond what's already stored, count
       //          it as a duplicate skip instead of an update.
@@ -4200,7 +4200,7 @@ document.addEventListener('visibilitychange', function() {
     }
     window.tglApplyParsedRows = tglApplyParsedRows;
 
-    // v218.21: helper to find the active TGL section's status + preview elements.
+    // v218.22: helper to find the active TGL section's status + preview elements.
     // Section renders into BOTH installpay-content and installpay-content-mgr, so we
     // resolve via .tgl-pdf-status / .tgl-import-preview class on whichever is visible.
     function _tglFindActiveEls() {
@@ -4219,7 +4219,7 @@ document.addEventListener('visibilitychange', function() {
       var statusEl = els.status;
       var previewEl = els.preview;
       if (!file) return;
-      // v218.21: explicit guard — surface a useful error if user picked a non-PDF
+      // v218.22: explicit guard — surface a useful error if user picked a non-PDF
       if (file.type && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name||'')) {
         if (statusEl) { statusEl.style.color = '#f87171'; statusEl.textContent = 'Not a PDF file. Pick the ServiceTitan TGL report PDF.'; }
         return;
@@ -4315,7 +4315,7 @@ document.addEventListener('visibilitychange', function() {
     }
     window.tglCancelImport = tglCancelImport;
 
-    // v218.21: clear all imported rows — use after parser fixes when existing data is bad.
+    // v218.22: clear all imported rows — use after parser fixes when existing data is bad.
     function tglClearAll() {
       if (!confirm('Wipe ALL imported TGL rows? You\u2019ll need to re-import the daily/MTD PDF.')) return;
       try {
@@ -4326,6 +4326,157 @@ document.addEventListener('visibilitychange', function() {
       try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
     }
     window.tglClearAll = tglClearAll;
+
+    // v218.22: Row-level edit / delete helpers — lets the user fix any TGL row inline
+    // without having to wipe and re-import the PDF. All updates persist + sync.
+    function tglFindRowIndex(jobNumber, signature) {
+      var d = tglLoad();
+      if (!d || !d.rows) return -1;
+      if (jobNumber) {
+        var i = d.rows.findIndex(function(r){ return (r.jobNumber||'') === jobNumber; });
+        if (i >= 0) return i;
+      }
+      if (signature) {
+        var sig = signature.toLowerCase();
+        return d.rows.findIndex(function(r){
+          var rs = ((r.customer||'')+'|'+(r.dateGenerated||'')+'|'+(r.leadGeneratedBy||'')).toLowerCase();
+          return rs === sig;
+        });
+      }
+      return -1;
+    }
+    function tglUpdateRow(jobNumber, signature, field, newValue) {
+      var d = tglLoad();
+      var idx = tglFindRowIndex(jobNumber, signature);
+      if (idx < 0) { console.warn('tglUpdateRow: row not found'); return false; }
+      var row = d.rows[idx];
+      var v = (newValue == null) ? '' : String(newValue).trim();
+      if (field === 'customer') {
+        row.customer = v;
+      } else if (field === 'jobNumber') {
+        // Block dup job#s
+        if (v && d.rows.some(function(r,j){ return j !== idx && (r.jobNumber||'') === v; })) {
+          alert('Job # ' + v + ' is already used by another row.'); return false;
+        }
+        row.jobNumber = v;
+        row.invoiceNumber = v; // keep in sync
+      } else if (field === 'dateGenerated') {
+        // Accept M/D/YYYY or YYYY-MM-DD; store as YYYY-MM-DD
+        var m1 = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        var m2 = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (m1) row.dateGenerated = v;
+        else if (m2) row.dateGenerated = m2[3] + '-' + ('0'+m2[1]).slice(-2) + '-' + ('0'+m2[2]).slice(-2);
+        else if (!v) row.dateGenerated = '';
+        else { alert('Date must be M/D/YYYY or YYYY-MM-DD'); return false; }
+      } else if (field === 'completedDate') {
+        var c1 = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        var c2 = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (c1) row.completedDate = v;
+        else if (c2) row.completedDate = c2[3] + '-' + ('0'+c2[1]).slice(-2) + '-' + ('0'+c2[2]).slice(-2);
+        else if (!v) row.completedDate = '';
+        else { alert('Date must be M/D/YYYY or YYYY-MM-DD'); return false; }
+      } else if (field === 'assigned') {
+        var parts = v.split(/,\s*/).map(function(s){ return s.trim(); }).filter(Boolean);
+        row.assignedTechnicians = parts;
+        row.soldBy = parts[0] || '';
+      } else if (field === 'leadBy') {
+        row.leadGeneratedBy = v ? tglNormalizeTechName(v) : '';
+      } else if (field === 'jobTotal') {
+        var num = parseFloat(String(v).replace(/[$,\s]/g,'')) || 0;
+        row.jobTotal = num;
+      } else if (field === 'status') {
+        if (v === 'completed' || v === 'open') row.status = v;
+      } else {
+        return false;
+      }
+      // v218.22: re-evaluate completion status after any data edit. A row is "completed"
+      // only when it has assigned techs AND a jobTotal > 0. This keeps composite-bump
+      // counts honest when the user manually fixes a row.
+      var hadCompleted = row.status === 'completed';
+      var qualifies = (row.assignedTechnicians && row.assignedTechnicians.length > 0) && (parseFloat(row.jobTotal||0) > 0);
+      if (qualifies && !hadCompleted) {
+        row.status = 'completed';
+        row.completedDate = row.completedDate || row.dateGenerated || new Date().toISOString().slice(0,10);
+        row.completedAt = new Date().toISOString();
+      } else if (!qualifies && hadCompleted && field !== 'status') {
+        // Only auto-flip-to-open if user didn't explicitly set status
+        // (preserves manual override).
+        row.status = 'open';
+      }
+      d.rows[idx] = row;
+      d.lastUpdated = new Date().toISOString();
+      tglSave(d);
+      return true;
+    }
+    window.tglUpdateRow = tglUpdateRow;
+
+    function tglDeleteRow(jobNumber, signature) {
+      var d = tglLoad();
+      var idx = tglFindRowIndex(jobNumber, signature);
+      if (idx < 0) return false;
+      var row = d.rows[idx];
+      var label = row.customer || row.jobNumber || 'this row';
+      if (!confirm('Delete TGL row for ' + label + '?')) return false;
+      d.rows.splice(idx, 1);
+      d.lastUpdated = new Date().toISOString();
+      tglSave(d);
+      try { renderInstallPay(); } catch(e) {}
+      try { if (typeof renderMyLeads === 'function') renderMyLeads(); } catch(e) {}
+      try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+      return true;
+    }
+    window.tglDeleteRow = tglDeleteRow;
+
+    // Inline-edit handler: called from contenteditable cells onblur.
+    // The cell holds data-tgl-job, data-tgl-sig, and data-tgl-field attributes.
+    function tglCellEdit(el) {
+      var jobNumber = el.getAttribute('data-tgl-job') || '';
+      var sig = el.getAttribute('data-tgl-sig') || '';
+      var field = el.getAttribute('data-tgl-field') || '';
+      var orig = el.getAttribute('data-tgl-orig') || '';
+      var v = (el.innerText || '').trim();
+      if (v === orig) return; // no change
+      var ok = tglUpdateRow(jobNumber, sig, field, v);
+      if (ok) {
+        // Re-render to reflect derived changes (e.g. status flip when assigned added)
+        try { renderInstallPay(); } catch(e) {}
+        try { if (typeof renderMyLeads === 'function') renderMyLeads(); } catch(e) {}
+        try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+      } else {
+        el.innerText = orig; // revert
+      }
+    }
+    window.tglCellEdit = tglCellEdit;
+
+    // Helper: enter-key commits, escape reverts, no newlines
+    function tglCellKey(ev, el) {
+      if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+      else if (ev.key === 'Escape') {
+        ev.preventDefault();
+        el.innerText = el.getAttribute('data-tgl-orig') || '';
+        el.blur();
+      }
+    }
+    window.tglCellKey = tglCellKey;
+
+    // Build a contenteditable cell. Used by tglRenderManagerSection rows.
+    function tglEditableCell(row, field, displayValue, opts) {
+      opts = opts || {};
+      var jobNumber = (row.jobNumber||'').replace(/"/g,'&quot;');
+      var sig = ((row.customer||'')+'|'+(row.dateGenerated||'')+'|'+(row.leadGeneratedBy||'')).replace(/"/g,'&quot;');
+      var orig = String(displayValue == null ? '' : displayValue).replace(/"/g,'&quot;');
+      var style = opts.style || '';
+      var color = opts.color || '#cbd5e1';
+      return '<span contenteditable="true" spellcheck="false"' +
+             ' data-tgl-job="'+jobNumber+'" data-tgl-sig="'+sig+'"' +
+             ' data-tgl-field="'+field+'" data-tgl-orig="'+orig+'"' +
+             ' onblur="tglCellEdit(this)" onkeydown="tglCellKey(event,this)"' +
+             ' style="display:inline-block;min-width:30px;padding:1px 4px;border-radius:4px;color:'+color+';outline:none;cursor:text;'+style+'"' +
+             ' onfocus="this.style.background=\'#0d2143\';this.style.boxShadow=\'0 0 0 1px #3B82F6\';"' +
+             ' onmouseout="if (document.activeElement!==this){this.style.background=\'transparent\';this.style.boxShadow=\'none\';}"' +
+             ' >' + (displayValue == null ? '\u2014' : String(displayValue)) + '</span>';
+    }
+    window.tglEditableCell = tglEditableCell;
 
     // Render the manager-side TGL section that lives inside the Install Pay tab.
     // Includes: PDF import zone, MTD by tech (with revenue), open list, closed list.
@@ -4354,7 +4505,7 @@ document.addEventListener('visibilitychange', function() {
       html += '<span style="font-size:12px;font-weight:700;color:#FBBF24;background:#1e1a07;border:1px solid #78350f;padding:3px 10px;border-radius:999px;">'+openRows.length+' open</span>';
       html += '<span style="font-size:12px;font-weight:700;color:#10B981;background:#062a1c;border:1px solid #064e3b;padding:3px 10px;border-radius:999px;">'+doneRows.length+' completed</span>';
       if (totalRevenue > 0) html += '<span style="font-size:12px;font-weight:700;color:#10B981;background:#062a1c;border:1px solid #064e3b;padding:3px 10px;border-radius:999px;">$'+Math.round(totalRevenue).toLocaleString()+' MTD</span>';
-      // v218.21: Clear-all button in case parser data needs reset
+      // v218.22: Clear-all button in case parser data needs reset
       html += '<button onclick="tglClearAll()" title="Wipe all imported TGL rows (use after parser fixes)" style="background:#3a1d1d;color:#fca5a5;border:1px solid #7f1d1d;padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Clear all</button>';
       html += '</div>';
       html += '</div>';
@@ -4393,18 +4544,35 @@ document.addEventListener('visibilitychange', function() {
         html += '</div>';
       }
 
+      // v218.22: editable cells — click any cell to edit. Enter saves, Esc reverts.
+      // Trash icon at end of each row deletes after confirm.
+      function _delBtn(r){
+        var sig = ((r.customer||'')+'|'+(r.dateGenerated||'')+'|'+(r.leadGeneratedBy||'')).replace(/'/g,"\\'");
+        var jn = (r.jobNumber||'').replace(/'/g,"\\'");
+        return '<button onclick="tglDeleteRow(\''+jn+'\',\''+sig+'\')" title="Delete row" style="background:transparent;border:none;color:#64748b;font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px;" onmouseover="this.style.color=\'#ef4444\';this.style.background=\'#1f0b0b\';" onmouseout="this.style.color=\'#64748b\';this.style.background=\'transparent\';">\u00d7</button>';
+      }
+      var editHint = '<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:4px;">Click any cell to edit \u00b7 Enter to save \u00b7 Esc to revert</div>';
+
       // Open list
       html += '<div style="padding:12px 14px;border-bottom:1px solid #1e3a5f;">';
       html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Open Leads (' + openRows.length + ')</div>';
       if (openRows.length) {
-        html += '<div style="max-height:200px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
-        html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:6px 10px;">Customer</th><th style="text-align:left;padding:6px 10px;">Job #</th><th style="text-align:left;padding:6px 10px;">Date</th><th style="text-align:left;padding:6px 10px;">Lead by</th><th style="text-align:left;padding:6px 10px;">Sold by / Assigned</th></tr></thead><tbody>';
+        html += '<div style="max-height:240px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:6px 10px;">Customer</th><th style="text-align:left;padding:6px 10px;">Job #</th><th style="text-align:left;padding:6px 10px;">Date</th><th style="text-align:left;padding:6px 10px;">Lead by</th><th style="text-align:left;padding:6px 10px;">Sold by / Assigned</th><th style="width:30px;"></th></tr></thead><tbody>';
         openRows.slice().sort(function(a,b){ return (b.dateGenerated||'').localeCompare(a.dateGenerated||''); }).forEach(function(r){
           var assigned = (r.assignedTechnicians||[]).join(', ');
-          var leadBy = r.leadGeneratedBy || (r.marketedLead ? '<span style="color:#64748b;">Marketed</span>' : '\u2014');
-          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:6px 10px;color:#f1f5f9;">'+(r.customer||'\u2014')+'</td><td style="padding:6px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">'+(r.jobNumber||'\u2014')+'</td><td style="padding:6px 10px;color:#94a3b8;">'+(r.dateGenerated||'\u2014')+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+leadBy+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+(assigned||'\u2014')+'</td></tr>';
+          var leadByDisplay = r.leadGeneratedBy || (r.marketedLead ? 'Marketed' : '');
+          html += '<tr style="border-top:1px solid #1e3a5f;">' +
+            '<td style="padding:5px 10px;color:#f1f5f9;">' + tglEditableCell(r,'customer',r.customer||'',{color:'#f1f5f9'}) + '</td>' +
+            '<td style="padding:5px 10px;font-variant-numeric:tabular-nums;">' + tglEditableCell(r,'jobNumber',r.jobNumber||'',{color:'#cbd5e1'}) + '</td>' +
+            '<td style="padding:5px 10px;">' + tglEditableCell(r,'dateGenerated',r.dateGenerated||'',{color:'#94a3b8'}) + '</td>' +
+            '<td style="padding:5px 10px;">' + tglEditableCell(r,'leadBy',leadByDisplay,{color:'#cbd5e1'}) + '</td>' +
+            '<td style="padding:5px 10px;">' + tglEditableCell(r,'assigned',assigned,{color:'#cbd5e1'}) + '</td>' +
+            '<td style="padding:5px 4px;text-align:center;">' + _delBtn(r) + '</td>' +
+          '</tr>';
         });
         html += '</tbody></table></div>';
+        html += editHint;
       } else {
         html += '<div style="font-size:12px;color:#64748b;font-style:italic;">No open leads. Import a TGL report to add some.</div>';
       }
@@ -4414,15 +4582,24 @@ document.addEventListener('visibilitychange', function() {
       html += '<div style="padding:12px 14px;">';
       html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Completed Leads (' + doneRows.length + ')</div>';
       if (doneRows.length) {
-        html += '<div style="max-height:200px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
-        html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:6px 10px;">Customer</th><th style="text-align:left;padding:6px 10px;">Job #</th><th style="text-align:left;padding:6px 10px;">Completed</th><th style="text-align:left;padding:6px 10px;">Lead by</th><th style="text-align:left;padding:6px 10px;">Installer(s)</th><th style="text-align:right;padding:6px 10px;">Total</th></tr></thead><tbody>';
+        html += '<div style="max-height:240px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:6px 10px;">Customer</th><th style="text-align:left;padding:6px 10px;">Job #</th><th style="text-align:left;padding:6px 10px;">Completed</th><th style="text-align:left;padding:6px 10px;">Lead by</th><th style="text-align:left;padding:6px 10px;">Installer(s)</th><th style="text-align:right;padding:6px 10px;">Total</th><th style="width:30px;"></th></tr></thead><tbody>';
         doneRows.slice().sort(function(a,b){ return (b.completedDate||b.dateGenerated||'').localeCompare(a.completedDate||a.dateGenerated||''); }).forEach(function(r){
           var assigned = (r.assignedTechnicians||[]).join(', ');
-          var leadBy = r.leadGeneratedBy || '\u2014';
-          var tot = (r.jobTotal && r.jobTotal > 0) ? ('$' + Math.round(r.jobTotal).toLocaleString()) : '\u2014';
-          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:6px 10px;color:#f1f5f9;">'+(r.customer||'\u2014')+'</td><td style="padding:6px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">'+(r.jobNumber||'\u2014')+'</td><td style="padding:6px 10px;color:#94a3b8;">'+(r.completedDate||r.dateGenerated||'\u2014')+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+leadBy+'</td><td style="padding:6px 10px;color:#cbd5e1;">'+(assigned||'\u2014')+'</td><td style="padding:6px 10px;text-align:right;color:#10B981;font-weight:700;font-variant-numeric:tabular-nums;">'+tot+'</td></tr>';
+          var leadByDisplay = r.leadGeneratedBy || '';
+          var totDisp = (r.jobTotal && r.jobTotal > 0) ? ('$' + Math.round(r.jobTotal).toLocaleString()) : '';
+          html += '<tr style="border-top:1px solid #1e3a5f;">' +
+            '<td style="padding:5px 10px;color:#f1f5f9;">' + tglEditableCell(r,'customer',r.customer||'',{color:'#f1f5f9'}) + '</td>' +
+            '<td style="padding:5px 10px;font-variant-numeric:tabular-nums;">' + tglEditableCell(r,'jobNumber',r.jobNumber||'',{color:'#cbd5e1'}) + '</td>' +
+            '<td style="padding:5px 10px;">' + tglEditableCell(r,'completedDate',r.completedDate||r.dateGenerated||'',{color:'#94a3b8'}) + '</td>' +
+            '<td style="padding:5px 10px;">' + tglEditableCell(r,'leadBy',leadByDisplay,{color:'#cbd5e1'}) + '</td>' +
+            '<td style="padding:5px 10px;">' + tglEditableCell(r,'assigned',assigned,{color:'#cbd5e1'}) + '</td>' +
+            '<td style="padding:5px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + tglEditableCell(r,'jobTotal',totDisp,{color:'#10B981',style:'font-weight:700;'}) + '</td>' +
+            '<td style="padding:5px 4px;text-align:center;">' + _delBtn(r) + '</td>' +
+          '</tr>';
         });
         html += '</tbody></table></div>';
+        html += editHint;
       } else {
         html += '<div style="font-size:12px;color:#64748b;font-style:italic;">No completed leads yet this month.</div>';
       }
@@ -4485,7 +4662,7 @@ document.addEventListener('visibilitychange', function() {
         d.lastUpdated = new Date().toISOString();
         localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(d));
       } catch(e) { console.warn('ipSaveData failed', e); }
-      // v218.21: stamp _localMod so initCloudSync's local-wins window protects this edit
+      // v218.22: stamp _localMod so initCloudSync's local-wins window protects this edit
       try { localStorage.setItem(INSTALL_PAY_DATA_KEY + '_localMod', String(Date.now())); } catch(e) {}
       // v218.14: Snapshot non-empty data to recovery slot every save (rolling 5 backups).
       try {
@@ -4499,7 +4676,7 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) {}
       // v218.12: Auto-complete open TGLs when their Job# now appears in Install Pay
       try { if (typeof tglAutoCompleteFromJobs === 'function') tglAutoCompleteFromJobs(d.jobs || []); } catch(e) {}
-      // v218.21: Push to Apps Script via SyncEngine (debounced inside SyncEngine, no PAT needed)
+      // v218.22: Push to Apps Script via SyncEngine (debounced inside SyncEngine, no PAT needed)
       try {
         if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
           SyncEngine.write('install_pay', d);
@@ -4538,7 +4715,7 @@ document.addEventListener('visibilitychange', function() {
     window.ipRecoveryShowMenu = ipRecoveryShowMenu;
 
     // ===========================================================================
-    // v218.21: Cloud sync for Install Pay — via existing Apps Script (SyncEngine)
+    // v218.22: Cloud sync for Install Pay — via existing Apps Script (SyncEngine)
     // ---------------------------------------------------------------------------
     // Replaces the v218.13/14 GitHub PAT flow. All install_pay reads/writes now
     // route through the same Google Apps Script web app the rest of the app
@@ -4889,7 +5066,7 @@ document.addEventListener('visibilitychange', function() {
       });
 
       var html = '';
-      // v218.21: Cloud sync strip — automatic via Apps Script (no PAT, edits work on every device).
+      // v218.22: Cloud sync strip — automatic via Apps Script (no PAT, edits work on every device).
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;padding:10px 14px;background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;">';
       html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
       html += '<div style="font-size:18px;">\u2601\ufe0f</div>';
@@ -4905,7 +5082,7 @@ document.addEventListener('visibilitychange', function() {
       html += '</div>';
       html += '</div>';
 
-      // v218.21: Manager-side TGL section — import + MTD totals + open/closed lists
+      // v218.22: Manager-side TGL section — import + MTD totals + open/closed lists
       try {
         html += tglRenderManagerSection();
       } catch(e) { console.warn('TGL manager section render failed', e); }
@@ -5102,7 +5279,7 @@ document.addEventListener('visibilitychange', function() {
     window.renderInstallPay = renderInstallPay;
 
     // ===========================================================================
-    // v218.21: My Leads tab — each tech picks their name and sees their TGLs.
+    // v218.22: My Leads tab — each tech picks their name and sees their TGLs.
     // ===========================================================================
     const MY_LEADS_TECH_KEY = 'snappy_my_leads_active_tech_v1';
     function myLeadsGetActiveTech() {
@@ -7023,7 +7200,7 @@ document.addEventListener('visibilitychange', function() {
       // v216: Champion bonus = weekly podium + streak + categories, capped +10, decays after 4wks
       const champData = (typeof champActiveBonusFor === 'function') ? champActiveBonusFor(tech.name) : { total: 0, entries: [] };
       const championBonus = champData.total || 0;
-      // v218.21: TGL closed-lead bump — +1 per closed TGL, capped at +5 (only helps, never hurts)
+      // v218.22: TGL closed-lead bump — +1 per closed TGL, capped at +5 (only helps, never hurts)
       const tglBump = (typeof tglCompositeBump === 'function') ? (tglCompositeBump(tech.short) || 0) : 0;
       const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus + performanceBonus + championBonus + tglBump;
       // Season soft reset penalty (carries for current season only)
@@ -7641,7 +7818,7 @@ document.addEventListener('visibilitychange', function() {
         if (v === 'sales') {
           try { if (typeof renderSalesScorecard === 'function') renderSalesScorecard(); } catch(e) { console.warn('renderSalesScorecard on tab switch failed:', e); }
         }
-        // v218.21: My Leads (per-tech TGL view)
+        // v218.22: My Leads (per-tech TGL view)
         if (v === 'myleads') {
           try { renderMyLeads(); } catch(e) { console.warn('renderMyLeads on tab switch failed:', e); }
         }
