@@ -2517,6 +2517,43 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260505IfNeeded failed', e); }
     }
 
+    // v218.23: Wed 5/6/26 daily seed (week 2026-05-04). Source: ServiceTitan EOD screenshots IMG_0226 (Sales) + IMG_0227 (Memberships).
+    // No installs today. Adds incrementally to weekly leaderboard.
+    // Benji:   $2,170 svc · 50% conv (1/2) · $2,170 avg · 0 SPP · 1 TGL · 1.0 sold hr · 0.09 TSHE · 2 FRT/call · mem 0/1
+    // Daniel:  $2,162 svc · 100% conv (2/2) · $1,081 avg · 0 SPP · 0 TGL · 5.8 sold hrs · 0 TSHE · 4.5 FRT/call · mem 0/0
+    // Dewone:  $1,875 svc · 100% conv · $937 avg · 1 SPP · 1 TGL · 1.4 sold hrs · 0 TSHE · 2 FRT/call · mem 1/1 (100%)
+    // Dee:       $615 svc · 100% conv · $615 avg · 0 SPP · 0 TGL · 2.0 sold hrs · 0 TSHE · 2 FRT/call · mem 0/0
+    // Chris:     $379 svc · 100% conv · $300 avg · 1 SPP · 0 TGL · 5.1 sold hrs · 0 TSHE · 2 FRT/call · mem 1/1 (100%)
+    // Team daily: $7,200 svc · 88% conv · $1,017 avg · 2 SPP · 2 TGL · 15.3 sold hrs · 1.42 TSHE · 2.71 FRT/call · 2 mem sold / 3 mem opps (67%) · 0 installs
+    function _wlbSeedDay20260506IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_06_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var WEEK = '2026-05-04';
+        var d = _wlbLoad();
+        var existing = d[WEEK] || {};
+        function add(short, svc, ic, ir, ms, mo) {
+          var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+          existing[short] = {
+            service:      (prev.service || 0)      + svc,
+            installCount: (prev.installCount || 0) + ic,
+            installRev:   (prev.installRev || 0)   + ir,
+            memSold:      (prev.memSold || 0)      + ms,
+            memOpps:      (prev.memOpps || 0)      + mo
+          };
+        }
+        add('Benji',  2170, 0, 0, 0, 1);
+        add('Daniel', 2162, 0, 0, 0, 0);
+        add('Dewone', 1875, 0, 0, 1, 1);
+        add('Dee',     615, 0, 0, 0, 0);
+        add('Chris',   379, 0, 0, 1, 1);
+        d[WEEK] = existing;
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260506IfNeeded failed', e); }
+    }
+
     // v217: One-shot Brayden install seed for May 4, 2026 ($30,271.55, sold by Brayden Bond, lead by Chris Monahan).
     function _braydenSeedMay20260504IfNeeded() {
       try {
@@ -8551,6 +8588,7 @@ document.addEventListener('visibilitychange', function() {
         'st_update_20260430_mtd': { date: '2026-04-30', text: 'Daily refresh (4/30/26). No installs today. Dewone +$362 svc (100% conv on 1 call, $362 avg, 2.5 sold hrs, 2 tasks/call) \u2192 $10,688 svc MTD. Benji (Ben Tinahui) $0 svc (4.0 sold hrs, 0.5 tech sold-hr efficiency, no opps). Dee $0 svc (1.0 sold hr, no opps). Daniel $0 svc (4.0 sold hrs, no opps). Chris $0 svc (2.5 sold hrs, 1 TGL, no opps). Memberships: 2 sold / 2 opps team-wide today (Chris 1/1, Daniel 1/1). Team daily $362 svc / 16.75 sold hrs / 1 TGL / 0 installs. Team MTD installs 11 ($146K) held.' },
         'st_update_20260502_mtd': { date: '2026-05-02', text: 'Saturday 5/2/26 \u2014 Dewone solo (only Saturday tech). $572 svc, 100% conv (2/2), $252 avg sale, 1 SPP, 3.6 sold hrs, 2 tasks/call, 1 mem sold / 2 mem opps (50%), 0 installs. Closes week of 4/27. Dewone May MTD now $955 svc / 7.3 sold hrs / 1 SPP / 1 TGL / 1-of-2 mem (50%) / 0 installs.' },
         'st_update_20260501_mtd': { date: '2026-05-01', text: 'May Day 1 (5/1/26) \u2014 fresh month. Chris $2,563 svc (100% conv, $1,282 avg, 2.3 sold hrs, 3.5 tasks/call) leads. Daniel $1,329 svc (100% conv, $665 avg, 1 SPP, 3.2 sold hrs) + 1 mem sold (1/1, 100%). Benji $883 svc (100% conv, $804 avg, 5.1 sold hrs, 0.61 eff, 0/1 mem). Dewone $383 svc (100% conv, 1 TGL, 3.7 sold hrs). Dee $79 svc (0% conv, 1 TGL, 2.1 sold hrs). 1 install today \u2014 Brayden Bond sold Denise Cartier $14,607 HVAC install (Job 91767937). Team day-1 totals: $5,238 svc / 16.4 sold hrs / 2 TGL / 1 SPP / 1 mem sold (1/2 = 50%) / 1 install ($14,607).' },
+        'st_update_20260506_mtd': { date: '2026-05-06', text: 'Wednesday 5/6/26 \u2014 strong mid-week pop. Benji $2,170 svc (50% conv on 2 opps, $2,170 avg, 1 TGL, 1.0 sold hr, 0.09 TSHE, 2 FRT/call, 0/1 mem). Daniel $2,162 svc (100% conv 2/2, $1,081 avg, 5.8 hrs, 4.5 FRT/call). Dewone $1,875 svc (100% conv, $937 avg, 1 SPP, 1 TGL, 1.4 hrs, 1/1 mem = 100%). Dee $615 svc (100% conv, $615 avg, 2.0 hrs, 1 FRT/call). Chris $379 svc (100% conv, $300 avg, 1 SPP, 5.1 hrs, 1/1 mem = 100%). Nick: no data. Team daily: $7,200 svc / 88% conv / $1,017 avg / 2 SPP / 2 TGL / 15.3 sold hrs / 1.42 TSHE / 2.71 FRT/call / 2 mem sold of 3 opps (67%) / 0 installs. May MTD totals: Daniel $6,311 \u00b7 Chris $4,039 \u00b7 Benji $3,496 \u00b7 Dewone $3,702 \u00b7 Dee $912 \u00b7 Nick $0. Team MTD svc $18,460. Brayden install MTD: 2 / $44,879 (held).' },
         'st_update_20260504_mtd': { date: '2026-05-04', text: 'Monday 5/4/26 \u2014 first day of new week (week of 5/3). Daniel $1,381 svc (100% conv, $690 avg, 4.0 hrs, 3.5 FRT/call, 0/1 mem). Dee $218 svc (100% conv, $218 avg, 3.3 hrs, 1 FRT/call). Benji $89 svc (0% conv on 1 opp, 2.75 hrs, 0.29 TSHE, 1 TGL, 0/1 mem). Chris $0 svc (0% conv, 1.5 hrs, 1 TGL credited \u2192 Brayden $30,272 install). Brayden Bond install $30,271.55 (Job 91881584, lead by Chris Monahan). Dewone & Nick: no data. Team daily $1,688 svc / 11.55 sold hrs / 2 TGL / 1 install ($30,272). May MTD totals: Daniel $2,710 \u00b7 Chris $2,563 \u00b7 Benji $972 \u00b7 Dewone $955 \u00b7 Dee $297 \u00b7 Nick $0. Brayden install MTD: 2 / $44,879.' }
       };
       var changed = false;
@@ -18180,6 +18218,7 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260506IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260504IfNeeded(); } catch(e) {}
     try { _tglSeedMay20260504IfNeeded(); } catch(e) {}
     // After all seeds, auto-complete any open TGL whose Job# already shows up in Install Pay or Brayden installs.
