@@ -3737,30 +3737,94 @@ document.addEventListener('visibilitychange', function() {
       if (!n) return '';
       // Strip common suffixes / titles
       n = n.replace(/\s+/g, ' ');
+      var lc = n.toLowerCase();
       var firstWord = n.split(' ')[0];
-      // Known full-name → short mappings
+      // v218.29: Match against full lowercased name first — catches 'Ben Tinahui',
+      // 'Daniel Gazaway', 'Brayden Bond' etc. Then fall back to first-word match.
+      var fullMap = {
+        'ben tinahui':     'Benji',
+        'benji tinahui':   'Benji',
+        'daniel gazaway':  'Daniel',
+        'dee williams':    'Dee',
+        'dewone martin':   'Dewone',
+        'chris monahan':   'Chris',
+        'nick goehler':    'Nick',
+        'nicholas goehler':'Nick',
+        'brayden bond':    'Brayden Bond',
+        'adam bunyard':    'Adam Bunyard',
+        'mark sanders':    'Maico',
+        'maico sanders':   'Maico',
+        'thomas gilbert':  'Thomas Gilbert',
+        'terrell upshur':  'Terrell Upshur'
+      };
+      if (fullMap[lc]) return fullMap[lc];
+      // Known first-name / surname → short mappings
       var map = {
-        'chris': 'Chris',
-        'dewone': 'Dewone',
-        'benji': 'Benji',
+        // First names
+        'chris':    'Chris',
+        'dewone':   'Dewone',
+        'benji':    'Benji',
+        'ben':      'Benji',
         'benjamin': 'Benji',
-        'daniel': 'Daniel',
-        'danny': 'Daniel',
-        'dee': 'Dee',
-        'nick': 'Nick',
+        'daniel':   'Daniel',
+        'danny':    'Daniel',
+        'dan':      'Daniel',
+        'dee':      'Dee',
+        'nick':     'Nick',
         'nicholas': 'Nick',
+        // Surname fallbacks (for ServiceTitan reports that occasionally last-name only)
+        'tinahui':  'Benji',
+        'gazaway':  'Daniel',
+        'williams': 'Dee',
+        'martin':   'Dewone',
+        'monahan':  'Chris',
+        'goehler':  'Nick',
         // Sales / mgr — these can also generate leads, so map them too
-        'brayden': 'Brayden Bond',
-        'adam': 'Adam Bunyard',
-        'mark': 'Maico',
-        'maico': 'Maico'
+        'brayden':  'Brayden Bond',
+        'bond':     'Brayden Bond',
+        'adam':     'Adam Bunyard',
+        'bunyard':  'Adam Bunyard',
+        'mark':     'Maico',
+        'maico':    'Maico',
+        'sanders':  'Maico'
       };
       var key = firstWord.toLowerCase();
       if (map[key]) return map[key];
+      // Try last-word as a final fallback (handles 'M. Tinahui' style entries)
+      var lastWord = n.split(' ').pop().toLowerCase();
+      if (map[lastWord]) return map[lastWord];
       // Fallback to capitalized first word
       return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
     }
     window.tglNormalizeTechName = tglNormalizeTechName;
+
+    // v218.29: One-shot backfill — re-normalizes leadGeneratedBy on every stored TGL row
+    // through the (now-expanded) tglNormalizeTechName(). This heals any rows imported with
+    // the old normalizer that left 'Ben' / 'Ben Tinahui' / 'Daniel Gazaway' literal, so the
+    // My Leads tab can match them to tech shorts. Idempotent + cheap.
+    function tglBackfillNormalizeNamesIfNeeded() {
+      try {
+        var FLAG = 'snappy_tgl_normalize_backfill_v218_29';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var d = tglLoad();
+        if (!d || !Array.isArray(d.rows)) { localStorage.setItem(FLAG, '1'); return; }
+        var changed = 0;
+        d.rows.forEach(function(r){
+          if (!r) return;
+          if (r.leadGeneratedBy) {
+            var norm = tglNormalizeTechName(r.leadGeneratedBy);
+            if (norm && norm !== r.leadGeneratedBy) {
+              r.leadGeneratedBy = norm;
+              changed++;
+            }
+          }
+        });
+        if (changed > 0) tglSave(d);
+        localStorage.setItem(FLAG, '1');
+        try { console.log('[v218.29] TGL normalize backfill: ' + changed + ' rows healed'); } catch(e) {}
+      } catch(e) { console.warn('tglBackfillNormalizeNamesIfNeeded failed', e); }
+    }
+    window.tglBackfillNormalizeNamesIfNeeded = tglBackfillNormalizeNamesIfNeeded;
 
     // MTD totals per tech — open count, completed count, completed revenue $
     function tglMtdByTech(monthYM) {
@@ -18310,6 +18374,8 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260507IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260504IfNeeded(); } catch(e) {}
     try { _tglSeedMay20260504IfNeeded(); } catch(e) {}
+    // v218.29: Heal stored leadGeneratedBy values for rows imported under older normalizer
+    try { tglBackfillNormalizeNamesIfNeeded(); } catch(e) {}
     // After all seeds, auto-complete any open TGL whose Job# already shows up in Install Pay or Brayden installs.
     try {
       var _ipForSweep = (typeof ipLoadData === 'function') ? ipLoadData() : { jobs: [] };
