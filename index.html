@@ -56,6 +56,24 @@
         } else {
           localStorage.setItem(KEY, APP_VERSION);
         }
+        // v218.27: Auto-write the visible version badge + date badge from APP_VERSION on every load,
+        // so future bumps only need a single edit (the APP_VERSION constant above).
+        window.__SNAPPY_APP_VERSION__ = APP_VERSION;
+        try {
+          document.addEventListener('DOMContentLoaded', function(){
+            try {
+              var b = document.getElementById('appVersionBadge');
+              if (b) b.textContent = APP_VERSION;
+              var dateBadge = document.querySelector('.badge.badge-date');
+              if (dateBadge) {
+                var t = dateBadge.textContent || '';
+                // Replace the trailing version token if present
+                var m = t.match(/^(.*?\u00b7\s*)v[\d.]+$/);
+                if (m) dateBadge.textContent = m[1] + APP_VERSION;
+              }
+            } catch(e) {}
+          });
+        } catch(e) {}
       } catch(e) { /* localStorage blocked — skip */ }
     })();
   </script>
@@ -72,7 +90,7 @@
   </div>
 
   <!-- Version Badge (top-left, always visible) -->
-  <div id="appVersionBadge" class="app-version-badge" title="App version">v218.24</div>
+  <div id="appVersionBadge" class="app-version-badge" title="App version">v218.27</div>
 
   <!-- Background Grid Effect -->
   <div class="bg-grid-effect"></div>
@@ -114,7 +132,7 @@
       </div>
       <div class="header-right">
         <span class="badge">6 Technicians</span>
-        <span class="badge badge-date">Updated 5/6/2026 &middot; v218.24</span>
+        <span class="badge badge-date">Updated 5/8/2026 &middot; v218.27</span>
         <button class="share-matrix-btn" onclick="shareMatrix()" title="Share Matrix"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share</button>
         <button id="syncNowBtn" class="sync-now-btn mgr-only" onclick="manualSync()" title="Sync Now">&#x1f504;</button>
         <span id="syncStatusIndicator" class="sync-indicator sync-idle mgr-only" onclick="openSyncSetup()" title="Cloud Sync Settings">☁ Cloud</span>
