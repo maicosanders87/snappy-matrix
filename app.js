@@ -4016,6 +4016,91 @@ document.addEventListener('visibilitychange', function() {
     }
     window.tglBackfillDedupIfNeeded = tglBackfillDedupIfNeeded;
 
+    // v218.35: Heal any 'completed' TGL rows whose jobTotal is missing/0 by looking
+    // up matching data from (a) Install Pay jobs by jobNumber/customer, (b) other
+    // TGL rows with the same normalized customer that have a jobTotal > 0. This
+    // surfaces revenue in the Closed Leads table when an older import wrote a
+    // status=completed row with $0 (e.g. before v218.32 or via a customer-match
+    // close that lost the install $). Idempotent — only writes when it can fill
+    // a missing/0 jobTotal.
+    function tglBackfillJobTotalsIfNeeded() {
+      try {
+        var d = tglLoad();
+        if (!d || !Array.isArray(d.rows) || d.rows.length === 0) return;
+        function _norm(s){ return (s||'').toLowerCase().replace(/[^a-z0-9& ]/g,' ').replace(/\s+/g,' ').trim(); }
+        // Index Install Pay jobs by jobNumber + by customer
+        var ipByJob = {}, ipByCust = {};
+        try {
+          if (typeof ipLoadData === 'function') {
+            var ipd = ipLoadData();
+            if (ipd && Array.isArray(ipd.jobs)) {
+              ipd.jobs.forEach(function(j){
+                if (!j) return;
+                var jt = parseFloat(j.jobsTotal != null ? j.jobsTotal : (j.basePay != null ? j.basePay : 0)) || 0;
+                if (jt <= 0) return;
+                var entry = { jobTotal: jt, completedDate: j.date || null, installer: j.installer || j.soldBy || null, jobNumber: j.jobNumber || null };
+                if (j.jobNumber) ipByJob[String(j.jobNumber).trim()] = entry;
+                var k = _norm(j.customer);
+                if (k) {
+                  if (!ipByCust[k]) ipByCust[k] = [];
+                  ipByCust[k].push(entry);
+                }
+              });
+            }
+          }
+        } catch(e) {}
+        // Index TGL rows with $ by customer
+        var tglByCust = {};
+        d.rows.forEach(function(r){
+          if (!r) return;
+          var jt = parseFloat(r.jobTotal) || 0;
+          if (jt <= 0) return;
+          var k = _norm(r.customer);
+          if (!k) return;
+          if (!tglByCust[k]) tglByCust[k] = [];
+          tglByCust[k].push(r);
+        });
+        var healed = 0;
+        d.rows.forEach(function(r){
+          if (!r) return;
+          if (r.status !== 'completed') return;
+          var cur = parseFloat(r.jobTotal) || 0;
+          if (cur > 0) return;
+          var fill = null;
+          // 1) Try Install Pay by jobNumber
+          if (r.jobNumber && ipByJob[String(r.jobNumber).trim()]) fill = ipByJob[String(r.jobNumber).trim()];
+          // 2) Try Install Pay by customer (highest $)
+          if (!fill) {
+            var k = _norm(r.customer);
+            if (k && ipByCust[k] && ipByCust[k].length) {
+              fill = ipByCust[k].reduce(function(a,b){ return (b.jobTotal>a.jobTotal)?b:a; });
+            }
+          }
+          // 3) Try other TGL rows with same customer (highest $)
+          if (!fill) {
+            var k2 = _norm(r.customer);
+            if (k2 && tglByCust[k2] && tglByCust[k2].length) {
+              var best = tglByCust[k2].reduce(function(a,b){ return ((parseFloat(b.jobTotal)||0)>(parseFloat(a.jobTotal)||0))?b:a; });
+              fill = { jobTotal: parseFloat(best.jobTotal)||0, completedDate: best.completedDate || best.dateGenerated || null, installer: best.installer || null, jobNumber: best.jobNumber || null };
+            }
+          }
+          if (fill && fill.jobTotal > 0) {
+            r.jobTotal = fill.jobTotal;
+            if (!r.completedDate && fill.completedDate) r.completedDate = fill.completedDate;
+            if (!r.installer && fill.installer) r.installer = fill.installer;
+            if (!r.closedFromJobNumber && fill.jobNumber) r.closedFromJobNumber = fill.jobNumber;
+            r.healedJobTotalAt = new Date().toISOString();
+            healed++;
+          }
+        });
+        if (healed > 0) {
+          tglSave(d);
+          try { console.log('[v218.35] TGL jobTotal heal: ' + healed + ' completed rows healed'); } catch(e) {}
+        }
+      } catch(e) { console.warn('tglBackfillJobTotalsIfNeeded failed', e); }
+    }
+    window.tglBackfillJobTotalsIfNeeded = tglBackfillJobTotalsIfNeeded;
+
     // MTD totals per tech — open count, completed count, completed revenue $
     function tglMtdByTech(monthYM) {
       // monthYM optional 'YYYY-MM' filter; default = current calendar month
@@ -4591,6 +4676,8 @@ document.addEventListener('visibilitychange', function() {
       try { if (typeof tglAutoCloseSalesMgrLeads === 'function') tglAutoCloseSalesMgrLeads(); } catch(e) {}
       // v218.33: Run dedup so any leftover duplicates from prior imports are collapsed.
       try { if (typeof tglBackfillDedupIfNeeded === 'function') tglBackfillDedupIfNeeded(); } catch(e) {}
+      // v218.35: Heal any completed rows that lost jobTotal during prior imports.
+      try { if (typeof tglBackfillJobTotalsIfNeeded === 'function') tglBackfillJobTotalsIfNeeded(); } catch(e) {}
       return { added: added, completed: completed, updated: updated, skipped: skipped, deduped: deduped, total: parsed.length };
     }
     window.tglApplyParsedRows = tglApplyParsedRows;
@@ -5776,7 +5863,30 @@ document.addEventListener('visibilitychange', function() {
       var ymNow = new Date().toISOString().slice(0,7);
       // Filter completed to MTD for the headline number, but show all-time list below.
       var doneMtd = done.filter(function(r){ return (r.completedDate||r.dateGenerated||'').slice(0,7) === ymNow; });
-      var revMtd = doneMtd.reduce(function(s,r){ return s + (parseFloat(r.jobTotal)||0); }, 0);
+      // v218.35: Render-time fallback for jobTotal — covers rows where status got
+      // flipped to completed (e.g. via customer-match auto-close) but jobTotal
+      // didn't carry over. We look across all stored TGL rows for a sibling with
+      // the same jobNumber OR same customer that has a positive total.
+      var _allRowsForTotals = (function(){ try { var d = tglLoad(); return (d && d.rows) || []; } catch(e) { return []; } })();
+      function _renderTotalFor(r) {
+        var v = parseFloat(r && r.jobTotal) || 0;
+        if (v > 0) return v;
+        if (!r) return 0;
+        function _norm(s){ return (s||'').toLowerCase().replace(/[^a-z0-9& ]/g,' ').replace(/\s+/g,' ').trim(); }
+        var byJob = (r.jobNumber||'').trim();
+        var byCust = _norm(r.customer);
+        var best = 0;
+        for (var i=0;i<_allRowsForTotals.length;i++){
+          var rr = _allRowsForTotals[i];
+          if (!rr || rr === r) continue;
+          var rv = parseFloat(rr.jobTotal) || 0;
+          if (rv <= 0) continue;
+          if (byJob && rr.jobNumber && String(rr.jobNumber).trim() === byJob) { if (rv > best) best = rv; }
+          else if (byCust && _norm(rr.customer) === byCust) { if (rv > best) best = rv; }
+        }
+        return best;
+      }
+      var revMtd = doneMtd.reduce(function(s,r){ return s + (_renderTotalFor(r)||0); }, 0);
       var bump = tglCompositeBump(techShort);
       var html = '';
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;overflow:hidden;">';
@@ -5859,7 +5969,8 @@ document.addEventListener('visibilitychange', function() {
         html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:7px 10px;">Customer</th><th style="text-align:left;padding:7px 10px;">Job #</th><th style="text-align:left;padding:7px 10px;">Closed</th><th style="text-align:left;padding:7px 10px;">Lead Ran</th><th style="text-align:left;padding:7px 10px;">Installer(s)</th><th style="text-align:right;padding:7px 10px;">Total</th></tr></thead><tbody>';
         done.forEach(function(r){
           var sp2 = _splitRanVsInstallers(r);
-          var tot = (r.jobTotal && r.jobTotal > 0) ? ('$' + Math.round(r.jobTotal).toLocaleString()) : '\u2014';
+          var totVal = _renderTotalFor(r);
+          var tot = (totVal > 0) ? ('$' + Math.round(totVal).toLocaleString()) : '\u2014';
           html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:7px 10px;color:#f1f5f9;">' + (r.customer||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">' + (r.jobNumber||'\u2014') + '</td><td style="padding:7px 10px;color:#94a3b8;">' + (r.completedDate||r.dateGenerated||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp2.ran||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp2.installers||'\u2014') + '</td><td style="padding:7px 10px;text-align:right;color:#10B981;font-weight:700;font-variant-numeric:tabular-nums;">' + tot + '</td></tr>';
         });
         html += '</tbody></table></div>';
@@ -18654,6 +18765,8 @@ if (typeof Chart !== 'undefined') {
     try { tglBackfillDedupIfNeeded(); } catch(e) {}
     // v218.31: Auto-close sales/mgr open leads via customer-name match
     try { tglAutoCloseSalesMgrLeads(); } catch(e) {}
+    // v218.35: Heal any completed rows whose jobTotal got lost / never set
+    try { tglBackfillJobTotalsIfNeeded(); } catch(e) {}
     // After all seeds, auto-complete any open TGL whose Job# already shows up in Install Pay or Brayden installs.
     try {
       var _ipForSweep = (typeof ipLoadData === 'function') ? ipLoadData() : { jobs: [] };
@@ -18666,6 +18779,8 @@ if (typeof Chart !== 'undefined') {
       tglAutoCloseSalesMgrLeads();
       // v218.33: Re-run dedup after sweeps in case auto-complete created near-duplicate rows.
       try { if (typeof tglBackfillDedupIfNeeded === 'function') tglBackfillDedupIfNeeded(); } catch(e) {}
+      // v218.35: Heal jobTotals after sweeps too
+      try { if (typeof tglBackfillJobTotalsIfNeeded === 'function') tglBackfillJobTotalsIfNeeded(); } catch(e) {}
     } catch(e) { console.warn('TGL init sweep failed', e); }
     try { _trainingSeedWed20260506IfNeeded(); } catch(e) {}
     // v218.13: One-time migration — clear stale SHA from old private repo so first push to public repo works.
