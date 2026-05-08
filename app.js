@@ -4121,11 +4121,17 @@ document.addEventListener('visibilitychange', function() {
         }
       })();
       // Helper: which column index does an x-position belong to?
+      // v218.32: Increased left-tolerance from 4 to 12 px. Real ServiceTitan PDFs
+      // emit data-row left-edges several px to the LEFT of the header anchor (e.g.
+      // header 'Location' at x=65.81, data 'Nancy &' at x=61.79). Tighter tolerance
+      // dropped data items into the unknown bucket and produced empty customer names.
       function colOfX(x){
         if (!columnXs.length) return -1;
+        // Anything left of column 0 (within tolerance) snaps to column 0.
+        if (x < columnXs[0] - 12) return -1;
         for (var i=0; i<columnXs.length; i++) {
           var nextX = columnXs[i+1] != null ? columnXs[i+1] : Infinity;
-          if (x >= columnXs[i] - 4 && x < nextX - 4) return i;
+          if (x >= columnXs[i] - 12 && x < nextX - 4) return i;
         }
         return columnXs.length - 1;
       }
