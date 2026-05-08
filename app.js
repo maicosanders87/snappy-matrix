@@ -3711,6 +3711,96 @@ document.addEventListener('visibilitychange', function() {
     window.tglMaybeCompleteByJobNumber = tglMaybeCompleteByJobNumber;
     window.tglAutoCompleteFromJobs = tglAutoCompleteFromJobs;
 
+    // v218.31: Auto-close sales/mgr open leads via customer-name match across
+    // OTHER TGL rows and Install Pay jobs. The TGL report attributes install $
+    // to Thomas/Terrell on a different job#, so a salesperson's own row stays
+    // $0.00 forever. This function looks across the data and, when it finds the
+    // same customer with jobTotal > 0 (either another TGL row or an Install Pay
+    // job), promotes the sales/mgr row to 'completed' with that install's
+    // jobTotal + date + installer. Idempotent: only flips open → completed.
+    function _tglNormalizeCustomer(s) {
+      if (!s) return '';
+      return String(s).toLowerCase().replace(/\s+/g,' ').replace(/[^a-z0-9& ]/g,'').trim();
+    }
+    function tglAutoCloseSalesMgrLeads() {
+      try {
+        var SALES_MGR = ['Maico','Brayden Bond','Adam Bunyard'];
+        var d = tglLoad();
+        if (!d || !Array.isArray(d.rows)) return 0;
+        // Build customer → [installRow] index from rows that already have $ AND a non-sales installer.
+        var custToInstall = {};
+        d.rows.forEach(function(r){
+          if (!r || !r.customer) return;
+          var jt = parseFloat(r.jobTotal) || 0;
+          if (jt <= 0) return;
+          // Skip rows whose own ranBy is a sales/mgr (we don't want a sales row
+          // to credit itself as the install).
+          var ownRanBy = Array.isArray(r.ranBy) ? r.ranBy : [];
+          var isSelfSales = ownRanBy.some(function(n){ return SALES_MGR.indexOf(n) >= 0; });
+          if (isSelfSales) return;
+          var k = _tglNormalizeCustomer(r.customer);
+          if (!k) return;
+          if (!custToInstall[k]) custToInstall[k] = [];
+          custToInstall[k].push(r);
+        });
+        // Also include Install Pay jobs as potential installers.
+        try {
+          if (typeof ipLoadData === 'function') {
+            var ipd = ipLoadData();
+            if (ipd && Array.isArray(ipd.jobs)) {
+              ipd.jobs.forEach(function(j){
+                if (!j || !j.customer) return;
+                var jt = parseFloat(j.jobsTotal != null ? j.jobsTotal : j.basePay) || 0;
+                if (jt <= 0) return;
+                var k = _tglNormalizeCustomer(j.customer);
+                if (!k) return;
+                if (!custToInstall[k]) custToInstall[k] = [];
+                custToInstall[k].push({
+                  jobNumber: j.jobNumber,
+                  customer: j.customer,
+                  jobTotal: jt,
+                  completedDate: j.date,
+                  dateGenerated: j.date,
+                  installer: j.installer || j.soldBy || null,
+                  __fromInstallPay: true
+                });
+              });
+            }
+          }
+        } catch(e) {}
+        // Walk open sales/mgr rows and close them when a matching install exists.
+        var changed = 0;
+        d.rows.forEach(function(r){
+          if (!r) return;
+          if (r.status === 'completed') return;
+          var ranBy = Array.isArray(r.ranBy) ? r.ranBy : [];
+          var isSalesRow = ranBy.some(function(n){ return SALES_MGR.indexOf(n) >= 0; });
+          if (!isSalesRow) return;
+          if (!r.customer) return;
+          var k = _tglNormalizeCustomer(r.customer);
+          if (!k) return;
+          var matches = custToInstall[k];
+          if (!matches || !matches.length) return;
+          // Pick the install with the largest jobTotal (most likely the real install)
+          var best = matches.reduce(function(a,b){
+            return ((parseFloat(b.jobTotal)||0) > (parseFloat(a.jobTotal)||0)) ? b : a;
+          });
+          r.status = 'completed';
+          r.jobTotal = parseFloat(best.jobTotal) || 0;
+          r.completedDate = best.completedDate || best.dateGenerated || new Date().toISOString().slice(0,10);
+          r.installer = best.installer || r.installer || null;
+          r.completedAt = new Date().toISOString();
+          r.closedViaCustomerMatch = true;
+          r.closedFromJobNumber = best.jobNumber || null;
+          changed++;
+        });
+        if (changed > 0) tglSave(d);
+        try { console.log('[v218.31] Sales/mgr lead auto-close: ' + changed + ' rows closed'); } catch(e) {}
+        return changed;
+      } catch(e) { console.warn('tglAutoCloseSalesMgrLeads failed', e); return 0; }
+    }
+    window.tglAutoCloseSalesMgrLeads = tglAutoCloseSalesMgrLeads;
+
     // ===========================================================================
     // v218.22: TGL system additions — PDF import, totals, composite bump, sync
     // ===========================================================================
@@ -4424,6 +4514,9 @@ document.addEventListener('visibilitychange', function() {
         }
       });
       tglSave(d);
+      // v218.31: After applying parsed rows, run sales/mgr customer-match auto-close
+      // so re-imports immediately surface closed leads for Maico/Brayden/Adam.
+      try { if (typeof tglAutoCloseSalesMgrLeads === 'function') tglAutoCloseSalesMgrLeads(); } catch(e) {}
       return { added: added, completed: completed, updated: updated, skipped: skipped, deduped: deduped, total: parsed.length };
     }
     window.tglApplyParsedRows = tglApplyParsedRows;
@@ -18443,6 +18536,8 @@ if (typeof Chart !== 'undefined') {
     try { tglBackfillNormalizeNamesIfNeeded(); } catch(e) {}
     // v218.30: Populate ranBy[] on stored rows so My Leads tab can match Maico/Brayden/Adam
     try { tglBackfillRanByIfNeeded(); } catch(e) {}
+    // v218.31: Auto-close sales/mgr open leads via customer-name match
+    try { tglAutoCloseSalesMgrLeads(); } catch(e) {}
     // After all seeds, auto-complete any open TGL whose Job# already shows up in Install Pay or Brayden installs.
     try {
       var _ipForSweep = (typeof ipLoadData === 'function') ? ipLoadData() : { jobs: [] };
@@ -18450,6 +18545,9 @@ if (typeof Chart !== 'undefined') {
       var _brRaw = localStorage.getItem('snappy_brayden_installs');
       var _brArr = _brRaw ? JSON.parse(_brRaw) : [];
       tglAutoCompleteFromJobs(_brArr.map(function(x){ return { jobNumber: x.jobNumber || x.invoice, date: x.date || x.completionDate, basePay: x.jobsTotal, installer: x.soldBy }; }));
+      // v218.31: Re-run sales/mgr customer-match close after the install-pay sweep
+      // so newly-promoted install rows can credit any matching sales/mgr open lead.
+      tglAutoCloseSalesMgrLeads();
     } catch(e) { console.warn('TGL init sweep failed', e); }
     try { _trainingSeedWed20260506IfNeeded(); } catch(e) {}
     // v218.13: One-time migration — clear stale SHA from old private repo so first push to public repo works.
