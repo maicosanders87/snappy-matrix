@@ -3674,15 +3674,25 @@ document.addEventListener('visibilitychange', function() {
                     try {
                       var cloudObj = JSON.parse(cloudVal);
                       if (cloudObj && Array.isArray(cloudObj.rows) && cloudObj.rows.length > d.rows.length) {
-                        console.warn('[v218.38] tglLoad cloud-recover: hydrating ' + cloudObj.rows.length + ' rows from cloud (was ' + d.rows.length + ')');
+                        console.warn('[v218.39] tglLoad cloud-recover: hydrating ' + cloudObj.rows.length + ' rows from cloud (was ' + d.rows.length + ')');
                         localStorage.setItem(OPEN_TGL_KEY, cloudVal);
-                        // Refresh any visible TGL tabs
-                        try { if (typeof renderOpenTglTab === 'function') renderOpenTglTab(); } catch(e) {}
-                        try { if (typeof renderMyLeadsTab === 'function') renderMyLeadsTab(); } catch(e) {}
-                        try { if (typeof renderRookieCardsHome === 'function') renderRookieCardsHome(); } catch(e) {}
+                        // v218.39: Run the sales↔install pair heal so closed totals
+                        // get credited to Maico/Brayden/Adam after cloud hydration.
+                        try { if (typeof tglBackfillNormalizeNamesIfNeeded === 'function') tglBackfillNormalizeNamesIfNeeded(); } catch(e) {}
+                        try { if (typeof tglBackfillRanByIfNeeded === 'function') tglBackfillRanByIfNeeded(); } catch(e) {}
+                        try { if (typeof tglAutoCloseSalesMgrLeads === 'function') tglAutoCloseSalesMgrLeads(); } catch(e) {}
+                        try { if (typeof tglBackfillJobTotalsIfNeeded === 'function') tglBackfillJobTotalsIfNeeded(); } catch(e) {}
+                        // Refresh any visible TGL tabs (using actual fn names)
+                        try { if (typeof renderMyLeads === 'function') renderMyLeads(); } catch(e) {}
+                        try { if (typeof tglRenderManagerSection === 'function') {
+                          var mgrEl = document.getElementById('tglManagerSection');
+                          if (mgrEl) mgrEl.innerHTML = tglRenderManagerSection();
+                        } } catch(e) {}
+                        try { if (typeof renderRookieCards === 'function') renderRookieCards(); } catch(e) {}
+                        try { if (typeof renderSeasonalRookieCards === 'function') renderSeasonalRookieCards(); } catch(e) {}
                         try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
                         try { if (typeof renderBulletinBoard === 'function') renderBulletinBoard(); } catch(e) {}
-                        try { if (typeof renderMatrixGrid === 'function') renderMatrixGrid(); } catch(e) {}
+                        try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
                       }
                     } catch(parseErr) { console.warn('[v218.38] cloud-recover parse failed', parseErr); }
                   }
@@ -6877,6 +6887,7 @@ document.addEventListener('visibilitychange', function() {
               '<button type="button" class="wlb-btn wlb-this-week" id="wlb-this-week">This Week</button>' +
               '<button type="button" class="wlb-btn" id="wlb-next-week" title="Next week">\u2192</button>' +
               '<button type="button" class="wlb-btn wlb-edit" id="wlb-edit" title="Enter / paste weekly numbers">\u270e Enter Numbers</button>' +
+              '<button type="button" class="wlb-btn wlb-paste" id="wlb-paste-nexstar" title="Paste Nexstar + Memberships tables from ServiceTitan" style="background:#1f3a5e;color:#a5d8ff;border-color:#3a5b8a;">\ud83d\udccb Paste Nexstar</button>' +
             '</div>' +
           '</div>';
 
@@ -7038,6 +7049,7 @@ document.addEventListener('visibilitychange', function() {
           _wlbSetActiveWeek(_wlbWeekStart()); rerender();
         };
         var edit = qs('wlb-edit'); if (edit) edit.onclick = function() { _wlbOpenEditor(activeWeek); };
+        var pasteBtn = qs('wlb-paste-nexstar'); if (pasteBtn) pasteBtn.onclick = function() { _wlbOpenPasteImporter(activeWeek); };
 
         // v216: Champion buttons
         var awardBtn = qs('v216-award-btn');
@@ -7227,6 +7239,260 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbOpenEditor failed', e); }
     }
     window._wlbOpenEditor = _wlbOpenEditor;
+
+    // ===========================================================================
+    // v218.39: Nexstar paste importer — paste both ServiceTitan tables (Nexstar
+    // overview + Memberships) and the importer parses each tech's daily numbers,
+    // then ADDS them onto the active week in WLB storage.
+    // ===========================================================================
+    // Maps full names from ServiceTitan to canonical WLB shorts.
+    function _nexstarFullNameToShort(name) {
+      if (!name) return null;
+      var n = String(name).trim().toLowerCase();
+      var map = {
+        'daniel gazaway': 'Daniel',
+        'ben tinahui': 'Benji',
+        'benji': 'Benji',
+        'chris monahan': 'Chris',
+        'dewone martin': 'Dewone',
+        'dee williams': 'Dee',
+        'nick': 'Nick'
+      };
+      if (map[n]) return map[n];
+      // First word fallback
+      var first = n.split(/\s+/)[0];
+      var firstMap = { daniel:'Daniel', ben:'Benji', benji:'Benji', chris:'Chris', dewone:'Dewone', dee:'Dee', nick:'Nick' };
+      return firstMap[first] || null;
+    }
+
+    // Parse a Nexstar / Memberships pasted text block into per-tech rows.
+    // Returns: { rows: [{short, service, conv, spps, tgls, soldHrs, frt, memSold, memOpps, raw}], warnings: [str] }
+    function _wlbParseNexstarPaste(text) {
+      var out = { rows: [], warnings: [], totals: null };
+      if (!text || !text.trim()) return out;
+      var byShort = {};
+      function getRow(short) {
+        if (!byShort[short]) byShort[short] = { short: short, service: 0, conv: null, spps: 0, tgls: 0, soldHrs: 0, frt: 0, memSold: 0, memOpps: 0 };
+        return byShort[short];
+      }
+      // Split into lines, drop empties.
+      var lines = text.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(function(s){ return s.length; });
+      // Name detection: any line starting with a known full-name pattern.
+      // Strategy: walk lines, when we hit a name, collect the next ~10 numeric tokens (across multiple lines if needed),
+      // then map by table-mode (Nexstar vs Memberships).
+      // Detect mode from header presence.
+      var isNexstar = /total\s*revenue/i.test(text) && /sold\s*hours/i.test(text);
+      var isMemberships = /total\s*mem\s*sold/i.test(text) || /total\s*mem\s*opps/i.test(text);
+      // Token stream parser: walk lines, when we see a name, capture the trailing numeric tokens on that line + later lines until next name/totals.
+      var nameRe = /^(daniel\s+gazaway|ben\s+tinahui|chris\s+monahan|dewone\s+martin|dee\s+williams|nick\s+\w+|benji\b)/i;
+      function isNumericToken(s) { return /^[-+]?\$?[\d,]+(\.\d+)?%?$/.test(s) || /^0%$/.test(s); }
+      function toNum(s) {
+        if (s == null) return 0;
+        var raw = String(s).replace(/[$,%]/g,'').trim();
+        if (!raw) return 0;
+        var n = parseFloat(raw);
+        return isNaN(n) ? 0 : n;
+      }
+      var current = null, currentTokens = [];
+      function flush() {
+        if (!current) return;
+        var short = _nexstarFullNameToShort(current);
+        if (!short) { out.warnings.push('Unrecognized name: ' + current); current = null; currentTokens = []; return; }
+        var row = getRow(short);
+        // Strip empty/zero pad tokens at start (e.g. images or spacers may produce blanks)
+        var t = currentTokens.slice();
+        if (isNexstar) {
+          // Expected order: Total Revenue, Average Sale, Conversion Rate %, # SPPs Sold, # Tech Generated Leads, Sold Hours, Tech Sold Hour Efficiency, # Flat Rate Tasks Per Call
+          row.service += toNum(t[0]);
+          // t[1] = avg sale (skip)
+          if (t[2] != null) row.conv = toNum(t[2]);
+          row.spps += toNum(t[3]);
+          row.tgls += toNum(t[4]);
+          row.soldHrs += toNum(t[5]);
+          // t[6] = tech sold hour efficiency (skip)
+          row.frt += toNum(t[7]);
+        } else if (isMemberships) {
+          // Expected order: Total Mem Sold, Total Mem Opps, Total Mem %
+          row.memSold += toNum(t[0]);
+          row.memOpps += toNum(t[1]);
+          // t[2] = % (skip, derived)
+        }
+        current = null; currentTokens = [];
+      }
+      lines.forEach(function(line) {
+        var nameMatch = line.match(nameRe);
+        if (nameMatch) {
+          flush();
+          current = nameMatch[1];
+          // Capture any trailing numeric tokens on the same line
+          var rest = line.slice(nameMatch[0].length).trim();
+          if (rest) {
+            rest.split(/\s+/).forEach(function(tok) {
+              if (isNumericToken(tok) || tok === '0' || tok === '0%') currentTokens.push(tok);
+            });
+          }
+          return;
+        }
+        if (/totals?\s+and\s+averages/i.test(line)) {
+          flush();
+          current = null;
+          return;
+        }
+        // If we're in the middle of a name capture, gather numeric tokens.
+        if (current) {
+          line.split(/\s+/).forEach(function(tok) {
+            if (isNumericToken(tok)) currentTokens.push(tok);
+          });
+        }
+      });
+      flush();
+      out.rows = Object.keys(byShort).map(function(k){ return byShort[k]; });
+      return out;
+    }
+    window._wlbParseNexstarPaste = _wlbParseNexstarPaste;
+
+    function _wlbOpenPasteImporter(weekKey) {
+      try {
+        var existing = document.getElementById('wlbPasteOverlay');
+        if (existing) existing.remove();
+        var overlay = document.createElement('div');
+        overlay.id = 'wlbPasteOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.78);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+        var html = '';
+        html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:14px;padding:22px 24px;max-width:900px;width:100%;color:#f1f5f9;max-height:92vh;overflow-y:auto;">';
+        html += '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">';
+        html += '    <div>';
+        html += '      <div style="font-size:20px;font-weight:800;">\ud83d\udccb Paste Nexstar Daily Numbers</div>';
+        html += '      <div style="font-size:12px;color:#94a3b8;margin-top:3px;">Adds onto active week: <b style="color:#fbbf24;">' + weekKey + '</b></div>';
+        html += '    </div>';
+        html += '    <button type="button" id="wlbPasteClose" style="background:transparent;color:#94a3b8;border:0;font-size:24px;cursor:pointer;">\u00d7</button>';
+        html += '  </div>';
+        html += '  <div style="font-size:13px;color:#cbd5e1;margin-bottom:8px;line-height:1.55;">';
+        html += '    Paste BOTH the <b>Nexstar overview</b> table and the <b>Memberships</b> table from ServiceTitan into the box below \u2014 the importer parses both at once. Just copy each table (with headers + rows) and paste. Order doesn\'t matter.';
+        html += '  </div>';
+        html += '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">';
+        html += '    <div>';
+        html += '      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:4px;">Nexstar Overview Table</div>';
+        html += '      <textarea id="wlbPasteNexstar" placeholder="Paste Nexstar table here\u2026 (Name | Total Revenue | Average Sale | Conversion Rate % | # SPPs Sold | # Tech Generated Leads | Sold Hours | Tech Sold Hour Efficiency | # Flat Rate Tasks Per Call)" style="width:100%;height:170px;background:#0a1224;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;padding:10px;font-family:monospace;font-size:12px;resize:vertical;"></textarea>';
+        html += '    </div>';
+        html += '    <div>';
+        html += '      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:4px;">Memberships Table</div>';
+        html += '      <textarea id="wlbPasteMem" placeholder="Paste Memberships table here\u2026 (Name | Total Mem Sold | Total Mem Opps | Total Mem %)" style="width:100%;height:170px;background:#0a1224;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;padding:10px;font-family:monospace;font-size:12px;resize:vertical;"></textarea>';
+        html += '    </div>';
+        html += '  </div>';
+        html += '  <div style="display:flex;gap:10px;margin-bottom:14px;">';
+        html += '    <button type="button" id="wlbPasteParse" style="background:#3b82f6;color:#fff;border:0;padding:10px 18px;border-radius:8px;font-weight:700;cursor:pointer;">\ud83d\udd0d Parse Tables</button>';
+        html += '    <div style="flex:1;"></div>';
+        html += '    <button type="button" id="wlbPasteCancel" style="background:#1e293b;color:#cbd5e1;border:1px solid #334155;padding:10px 18px;border-radius:8px;cursor:pointer;">Cancel</button>';
+        html += '  </div>';
+        html += '  <div id="wlbPasteReview" style="display:none;"></div>';
+        html += '</div>';
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+        var close = function() { overlay.remove(); };
+        document.getElementById('wlbPasteClose').onclick = close;
+        document.getElementById('wlbPasteCancel').onclick = close;
+        document.getElementById('wlbPasteParse').onclick = function() {
+          var nexText = document.getElementById('wlbPasteNexstar').value || '';
+          var memText = document.getElementById('wlbPasteMem').value || '';
+          var nexParsed = _wlbParseNexstarPaste(nexText);
+          var memParsed = _wlbParseNexstarPaste(memText);
+          // Merge by short
+          var merged = {};
+          function add(p) {
+            p.rows.forEach(function(r) {
+              if (!merged[r.short]) merged[r.short] = { short: r.short, service: 0, memSold: 0, memOpps: 0, soldHrs: 0, conv: null, tgls: 0, frt: 0, spps: 0 };
+              var m = merged[r.short];
+              m.service += r.service || 0;
+              m.memSold += r.memSold || 0;
+              m.memOpps += r.memOpps || 0;
+              m.soldHrs += r.soldHrs || 0;
+              if (r.conv != null) m.conv = r.conv;
+              m.tgls += r.tgls || 0;
+              m.frt += r.frt || 0;
+              m.spps += r.spps || 0;
+            });
+          }
+          add(nexParsed); add(memParsed);
+          var rows = Object.keys(merged).map(function(k){ return merged[k]; });
+          if (!rows.length) {
+            document.getElementById('wlbPasteReview').style.display='block';
+            document.getElementById('wlbPasteReview').innerHTML = '<div style="background:#7f1d1d;color:#fff;padding:12px;border-radius:8px;">No tech rows recognized. Make sure the pasted text includes full names like "Daniel Gazaway" or "Ben Tinahui".</div>';
+            return;
+          }
+          var warnings = (nexParsed.warnings || []).concat(memParsed.warnings || []);
+          // Render review table with editable cells
+          var revHTML = '<div style="background:#0a1224;border:1px solid #1e3a5f;border-radius:10px;padding:14px;">';
+          revHTML += '<div style="font-size:14px;font-weight:700;margin-bottom:10px;color:#fbbf24;">Review parsed numbers \u2014 edit any cell, then Apply</div>';
+          if (warnings.length) revHTML += '<div style="background:#7f1d1d;color:#fff;padding:8px;border-radius:6px;margin-bottom:10px;font-size:12px;">' + warnings.map(function(w){return '\u2022 '+w;}).join('<br>') + '</div>';
+          revHTML += '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+          revHTML += '<thead><tr style="background:#1e3a5f;color:#cbd5e1;"><th style="padding:8px;text-align:left;">Tech</th><th style="padding:8px;">Service $</th><th style="padding:8px;">Mem Sold</th><th style="padding:8px;">Mem Opps</th><th style="padding:8px;">Sold Hrs</th><th style="padding:8px;">Conv %</th><th style="padding:8px;">TGLs</th><th style="padding:8px;">FRT</th><th style="padding:8px;">SPPs</th></tr></thead><tbody>';
+          rows.forEach(function(r, i) {
+            revHTML += '<tr style="border-bottom:1px solid #1e293b;">';
+            revHTML += '<td style="padding:8px;font-weight:700;color:#f1f5f9;">' + r.short + '</td>';
+            ['service','memSold','memOpps','soldHrs','conv','tgls','frt','spps'].forEach(function(field){
+              var val = r[field];
+              if (val == null) val = '';
+              revHTML += '<td style="padding:4px;"><input type="number" step="0.01" data-i="'+i+'" data-f="'+field+'" value="'+val+'" style="width:80px;background:#0F1B2E;color:#f1f5f9;border:1px solid #334155;border-radius:4px;padding:5px 6px;font-size:12px;"></td>';
+            });
+            revHTML += '</tr>';
+          });
+          revHTML += '</tbody></table>';
+          revHTML += '<div style="display:flex;gap:10px;margin-top:14px;align-items:center;">';
+          revHTML += '<div style="font-size:11px;color:#94a3b8;flex:1;">Values will be ADDED onto existing week ' + weekKey + ' totals. Existing entries are preserved.</div>';
+          revHTML += '<button type="button" id="wlbPasteApply" style="background:#10b981;color:#fff;border:0;padding:10px 22px;border-radius:8px;font-weight:700;cursor:pointer;">\u2713 Apply to Week</button>';
+          revHTML += '</div></div>';
+          var review = document.getElementById('wlbPasteReview');
+          review.style.display = 'block';
+          review.innerHTML = revHTML;
+          // Wire input edits
+          review.querySelectorAll('input[data-i]').forEach(function(inp) {
+            inp.addEventListener('input', function() {
+              var i = parseInt(this.getAttribute('data-i'),10);
+              var f = this.getAttribute('data-f');
+              var v = this.value === '' ? null : parseFloat(this.value);
+              rows[i][f] = isNaN(v) ? 0 : v;
+            });
+          });
+          document.getElementById('wlbPasteApply').onclick = function() {
+            try {
+              var d = _wlbLoad();
+              var existing = d[weekKey] || {};
+              rows.forEach(function(r) {
+                var prev = existing[r.short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+                existing[r.short] = {
+                  service:      (prev.service || 0)      + (r.service || 0),
+                  installCount: (prev.installCount || 0),
+                  installRev:   (prev.installRev || 0),
+                  memSold:      (prev.memSold || 0)      + (r.memSold || 0),
+                  memOpps:      (prev.memOpps || 0)      + (r.memOpps || 0)
+                };
+                // Optional extra fields used by other panels
+                if (r.soldHrs) existing[r.short].soldHrs = (prev.soldHrs || 0) + r.soldHrs;
+                if (r.tgls)    existing[r.short].tgls    = (prev.tgls || 0)    + r.tgls;
+                if (r.frt)     existing[r.short].frt     = (prev.frt || 0)     + r.frt;
+                if (r.spps)    existing[r.short].spps    = (prev.spps || 0)    + r.spps;
+                if (r.conv != null) existing[r.short].conv = r.conv;
+              });
+              d[weekKey] = existing;
+              _wlbSave(d);
+              try { localStorage.setItem(WEEKLY_VIEW_KEY, weekKey); } catch(e) {}
+              close();
+              try { renderWeeklyLeaderboard(); } catch(e) {}
+              try { if (typeof renderRookieCards === 'function') renderRookieCards(); } catch(e) {}
+              try { if (typeof renderSeasonalRookieCards === 'function') renderSeasonalRookieCards(); } catch(e) {}
+              try { if (typeof renderBulletinBoard === 'function') renderBulletinBoard(); } catch(e) {}
+              try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+              try { alert('\u2713 Applied: ' + rows.length + ' techs added to week ' + weekKey); } catch(e) {}
+            } catch(applyErr) {
+              console.warn('paste apply failed', applyErr);
+              alert('Apply failed: ' + (applyErr && applyErr.message ? applyErr.message : 'unknown'));
+            }
+          };
+        };
+      } catch(e) { console.warn('_wlbOpenPasteImporter failed', e); }
+    }
+    window._wlbOpenPasteImporter = _wlbOpenPasteImporter;
 
     // ---------- 2. Current Season Hero Card ----------
     function renderSeasonHeroCard() {
