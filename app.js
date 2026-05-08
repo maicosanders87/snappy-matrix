@@ -3922,10 +3922,11 @@ document.addEventListener('visibilitychange', function() {
     // ran-leads when one of those names is selected. Idempotent via FLAG.
     function tglBackfillRanByIfNeeded() {
       try {
-        var FLAG = 'snappy_tgl_ranby_backfill_v218_30';
-        if (localStorage.getItem(FLAG) === '1') return;
+        // v218.33: removed the one-shot FLAG gate — the backfill is fully idempotent
+        // (only writes when ranBy actually differs) and we need it to always run
+        // on boot so Maico/Brayden/Adam totals heal even if a prior run missed it.
         var d = tglLoad();
-        if (!d || !Array.isArray(d.rows)) { localStorage.setItem(FLAG, '1'); return; }
+        if (!d || !Array.isArray(d.rows)) { return; }
         var ROSTER = ['Maico','Brayden Bond','Adam Bunyard'];
         var changed = 0;
         d.rows.forEach(function(r){
@@ -3946,11 +3947,74 @@ document.addEventListener('visibilitychange', function() {
           }
         });
         if (changed > 0) tglSave(d);
-        localStorage.setItem(FLAG, '1');
-        try { console.log('[v218.30] TGL ranBy backfill: ' + changed + ' rows updated'); } catch(e) {}
+        try { if (changed > 0) console.log('[v218.33] TGL ranBy backfill: ' + changed + ' rows updated'); } catch(e) {}
       } catch(e) { console.warn('tglBackfillRanByIfNeeded failed', e); }
     }
     window.tglBackfillRanByIfNeeded = tglBackfillRanByIfNeeded;
+
+    // v218.33: One-shot dedup of any pre-existing TGL duplicates in localStorage.
+    // Collapses by jobNumber when present, otherwise by composite signature
+    // (customer + dateGenerated + leadGeneratedBy). When duplicates are found,
+    // we merge so the surviving row is the most informative — prefer 'completed'
+    // over 'open', then prefer the row with the higher jobTotal, then merge
+    // ranBy[] / assignedTechnicians[] from both copies so My Leads totals are
+    // preserved for sales/mgr roster.
+    function tglBackfillDedupIfNeeded() {
+      try {
+        var d = tglLoad();
+        if (!d || !Array.isArray(d.rows) || d.rows.length === 0) return;
+        function _normCust(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+        var seen = {};
+        var out = [];
+        var collapsed = 0;
+        d.rows.forEach(function(r){
+          if (!r) return;
+          var k = (r.jobNumber||'').trim();
+          if (!k) {
+            k = '__nojob__|' + _normCust(r.customer) + '|' + (r.dateGenerated||'') + '|' + (r.leadGeneratedBy||'');
+          }
+          if (seen[k] == null) {
+            seen[k] = out.length;
+            out.push(r);
+          } else {
+            var prevIdx = seen[k];
+            var prev = out[prevIdx];
+            // Merge: prefer completed, then higher jobTotal
+            var prevCompleted = prev.status === 'completed';
+            var rCompleted = r.status === 'completed';
+            var base, top;
+            if (rCompleted && !prevCompleted) { base = prev; top = r; }
+            else if (!rCompleted && prevCompleted) { base = r; top = prev; }
+            else if ((parseFloat(r.jobTotal)||0) > (parseFloat(prev.jobTotal)||0)) { base = prev; top = r; }
+            else { base = r; top = prev; }
+            // Union ranBy[] and assignedTechnicians[]
+            var unionArr = function(a,b){
+              var s = {};
+              (Array.isArray(a)?a:[]).forEach(function(x){ if(x) s[x]=1; });
+              (Array.isArray(b)?b:[]).forEach(function(x){ if(x) s[x]=1; });
+              return Object.keys(s);
+            };
+            var merged = Object.assign({}, base, top, {
+              ranBy: unionArr(prev.ranBy, r.ranBy),
+              assignedTechnicians: unionArr(prev.assignedTechnicians, r.assignedTechnicians),
+              status: (prevCompleted || rCompleted) ? 'completed' : (top.status || base.status || 'open')
+            });
+            // If any side had a customer with full first+last, prefer the longer one
+            var prevCust = prev.customer || '';
+            var rCust = r.customer || '';
+            merged.customer = (prevCust.length >= rCust.length) ? prevCust : rCust;
+            out[prevIdx] = merged;
+            collapsed++;
+          }
+        });
+        if (collapsed > 0) {
+          d.rows = out;
+          tglSave(d);
+          try { console.log('[v218.33] TGL dedup backfill: collapsed ' + collapsed + ' duplicate rows'); } catch(e) {}
+        }
+      } catch(e) { console.warn('tglBackfillDedupIfNeeded failed', e); }
+    }
+    window.tglBackfillDedupIfNeeded = tglBackfillDedupIfNeeded;
 
     // MTD totals per tech — open count, completed count, completed revenue $
     function tglMtdByTech(monthYM) {
@@ -4481,7 +4545,9 @@ document.addEventListener('visibilitychange', function() {
       }
       function _isMaterialChange(existing, p){
         // Would applying p change anything meaningful?
-        var fields = ['customer','jobNumber','dateGenerated','leadGeneratedBy','assignedTechnicians','jobTotal','status','completedDate'];
+        // v218.33: include ranBy so a re-import that recomputes ranBy from the
+        // assigned column (e.g. for Maico/Brayden/Adam) is treated as material.
+        var fields = ['customer','jobNumber','dateGenerated','leadGeneratedBy','assignedTechnicians','ranBy','jobTotal','status','completedDate'];
         for (var i=0;i<fields.length;i++){
           var f = fields[i];
           var ev = existing[f], pv = p[f];
@@ -4523,6 +4589,8 @@ document.addEventListener('visibilitychange', function() {
       // v218.31: After applying parsed rows, run sales/mgr customer-match auto-close
       // so re-imports immediately surface closed leads for Maico/Brayden/Adam.
       try { if (typeof tglAutoCloseSalesMgrLeads === 'function') tglAutoCloseSalesMgrLeads(); } catch(e) {}
+      // v218.33: Run dedup so any leftover duplicates from prior imports are collapsed.
+      try { if (typeof tglBackfillDedupIfNeeded === 'function') tglBackfillDedupIfNeeded(); } catch(e) {}
       return { added: added, completed: completed, updated: updated, skipped: skipped, deduped: deduped, total: parsed.length };
     }
     window.tglApplyParsedRows = tglApplyParsedRows;
@@ -18542,6 +18610,8 @@ if (typeof Chart !== 'undefined') {
     try { tglBackfillNormalizeNamesIfNeeded(); } catch(e) {}
     // v218.30: Populate ranBy[] on stored rows so My Leads tab can match Maico/Brayden/Adam
     try { tglBackfillRanByIfNeeded(); } catch(e) {}
+    // v218.33: Collapse any duplicate TGL rows in storage (by jobNumber or composite signature)
+    try { tglBackfillDedupIfNeeded(); } catch(e) {}
     // v218.31: Auto-close sales/mgr open leads via customer-name match
     try { tglAutoCloseSalesMgrLeads(); } catch(e) {}
     // After all seeds, auto-complete any open TGL whose Job# already shows up in Install Pay or Brayden installs.
@@ -18554,6 +18624,8 @@ if (typeof Chart !== 'undefined') {
       // v218.31: Re-run sales/mgr customer-match close after the install-pay sweep
       // so newly-promoted install rows can credit any matching sales/mgr open lead.
       tglAutoCloseSalesMgrLeads();
+      // v218.33: Re-run dedup after sweeps in case auto-complete created near-duplicate rows.
+      try { if (typeof tglBackfillDedupIfNeeded === 'function') tglBackfillDedupIfNeeded(); } catch(e) {}
     } catch(e) { console.warn('TGL init sweep failed', e); }
     try { _trainingSeedWed20260506IfNeeded(); } catch(e) {}
     // v218.13: One-time migration — clear stale SHA from old private repo so first push to public repo works.
