@@ -3826,6 +3826,42 @@ document.addEventListener('visibilitychange', function() {
     }
     window.tglBackfillNormalizeNamesIfNeeded = tglBackfillNormalizeNamesIfNeeded;
 
+    // v218.30: One-shot backfill — populate ranBy[] on every stored TGL row by
+    // scanning assignedTechnicians for the sales/mgr roster (Maico, Brayden Bond,
+    // Adam Bunyard). Heals all pre-v218.30 rows so the My Leads tab can show
+    // ran-leads when one of those names is selected. Idempotent via FLAG.
+    function tglBackfillRanByIfNeeded() {
+      try {
+        var FLAG = 'snappy_tgl_ranby_backfill_v218_30';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var d = tglLoad();
+        if (!d || !Array.isArray(d.rows)) { localStorage.setItem(FLAG, '1'); return; }
+        var ROSTER = ['Maico','Brayden Bond','Adam Bunyard'];
+        var changed = 0;
+        d.rows.forEach(function(r){
+          if (!r) return;
+          var ranBy = [];
+          if (Array.isArray(r.assignedTechnicians)) {
+            r.assignedTechnicians.forEach(function(an){
+              var norm = tglNormalizeTechName(an);
+              if (ROSTER.indexOf(norm) >= 0 && ranBy.indexOf(norm) < 0) ranBy.push(norm);
+            });
+          }
+          // Only update if different from existing
+          var prev = Array.isArray(r.ranBy) ? r.ranBy : [];
+          var same = (prev.length === ranBy.length) && prev.every(function(n){ return ranBy.indexOf(n) >= 0; });
+          if (!same) {
+            r.ranBy = ranBy;
+            changed++;
+          }
+        });
+        if (changed > 0) tglSave(d);
+        localStorage.setItem(FLAG, '1');
+        try { console.log('[v218.30] TGL ranBy backfill: ' + changed + ' rows updated'); } catch(e) {}
+      } catch(e) { console.warn('tglBackfillRanByIfNeeded failed', e); }
+    }
+    window.tglBackfillRanByIfNeeded = tglBackfillRanByIfNeeded;
+
     // MTD totals per tech — open count, completed count, completed revenue $
     function tglMtdByTech(monthYM) {
       // monthYM optional 'YYYY-MM' filter; default = current calendar month
@@ -3862,12 +3898,30 @@ document.addEventListener('visibilitychange', function() {
     window.tglCompositeBump = tglCompositeBump;
 
     // Per-tech rows (open + completed) for tech file / My Leads tab
+    // v218.30: For sales/mgr names (Maico/Brayden Bond/Adam Bunyard), match on
+    // ranBy[] (leads they personally ran on the assigned-tech column) instead of
+    // leadGeneratedBy. For the 6 service techs, keep the existing leadGeneratedBy
+    // match (they get credit for generating the lead, not running it).
     function tglRowsForTech(techShort) {
       if (!techShort) return { open: [], completed: [] };
       var d = tglLoad();
       var open = [], done = [];
+      var SALES_MGR_ROSTER = ['Maico','Brayden Bond','Adam Bunyard'];
+      var isSalesMgr = SALES_MGR_ROSTER.indexOf(techShort) >= 0;
       d.rows.forEach(function(r){
-        if (r.leadGeneratedBy !== techShort) return;
+        var match;
+        if (isSalesMgr) {
+          // Match if the sales/mgr appears in ranBy[] (or assignedTechnicians as fallback for old rows)
+          match = (Array.isArray(r.ranBy) && r.ranBy.indexOf(techShort) >= 0);
+          if (!match && Array.isArray(r.assignedTechnicians)) {
+            match = r.assignedTechnicians.some(function(an){
+              return tglNormalizeTechName(an) === techShort;
+            });
+          }
+        } else {
+          match = (r.leadGeneratedBy === techShort);
+        }
+        if (!match) return;
         if (r.status === 'completed') done.push(r);
         else open.push(r);
       });
@@ -4226,6 +4280,16 @@ document.addEventListener('visibilitychange', function() {
         });
         var leadBy = rowLeadBy || (currentGroup === '__marketed__' ? '' : currentGroup);
         var marketed = (leadBy === '' || /Marketed/i.test(source));
+        // v218.30: ranBy = which sales/mgr appears on the assigned-technicians column.
+        // The PDF puts Maico/Brayden/Adam in the Assigned column when they ran the
+        // lead in person, regardless of who generated it. Compute by normalizing each
+        // assigned name and keeping the ones in the sales/mgr roster.
+        var RAN_BY_ROSTER = ['Maico','Brayden Bond','Adam Bunyard'];
+        var ranBy = [];
+        assignedNames.forEach(function(an){
+          var norm = tglNormalizeTechName(an);
+          if (RAN_BY_ROSTER.indexOf(norm) >= 0 && ranBy.indexOf(norm) < 0) ranBy.push(norm);
+        });
         // Status: completed if jobsTotal > 0 AND we have at least one assigned name
         var status = (jobTotal > 0 && assignedNames.length) ? 'completed' : 'open';
         parsed.push({
@@ -4233,6 +4297,7 @@ document.addEventListener('visibilitychange', function() {
           invoiceNumber: invoiceNumber,
           customer: customer,
           assignedTechnicians: assignedNames,
+          ranBy: ranBy,
           soldBy: soldBy,
           dateGenerated: dateGenerated,
           source: source,
@@ -18376,6 +18441,8 @@ if (typeof Chart !== 'undefined') {
     try { _tglSeedMay20260504IfNeeded(); } catch(e) {}
     // v218.29: Heal stored leadGeneratedBy values for rows imported under older normalizer
     try { tglBackfillNormalizeNamesIfNeeded(); } catch(e) {}
+    // v218.30: Populate ranBy[] on stored rows so My Leads tab can match Maico/Brayden/Adam
+    try { tglBackfillRanByIfNeeded(); } catch(e) {}
     // After all seeds, auto-complete any open TGL whose Job# already shows up in Install Pay or Brayden installs.
     try {
       var _ipForSweep = (typeof ipLoadData === 'function') ? ipLoadData() : { jobs: [] };
