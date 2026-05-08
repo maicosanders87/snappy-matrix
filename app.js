@@ -3924,6 +3924,12 @@ document.addEventListener('visibilitychange', function() {
           if (!r || !r.customer) return;
           var jt = parseFloat(r.jobTotal) || 0;
           if (jt <= 0) return;
+          // v218.42: skip rows flagged __techSell (Generated Installs PDF showed a
+          // tech — Benji/Chris/Dewone/Dee — as Sold By). Per locked rule "ignore
+          // tech sells entirely", these installs must NOT pair to any open quote and
+          // must NOT credit a real seller. The row stays as completed for $-tracking,
+          // but is invisible to the customer→install index.
+          if (r.__techSell) return;
           // Skip rows whose own ranBy is a sales/mgr (we don't want a sales row
           // to credit itself as the install).
           var ownRanBy = Array.isArray(r.ranBy) ? r.ranBy : [];
