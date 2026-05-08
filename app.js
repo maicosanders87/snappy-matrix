@@ -3620,6 +3620,41 @@ document.addEventListener('visibilitychange', function() {
         var raw = localStorage.getItem(OPEN_TGL_KEY);
         var d = raw ? JSON.parse(raw) : { rows: [] };
         if (!d || !Array.isArray(d.rows)) d = { rows: [] };
+        // v218.37: Lazy auto-recover — if the live store has dropped substantially
+        // below the most recent backup snapshot, restore inline (still in memory)
+        // and persist back so subsequent reads see the recovered data without
+        // any user reload. Guarded by a one-shot session flag to avoid loops.
+        try {
+          if (!window.__tglLazyRecoverRan) {
+            var bkpRaw = localStorage.getItem('snappy_open_tgls_backups_v1');
+            var bkpArr = bkpRaw ? JSON.parse(bkpRaw) : [];
+            if (Array.isArray(bkpArr) && bkpArr.length) {
+              // Find the backup with the most rows
+              var bestBkp = null, bestRows = 0;
+              bkpArr.forEach(function(b){
+                try {
+                  var o = JSON.parse(b.data);
+                  var n = (o && Array.isArray(o.rows)) ? o.rows.length : 0;
+                  if (n > bestRows) { bestRows = n; bestBkp = b; }
+                } catch(e) {}
+              });
+              var curRows = d.rows.length;
+              if (bestBkp && bestRows >= 5 && curRows < Math.floor(bestRows * 0.5)) {
+                try {
+                  var restored = JSON.parse(bestBkp.data);
+                  if (restored && Array.isArray(restored.rows) && restored.rows.length > curRows) {
+                    console.warn('[v218.37] tglLoad lazy-recover: live=' + curRows + ' rows, restoring backup with ' + restored.rows.length + ' rows from ' + bestBkp.ts);
+                    d = restored;
+                    if (!Array.isArray(d.rows)) d.rows = [];
+                    localStorage.setItem(OPEN_TGL_KEY, JSON.stringify(d));
+                    localStorage.setItem(OPEN_TGL_KEY + '_localMod', String(Date.now()));
+                  }
+                } catch(e) {}
+              }
+            }
+            window.__tglLazyRecoverRan = true;
+          }
+        } catch(e) {}
         return d;
       } catch(e) { return { rows: [] }; }
     }
@@ -3991,6 +4026,12 @@ document.addEventListener('visibilitychange', function() {
     // ranBy[] / assignedTechnicians[] from both copies so My Leads totals are
     // preserved for sales/mgr roster.
     function tglBackfillDedupIfNeeded() {
+      // v218.37: Disabled — the prior dedup pass was the leading suspect for the
+      // recent data-loss event. We now rely on (a) tglUpsert keying by jobNumber
+      // to prevent in-batch dupes during PDF imports and (b) tglLoad lazy
+      // auto-recovery for any pre-existing damaged stores.
+      return;
+      // (legacy code retained below — unreachable while disabled)
       try {
         var d = tglLoad();
         if (!d || !Array.isArray(d.rows) || d.rows.length === 0) return;
