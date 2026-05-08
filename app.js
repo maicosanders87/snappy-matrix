@@ -5795,15 +5795,55 @@ document.addEventListener('visibilitychange', function() {
       html += '<div style="background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;padding:10px 12px;"><div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Composite Bump</div><div style="font-size:22px;font-weight:800;color:#22D3EE;margin-top:2px;">+' + bump + '</div></div>';
       html += '</div>';
 
+      // v218.34: Split the old 'Sold by / Assigned' column into two:
+      //   - Lead Ran: who personally ran the lead in person (sales/mgr roster)
+      //              Pulled from r.ranBy[] when present, falls back to filtering
+      //              assignedTechnicians[] for the sales/mgr roster.
+      //   - Installer(s): the install crew (everyone in assignedTechnicians[]
+      //              who is NOT in the sales/mgr roster).
+      var SALES_MGR_ROSTER_VIEW = ['Maico','Brayden Bond','Adam Bunyard'];
+      function _splitRanVsInstallers(r) {
+        var assigned = Array.isArray(r.assignedTechnicians) ? r.assignedTechnicians.slice() : [];
+        var ranByArr = Array.isArray(r.ranBy) ? r.ranBy.slice() : [];
+        // Normalize each assigned name and split based on roster membership.
+        var ranSet = {}, instSet = {};
+        ranByArr.forEach(function(n){ if (n) ranSet[n] = 1; });
+        assigned.forEach(function(an){
+          var norm;
+          try { norm = (typeof tglNormalizeTechName === 'function') ? tglNormalizeTechName(an) : an; }
+          catch(e) { norm = an; }
+          if (SALES_MGR_ROSTER_VIEW.indexOf(norm) >= 0) {
+            ranSet[norm] = 1;
+          } else {
+            // keep the raw assigned name for installers (e.g., 'Thomas Gilbert')
+            if (an) instSet[an.replace(/\s+/g,' ').trim()] = 1;
+          }
+        });
+        // Also include r.installer (auto-close metadata) into installer column if not already.
+        if (r.installer) {
+          var installerStr = String(r.installer).replace(/\s+/g,' ').trim();
+          if (installerStr) {
+            // Split on comma in case it carries multiple names
+            installerStr.split(/,\s*/).forEach(function(nm){
+              if (nm && SALES_MGR_ROSTER_VIEW.indexOf(nm) < 0) instSet[nm] = 1;
+            });
+          }
+        }
+        return {
+          ran: Object.keys(ranSet).join(', '),
+          installers: Object.keys(instSet).join(', ')
+        };
+      }
+
       // Open list
       html += '<div style="padding:12px 14px;border-bottom:1px solid #1e3a5f;">';
       html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Open Leads</div>';
       if (open.length) {
         html += '<div style="max-height:240px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
-        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:7px 10px;">Customer</th><th style="text-align:left;padding:7px 10px;">Job #</th><th style="text-align:left;padding:7px 10px;">Date</th><th style="text-align:left;padding:7px 10px;">Sold by / Assigned</th></tr></thead><tbody>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:7px 10px;">Customer</th><th style="text-align:left;padding:7px 10px;">Job #</th><th style="text-align:left;padding:7px 10px;">Date</th><th style="text-align:left;padding:7px 10px;">Lead Ran</th><th style="text-align:left;padding:7px 10px;">Installer(s)</th></tr></thead><tbody>';
         open.forEach(function(r){
-          var assigned = (r.assignedTechnicians||[]).join(', ');
-          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:7px 10px;color:#f1f5f9;">' + (r.customer||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">' + (r.jobNumber||'\u2014') + '</td><td style="padding:7px 10px;color:#94a3b8;">' + (r.dateGenerated||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (assigned||'\u2014') + '</td></tr>';
+          var sp = _splitRanVsInstallers(r);
+          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:7px 10px;color:#f1f5f9;">' + (r.customer||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">' + (r.jobNumber||'\u2014') + '</td><td style="padding:7px 10px;color:#94a3b8;">' + (r.dateGenerated||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp.ran||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp.installers||'\u2014') + '</td></tr>';
         });
         html += '</tbody></table></div>';
       } else {
@@ -5816,11 +5856,11 @@ document.addEventListener('visibilitychange', function() {
       html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Closed Leads (all time)</div>';
       if (done.length) {
         html += '<div style="max-height:240px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
-        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:7px 10px;">Customer</th><th style="text-align:left;padding:7px 10px;">Job #</th><th style="text-align:left;padding:7px 10px;">Closed</th><th style="text-align:left;padding:7px 10px;">Installer(s)</th><th style="text-align:right;padding:7px 10px;">Total</th></tr></thead><tbody>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:7px 10px;">Customer</th><th style="text-align:left;padding:7px 10px;">Job #</th><th style="text-align:left;padding:7px 10px;">Closed</th><th style="text-align:left;padding:7px 10px;">Lead Ran</th><th style="text-align:left;padding:7px 10px;">Installer(s)</th><th style="text-align:right;padding:7px 10px;">Total</th></tr></thead><tbody>';
         done.forEach(function(r){
-          var assigned = (r.assignedTechnicians||[]).join(', ');
+          var sp2 = _splitRanVsInstallers(r);
           var tot = (r.jobTotal && r.jobTotal > 0) ? ('$' + Math.round(r.jobTotal).toLocaleString()) : '\u2014';
-          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:7px 10px;color:#f1f5f9;">' + (r.customer||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">' + (r.jobNumber||'\u2014') + '</td><td style="padding:7px 10px;color:#94a3b8;">' + (r.completedDate||r.dateGenerated||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (assigned||'\u2014') + '</td><td style="padding:7px 10px;text-align:right;color:#10B981;font-weight:700;font-variant-numeric:tabular-nums;">' + tot + '</td></tr>';
+          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:7px 10px;color:#f1f5f9;">' + (r.customer||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">' + (r.jobNumber||'\u2014') + '</td><td style="padding:7px 10px;color:#94a3b8;">' + (r.completedDate||r.dateGenerated||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp2.ran||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp2.installers||'\u2014') + '</td><td style="padding:7px 10px;text-align:right;color:#10B981;font-weight:700;font-variant-numeric:tabular-nums;">' + tot + '</td></tr>';
         });
         html += '</tbody></table></div>';
       } else {
