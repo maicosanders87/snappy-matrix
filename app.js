@@ -3730,10 +3730,14 @@ document.addEventListener('visibilitychange', function() {
         // hydrate. After pull lands, re-read the live store and refresh any
         // open TGL views. Guarded by window.__tglCloudRecoverRan to avoid loops.
         try {
-          if (!window.__tglCloudRecoverRan && d.rows.length <= 3 &&
+          if (!window.__tglCloudRecoverInProgress && !window.__tglCloudRecoverRan && d.rows.length <= 3 &&
               typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
-            window.__tglCloudRecoverRan = true;
-            console.warn('[v218.38] tglLoad: local has ' + d.rows.length + ' rows + cloud is configured \u2014 firing one-shot cloud pull to hydrate');
+            // v218.41: split flag — set _InProgress immediately to prevent re-entry,
+            // but DON'T set _Ran (which releases the anti-clobber guard) until after
+            // hydration succeeds OR fails. Otherwise tglSave fired during the async
+            // pull window would still clobber cloud with empty local state.
+            window.__tglCloudRecoverInProgress = true;
+            console.warn('[v218.41] tglLoad: local has ' + d.rows.length + ' rows + cloud is configured \u2014 firing one-shot cloud pull to hydrate (anti-clobber engaged)');
             (async function(){
               try {
                 var cloudData = await SyncEngine.pull();
@@ -3767,6 +3771,12 @@ document.addEventListener('visibilitychange', function() {
                   }
                 }
               } catch(pullErr) { console.warn('[v218.38] cloud-recover pull failed', pullErr); }
+              // v218.41: release anti-clobber guard once hydration completes (success or failure).
+              // Use a small delay so any in-flight tglSave from the heal cascade lands first.
+              setTimeout(function(){
+                window.__tglCloudRecoverRan = true;
+                try { console.warn('[v218.41] cloud-recover finished \u2014 anti-clobber guard released, normal sync resumed'); } catch(e) {}
+              }, 1500);
             })();
           }
         } catch(e) {}
@@ -3989,9 +3999,20 @@ document.addEventListener('visibilitychange', function() {
     // We wrap (don't replace) the existing tglSave so all callers benefit.
     var _tglSaveBase = tglSave;
     tglSave = function(d) {
+      // v218.41 anti-clobber guard: if local has ≤5 rows AND cloud-recover hasn't
+      // completed yet, this device's localStorage is suspect-wiped (fresh page load,
+      // private window, browser data cleared, etc). Save locally but DO NOT push to
+      // cloud — that would overwrite the authoritative cloud copy with our empty
+      // state. Once tglLoad's cloud-recover sets __tglCloudRecoverRan, the guard
+      // releases and normal sync resumes.
       _tglSaveBase(d);
       try { localStorage.setItem(OPEN_TGL_KEY + '_localMod', String(Date.now())); } catch(e) {}
       try {
+        var rowCount = (d && Array.isArray(d.rows)) ? d.rows.length : 0;
+        if (rowCount <= 5 && !window.__tglCloudRecoverRan) {
+          try { console.warn('[v218.41] Refusing cloud push — local has only ' + rowCount + ' rows and cloud-recover has not run yet. Cloud retains authoritative copy.'); } catch(e) {}
+          return;
+        }
         if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
           SyncEngine.write('open_tgls', d);
         }
