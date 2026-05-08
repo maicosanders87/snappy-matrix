@@ -5120,6 +5120,29 @@ document.addEventListener('visibilitychange', function() {
         row.soldBy = parts[0] || '';
       } else if (field === 'leadBy') {
         row.leadGeneratedBy = v ? tglNormalizeTechName(v) : '';
+      } else if (field === 'soldBy') {
+        // v218.43: dedicated Sold By selector. Updates soldBy + assignedTechnicians[0]
+        // (used everywhere as the seller). Empty = clear sale credit. Tech-sell marker
+        // is auto-set if soldBy is a non-sales tech (Benji/Chris/Dewone/Dee/Daniel/Nick).
+        var sb = v ? tglNormalizeTechName(v) : '';
+        row.soldBy = sb;
+        // Keep assignedTechnicians in sync — preserve any non-installer extras after [0]
+        var asg = (row.assignedTechnicians || []).slice();
+        if (sb) { asg[0] = sb; row.assignedTechnicians = asg.filter(Boolean); }
+        else { row.assignedTechnicians = asg.slice(1).filter(Boolean); }
+        // Auto-flag tech-sells (per user rule: ignore tech sells entirely)
+        var techSellList = ['Benji','Chris','Dewone','Dee','Daniel','Nick'];
+        if (sb && techSellList.indexOf(sb) >= 0) row.__techSell = true;
+        else delete row.__techSell;
+      } else if (field === 'installedBy') {
+        // v218.43: dedicated Installer selector. Stored as installedBy[] for clarity.
+        // For TGL completion check we map this back into assignedTechnicians along with seller.
+        var ips = v.split(/,\s*/).map(function(s){ return s.trim(); }).filter(Boolean);
+        row.installedBy = ips;
+      } else if (field === 'techSell') {
+        // Manual tech-sell toggle
+        if (v === 'true' || v === '1' || v === 'yes') row.__techSell = true;
+        else delete row.__techSell;
       } else if (field === 'jobTotal') {
         var num = parseFloat(String(v).replace(/[$,\s]/g,'')) || 0;
         row.jobTotal = num;
@@ -5177,15 +5200,85 @@ document.addEventListener('visibilitychange', function() {
       if (v === orig) return; // no change
       var ok = tglUpdateRow(jobNumber, sig, field, v);
       if (ok) {
-        // Re-render to reflect derived changes (e.g. status flip when assigned added)
-        try { renderInstallPay(); } catch(e) {}
-        try { if (typeof renderMyLeads === 'function') renderMyLeads(); } catch(e) {}
-        try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+        tglFullCascade();
       } else {
         el.innerText = orig; // revert
       }
     }
     window.tglCellEdit = tglCellEdit;
+
+    // v218.43: full cascade after any TGL edit (text or selector). Refreshes EVERY
+    // surface that depends on TGL data so edits show up in their proper locations:
+    // Payout tab editor + manager section, MTD tiles, KPI tiles, bulletin board,
+    // Matrix grid, tier progression, leaderboard, My Leads, Sales Team scorecard.
+    function tglFullCascade() {
+      try { renderInstallPay(); } catch(e) {}
+      try { if (typeof renderMyLeads === 'function') renderMyLeads(); } catch(e) {}
+      try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+      try { if (typeof renderOverviewTab === 'function') renderOverviewTab(); } catch(e) {}
+      try { if (typeof renderBulletinBoard === 'function') renderBulletinBoard(); } catch(e) {}
+      try { if (typeof renderSalesTeam === 'function') renderSalesTeam(); } catch(e) {}
+      try { if (typeof renderTierProgression === 'function') renderTierProgression(); } catch(e) {}
+      try { if (typeof renderLeaderboard === 'function') renderLeaderboard(); } catch(e) {}
+    }
+    window.tglFullCascade = tglFullCascade;
+
+    // v218.43: dropdown selector that updates a TGL row field. Used by lead editor.
+    // Inline onchange handler dispatches to tglUpdateRow + cascades.
+    function tglSelectChange(sel) {
+      var jobNumber = sel.getAttribute('data-tgl-job') || '';
+      var sig = sel.getAttribute('data-tgl-sig') || '';
+      var field = sel.getAttribute('data-tgl-field') || '';
+      var v = sel.value || '';
+      var ok = tglUpdateRow(jobNumber, sig, field, v);
+      if (ok) tglFullCascade();
+    }
+    window.tglSelectChange = tglSelectChange;
+
+    // v218.43: render a <select> dropdown bound to a TGL row + field. Options is an
+    // array of strings; current is the value to mark selected. Empty string is the
+    // first "— None —" option for clearing the field.
+    function tglSelectCell(row, field, options, current, opts) {
+      opts = opts || {};
+      var jobNumber = (row.jobNumber||'').replace(/"/g,'&quot;');
+      var sig = ((row.customer||'')+'|'+(row.dateGenerated||'')+'|'+(row.leadGeneratedBy||'')).replace(/"/g,'&quot;');
+      var width = opts.width || '120px';
+      var bg = opts.bg || '#0b1426';
+      var color = opts.color || '#cbd5e1';
+      var border = opts.border || '#1e3a5f';
+      var html = '<select onchange="tglSelectChange(this)"' +
+        ' data-tgl-job="'+jobNumber+'" data-tgl-sig="'+sig+'" data-tgl-field="'+field+'"' +
+        ' style="background:'+bg+';color:'+color+';border:1px solid '+border+';border-radius:5px;padding:3px 6px;font-size:11px;width:'+width+';cursor:pointer;">';
+      var cur = String(current == null ? '' : current);
+      // Always include a clear option
+      html += '<option value=""' + (cur === '' ? ' selected' : '') + '>— None —</option>';
+      options.forEach(function(o){
+        var sel = (cur === o) ? ' selected' : '';
+        html += '<option value="'+o+'"'+sel+'>'+o+'</option>';
+      });
+      html += '</select>';
+      return html;
+    }
+    window.tglSelectCell = tglSelectCell;
+
+    // v218.43: roster of people who can be selected as Lead/Sold/Installer.
+    // Sales-credit-eligible: Maico, Brayden Bond, Adam Bunyard.
+    // Lead-eligible techs: Benji, Chris, Dewone, Dee, Daniel, Nick.
+    // Installers: Thomas Gilbert, Terrell Upshur (+ techs who run their own installs).
+    function tglRosterLeadBy() {
+      return ['Benji','Chris','Dewone','Dee','Daniel','Nick','Brayden Bond','Adam Bunyard','Maico','Marketed'];
+    }
+    function tglRosterSoldBy() {
+      // Includes techs (so user can correctly mark a tech-sell), but tech entries
+      // get auto-flagged __techSell:true so they don't credit the seller.
+      return ['Maico','Brayden Bond','Adam Bunyard','Benji','Chris','Dewone','Dee','Daniel','Nick'];
+    }
+    function tglRosterInstallers() {
+      return ['Thomas Gilbert','Terrell Upshur','Benji','Chris','Dewone','Dee','Daniel','Nick'];
+    }
+    window.tglRosterLeadBy = tglRosterLeadBy;
+    window.tglRosterSoldBy = tglRosterSoldBy;
+    window.tglRosterInstallers = tglRosterInstallers;
 
     // Helper: enter-key commits, escape reverts, no newlines
     function tglCellKey(ev, el) {
@@ -5316,6 +5409,11 @@ document.addEventListener('visibilitychange', function() {
       }
       var editHint = '<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:4px;">Click any cell to edit \u00b7 Enter to save \u00b7 Esc to revert</div>';
 
+      // v218.43: Lead Editor — selectors for Lead by / Sold by / Installed by.
+      // Edits cascade through tglFullCascade() to MTD, KPI tiles, bulletin, Matrix,
+      // tier progression, leaderboard, and My Leads.
+      try { html += tglRenderLeadEditor(rows); } catch(e) { console.warn('Lead editor render failed', e); }
+
       // Open list
       html += '<div style="padding:12px 14px;border-bottom:1px solid #1e3a5f;">';
       html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Open Leads (' + openRows.length + ')</div>';
@@ -5372,6 +5470,103 @@ document.addEventListener('visibilitychange', function() {
       return html;
     }
     window.tglRenderManagerSection = tglRenderManagerSection;
+
+    // v218.43: LEAD EDITOR — unified table of every TGL row with dropdown selectors
+    // for Lead by / Sold by / Installed by. Edits flow through tglUpdateRow then
+    // tglFullCascade() so changes appear in MTD, KPIs, bulletin, Matrix, tier, etc.
+    function tglRenderLeadEditor(rows) {
+      rows = rows || [];
+      var leadRoster = tglRosterLeadBy();
+      var soldRoster = tglRosterSoldBy();
+      var installRoster = tglRosterInstallers();
+      // Sort: completed last (so user sees the open queue at top), then by date desc
+      var sorted = rows.slice().sort(function(a,b){
+        var sa = a.status === 'completed' ? 1 : 0;
+        var sb = b.status === 'completed' ? 1 : 0;
+        if (sa !== sb) return sa - sb;
+        var da = a.completedDate || a.dateGenerated || '';
+        var db = b.completedDate || b.dateGenerated || '';
+        return db.localeCompare(da);
+      });
+
+      var html = '';
+      html += '<div style="padding:12px 14px;border-bottom:1px solid #1e3a5f;background:#0a1525;">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
+      html += '<div>';
+      html += '<div style="font-size:13px;font-weight:700;color:#f1f5f9;">\u270f\ufe0f Lead Editor</div>';
+      html += '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">Pick who gave the lead, who sold it, who installed it. Edits sync everywhere instantly.</div>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:8px;align-items:center;">';
+      html += '<span style="font-size:11px;color:#64748b;">'+sorted.length+' total \u00b7 '+sorted.filter(function(r){return r.status==='completed';}).length+' completed</span>';
+      html += '</div>';
+      html += '</div>';
+
+      if (!sorted.length) {
+        html += '<div style="font-size:12px;color:#64748b;font-style:italic;padding:20px;text-align:center;">No TGL rows yet. Import a TGL PDF above to get started.</div>';
+        html += '</div>';
+        return html;
+      }
+
+      // Table
+      html += '<div style="max-height:420px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:11px;">';
+      html += '<thead style="position:sticky;top:0;background:#16243d;z-index:1;"><tr style="color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;">';
+      html += '<th style="text-align:left;padding:8px 10px;">Customer</th>';
+      html += '<th style="text-align:left;padding:8px 10px;">Date</th>';
+      html += '<th style="text-align:left;padding:8px 10px;">Lead by</th>';
+      html += '<th style="text-align:left;padding:8px 10px;">Sold by</th>';
+      html += '<th style="text-align:left;padding:8px 10px;">Installed by</th>';
+      html += '<th style="text-align:right;padding:8px 10px;">Total</th>';
+      html += '<th style="text-align:center;padding:8px 6px;">Status</th>';
+      html += '<th style="width:30px;"></th>';
+      html += '</tr></thead><tbody>';
+
+      sorted.forEach(function(r){
+        var leadBy = r.leadGeneratedBy || (r.marketedLead ? 'Marketed' : '');
+        var soldBy = r.soldBy || '';
+        // Installer = installedBy[] if set, else fall back to assignedTechnicians for completed rows
+        var installerList = (r.installedBy && r.installedBy.length) ? r.installedBy.join(', ')
+          : ((r.status === 'completed' && r.assignedTechnicians && r.assignedTechnicians.length) ?
+             r.assignedTechnicians.filter(function(t){ return t !== r.soldBy; }).join(', ') : '');
+        // For the installer dropdown, current value = first in list (multi-installer entries
+        // shown as text in jobInfo). User picks one primary installer; second can be added
+        // by editing the assigned cell elsewhere.
+        var installerPrimary = (r.installedBy && r.installedBy[0]) ||
+          (r.status === 'completed' && r.assignedTechnicians ?
+            r.assignedTechnicians.filter(function(t){ return t !== r.soldBy; })[0] : '') || '';
+        var totDisp = (r.jobTotal && r.jobTotal > 0) ? ('$' + Math.round(r.jobTotal).toLocaleString()) : '';
+        var dateDisp = r.completedDate || r.dateGenerated || '';
+        var statusBadge = r.status === 'completed'
+          ? '<span style="font-size:10px;font-weight:700;color:#10B981;background:#062a1c;border:1px solid #064e3b;padding:2px 7px;border-radius:999px;">Done</span>'
+          : '<span style="font-size:10px;font-weight:700;color:#FBBF24;background:#1e1a07;border:1px solid #78350f;padding:2px 7px;border-radius:999px;">Open</span>';
+        // Tech-sell badge for visibility
+        var techSellBadge = r.__techSell
+          ? '<span title="Tech sell \u2014 no seller credit" style="font-size:9px;font-weight:700;color:#fca5a5;background:#3a1d1d;border:1px solid #7f1d1d;padding:1px 5px;border-radius:4px;margin-left:4px;">tech-sell</span>'
+          : '';
+
+        var jn = (r.jobNumber||'').replace(/'/g,"\\'");
+        var sig = ((r.customer||'')+'|'+(r.dateGenerated||'')+'|'+(r.leadGeneratedBy||'')).replace(/'/g,"\\'");
+        var delBtn = '<button onclick="tglDeleteRow(\''+jn+'\',\''+sig+'\')" title="Delete row" style="background:transparent;border:none;color:#64748b;font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px;" onmouseover="this.style.color=\'#ef4444\';" onmouseout="this.style.color=\'#64748b\';">\u00d7</button>';
+
+        var rowBg = r.status === 'completed' ? 'rgba(16,185,129,0.04)' : 'transparent';
+        html += '<tr style="border-top:1px solid #1e3a5f;background:'+rowBg+';">';
+        html += '<td style="padding:6px 10px;color:#f1f5f9;font-weight:600;">' + (r.customer || '—') + techSellBadge + '</td>';
+        html += '<td style="padding:6px 10px;color:#94a3b8;font-variant-numeric:tabular-nums;">' + (dateDisp || '—') + '</td>';
+        html += '<td style="padding:6px 10px;">' + tglSelectCell(r,'leadBy',leadRoster,leadBy,{width:'130px'}) + '</td>';
+        html += '<td style="padding:6px 10px;">' + tglSelectCell(r,'soldBy',soldRoster,soldBy,{width:'130px'}) + '</td>';
+        html += '<td style="padding:6px 10px;">' + tglSelectCell(r,'installedBy',installRoster,installerPrimary,{width:'140px'}) + '</td>';
+        html += '<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + tglEditableCell(r,'jobTotal',totDisp,{color:'#10B981',style:'font-weight:700;'}) + '</td>';
+        html += '<td style="padding:6px 6px;text-align:center;">' + statusBadge + '</td>';
+        html += '<td style="padding:6px 4px;text-align:center;">' + delBtn + '</td>';
+        html += '</tr>';
+      });
+
+      html += '</tbody></table></div>';
+      html += '<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:6px;">Tip: picking a tech (Benji/Chris/Dewone/Dee) as Sold by auto-flags the row as a tech-sell so they don\u2019t double-count. Total cell is click-to-edit.</div>';
+      html += '</div>';
+      return html;
+    }
+    window.tglRenderLeadEditor = tglRenderLeadEditor;
     // ===========================================================================
 
     // Default rate cards (confirmed 5/5/2026 by Maico from IMG_3712)

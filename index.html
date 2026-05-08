@@ -28,7 +28,7 @@
   <script>
     (function(){
       try {
-        var APP_VERSION = 'v218.42';
+        var APP_VERSION = 'v218.43';
         var KEY = 'snappy_app_version';
         var stored = localStorage.getItem(KEY);
         if (stored && stored !== APP_VERSION) {
@@ -90,7 +90,7 @@
   </div>
 
   <!-- Version Badge (top-left, always visible) -->
-  <div id="appVersionBadge" class="app-version-badge" title="App version">v218.42</div>
+  <div id="appVersionBadge" class="app-version-badge" title="App version">v218.43</div>
 
   <!-- Background Grid Effect -->
   <div class="bg-grid-effect"></div>
@@ -132,7 +132,7 @@
       </div>
       <div class="header-right">
         <span class="badge">6 Technicians</span>
-        <span class="badge badge-date">Updated 5/8/2026 &middot; v218.42</span>
+        <span class="badge badge-date">Updated 5/8/2026 &middot; v218.43</span>
         <button class="share-matrix-btn" onclick="shareMatrix()" title="Share Matrix"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share</button>
         <button id="syncNowBtn" class="sync-now-btn mgr-only" onclick="manualSync()" title="Sync Now">&#x1f504;</button>
         <span id="syncStatusIndicator" class="sync-indicator sync-idle mgr-only" onclick="openSyncSetup()" title="Cloud Sync Settings">☁ Cloud</span>
@@ -210,17 +210,17 @@
         <span class="nav-label">Sales Team</span>
         <span class="nav-tooltip">Sales Team<small>Maico, Brayden, Adam equipment scorecard</small></span>
       </button>
-      <!-- v218.24: PIN-locked Install Pay tab (hidden until ipPromptPin() unlock) -->
+      <!-- v218.43: PIN-locked Payout tab (hidden until ipPromptPin() unlock) -->
       <button class="nav-tab mgr-only" data-view="installpay" id="navTabInstallPay" style="display:none" onclick="if(typeof ipIsUnlocked==='function' && !ipIsUnlocked()){event.preventDefault();event.stopPropagation();ipPromptPin();return false;}">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        <span class="nav-label">Install Pay 🔒</span>
-        <span class="nav-tooltip">Install Pay<small>Private payroll tracker (PIN-locked)</small></span>
+        <span class="nav-label">Payout 🔒</span>
+        <span class="nav-tooltip">Payout<small>Private payroll tracker (PIN-locked)</small></span>
       </button>
       <!-- v218.24: hidden lock trigger — always visible to mgr; click prompts PIN -->
-      <button class="nav-tab mgr-only" id="navInstallPayLock" onclick="ipPromptPin()" title="Install Pay (private)">
+      <button class="nav-tab mgr-only" id="navInstallPayLock" onclick="ipPromptPin()" title="Payout (private)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         <span class="nav-label">🔒</span>
-        <span class="nav-tooltip">Install Pay<small>Click to unlock</small></span>
+        <span class="nav-tooltip">Payout<small>Click to unlock</small></span>
       </button>
     </nav>
 
@@ -717,8 +717,8 @@
         <button class="nav-tab" data-mgr="techfiles">Tech Files</button>
         <button class="nav-tab" data-mgr="forms">Forms (PDF)</button>
         <button class="nav-tab" data-mgr="profiles">Profiles</button>
-        <!-- v218.24: Install Pay sub-tab (PIN-locked) -->
-        <button class="nav-tab" data-mgr="installpay" onclick="if(typeof ipIsUnlocked==='function' && !ipIsUnlocked()){event.preventDefault();event.stopPropagation();ipPromptPin();return false;}">Install Pay 🔒</button>
+        <!-- v218.43: Payout sub-tab (PIN-locked) -->
+        <button class="nav-tab" data-mgr="installpay" onclick="if(typeof ipIsUnlocked==='function' && !ipIsUnlocked()){event.preventDefault();event.stopPropagation();ipPromptPin();return false;}">Payout 🔒</button>
       </div>
 
       <!-- Today Section -->
@@ -914,7 +914,7 @@
         <div id="mgrProfilesGrid" class="mgr-profiles-grid"></div>
       </div>
 
-      <!-- v218.24: Install Pay (private — mgr-only, PIN-locked) -->
+      <!-- v218.43: Payout (private — mgr-only, PIN-locked) -->
       <div id="mgr-installpay" class="mgr-section">
         <div id="installpay-content-mgr"></div>
       </div>
@@ -1552,8 +1552,8 @@ AND 30% of advancement "votes" come from skills progress
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
   <script src="score_pdfs.js?v=20260507v218.24"></script>
-  <script src="onon_packets.js?v=20260508v218.42"></script>
-  <script src="app.js?v=20260508v218.42"></script>
+  <script src="onon_packets.js?v=20260508v218.43"></script>
+  <script src="app.js?v=20260508v218.43"></script>
 
   <!-- v193: Intro splash controller -->
   <script>
