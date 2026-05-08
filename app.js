@@ -2647,6 +2647,75 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260507IfNeeded failed', e); }
     }
 
+    // v218.40: One-shot daily seed for Friday May 8, 2026 from ServiceTitan Nexstar + Memberships screenshots (IMG_0232, IMG_0233).
+    // Daily 5/8 per tech:
+    //   Daniel:  $1,175 svc / 67% conv / 1 SPP / 4.6 sold hrs / 3.5 FRT / mem 1/1
+    //   Benji:   $654   svc / 100% conv / 1 SPP / 3.6 sold hrs / 0.45 TSHE / 2 FRT / mem 1/1
+    //   Chris:   $617   svc / 100% conv / 0 SPP / 1 TGL / 2.25 sold hrs / 2 FRT / mem 0/1
+    //   Dewone:  $567   svc / 100% conv / 1 SPP / 3.5 sold hrs / 1.5 FRT / mem 1/1
+    //   Dee:     $0     svc / 0% conv / 2.0 sold hrs / mem 0/0
+    // No installs today (none in screenshots). Adds onto week 2026-05-04.
+    function _wlbSeedDay20260508IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_08_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var WEEK = '2026-05-04';
+        var d = _wlbLoad();
+        var existing = d[WEEK] || {};
+        function add(short, svc, ic, ir, ms, mo) {
+          var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+          existing[short] = {
+            service:      (prev.service || 0)      + svc,
+            installCount: (prev.installCount || 0) + ic,
+            installRev:   (prev.installRev || 0)   + ir,
+            memSold:      (prev.memSold || 0)      + ms,
+            memOpps:      (prev.memOpps || 0)      + mo
+          };
+        }
+        add('Daniel', 1175, 0, 0, 1, 1);
+        add('Benji',   654, 0, 0, 1, 1);
+        add('Chris',   617, 0, 0, 0, 1);
+        add('Dewone',  567, 0, 0, 1, 1);
+        add('Dee',       0, 0, 0, 0, 0);
+        d[WEEK] = existing;
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+        // Also bump stData MTD totals (service rev + memberships) so leaderboard/rookie cards/bulletin board show today's numbers.
+        try {
+          if (typeof stData !== 'undefined' && Array.isArray(stData)) {
+            var addMtd = function(name, svc, ms, mo, soldHrs, frt, spps, tgls, conv) {
+              var st = stData.find(function(s){ return s.name === name; });
+              if (!st) return;
+              st.mtd_service_rev = (st.mtd_service_rev || 0) + svc;
+              if (!st.mtd_nexstar) st.mtd_nexstar = {};
+              st.mtd_nexstar.total_revenue = (st.mtd_nexstar.total_revenue || 0) + svc;
+              st.mtd_nexstar.spps_sold = (st.mtd_nexstar.spps_sold || 0) + (spps || 0);
+              st.mtd_nexstar.tech_gen_leads = (st.mtd_nexstar.tech_gen_leads || 0) + (tgls || 0);
+              st.mtd_nexstar.sold_hours = (st.mtd_nexstar.sold_hours || 0) + (soldHrs || 0);
+              st.mtd_nexstar.flat_rate_tasks = (st.mtd_nexstar.flat_rate_tasks || 0) + (frt || 0);
+              if (!st.mtd_memberships) st.mtd_memberships = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
+              st.mtd_memberships.total_mem_sold = (st.mtd_memberships.total_mem_sold || 0) + (ms || 0);
+              st.mtd_memberships.total_mem_opps = (st.mtd_memberships.total_mem_opps || 0) + (mo || 0);
+              if (st.mtd_memberships.total_mem_opps > 0) {
+                st.mtd_memberships.total_mem_pct = Math.round((st.mtd_memberships.total_mem_sold / st.mtd_memberships.total_mem_opps) * 100);
+              }
+              if (!st.mtd_productivity) st.mtd_productivity = {};
+              st.mtd_productivity.billable_hours = (st.mtd_productivity.billable_hours || 0) + (soldHrs || 0);
+              if (!st.mtd_sales) st.mtd_sales = {};
+              if (typeof conv === 'number' && conv > 0) st.mtd_sales.close_rate = conv;
+            };
+            // (name, svc, memSold, memOpps, soldHrs, frt, spps, tgls, conv%)
+            addMtd('Daniel', 1175, 1, 1, 4.6,  3.5, 1, 0, 67);
+            addMtd('Benji',   654, 1, 1, 3.6,  2,   1, 0, 100);
+            addMtd('Chris',   617, 0, 1, 2.25, 2,   0, 1, 100);
+            addMtd('Dewone',  567, 1, 1, 3.5,  1.5, 1, 0, 100);
+            addMtd('Dee',       0, 0, 0, 2,    0,   0, 0, 0);
+          }
+        } catch(e) { console.warn('v218.40 MTD bump failed', e); }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260508IfNeeded failed', e); }
+    }
+
     // v217: One-shot Brayden install seed for May 4, 2026 ($30,271.55, sold by Brayden Bond, lead by Chris Monahan).
     function _braydenSeedMay20260504IfNeeded() {
       try {
@@ -19172,6 +19241,7 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260506IfNeeded(); } catch(e) {}
     try { _wlbCorrect20260506DeeIfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260507IfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260508IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260504IfNeeded(); } catch(e) {}
     try { _tglSeedMay20260504IfNeeded(); } catch(e) {}
     // v218.29: Heal stored leadGeneratedBy values for rows imported under older normalizer
