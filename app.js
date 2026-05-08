@@ -650,6 +650,37 @@ async function initCloudSync(userInitiated) {
           localStorage.setItem(localKey, merged);
           updated = true;
         }
+      } else if (cloudKey === 'open_tgls') {
+        // v218.36: Open TGLs safety — NEVER let an empty/short cloud blob wipe a
+        // larger local set. Mirrors the install_pay protection. Use lastUpdated
+        // as tiebreaker; otherwise prefer whichever has more rows.
+        try {
+          var localObjT = localVal ? JSON.parse(localVal) : null;
+          var cloudObjT = JSON.parse(cloudVal);
+          var localRows = (localObjT && Array.isArray(localObjT.rows)) ? localObjT.rows.length : 0;
+          var cloudRows = (cloudObjT && Array.isArray(cloudObjT.rows)) ? cloudObjT.rows.length : 0;
+          if (localRows > 0 && cloudRows === 0) {
+            console.log('[open_tgls] Skipping cloud overwrite \u2014 cloud is empty, local has ' + localRows + ' rows');
+          } else if (localRows > cloudRows + 5) {
+            // Local has substantially more rows; prefer local (will get pushed up).
+            console.log('[open_tgls] Skipping cloud overwrite \u2014 local has ' + localRows + ' rows vs cloud ' + cloudRows);
+          } else if (localVal && _localRecentlyModified(localKey)) {
+            console.log('[open_tgls] Skipping cloud overwrite \u2014 local edits newer than cloud');
+          } else if (cloudVal !== localVal) {
+            // Take the newer one based on lastUpdated when both have rows
+            if (localRows > 0 && cloudRows > 0) {
+              var ltT = localObjT && localObjT.lastUpdated ? Date.parse(localObjT.lastUpdated) : 0;
+              var ctT = cloudObjT && cloudObjT.lastUpdated ? Date.parse(cloudObjT.lastUpdated) : 0;
+              if (ctT > ltT) {
+                localStorage.setItem(localKey, cloudVal);
+                updated = true;
+              }
+            } else {
+              localStorage.setItem(localKey, cloudVal);
+              updated = true;
+            }
+          }
+        } catch(e) { console.warn('[open_tgls] merge parse failed', e); }
       } else if (cloudKey === 'install_pay') {
         // v218.22: Install Pay safety — NEVER let an empty cloud blob wipe non-empty local jobs.
         // Use lastUpdated timestamp as tiebreaker; otherwise prefer whichever has more jobs.
@@ -3971,7 +4002,18 @@ document.addEventListener('visibilitychange', function() {
           if (!r) return;
           var k = (r.jobNumber||'').trim();
           if (!k) {
-            k = '__nojob__|' + _normCust(r.customer) + '|' + (r.dateGenerated||'') + '|' + (r.leadGeneratedBy||'');
+            // v218.36: Only build a composite key if it has real signal — require at
+            // least a customer AND one of (dateGenerated, leadGeneratedBy). Otherwise
+            // skip dedup entirely for this row so we never collapse mostly-empty rows.
+            var custKey = _normCust(r.customer);
+            var dateKey = r.dateGenerated || '';
+            var lgbKey = r.leadGeneratedBy || '';
+            if (!custKey || (!dateKey && !lgbKey)) {
+              // No reliable signature — keep this row, don't dedup against anything.
+              out.push(r);
+              return;
+            }
+            k = '__nojob__|' + custKey + '|' + dateKey + '|' + lgbKey;
           }
           if (seen[k] == null) {
             seen[k] = out.length;
@@ -4100,6 +4142,38 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('tglBackfillJobTotalsIfNeeded failed', e); }
     }
     window.tglBackfillJobTotalsIfNeeded = tglBackfillJobTotalsIfNeeded;
+
+    // v218.36: Manual restore helpers — callable from console.
+    // tglRestoreFromBackup() restores most recent backup snapshot.
+    // tglListBackups() returns the saved snapshots.
+    function tglListBackups() {
+      try {
+        var raw = localStorage.getItem('snappy_open_tgls_backups_v1');
+        var arr = raw ? JSON.parse(raw) : [];
+        return arr.map(function(b, i){
+          var rows = 0;
+          try { var o = JSON.parse(b.data); rows = (o && o.rows) ? o.rows.length : 0; } catch(e) {}
+          return { index: i, ts: b.ts, rows: rows };
+        });
+      } catch(e) { return []; }
+    }
+    function tglRestoreFromBackup(index) {
+      try {
+        var raw = localStorage.getItem('snappy_open_tgls_backups_v1');
+        var arr = raw ? JSON.parse(raw) : [];
+        if (!arr.length) { console.warn('No TGL backups available'); return false; }
+        var idx = (typeof index === 'number') ? index : (arr.length - 1);
+        if (idx < 0 || idx >= arr.length) { console.warn('Backup index out of range'); return false; }
+        var b = arr[idx];
+        if (!b || !b.data) { console.warn('Backup empty'); return false; }
+        localStorage.setItem('snappy_open_tgls_v1', b.data);
+        localStorage.setItem('snappy_open_tgls_v1_localMod', String(Date.now()));
+        try { var o = JSON.parse(b.data); console.log('[v218.36] Restored TGL backup from ' + b.ts + ' (' + ((o&&o.rows)?o.rows.length:0) + ' rows). Refresh the page to see it.'); } catch(e) {}
+        return true;
+      } catch(e) { console.warn('Restore failed', e); return false; }
+    }
+    window.tglListBackups = tglListBackups;
+    window.tglRestoreFromBackup = tglRestoreFromBackup;
 
     // MTD totals per tech — open count, completed count, completed revenue $
     function tglMtdByTech(monthYM) {
@@ -18759,6 +18833,22 @@ if (typeof Chart !== 'undefined') {
     try { _tglSeedMay20260504IfNeeded(); } catch(e) {}
     // v218.29: Heal stored leadGeneratedBy values for rows imported under older normalizer
     try { tglBackfillNormalizeNamesIfNeeded(); } catch(e) {}
+    // v218.36: Snapshot the TGL store BEFORE any boot heal runs so we can restore
+    // if a heal accidentally wipes/corrupts data. Keeps last 3 snapshots in localStorage.
+    try {
+      var _curT = localStorage.getItem('snappy_open_tgls_v1') || '';
+      if (_curT) {
+        var _bkpRaw = localStorage.getItem('snappy_open_tgls_backups_v1');
+        var _bkp = _bkpRaw ? JSON.parse(_bkpRaw) : [];
+        if (!Array.isArray(_bkp)) _bkp = [];
+        // Only snapshot if the most recent backup differs
+        if (_bkp.length === 0 || _bkp[_bkp.length-1].data !== _curT) {
+          _bkp.push({ ts: new Date().toISOString(), data: _curT });
+          while (_bkp.length > 3) _bkp.shift();
+          localStorage.setItem('snappy_open_tgls_backups_v1', JSON.stringify(_bkp));
+        }
+      }
+    } catch(e) {}
     // v218.30: Populate ranBy[] on stored rows so My Leads tab can match Maico/Brayden/Adam
     try { tglBackfillRanByIfNeeded(); } catch(e) {}
     // v218.33: Collapse any duplicate TGL rows in storage (by jobNumber or composite signature)
@@ -18767,6 +18857,24 @@ if (typeof Chart !== 'undefined') {
     try { tglAutoCloseSalesMgrLeads(); } catch(e) {}
     // v218.35: Heal any completed rows whose jobTotal got lost / never set
     try { tglBackfillJobTotalsIfNeeded(); } catch(e) {}
+    // v218.36: If post-heal row count dropped substantially below the most recent backup,
+    // restore from backup (don't trust the heal). This catches accidental dedup over-collapse.
+    try {
+      var _bkpRaw2 = localStorage.getItem('snappy_open_tgls_backups_v1');
+      var _bkp2 = _bkpRaw2 ? JSON.parse(_bkpRaw2) : [];
+      if (Array.isArray(_bkp2) && _bkp2.length) {
+        var _last = _bkp2[_bkp2.length-1];
+        var _lastObj = _last && _last.data ? JSON.parse(_last.data) : null;
+        var _lastRows = (_lastObj && Array.isArray(_lastObj.rows)) ? _lastObj.rows.length : 0;
+        var _curObj = JSON.parse(localStorage.getItem('snappy_open_tgls_v1') || '{"rows":[]}');
+        var _curRows = (_curObj && Array.isArray(_curObj.rows)) ? _curObj.rows.length : 0;
+        if (_lastRows >= 5 && _curRows < Math.floor(_lastRows * 0.5)) {
+          console.warn('[v218.36] TGL row count dropped from ' + _lastRows + ' to ' + _curRows + ' \u2014 restoring from backup');
+          localStorage.setItem('snappy_open_tgls_v1', _last.data);
+          localStorage.setItem('snappy_open_tgls_v1_localMod', String(Date.now()));
+        }
+      }
+    } catch(e) {}
     // After all seeds, auto-complete any open TGL whose Job# already shows up in Install Pay or Brayden installs.
     try {
       var _ipForSweep = (typeof ipLoadData === 'function') ? ipLoadData() : { jobs: [] };
