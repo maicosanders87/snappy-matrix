@@ -3655,6 +3655,42 @@ document.addEventListener('visibilitychange', function() {
             window.__tglLazyRecoverRan = true;
           }
         } catch(e) {}
+        // v218.38: Cloud-pull-on-empty safety — when local store still ends up
+        // near-empty (≤3 rows) AND cloud sync is configured, fire a one-shot
+        // background pull so the user doesn't have to click "Sync Now" to
+        // hydrate. After pull lands, re-read the live store and refresh any
+        // open TGL views. Guarded by window.__tglCloudRecoverRan to avoid loops.
+        try {
+          if (!window.__tglCloudRecoverRan && d.rows.length <= 3 &&
+              typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) {
+            window.__tglCloudRecoverRan = true;
+            console.warn('[v218.38] tglLoad: local has ' + d.rows.length + ' rows + cloud is configured \u2014 firing one-shot cloud pull to hydrate');
+            (async function(){
+              try {
+                var cloudData = await SyncEngine.pull();
+                if (cloudData && cloudData.open_tgls !== undefined && cloudData.open_tgls !== null) {
+                  var cloudVal = (typeof _extractCloudVal === 'function') ? _extractCloudVal(cloudData.open_tgls) : cloudData.open_tgls;
+                  if (cloudVal && typeof cloudVal === 'string') {
+                    try {
+                      var cloudObj = JSON.parse(cloudVal);
+                      if (cloudObj && Array.isArray(cloudObj.rows) && cloudObj.rows.length > d.rows.length) {
+                        console.warn('[v218.38] tglLoad cloud-recover: hydrating ' + cloudObj.rows.length + ' rows from cloud (was ' + d.rows.length + ')');
+                        localStorage.setItem(OPEN_TGL_KEY, cloudVal);
+                        // Refresh any visible TGL tabs
+                        try { if (typeof renderOpenTglTab === 'function') renderOpenTglTab(); } catch(e) {}
+                        try { if (typeof renderMyLeadsTab === 'function') renderMyLeadsTab(); } catch(e) {}
+                        try { if (typeof renderRookieCardsHome === 'function') renderRookieCardsHome(); } catch(e) {}
+                        try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
+                        try { if (typeof renderBulletinBoard === 'function') renderBulletinBoard(); } catch(e) {}
+                        try { if (typeof renderMatrixGrid === 'function') renderMatrixGrid(); } catch(e) {}
+                      }
+                    } catch(parseErr) { console.warn('[v218.38] cloud-recover parse failed', parseErr); }
+                  }
+                }
+              } catch(pullErr) { console.warn('[v218.38] cloud-recover pull failed', pullErr); }
+            })();
+          }
+        } catch(e) {}
         return d;
       } catch(e) { return { rows: [] }; }
     }
