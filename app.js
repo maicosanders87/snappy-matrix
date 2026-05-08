@@ -3433,7 +3433,69 @@ document.addEventListener('visibilitychange', function() {
       salesSaveAll(all);
     }
 
-    // Pull all equipment for a rep — merges manual entries + Brayden's seeded installs.
+    // v218.44: TGL → Sales-Rep short-name map (only real sellers, never tech-sells)
+    var TGL_SOLDBY_TO_SALESREP = {
+      'Maico': 'Maico',
+      'Mark Sanders': 'Maico',
+      'Brayden Bond': 'Brayden',
+      'Brayden': 'Brayden',
+      'Adam Bunyard': 'Adam',
+      'Adam': 'Adam'
+    };
+
+    // v218.44: Period selector state (WTD / MTD / STD). Persisted in localStorage.
+    var SALES_PERIOD_KEY = 'snappy_sales_period_v1';
+    function salesGetPeriod() {
+      try { return localStorage.getItem(SALES_PERIOD_KEY) || 'MTD'; }
+      catch(e) { return 'MTD'; }
+    }
+    function salesSetPeriod(p) {
+      try { localStorage.setItem(SALES_PERIOD_KEY, p); } catch(e) {}
+      try { renderSalesScorecard(); } catch(e) {}
+    }
+    window.salesSetPeriod = salesSetPeriod;
+
+    // v218.44: Compute the active period's start date.
+    //   WTD = Monday of this week 00:00 (HVAC weekly cycle Mon–Sun)
+    //   MTD = first of this month 00:00
+    //   STD = season-to-date — Cooling Apr 1 (Apr–Sep), Heating Oct 1 (Oct–Mar)
+    function salesPeriodRange(period) {
+      var now = new Date();
+      var start;
+      if (period === 'WTD') {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        var dow = start.getDay(); // 0 Sun .. 6 Sat
+        var diff = (dow === 0 ? 6 : dow - 1); // back to Monday
+        start.setDate(start.getDate() - diff);
+      } else if (period === 'STD') {
+        var m = now.getMonth(); // 0..11
+        if (m >= 3 && m <= 8) {
+          // Apr (3) – Sep (8): cooling season started Apr 1 this year
+          start = new Date(now.getFullYear(), 3, 1);
+        } else {
+          // Oct (9) – Mar (2): heating season — started Oct 1 of last/this year
+          var startYear = (m >= 9) ? now.getFullYear() : now.getFullYear() - 1;
+          start = new Date(startYear, 9, 1);
+        }
+      } else {
+        // MTD default
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+      return { start: start, end: now };
+    }
+    function salesPeriodLabel(period) {
+      if (period === 'WTD') return 'WTD';
+      if (period === 'STD') {
+        var m = new Date().getMonth();
+        return (m >= 3 && m <= 8) ? 'STD (Cooling)' : 'STD (Heating)';
+      }
+      return 'MTD';
+    }
+
+    // Pull all equipment for a rep — merges:
+    //   1) Manual entries (rep.equipment)
+    //   2) snappy_brayden_installs (Brayden only, legacy seed)
+    //   3) v218.44: completed TGL rows where soldBy matches the rep AND !__techSell
     function salesGetEquipmentFor(repName) {
       var rep = salesGetRepData(repName);
       var equip = (rep.equipment || []).slice();
@@ -3470,6 +3532,37 @@ document.addEventListener('visibilitychange', function() {
           }
         } catch(e) {}
       }
+      // v218.44: Merge completed TGL rows (corrected v218.42 dataset). Only real
+      // sellers earn credit — __techSell:true rows are excluded entirely (rule:
+      // "Ignore tech sells entirely").
+      try {
+        if (typeof tglLoad === 'function') {
+          var rows = (tglLoad() || {}).rows || [];
+          rows.forEach(function(r) {
+            if (!r || r.status !== 'completed') return;
+            if (r.__techSell === true) return;
+            var mapped = TGL_SOLDBY_TO_SALESREP[r.soldBy || ''] || '';
+            if (mapped !== repName) return;
+            // De-dupe by jobNumber against existing entries
+            var dup = equip.some(function(e) { return e.jobNumber && r.jobNumber && String(e.jobNumber) === String(r.jobNumber); });
+            if (dup) return;
+            equip.push({
+              id: 'tgl_' + (r.jobNumber || (r.customer || '') + '_' + (r.completedDate || r.date || '')),
+              date: r.completedDate || r.date || '',
+              customer: r.customer || '',
+              jobNumber: r.jobNumber || '',
+              soldBy: r.soldBy || '',
+              leadGeneratedBy: r.leadGeneratedBy || '',
+              systemType: 'HVAC Install',
+              brand: '', tonnage: '', model: '',
+              jobsTotal: parseFloat(r.jobTotal) || 0,
+              completionDate: r.completedDate || r.date || '',
+              notes: '',
+              _source: 'tgl'
+            });
+          });
+        }
+      } catch(e) { console.warn('TGL merge into sales scorecard failed:', e); }
       // Sort newest first
       equip.sort(function(a, b) {
         var ad = a.completionDate || a.date || '';
@@ -3479,29 +3572,39 @@ document.addEventListener('visibilitychange', function() {
       return equip;
     }
 
-    // Compute MTD stats for a rep (from current month equipment)
-    function salesComputeMTD(repName) {
+    // v218.44: Compute period stats (WTD / MTD / STD) for a rep.
+    function salesComputePeriod(repName, period) {
+      period = period || salesGetPeriod();
       var equip = salesGetEquipmentFor(repName);
-      var now = new Date();
-      var monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-      var mtd = equip.filter(function(e) {
+      var range = salesPeriodRange(period);
+      var startStr = range.start.toISOString().slice(0, 10);
+      var items = equip.filter(function(e) {
         var d = e.completionDate || e.date || '';
-        return d.indexOf(monthKey) === 0;
+        if (!d) return false;
+        // ISO date compare works lexically (YYYY-MM-DD)
+        return d >= startStr;
       });
-      var revenue = mtd.reduce(function(s, e) { return s + (parseFloat(e.jobsTotal) || 0); }, 0);
+      var revenue = items.reduce(function(s, e) { return s + (parseFloat(e.jobsTotal) || 0); }, 0);
       return {
-        installsCount: mtd.length,
+        period: period,
+        installsCount: items.length,
         revenue: Math.round(revenue * 100) / 100,
-        avgTicket: mtd.length ? Math.round((revenue / mtd.length) * 100) / 100 : 0,
-        items: mtd
+        avgTicket: items.length ? Math.round((revenue / items.length) * 100) / 100 : 0,
+        items: items
       };
     }
 
-    // Auto-pull TGL credit info: which techs generated leads that became installs sold by sales reps.
-    function salesGetLeadCredits(repName) {
-      var equip = salesGetEquipmentFor(repName);
+    // Back-compat: salesComputeMTD is preserved (callers outside scorecard use it).
+    function salesComputeMTD(repName) {
+      return salesComputePeriod(repName, 'MTD');
+    }
+
+    // Auto-pull lead-source credit. v218.44: scoped to the active period instead of MTD.
+    function salesGetLeadCredits(repName, period) {
+      period = period || salesGetPeriod();
+      var stats = salesComputePeriod(repName, period);
       var credits = {};
-      equip.forEach(function(e) {
+      stats.items.forEach(function(e) {
         if (e.leadGeneratedBy && e.leadGeneratedBy !== '' && e.leadGeneratedBy.toLowerCase() !== 'self') {
           if (!credits[e.leadGeneratedBy]) credits[e.leadGeneratedBy] = { count: 0, revenue: 0, items: [] };
           credits[e.leadGeneratedBy].count++;
@@ -3593,17 +3696,34 @@ document.addEventListener('visibilitychange', function() {
     function renderSalesScorecard() {
       var el = document.getElementById('sales-scorecard-content');
       if (!el) return;
+      var period = salesGetPeriod();
+      var periodLabel = salesPeriodLabel(period);
+      var range = salesPeriodRange(period);
+      var rangeStr = range.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' – ' + range.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       var html = '<div style="font-family:Inter,system-ui,sans-serif;padding:14px;">';
-      html += '<div style="font-size:20px;font-weight:700;color:#E2E8F0;margin-bottom:6px;">💼 Sales Team Scorecard</div>';
-      html += '<div style="font-size:13px;color:#94A3B8;margin-bottom:18px;">Equipment sales by Mark, Brayden, and Adam. Lead-source credit auto-pulls from techs — no double-entry needed.</div>';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">';
+      html += '<div style="font-size:20px;font-weight:700;color:#E2E8F0;">💼 Sales Team Scorecard</div>';
+      // v218.44: WTD / MTD / STD toggle
+      var pills = ['WTD', 'MTD', 'STD'];
+      html += '<div style="display:inline-flex;background:#0F172A;border:1px solid #334155;border-radius:8px;padding:3px;gap:2px;">';
+      pills.forEach(function(p) {
+        var active = (p === period);
+        var bg = active ? '#10B981' : 'transparent';
+        var fg = active ? 'white' : '#94A3B8';
+        var fw = active ? '700' : '500';
+        html += '<button onclick="salesSetPeriod(\'' + p + '\')" style="padding:6px 14px;background:' + bg + ';color:' + fg + ';border:none;border-radius:6px;cursor:pointer;font-weight:' + fw + ';font-size:12px;letter-spacing:0.4px;">' + p + '</button>';
+      });
+      html += '</div>';
+      html += '</div>';
+      html += '<div style="font-size:13px;color:#94A3B8;margin-bottom:18px;">Equipment sales by Mark, Brayden, and Adam. Lead-source credit auto-pulls from techs — no double-entry needed. <span style="color:#64748B;">Showing <b style="color:#10B981;">' + periodLabel + '</b> (' + rangeStr + ').</span></div>';
 
       SALES_REPS.forEach(function(rep) {
-        var mtd = salesComputeMTD(rep.name);
+        var mtd = salesComputePeriod(rep.name, period);
         var equip = salesGetEquipmentFor(rep.name);
-        var credits = salesGetLeadCredits(rep.name);
+        var credits = salesGetLeadCredits(rep.name, period);
         var creditsHTML = Object.keys(credits).map(function(t) {
           return '<span style="display:inline-block;padding:3px 8px;background:rgba(59,130,246,0.15);border:1px solid #3B82F6;border-radius:12px;color:#93C5FD;font-size:11px;margin:2px;">' + t + ': ' + credits[t].count + ' install' + (credits[t].count > 1 ? 's' : '') + ' / $' + Math.round(credits[t].revenue).toLocaleString() + '</span>';
-        }).join('') || '<span style="color:#64748B;font-size:11px;">No tech-generated leads converted yet this month</span>';
+        }).join('') || '<span style="color:#64748B;font-size:11px;">No tech-generated leads converted yet this ' + (period === 'WTD' ? 'week' : period === 'STD' ? 'season' : 'month') + '</span>';
 
         var avatarBlock = rep.avatar
           ? '<img src="' + rep.avatar + '" alt="' + rep.fullName + '" style="width:48px;height:48px;border-radius:50%;border:2px solid ' + rep.color + ';object-fit:cover;">'
@@ -3617,16 +3737,16 @@ document.addEventListener('visibilitychange', function() {
         html += '<button onclick="salesOpenAddModal(\'' + rep.name + '\')" style="padding:7px 14px;background:' + rep.color + ';color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;">+ Add Equipment Sale</button>';
         html += '</div>';
 
-        // MTD tiles
+        // v218.44: Period tiles (WTD / MTD / STD)
         html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:14px 0;">';
-        html += '<div style="background:#0F172A;padding:10px;border-radius:8px;border:1px solid #1E293B;"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">MTD Installs</div><div style="font-size:22px;font-weight:700;color:#E2E8F0;">' + mtd.installsCount + '</div></div>';
-        html += '<div style="background:#0F172A;padding:10px;border-radius:8px;border:1px solid #1E293B;"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">MTD Revenue</div><div style="font-size:22px;font-weight:700;color:#10B981;">$' + Math.round(mtd.revenue).toLocaleString() + '</div></div>';
+        html += '<div style="background:#0F172A;padding:10px;border-radius:8px;border:1px solid #1E293B;"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">' + period + ' Installs</div><div style="font-size:22px;font-weight:700;color:#E2E8F0;">' + mtd.installsCount + '</div></div>';
+        html += '<div style="background:#0F172A;padding:10px;border-radius:8px;border:1px solid #1E293B;"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">' + period + ' Revenue</div><div style="font-size:22px;font-weight:700;color:#10B981;">$' + Math.round(mtd.revenue).toLocaleString() + '</div></div>';
         html += '<div style="background:#0F172A;padding:10px;border-radius:8px;border:1px solid #1E293B;"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">Avg Ticket</div><div style="font-size:22px;font-weight:700;color:#60A5FA;">$' + Math.round(mtd.avgTicket).toLocaleString() + '</div></div>';
         html += '<div style="background:#0F172A;padding:10px;border-radius:8px;border:1px solid #1E293B;"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">All-Time Records</div><div style="font-size:22px;font-weight:700;color:#A78BFA;">' + equip.length + '</div></div>';
         html += '</div>';
 
-        // Lead credit chips
-        html += '<div style="margin:10px 0;"><div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🤝 Lead-Generated By (auto-credit, MTD):</div><div>' + creditsHTML + '</div></div>';
+        // Lead credit chips (scoped to active period)
+        html += '<div style="margin:10px 0;"><div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🤝 Lead-Generated By (auto-credit, ' + period + '):</div><div>' + creditsHTML + '</div></div>';
 
         // Equipment table
         if (equip.length > 0) {
@@ -3654,6 +3774,8 @@ document.addEventListener('visibilitychange', function() {
     window.renderSalesScorecard = renderSalesScorecard;
     window.salesGetEquipmentFor = salesGetEquipmentFor;
     window.salesComputeMTD = salesComputeMTD;
+    window.salesComputePeriod = salesComputePeriod;
+    window.salesGetPeriod = salesGetPeriod;
 
     // ===================================================================
     // v218.4 — INSTALL PAY TRACKER (PIN-locked, Maico-only)
@@ -5217,7 +5339,7 @@ document.addEventListener('visibilitychange', function() {
       try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
       try { if (typeof renderOverviewTab === 'function') renderOverviewTab(); } catch(e) {}
       try { if (typeof renderBulletinBoard === 'function') renderBulletinBoard(); } catch(e) {}
-      try { if (typeof renderSalesTeam === 'function') renderSalesTeam(); } catch(e) {}
+      try { if (typeof renderSalesScorecard === 'function') renderSalesScorecard(); } catch(e) {}
       try { if (typeof renderTierProgression === 'function') renderTierProgression(); } catch(e) {}
       try { if (typeof renderLeaderboard === 'function') renderLeaderboard(); } catch(e) {}
     }
