@@ -2991,6 +2991,136 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_auditSeedV21847IfNeeded failed', e); }
     }
 
+    // v218.49: One-shot reconciler — heals local TGL store so My Leads + Sales
+    // Scorecard + Payout views all match for Brayden. Targets the 5 May completed
+    // installs that may be missing or have stale ranBy/assigned data on legacy
+    // local stores. Idempotent — gated on snappy_brayden_tgl_heal_v21849 flag.
+    function _braydenTglHealV21849IfNeeded() {
+      try {
+        var FLAG = 'snappy_brayden_tgl_heal_v21849';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof tglLoad !== 'function' || typeof tglSave !== 'function') return;
+        var d = tglLoad();
+        if (!d || !Array.isArray(d.rows)) return;
+        var rows = d.rows;
+
+        // The 5 authoritative Brayden May completed installs (from cloud B25
+        // reconciliation). Each row is upserted by jobNumber OR customer-name match.
+        var BRAYDEN_MAY_2026 = [
+          { jobNumber:'91767937', customer:'Denise Cartier',  date:'2026-05-01', total:14606.68, leadGen:'',       installers:['Thomas Gilbert','Terrell Upshur'] },
+          { jobNumber:'91881584', customer:'Kathryn Kadous',  date:'2026-05-04', total:30271.55, leadGen:'Chris',  installers:[] },
+          { jobNumber:'91958769', customer:'Joseph Davis',    date:'2026-05-06', total:22618.00, leadGen:'Chris',  installers:['Thomas Gilbert','Terrell Upshur'] },
+          { jobNumber:'91970666', customer:'Andrew Gladson',  date:'2026-05-07', total:7499.59,  leadGen:'Dewone', installers:['Thomas Gilbert','Terrell Upshur'] },
+          { jobNumber:'91993961', customer:'Mike Flisser',    date:'2026-05-08', total:15287.79, leadGen:'Benji',  installers:[] }
+        ];
+
+        function _norm(s){ return (s||'').toString().toLowerCase().replace(/[^a-z0-9& ]/g,' ').replace(/\s+/g,' ').trim(); }
+        var changed = 0;
+        var nowIso = new Date().toISOString();
+
+        BRAYDEN_MAY_2026.forEach(function(spec){
+          // Find by jobNumber first; fall back to customer match.
+          var idx = rows.findIndex(function(r){ return r && r.jobNumber === spec.jobNumber; });
+          if (idx < 0) {
+            idx = rows.findIndex(function(r){
+              return r && _norm(r.customer) === _norm(spec.customer) &&
+                     (r.soldBy === 'Brayden Bond' || (Array.isArray(r.assignedTechnicians) && r.assignedTechnicians.indexOf('Brayden Bond') >= 0));
+            });
+          }
+          var assigned = ['Brayden Bond'].concat(spec.installers || []);
+          if (idx < 0) {
+            // Insert fresh row
+            rows.push({
+              status: 'completed',
+              addedAt: nowIso,
+              jobNumber: spec.jobNumber,
+              invoiceNumber: spec.jobNumber,
+              customer: spec.customer,
+              dateGenerated: spec.date,
+              assignedTechnicians: assigned,
+              soldBy: 'Brayden Bond',
+              leadGeneratedBy: spec.leadGen || '',
+              source: '',
+              jobType: 'HVAC Install',
+              businessUnit: 'HVAC Install',
+              marketedLead: false,
+              ranBy: ['Brayden Bond'],
+              jobTotal: spec.total,
+              completedDate: spec.date,
+              completedAt: nowIso
+            });
+            changed++;
+          } else {
+            // Heal existing row in place
+            var r = rows[idx];
+            var before = JSON.stringify(r);
+            r.status = 'completed';
+            if (!r.jobNumber) r.jobNumber = spec.jobNumber;
+            r.customer = r.customer || spec.customer;
+            r.soldBy = 'Brayden Bond';
+            if (!r.leadGeneratedBy) r.leadGeneratedBy = spec.leadGen || '';
+            // Ensure Brayden is in ranBy[]
+            if (!Array.isArray(r.ranBy)) r.ranBy = [];
+            if (r.ranBy.indexOf('Brayden Bond') < 0) r.ranBy.push('Brayden Bond');
+            // Ensure Brayden is in assignedTechnicians[] alongside any existing installers
+            if (!Array.isArray(r.assignedTechnicians)) r.assignedTechnicians = [];
+            assigned.forEach(function(an){
+              if (r.assignedTechnicians.indexOf(an) < 0) r.assignedTechnicians.push(an);
+            });
+            // Heal job total if missing/zero
+            var curTot = parseFloat(r.jobTotal) || 0;
+            if (curTot <= 0) r.jobTotal = spec.total;
+            // Heal completed date
+            if (!r.completedDate) r.completedDate = spec.date;
+            if (!r.dateGenerated) r.dateGenerated = spec.date;
+            r.businessUnit = r.businessUnit || 'HVAC Install';
+            r.jobType = r.jobType || 'HVAC Install';
+            // Strip __techSell if it was wrongly set on a Brayden-sold row
+            if (r.__techSell === true) delete r.__techSell;
+            if (JSON.stringify(r) !== before) changed++;
+          }
+        });
+
+        // Heal any stale Brayden-on-other-techs-sale rows: remove Brayden from
+        // ranBy[] on completed rows where Brayden is NOT the soldBy AND NOT a
+        // physical installer the user marked.
+        rows.forEach(function(r){
+          if (!r || r.status !== 'completed') return;
+          // Skip Brayden's own rows
+          if (r.soldBy === 'Brayden Bond') return;
+          var isBraydenJob = BRAYDEN_MAY_2026.some(function(s){
+            return s.jobNumber === r.jobNumber || _norm(s.customer) === _norm(r.customer);
+          });
+          if (isBraydenJob) return; // don't touch
+          // If this is a Schuck/Ellis-style row that wrongly carries Brayden in ranBy, strip it
+          if (Array.isArray(r.ranBy) && r.ranBy.indexOf('Brayden Bond') >= 0) {
+            r.ranBy = r.ranBy.filter(function(n){ return n !== 'Brayden Bond'; });
+            changed++;
+          }
+        });
+
+        if (changed > 0) {
+          tglSave(d);
+          try { localStorage.setItem('snappy_open_tgls_v1_localMod', String(Date.now())); } catch(e) {}
+          console.log('[v218.49] Brayden TGL heal: ' + changed + ' row(s) updated.');
+          // Cascade: refresh views + re-run dependent backfills
+          try { if (typeof tglBackfillNormalizeNamesIfNeeded === 'function') tglBackfillNormalizeNamesIfNeeded(); } catch(e) {}
+          try { if (typeof tglFullCascade === 'function') tglFullCascade(); } catch(e) {}
+          try { if (typeof renderMyLeads === 'function') renderMyLeads(); } catch(e) {}
+          try { if (typeof renderSalesScorecard === 'function') renderSalesScorecard(); } catch(e) {}
+          try {
+            if (typeof tglRenderManagerSection === 'function') {
+              var mgrEl = document.getElementById('tglManagerSection');
+              if (mgrEl) mgrEl.innerHTML = tglRenderManagerSection();
+            }
+          } catch(e) {}
+        } else {
+          console.log('[v218.49] Brayden TGL heal: no changes needed.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_braydenTglHealV21849IfNeeded failed', e); }
+    }
+
     // v189: One-shot Wednesday Apr 29, 2026 ADD-ON seed for week 2026-04-27.
     // Adds Wednesday's daily numbers on top of Mon+Tue totals already seeded by v167+v175.
     // Sources: IMG_0196 (Nexstar daily), IMG_0197 (Memberships).
@@ -19968,6 +20098,7 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260501IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260501IfNeeded(); } catch(e) {}
     try { _auditSeedV21847IfNeeded(); } catch(e) {}
+    try { _braydenTglHealV21849IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
