@@ -2856,6 +2856,141 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_braydenSeedMay20260501IfNeeded failed', e); }
     }
 
+    // ===========================================================================
+    // v218.47: Audit reconciliation seed — applies the 18-install source-of-truth
+    // delta from Google Sheet 1nln9Hv0A09Q3tVWxDyYKBh7a5CyRYRjt7-e-D82IgcQ.
+    // ---------------------------------------------------------------------------
+    // Adds 13 missing install_pay rows (Thomas Gilbert + Terrell Upshur installers).
+    // Bumps braydenstats MTD totals to 5 closed / $90,283.61 (Cartier+Kadous+Davis
+    // +Gladson+Flisser).
+    // Pushes 5/8 Mike Flisser entry into bulletin matrixUpdates.
+    // Idempotent — gated on snappy_audit_seeded_2026_05_09_v1 flag.
+    // The TGL cloud rows themselves were reconciled out-of-band (cloud B25).
+    // ===========================================================================
+    function _auditSeedV21847IfNeeded() {
+      try {
+        var FLAG = 'snappy_audit_seeded_2026_05_09_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+
+        // ---- 1) Install Pay rows (13 entries) ----
+        try {
+          var ipRaw = localStorage.getItem(INSTALL_PAY_DATA_KEY);
+          var ipd = ipRaw ? JSON.parse(ipRaw) : { jobs: [], rates: JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES)) };
+          if (!ipd.jobs) ipd.jobs = [];
+          if (!ipd.rates) ipd.rates = JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES));
+          var auditInstalls = [
+            { date:'2026-04-01', customer:'Andrew Watsons',     jobNumber:'90764407', installer:'Thomas Gilbert', basePay:14873.39 },
+            { date:'2026-04-02', customer:'Dean McManus',       jobNumber:'90947688', installer:'Terrell Upshur', basePay:6424.31 },
+            { date:'2026-04-03', customer:'Lajuan Clayton',     jobNumber:'91062674', installer:'Thomas Gilbert', basePay:8371.88 },
+            { date:'2026-04-08', customer:'Sylvan Bednar',      jobNumber:'91152617', installer:'Terrell Upshur', basePay:0 },
+            { date:'2026-04-09', customer:'Nancy & Jim Gustin', jobNumber:'91005667', installer:'Thomas Gilbert', basePay:14538.27 },
+            { date:'2026-04-13', customer:'Lindsey Ford',       jobNumber:'91188980', installer:'Thomas Gilbert', basePay:13630.00 },
+            { date:'2026-04-16', customer:'Charles Thomason',   jobNumber:'91329565', installer:'Thomas Gilbert', basePay:13410.43 },
+            { date:'2026-04-20', customer:'Kellie Clark',       jobNumber:'91483113', installer:'Terrell Upshur', basePay:5581.00 },
+            { date:'2026-04-21', customer:'Francine Dillon',    jobNumber:'91495529', installer:'Thomas Gilbert', basePay:13417.31 },
+            { date:'2026-04-22', customer:'William Schuck',     jobNumber:'91540846', installer:'Thomas Gilbert', basePay:22688.60 },
+            { date:'2026-04-27', customer:'Martha Futral',      jobNumber:'91612918', installer:'Thomas Gilbert', basePay:24315.58 },
+            { date:'2026-04-28', customer:'Nellie Ellis',       jobNumber:'91643250', installer:'Terrell Upshur', basePay:9059.59 },
+            { date:'2026-05-01', customer:'Denise Cartier',     jobNumber:'91767937', installer:'Thomas Gilbert', basePay:14606.68 }
+          ];
+          var addedCount = 0;
+          auditInstalls.forEach(function(it){
+            var dup = ipd.jobs.some(function(j){ return j && (j.jobNumber === it.jobNumber); });
+            if (dup) return;
+            ipd.jobs.push({
+              id: 'job_audit_v21847_' + it.jobNumber,
+              date: it.date,
+              customer: it.customer,
+              jobNumber: it.jobNumber,
+              installer: it.installer,
+              jobType: '',
+              plenums: 0, ductRuns: 0, zoneMotors: 0, fluPipe: false,
+              basePay: it.basePay,
+              notes: 'Audit seed v218.47 (4/1–5/9 reconciliation)'
+            });
+            addedCount++;
+          });
+          if (addedCount > 0) {
+            ipd.lastUpdated = new Date().toISOString();
+            localStorage.setItem(INSTALL_PAY_DATA_KEY, JSON.stringify(ipd));
+            try { localStorage.setItem(INSTALL_PAY_DATA_KEY + '_localMod', String(Date.now())); } catch(e) {}
+            console.log('[v218.47] Audit seed added ' + addedCount + ' install_pay rows.');
+          }
+        } catch(e) { console.warn('[v218.47] install_pay seed failed', e); }
+
+        // ---- 2) Brayden stats: bump to 5 / $90,283.61 ----
+        try {
+          var stats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : {};
+          var curRev = Number(stats.mtd_revenue || 0);
+          var curClosed = Number(stats.mtd_closed || 0);
+          if (curRev < 90283 || curClosed < 5) {
+            stats.mtd_revenue = '90283.61';
+            stats.mtd_closed = '5';
+            if (typeof braydenSaveStats === 'function') braydenSaveStats(stats);
+            console.log('[v218.47] braydenstats bumped to 5 / $90,283.61');
+          }
+        } catch(e) { console.warn('[v218.47] braydenstats bump failed', e); }
+
+        // ---- 3) Push the 5 May Brayden installs into snappy_brayden_installs ----
+        try {
+          var brRaw = localStorage.getItem('snappy_brayden_installs');
+          var brArr = [];
+          try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+          if (!Array.isArray(brArr)) brArr = [];
+          var braydenMay = [
+            { jobNumber:'91767937', date:'2026-05-01', customer:'Denise Cartier',     jobsTotal:14606.68, leadGeneratedBy:'' },
+            { jobNumber:'91881584', date:'2026-05-04', customer:'Kathryn Kadous',     jobsTotal:30271.55, leadGeneratedBy:'Chris' },
+            { jobNumber:'91958769', date:'2026-05-06', customer:'Joseph Davis',      jobsTotal:22618.00, leadGeneratedBy:'Chris' },
+            { jobNumber:'91970666', date:'2026-05-07', customer:'Andrew Gladson',     jobsTotal:7499.59,  leadGeneratedBy:'Dewone' },
+            { jobNumber:'91993961', date:'2026-05-08', customer:'Mike Flisser',       jobsTotal:15287.79, leadGeneratedBy:'Benji' }
+          ];
+          var brAdded = 0;
+          braydenMay.forEach(function(it){
+            var dup = brArr.some(function(x){ return x && (x.jobNumber === it.jobNumber || x.invoice === it.jobNumber); });
+            if (dup) return;
+            brArr.push({
+              id: 'brayden_audit_v21847_' + it.jobNumber,
+              date: it.date,
+              customer: it.customer,
+              jobNumber: it.jobNumber,
+              invoice: it.jobNumber,
+              businessUnit: 'HVAC Install',
+              soldBy: 'Brayden Bond',
+              leadGeneratedBy: it.leadGeneratedBy,
+              jobsTotal: it.jobsTotal,
+              completionDate: it.date
+            });
+            brAdded++;
+          });
+          if (brAdded > 0) {
+            localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+            console.log('[v218.47] Added ' + brAdded + ' Brayden install entries.');
+          }
+        } catch(e) { console.warn('[v218.47] brayden_installs seed failed', e); }
+
+        // ---- 4) Bulletin matrixUpdates: 5/8 Flisser entry ----
+        try {
+          var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+          if (bb) {
+            if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+            var flisserExists = bb.matrixUpdates.some(function(u){ return u.id === 'st_update_20260508_flisser'; });
+            if (!flisserExists) {
+              bb.matrixUpdates.push({
+                id: 'st_update_20260508_flisser',
+                date: '2026-05-08',
+                text: 'Friday 5/8/26 — Brayden Bond install $15,287.79 (Job 91993961, Mike Flisser, lead by Benji). Brayden May install MTD: 5 / $90,283.61 (Cartier $14,607 + Kadous $30,272 + Davis $22,618 + Gladson $7,500 + Flisser $15,288). Audit reconciliation v218.47 — 18 unique completed installs 4/1–5/9 totaling $247,592.97 across Thomas Gilbert + Terrell Upshur.',
+                createdAt: Date.now()
+              });
+              if (typeof bbSave === 'function') bbSave(bb);
+              console.log('[v218.47] Added 5/8 Flisser bulletin entry.');
+            }
+          }
+        } catch(e) { console.warn('[v218.47] bulletin seed failed', e); }
+
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_auditSeedV21847IfNeeded failed', e); }
+    }
+
     // v189: One-shot Wednesday Apr 29, 2026 ADD-ON seed for week 2026-04-27.
     // Adds Wednesday's daily numbers on top of Mon+Tue totals already seeded by v167+v175.
     // Sources: IMG_0196 (Nexstar daily), IMG_0197 (Memberships).
@@ -19829,6 +19964,7 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260430IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260501IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260501IfNeeded(); } catch(e) {}
+    try { _auditSeedV21847IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
