@@ -3632,6 +3632,107 @@ document.addEventListener('visibilitychange', function() {
       salesSaveRepData(repName, rep);
     }
 
+    // v218.45: Update an existing manual equipment record by id (mutates in place,
+    // preserves id + _source). For TGL-sourced rows, edits are blocked here — those
+    // are managed in the Payout tab editor.
+    function salesUpdateEquipment(repName, id, patch) {
+      var rep = salesGetRepData(repName);
+      if (!rep.equipment) return false;
+      var found = false;
+      rep.equipment = rep.equipment.map(function(e) {
+        if (e.id === id) {
+          found = true;
+          var merged = {};
+          Object.keys(e).forEach(function(k) { merged[k] = e[k]; });
+          Object.keys(patch || {}).forEach(function(k) { merged[k] = patch[k]; });
+          merged.id = e.id;
+          merged._source = e._source || 'manual';
+          return merged;
+        }
+        return e;
+      });
+      if (found) salesSaveRepData(repName, rep);
+      return found;
+    }
+
+    // v218.45: Edit modal — same fields as Add, prefilled from the existing record.
+    function salesOpenEditModal(repName, id) {
+      var rep = salesGetRepData(repName);
+      var rec = (rep.equipment || []).filter(function(e) { return e.id === id; })[0];
+      if (!rec) { alert('Entry not found.'); return; }
+      var existing = document.getElementById('sales-edit-modal');
+      if (existing) existing.remove();
+      var leadOpts = ['', 'Dewone', 'Chris Monahan', 'Ben Tinahui', 'Daniel Gazaway', 'Dee Williams', 'Nick Goehler', 'Marketing'];
+      var typeOpts = ['HVAC Install', 'AC Only', 'Furnace Only', 'Heat Pump', 'Mini-Split', 'Package Unit', 'IAQ / Add-on'];
+      function esc(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
+      var leadHTML = leadOpts.map(function(o) {
+        var sel = ((rec.leadGeneratedBy || '') === o) ? ' selected' : '';
+        return '<option value="' + esc(o) + '"' + sel + '>' + (o === '' ? '— Self / Direct —' : o) + '</option>';
+      }).join('');
+      var typeHTML = typeOpts.map(function(o) {
+        var sel = ((rec.systemType || '') === o) ? ' selected' : '';
+        return '<option value="' + esc(o) + '"' + sel + '>' + o + '</option>';
+      }).join('');
+      var modal = document.createElement('div');
+      modal.id = 'sales-edit-modal';
+      modal.className = 'mh-modal-backdrop';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML =
+        '<div style="background:#1a1f2e;border-radius:14px;max-width:560px;width:100%;max-height:90vh;overflow:auto;border:1px solid #334155;font-family:Inter,system-ui,sans-serif;color:#E2E8F0;">' +
+          '<div style="padding:18px 22px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">' +
+            '<div style="font-size:17px;font-weight:600;">✏️ Edit Equipment Sale — ' + repName + '</div>' +
+            '<button onclick="document.getElementById(\'sales-edit-modal\').remove()" style="background:none;border:none;color:#94A3B8;font-size:24px;cursor:pointer;">×</button>' +
+          '</div>' +
+          '<div style="padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+            '<label style="grid-column:span 2;">Customer Name<input id="se-customer" type="text" value="' + esc(rec.customer) + '" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Job/Invoice #<input id="se-job" type="text" value="' + esc(rec.jobNumber) + '" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Completion Date<input id="se-date" type="date" value="' + esc(rec.completionDate || rec.date || '') + '" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>System Type<select id="se-systype" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;">' + typeHTML + '</select></label>' +
+            '<label>Brand<input id="se-brand" type="text" value="' + esc(rec.brand) + '" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Tonnage<input id="se-tonnage" type="text" value="' + esc(rec.tonnage) + '" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Model #<input id="se-model" type="text" value="' + esc(rec.model) + '" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Jobs Total ($)<input id="se-total" type="number" step="0.01" value="' + esc(rec.jobsTotal) + '" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
+            '<label>Lead Generated By<select id="se-leadby" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;">' + leadHTML + '</select></label>' +
+            '<label style="grid-column:span 2;">Notes (optional)<textarea id="se-notes" rows="2" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;font-family:inherit;">' + esc(rec.notes) + '</textarea></label>' +
+          '</div>' +
+          '<div style="padding:14px 22px;border-top:1px solid #334155;display:flex;gap:10px;justify-content:space-between;align-items:center;">' +
+            '<button onclick="if(confirm(\'Delete this entry?\')){salesDeleteEquipment(\'' + repName + '\',\'' + id + '\');document.getElementById(\'sales-edit-modal\').remove();try{renderSalesScorecard();}catch(e){}}" style="padding:8px 14px;background:#7F1D1D;color:#FCA5A5;border:1px solid #B91C1C;border-radius:6px;cursor:pointer;font-weight:600;">🗑 Delete</button>' +
+            '<div style="display:flex;gap:10px;">' +
+              '<button onclick="document.getElementById(\'sales-edit-modal\').remove()" style="padding:8px 16px;background:#334155;color:#E2E8F0;border:none;border-radius:6px;cursor:pointer;">Cancel</button>' +
+              '<button onclick="salesSubmitEdit(\'' + repName + '\',\'' + id + '\')" style="padding:8px 16px;background:#10B981;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">💾 Save Changes</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+
+    function salesSubmitEdit(repName, id) {
+      var customer = (document.getElementById('se-customer') || {}).value || '';
+      var job = (document.getElementById('se-job') || {}).value || '';
+      var date = (document.getElementById('se-date') || {}).value || '';
+      var systype = (document.getElementById('se-systype') || {}).value || '';
+      var brand = (document.getElementById('se-brand') || {}).value || '';
+      var tonnage = (document.getElementById('se-tonnage') || {}).value || '';
+      var model = (document.getElementById('se-model') || {}).value || '';
+      var total = parseFloat((document.getElementById('se-total') || {}).value || 0);
+      var leadby = (document.getElementById('se-leadby') || {}).value || '';
+      var notes = (document.getElementById('se-notes') || {}).value || '';
+      if (!customer.trim()) { alert('Customer name is required.'); return; }
+      if (!total || total <= 0) { alert('Jobs Total must be > 0.'); return; }
+      var ok = salesUpdateEquipment(repName, id, {
+        date: date, completionDate: date,
+        customer: customer.trim(), jobNumber: job.trim(),
+        leadGeneratedBy: leadby,
+        systemType: systype, brand: brand, tonnage: tonnage, model: model,
+        jobsTotal: total, notes: notes
+      });
+      if (!ok) { alert('Could not save — entry not found.'); return; }
+      var modal = document.getElementById('sales-edit-modal');
+      if (modal) modal.remove();
+      try { renderSalesScorecard(); } catch(e) {}
+      try { renderMgrToday(); } catch(e) {}
+    }
+
     // Open the equipment-add modal for a rep
     function salesOpenAddModal(repName) {
       var existing = document.getElementById('sales-add-modal');
@@ -3754,8 +3855,21 @@ document.addEventListener('visibilitychange', function() {
           html += '<div style="overflow-x:auto;margin-top:8px;"><table style="width:100%;font-size:12px;color:#CBD5E1;border-collapse:collapse;">';
           html += '<thead><tr style="background:#0F172A;"><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Date</th><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Customer</th><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Type</th><th style="padding:6px;text-align:right;border-bottom:1px solid #334155;">Total</th><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Lead</th><th style="padding:6px;text-align:right;border-bottom:1px solid #334155;"></th></tr></thead><tbody>';
           equip.slice(0, 25).forEach(function(e) {
-            var delBtn = e._source === 'auto' ? '<span title="Auto-imported" style="color:#64748B;font-size:11px;">🔗</span>' : '<button onclick="if(confirm(\'Delete this entry?\'))salesDeleteEquipment(\'' + rep.name + '\',\'' + e.id + '\');renderSalesScorecard();" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:13px;">×</button>';
-            html += '<tr><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.completionDate || e.date || '') + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.customer || '') + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.systemType || '') + '</td><td style="padding:5px;text-align:right;border-bottom:1px solid #1E293B;">$' + Math.round(parseFloat(e.jobsTotal) || 0).toLocaleString() + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;color:#94A3B8;">' + (e.leadGeneratedBy || '—') + '</td><td style="padding:5px;text-align:right;border-bottom:1px solid #1E293B;">' + delBtn + '</td></tr>';
+            // v218.45: Action cell with Edit + Delete (manual rows) or TGL link icon (tgl rows).
+            //  - 'tgl' source: managed in Payout tab editor — show 📌 with tooltip
+            //  - 'auto' source: legacy Brayden seeds — show 🔗 (read-only)
+            //  - 'manual' source (default): full edit + delete
+            var actionCell;
+            if (e._source === 'tgl') {
+              actionCell = '<span title="Edit in Payout tab" style="color:#64748B;font-size:13px;">📌</span>';
+            } else if (e._source === 'auto') {
+              actionCell = '<span title="Auto-imported (read-only)" style="color:#64748B;font-size:11px;">🔗</span>';
+            } else {
+              actionCell =
+                '<button onclick="salesOpenEditModal(\'' + rep.name + '\',\'' + e.id + '\')" title="Edit" style="background:none;border:none;color:#60A5FA;cursor:pointer;font-size:13px;padding:2px 4px;margin-right:2px;">✏️</button>' +
+                '<button onclick="if(confirm(\'Delete this entry?\')){salesDeleteEquipment(\'' + rep.name + '\',\'' + e.id + '\');renderSalesScorecard();}" title="Delete" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:14px;padding:2px 4px;">×</button>';
+            }
+            html += '<tr><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.completionDate || e.date || '') + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.customer || '') + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.systemType || '') + '</td><td style="padding:5px;text-align:right;border-bottom:1px solid #1E293B;">$' + Math.round(parseFloat(e.jobsTotal) || 0).toLocaleString() + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;color:#94A3B8;">' + (e.leadGeneratedBy || '—') + '</td><td style="padding:5px;text-align:right;border-bottom:1px solid #1E293B;white-space:nowrap;">' + actionCell + '</td></tr>';
           });
           html += '</tbody></table></div></details>';
         }
@@ -3776,6 +3890,9 @@ document.addEventListener('visibilitychange', function() {
     window.salesComputeMTD = salesComputeMTD;
     window.salesComputePeriod = salesComputePeriod;
     window.salesGetPeriod = salesGetPeriod;
+    window.salesOpenEditModal = salesOpenEditModal;
+    window.salesSubmitEdit = salesSubmitEdit;
+    window.salesUpdateEquipment = salesUpdateEquipment;
 
     // ===================================================================
     // v218.4 — INSTALL PAY TRACKER (PIN-locked, Maico-only)
