@@ -3506,12 +3506,12 @@ document.addEventListener('visibilitychange', function() {
           if (raw) {
             var existing = JSON.parse(raw);
             if (Array.isArray(existing)) {
-              existing.forEach(function(it) {
+              existing.forEach(function(it, idx) {
                 // De-dupe by jobNumber
                 var dup = equip.some(function(e) { return e.jobNumber && it.jobNumber && e.jobNumber === it.jobNumber; });
                 if (!dup) {
                   equip.push({
-                    id: it.id || ('brayden_' + (it.jobNumber || Date.now())),
+                    id: it.id || ('brayden_' + (it.jobNumber || idx)),
                     date: it.date || it.completionDate || '',
                     customer: it.customer || '',
                     jobNumber: it.jobNumber || it.invoice || '',
@@ -3524,7 +3524,9 @@ document.addEventListener('visibilitychange', function() {
                     jobsTotal: it.jobsTotal || 0,
                     completionDate: it.completionDate || it.date || '',
                     notes: it.notes || '',
-                    _source: 'auto'
+                    _source: 'auto',
+                    _autoIndex: idx, // v218.46: needed for delete/update
+                    _autoJob: it.jobNumber || ''
                   });
                 }
               });
@@ -3543,12 +3545,21 @@ document.addEventListener('visibilitychange', function() {
             if (r.__techSell === true) return;
             var mapped = TGL_SOLDBY_TO_SALESREP[r.soldBy || ''] || '';
             if (mapped !== repName) return;
-            // De-dupe by jobNumber against existing entries
-            var dup = equip.some(function(e) { return e.jobNumber && r.jobNumber && String(e.jobNumber) === String(r.jobNumber); });
-            if (dup) return;
+            // v218.46: Replace any pre-existing equip entry with same jobNumber so
+            // the editable TGL row wins (vs. read-only auto-imported brayden entry).
+            // This eliminates the Mike-Flisser-style duplicates.
+            if (r.jobNumber) {
+              for (var ei = equip.length - 1; ei >= 0; ei--) {
+                if (String(equip[ei].jobNumber || '') === String(r.jobNumber)) {
+                  equip.splice(ei, 1);
+                }
+              }
+            }
+            // v218.46: Build TGL signature so updates can find the row even if jobNumber is blank.
+            var tglSig = ((r.customer || '') + '|' + (r.dateGenerated || '') + '|' + (r.leadGeneratedBy || '')).toLowerCase();
             equip.push({
-              id: 'tgl_' + (r.jobNumber || (r.customer || '') + '_' + (r.completedDate || r.date || '')),
-              date: r.completedDate || r.date || '',
+              id: 'tgl_' + (r.jobNumber || (r.customer || '') + '_' + (r.completedDate || r.dateGenerated || '')),
+              date: r.completedDate || r.dateGenerated || '',
               customer: r.customer || '',
               jobNumber: r.jobNumber || '',
               soldBy: r.soldBy || '',
@@ -3556,9 +3567,11 @@ document.addEventListener('visibilitychange', function() {
               systemType: 'HVAC Install',
               brand: '', tonnage: '', model: '',
               jobsTotal: parseFloat(r.jobTotal) || 0,
-              completionDate: r.completedDate || r.date || '',
+              completionDate: r.completedDate || r.dateGenerated || '',
               notes: '',
-              _source: 'tgl'
+              _source: 'tgl',
+              _tglJob: r.jobNumber || '',
+              _tglSig: tglSig
             });
           });
         }
@@ -3625,17 +3638,134 @@ document.addEventListener('visibilitychange', function() {
       salesSaveRepData(repName, rep);
       return record;
     }
+    // v218.46: Source-aware delete — routes to the right backing store.
+    //  - 'manual': removes from rep.equipment
+    //  - 'auto':   removes from snappy_brayden_installs by jobNumber (or array index)
+    //  - 'tgl':    removes from tglRows via tglDeleteRow + cascades
     function salesDeleteEquipment(repName, id) {
+      var equipAll = salesGetEquipmentFor(repName);
+      var target = equipAll.filter(function(e) { return e.id === id; })[0];
+      if (!target) {
+        // Fallback: try direct manual delete
+        var rep0 = salesGetRepData(repName);
+        if (rep0.equipment) {
+          rep0.equipment = rep0.equipment.filter(function(e) { return e.id !== id; });
+          salesSaveRepData(repName, rep0);
+        }
+        return;
+      }
+      if (target._source === 'tgl') {
+        try { if (typeof tglDeleteRowSilent === 'function') tglDeleteRowSilent(target._tglJob, target._tglSig); else tglDeleteRowDirect(target._tglJob, target._tglSig); } catch(e) { console.warn('tgl delete failed', e); }
+        try { if (typeof tglFullCascade === 'function') tglFullCascade(); } catch(e) {}
+        return;
+      }
+      if (target._source === 'auto') {
+        try {
+          var raw = localStorage.getItem('snappy_brayden_installs');
+          if (raw) {
+            var arr = JSON.parse(raw);
+            if (Array.isArray(arr)) {
+              if (target._autoJob) {
+                arr = arr.filter(function(it) { return String(it.jobNumber || '') !== String(target._autoJob); });
+              } else if (typeof target._autoIndex === 'number') {
+                arr.splice(target._autoIndex, 1);
+              }
+              localStorage.setItem('snappy_brayden_installs', JSON.stringify(arr));
+            }
+          }
+        } catch(e) { console.warn('auto delete failed', e); }
+        return;
+      }
+      // manual
       var rep = salesGetRepData(repName);
       if (!rep.equipment) return;
       rep.equipment = rep.equipment.filter(function(e) { return e.id !== id; });
       salesSaveRepData(repName, rep);
     }
 
-    // v218.45: Update an existing manual equipment record by id (mutates in place,
-    // preserves id + _source). For TGL-sourced rows, edits are blocked here — those
-    // are managed in the Payout tab editor.
+    // v218.46: Silent TGL delete (skip the built-in confirm() since the caller already confirmed)
+    function tglDeleteRowDirect(jobNumber, signature) {
+      try {
+        if (typeof tglLoad !== 'function' || typeof tglSave !== 'function') return false;
+        var d = tglLoad();
+        var idx = -1;
+        if (jobNumber) idx = (d.rows || []).findIndex(function(r){ return (r.jobNumber||'') === jobNumber; });
+        if (idx < 0 && signature) {
+          var sig = String(signature).toLowerCase();
+          idx = (d.rows || []).findIndex(function(r){
+            var rs = ((r.customer||'')+'|'+(r.dateGenerated||'')+'|'+(r.leadGeneratedBy||'')).toLowerCase();
+            return rs === sig;
+          });
+        }
+        if (idx < 0) return false;
+        d.rows.splice(idx, 1);
+        d.lastUpdated = new Date().toISOString();
+        tglSave(d);
+        return true;
+      } catch(e) { console.warn('tglDeleteRowDirect failed', e); return false; }
+    }
+    window.tglDeleteRowDirect = tglDeleteRowDirect;
+
+    // v218.46: Source-aware update — routes to the right backing store and applies
+    // the proper field mapping for each source. Patch keys use the equipment-record
+    // shape (customer, jobNumber, completionDate, jobsTotal, leadGeneratedBy, etc.).
     function salesUpdateEquipment(repName, id, patch) {
+      var equipAll = salesGetEquipmentFor(repName);
+      var target = equipAll.filter(function(e) { return e.id === id; })[0];
+      if (!target) return false;
+
+      if (target._source === 'tgl') {
+        // Route through tglUpdateRow which handles validation, completion, sync.
+        var jn = target._tglJob || '';
+        var sg = target._tglSig || '';
+        var ok = true;
+        function tu(field, val) {
+          if (typeof tglUpdateRow !== 'function') return;
+          var r = tglUpdateRow(jn, sg, field, val);
+          // After jobNumber edits, future calls must use the new jobNumber.
+          if (r && field === 'jobNumber') jn = String(val || '');
+          if (!r) ok = false;
+        }
+        if ('customer' in patch)         tu('customer', patch.customer);
+        if ('jobNumber' in patch)        tu('jobNumber', patch.jobNumber);
+        if ('completionDate' in patch)   tu('completedDate', patch.completionDate);
+        if ('leadGeneratedBy' in patch)  tu('leadBy', patch.leadGeneratedBy);
+        if ('jobsTotal' in patch)        tu('jobTotal', patch.jobsTotal);
+        try { if (typeof tglFullCascade === 'function') tglFullCascade(); } catch(e) {}
+        return ok;
+      }
+
+      if (target._source === 'auto') {
+        try {
+          var raw = localStorage.getItem('snappy_brayden_installs');
+          if (!raw) return false;
+          var arr = JSON.parse(raw);
+          if (!Array.isArray(arr)) return false;
+          // Find by jobNumber first, then fall back to _autoIndex
+          var idx = -1;
+          if (target._autoJob) {
+            idx = arr.findIndex(function(it) { return String(it.jobNumber || '') === String(target._autoJob); });
+          }
+          if (idx < 0 && typeof target._autoIndex === 'number') idx = target._autoIndex;
+          if (idx < 0 || !arr[idx]) return false;
+          var it = arr[idx];
+          if ('customer' in patch)        it.customer = patch.customer;
+          if ('jobNumber' in patch)       it.jobNumber = patch.jobNumber;
+          if ('completionDate' in patch) { it.completionDate = patch.completionDate; it.date = patch.completionDate; }
+          if ('systemType' in patch)      it.systemType = patch.systemType;
+          if ('brand' in patch)           it.brand = patch.brand;
+          if ('tonnage' in patch)         it.tonnage = patch.tonnage;
+          if ('model' in patch)           it.model = patch.model;
+          if ('jobsTotal' in patch)       it.jobsTotal = parseFloat(patch.jobsTotal) || 0;
+          if ('leadGeneratedBy' in patch) it.leadGeneratedBy = patch.leadGeneratedBy;
+          if ('notes' in patch)           it.notes = patch.notes;
+          arr[idx] = it;
+          localStorage.setItem('snappy_brayden_installs', JSON.stringify(arr));
+          return true;
+        } catch(e) { console.warn('auto update failed', e); return false; }
+      }
+
+      // manual
       var rep = salesGetRepData(repName);
       if (!rep.equipment) return false;
       var found = false;
@@ -3655,10 +3785,13 @@ document.addEventListener('visibilitychange', function() {
       return found;
     }
 
-    // v218.45: Edit modal — same fields as Add, prefilled from the existing record.
+    // v218.45 / v218.46: Edit modal — prefilled from the existing record.
+    // v218.46: Reads from the merged equipment list so it works for ALL sources
+    // (manual, auto, tgl). The save path (salesUpdateEquipment) routes to the
+    // correct backing store.
     function salesOpenEditModal(repName, id) {
-      var rep = salesGetRepData(repName);
-      var rec = (rep.equipment || []).filter(function(e) { return e.id === id; })[0];
+      var equipAll = salesGetEquipmentFor(repName);
+      var rec = equipAll.filter(function(e) { return e.id === id; })[0];
       if (!rec) { alert('Entry not found.'); return; }
       var existing = document.getElementById('sales-edit-modal');
       if (existing) existing.remove();
@@ -3673,6 +3806,8 @@ document.addEventListener('visibilitychange', function() {
         var sel = ((rec.systemType || '') === o) ? ' selected' : '';
         return '<option value="' + esc(o) + '"' + sel + '>' + o + '</option>';
       }).join('');
+      var srcLabel = rec._source === 'tgl' ? '<span style="font-size:10px;color:#10B981;background:rgba(16,185,129,0.12);border:1px solid #10B981;border-radius:10px;padding:2px 8px;margin-left:8px;">TGL — cascades</span>' :
+                     rec._source === 'auto' ? '<span style="font-size:10px;color:#A78BFA;background:rgba(167,139,250,0.12);border:1px solid #A78BFA;border-radius:10px;padding:2px 8px;margin-left:8px;">Auto-imported</span>' : '';
       var modal = document.createElement('div');
       modal.id = 'sales-edit-modal';
       modal.className = 'mh-modal-backdrop';
@@ -3680,7 +3815,7 @@ document.addEventListener('visibilitychange', function() {
       modal.innerHTML =
         '<div style="background:#1a1f2e;border-radius:14px;max-width:560px;width:100%;max-height:90vh;overflow:auto;border:1px solid #334155;font-family:Inter,system-ui,sans-serif;color:#E2E8F0;">' +
           '<div style="padding:18px 22px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">' +
-            '<div style="font-size:17px;font-weight:600;">✏️ Edit Equipment Sale — ' + repName + '</div>' +
+            '<div style="font-size:17px;font-weight:600;">✏️ Edit Equipment Sale — ' + repName + srcLabel + '</div>' +
             '<button onclick="document.getElementById(\'sales-edit-modal\').remove()" style="background:none;border:none;color:#94A3B8;font-size:24px;cursor:pointer;">×</button>' +
           '</div>' +
           '<div style="padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
@@ -3855,20 +3990,18 @@ document.addEventListener('visibilitychange', function() {
           html += '<div style="overflow-x:auto;margin-top:8px;"><table style="width:100%;font-size:12px;color:#CBD5E1;border-collapse:collapse;">';
           html += '<thead><tr style="background:#0F172A;"><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Date</th><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Customer</th><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Type</th><th style="padding:6px;text-align:right;border-bottom:1px solid #334155;">Total</th><th style="padding:6px;text-align:left;border-bottom:1px solid #334155;">Lead</th><th style="padding:6px;text-align:right;border-bottom:1px solid #334155;"></th></tr></thead><tbody>';
           equip.slice(0, 25).forEach(function(e) {
-            // v218.45: Action cell with Edit + Delete (manual rows) or TGL link icon (tgl rows).
-            //  - 'tgl' source: managed in Payout tab editor — show 📌 with tooltip
-            //  - 'auto' source: legacy Brayden seeds — show 🔗 (read-only)
-            //  - 'manual' source (default): full edit + delete
-            var actionCell;
-            if (e._source === 'tgl') {
-              actionCell = '<span title="Edit in Payout tab" style="color:#64748B;font-size:13px;">📌</span>';
-            } else if (e._source === 'auto') {
-              actionCell = '<span title="Auto-imported (read-only)" style="color:#64748B;font-size:11px;">🔗</span>';
-            } else {
-              actionCell =
-                '<button onclick="salesOpenEditModal(\'' + rep.name + '\',\'' + e.id + '\')" title="Edit" style="background:none;border:none;color:#60A5FA;cursor:pointer;font-size:13px;padding:2px 4px;margin-right:2px;">✏️</button>' +
-                '<button onclick="if(confirm(\'Delete this entry?\')){salesDeleteEquipment(\'' + rep.name + '\',\'' + e.id + '\');renderSalesScorecard();}" title="Delete" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:14px;padding:2px 4px;">×</button>';
-            }
+            // v218.46: Edit + Delete on EVERY row regardless of source. Source-aware
+            // save/delete routes writes to manual store, snappy_brayden_installs, or
+            // tglRows (the latter triggers tglFullCascade so changes propagate).
+            var srcDot = e._source === 'tgl'
+              ? '<span title="From Payout tab — edits cascade everywhere" style="color:#10B981;font-size:9px;margin-right:4px;">●</span>'
+              : e._source === 'auto'
+              ? '<span title="Auto-imported" style="color:#A78BFA;font-size:9px;margin-right:4px;">●</span>'
+              : '<span title="Manual entry" style="color:#60A5FA;font-size:9px;margin-right:4px;">●</span>';
+            var actionCell =
+              srcDot +
+              '<button onclick="salesOpenEditModal(\'' + rep.name + '\',\'' + e.id + '\')" title="Edit" style="background:none;border:none;color:#60A5FA;cursor:pointer;font-size:13px;padding:2px 4px;margin-right:2px;">✏️</button>' +
+              '<button onclick="if(confirm(\'Delete this entry?\')){salesDeleteEquipment(\'' + rep.name + '\',\'' + e.id + '\');renderSalesScorecard();}" title="Delete" style="background:none;border:none;color:#EF4444;cursor:pointer;font-size:14px;padding:2px 4px;">×</button>';
             html += '<tr><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.completionDate || e.date || '') + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.customer || '') + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;">' + (e.systemType || '') + '</td><td style="padding:5px;text-align:right;border-bottom:1px solid #1E293B;">$' + Math.round(parseFloat(e.jobsTotal) || 0).toLocaleString() + '</td><td style="padding:5px;border-bottom:1px solid #1E293B;color:#94A3B8;">' + (e.leadGeneratedBy || '—') + '</td><td style="padding:5px;text-align:right;border-bottom:1px solid #1E293B;white-space:nowrap;">' + actionCell + '</td></tr>';
           });
           html += '</tbody></table></div></details>';
