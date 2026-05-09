@@ -70,10 +70,15 @@ function shareMatrix() {
 
 // ========== ACCESS CONTROL (Manager vs Viewer vs Coach vs Editor) ==========
 const MGR_PIN = 'sanders';
+// v218.51: Additional manager passwords. Keyed by PIN, value is the manager's
+// display name. These get FULL manager access identical to MGR_PIN (sanders),
+// AND unlock the Install Pay tab via ipCheckPin.
+const MGR_PINS = {
+  'BOND': 'Brayden Bond'
+};
 const COACH_PINS = {
   'Nexstar': 'Jay / Greg',
-  'AdamB': 'Adam',
-  'BOND': 'Brayden'
+  'AdamB': 'Adam'
 };
 const EDITOR_PINS = {
   'OPM': 'Judah'
@@ -296,13 +301,18 @@ function promptManagerPIN() {
   var pin = prompt('Enter password:');
   if (pin === null) return;
   pin = (pin || '').trim();
-  if (pin === MGR_PIN) {
+  if (pin === MGR_PIN || MGR_PINS[pin]) {
     isManagerMode = true;
     isCoachMode = false;
     isEditorMode = false;
     coachName = '';
     editorName = '';
+    // v218.51: track which manager logged in (Maico vs Brayden) for
+    // audit/display purposes. Empty string = primary manager (Maico).
+    var mgrName = (pin === MGR_PIN) ? '' : MGR_PINS[pin];
     localStorage.setItem('snappy_mgr_mode', 'true');
+    if (mgrName) localStorage.setItem('snappy_mgr_name', mgrName);
+    else localStorage.removeItem('snappy_mgr_name');
     localStorage.removeItem('snappy_coach_mode');
     localStorage.removeItem('snappy_coach_name');
     localStorage.removeItem('snappy_editor_mode');
@@ -6536,7 +6546,13 @@ document.addEventListener('visibilitychange', function() {
       }
       return stored;
     }
-    function ipCheckPin(pin) { return ipHashPin(pin) === ipGetPinHash(); }
+    function ipCheckPin(pin) {
+      // v218.51: any manager password (MGR_PIN or any MGR_PINS key) also
+      // unlocks Install Pay — so Maico and Brayden don't need a separate PIN.
+      if (typeof MGR_PIN !== 'undefined' && pin === MGR_PIN) return true;
+      if (typeof MGR_PINS !== 'undefined' && MGR_PINS && MGR_PINS[pin]) return true;
+      return ipHashPin(pin) === ipGetPinHash();
+    }
     function ipSetPin(newPin) { localStorage.setItem(INSTALL_PAY_PIN_KEY, ipHashPin(newPin)); }
     function ipIsUnlocked() {
       try { return sessionStorage.getItem(INSTALL_PAY_UNLOCK_KEY) === '1'; } catch(e) { return false; }
