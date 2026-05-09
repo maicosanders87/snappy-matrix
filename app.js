@@ -4169,6 +4169,103 @@ document.addEventListener('visibilitychange', function() {
       try { renderMgrToday(); } catch(e) {}
     }
 
+    // v218.52: Build Install Pay <option> list for the Add Equipment Sale picker.
+    // Returns HTML <option> string. Filters out jobs already recorded as
+    // equipment sales for THIS rep (by jobNumber match) so the dropdown is clean.
+    function _salesBuildIpPickerOptions(repName) {
+      try {
+        var jobs = (typeof ipLoadData === 'function') ? (ipLoadData().jobs || []) : [];
+        // Existing recorded sales for this rep (to filter dupes)
+        var existingJobs = {};
+        try {
+          var recs = (typeof salesGetEquipmentFor === 'function') ? salesGetEquipmentFor(repName) : [];
+          (recs || []).forEach(function(r){ if (r && r.jobNumber) existingJobs[String(r.jobNumber)] = true; });
+        } catch(e) {}
+        // Group IP jobs by jobNumber so multi-installer jobs collapse to one row
+        var byJob = {};
+        jobs.forEach(function(j){
+          if (!j || !j.jobNumber) return;
+          var jn = String(j.jobNumber);
+          if (!byJob[jn]) {
+            byJob[jn] = {
+              jobNumber: jn,
+              date: j.date || '',
+              customer: j.customer || '',
+              jobsTotal: parseFloat(j.jobsTotal || j.basePay || 0) || 0,
+              leadGeneratedBy: j.leadGeneratedBy || ''
+            };
+          } else {
+            // Prefer the highest-fidelity total + earliest date
+            if (parseFloat(j.jobsTotal || 0) > byJob[jn].jobsTotal) byJob[jn].jobsTotal = parseFloat(j.jobsTotal);
+            if (j.leadGeneratedBy && !byJob[jn].leadGeneratedBy) byJob[jn].leadGeneratedBy = j.leadGeneratedBy;
+          }
+        });
+        var arr = Object.keys(byJob).map(function(k){ return byJob[k]; });
+        // Newest first
+        arr.sort(function(a,b){ return (b.date || '').localeCompare(a.date || ''); });
+        var opts = '<option value="">— Manual entry —</option>';
+        arr.forEach(function(j){
+          var alreadyAdded = !!existingJobs[j.jobNumber];
+          var label = (j.date ? j.date.slice(5) + ' ' : '') + (j.customer || '(no customer)') + ' — #' + j.jobNumber + ' — $' + Math.round(j.jobsTotal).toLocaleString();
+          if (alreadyAdded) label += ' ✓ already added';
+          // Encode the payload as JSON in the value (safe via attribute escaping)
+          var payload = {
+            jobNumber: j.jobNumber,
+            customer: j.customer,
+            date: j.date,
+            jobsTotal: j.jobsTotal,
+            leadGeneratedBy: j.leadGeneratedBy
+          };
+          var val = JSON.stringify(payload).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          opts += '<option value="' + val + '"' + (alreadyAdded ? ' disabled' : '') + '>' + label.replace(/</g,'&lt;') + '</option>';
+        });
+        return opts;
+      } catch(e) {
+        console.warn('_salesBuildIpPickerOptions failed', e);
+        return '<option value="">— Manual entry —</option>';
+      }
+    }
+
+    // v218.52: Autofill the Add Equipment Sale form from the Install Pay picker.
+    function salesPullFromInstallPay(jsonVal) {
+      try {
+        if (!jsonVal) return;
+        var p = JSON.parse(jsonVal.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+        var setVal = function(id, v){ var el = document.getElementById(id); if (el) el.value = v == null ? '' : v; };
+        setVal('sa-customer', p.customer || '');
+        setVal('sa-job', p.jobNumber || '');
+        setVal('sa-date', p.date || '');
+        setVal('sa-total', p.jobsTotal || '');
+        // Map IP leadGeneratedBy first names to the dropdown's full names
+        var leadMap = {
+          'Dewone': 'Dewone',
+          'Chris': 'Chris Monahan',
+          'Benji': 'Ben Tinahui',
+          'Ben': 'Ben Tinahui',
+          'Daniel': 'Daniel Gazaway',
+          'Dee': 'Dee Williams',
+          'Nick': 'Nick Goehler',
+          'Marketing': 'Marketing'
+        };
+        var leadFull = leadMap[p.leadGeneratedBy] || p.leadGeneratedBy || '';
+        var sel = document.getElementById('sa-leadby');
+        if (sel) {
+          var found = false;
+          for (var i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === leadFull || sel.options[i].text === leadFull) {
+              sel.selectedIndex = i;
+              found = true;
+              break;
+            }
+          }
+          if (!found) sel.selectedIndex = 0; // Self / Direct
+        }
+      } catch(e) {
+        console.warn('salesPullFromInstallPay failed', e);
+      }
+    }
+    window.salesPullFromInstallPay = salesPullFromInstallPay;
+
     // Open the equipment-add modal for a rep
     function salesOpenAddModal(repName) {
       var existing = document.getElementById('sales-add-modal');
@@ -4182,6 +4279,17 @@ document.addEventListener('visibilitychange', function() {
           '<div style="padding:18px 22px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">' +
             '<div style="font-size:17px;font-weight:600;">🔧 Add Equipment Sale — ' + repName + '</div>' +
             '<button onclick="document.getElementById(\'sales-add-modal\').remove()" style="background:none;border:none;color:#94A3B8;font-size:24px;cursor:pointer;">×</button>' +
+          '</div>' +
+          // v218.52: Install Pay picker autofill block. _salesBuildIpPickerOptions
+          // pulls jobs from ipLoadData() not yet linked to a sales record for
+          // THIS rep. salesPullFromInstallPay autofills the form below.
+          '<div style="padding:14px 22px 0 22px;">' +
+            '<label style="display:block;font-size:13px;color:#93C5FD;">⚡ Pull from Install Pay (auto-fill)' +
+              '<select id="sa-ip-pick" onchange="salesPullFromInstallPay(this.value)" style="width:100%;padding:8px;background:#0F172A;border:1px solid #3B82F6;border-radius:6px;color:#E2E8F0;margin-top:4px;">' +
+                _salesBuildIpPickerOptions(repName) +
+              '</select>' +
+            '</label>' +
+            '<div style="font-size:11px;color:#64748B;margin-top:4px;">Pick a job to auto-fill the form below, or skip and enter manually.</div>' +
           '</div>' +
           '<div style="padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
             '<label style="grid-column:span 2;">Customer Name<input id="sa-customer" type="text" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
