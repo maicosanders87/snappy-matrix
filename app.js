@@ -4883,7 +4883,9 @@ document.addEventListener('visibilitychange', function() {
     // My Leads tab can match them to tech shorts. Idempotent + cheap.
     function tglBackfillNormalizeNamesIfNeeded() {
       try {
-        var FLAG = 'snappy_tgl_normalize_backfill_v218_29';
+        // v218.53: Bump flag to re-run normalize once. Cloud B25 had a 'Dewone Martin'
+        // leadGeneratedBy that should normalize to 'Dewone' so MTD/composite bumps merge.
+        var FLAG = 'snappy_tgl_normalize_backfill_v218_53';
         if (localStorage.getItem(FLAG) === '1') return;
         var d = tglLoad();
         if (!d || !Array.isArray(d.rows)) { localStorage.setItem(FLAG, '1'); return; }
@@ -6004,6 +6006,11 @@ document.addEventListener('visibilitychange', function() {
       try { if (typeof renderSalesScorecard === 'function') renderSalesScorecard(); } catch(e) {}
       try { if (typeof renderTierProgression === 'function') renderTierProgression(); } catch(e) {}
       try { if (typeof renderLeaderboard === 'function') renderLeaderboard(); } catch(e) {}
+      // v218.53: cascade to Weekly Leaderboard + Rookie Cards (manager card now
+      // live-pulls 90-day install stats from TGL store; tech composites/tiers
+      // recompute via tglCompositeBump on every render).
+      try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
+      try { if (typeof renderRookieCards === 'function') renderRookieCards(); } catch(e) {}
     }
     window.tglFullCascade = tglFullCascade;
 
@@ -13318,6 +13325,47 @@ if (typeof Chart !== 'undefined') {
     window.braydenEditStat = braydenEditStat;
     window.braydenLoadStats = braydenLoadStats;
 
+    // v218.53: Live-pull manager (Maico) install stats from the TGL store.
+    // Looks at the last 90 days of completed rows where Maico is the seller
+    // (soldBy === 'Maico') OR ranBy includes 'Maico'. Falls back to a hardcoded
+    // baseline if the TGL store is empty/unavailable.
+    function mgrComputeInstallsLive() {
+      try {
+        if (typeof tglLoad !== 'function') throw new Error('no tglLoad');
+        var rows = (tglLoad().rows || []);
+        var todayMs = Date.now();
+        var ninetyAgoMs = todayMs - 90*86400000;
+        var count = 0, rev = 0, opps = 0;
+        rows.forEach(function(r){
+          if (!r) return;
+          // Maico-association: either he sold it or he ran it
+          var maicoOnRanBy = Array.isArray(r.ranBy) && r.ranBy.indexOf('Maico') >= 0;
+          var maicoSold = (r.soldBy === 'Maico');
+          if (!maicoSold && !maicoOnRanBy) return;
+          // Use completedDate || dateGenerated for time filter
+          var iso = r.completedDate || r.dateGenerated || '';
+          if (!iso) return;
+          var rowMs = Date.parse(iso + 'T12:00:00');
+          if (isNaN(rowMs)) return;
+          if (rowMs < ninetyAgoMs || rowMs > todayMs) return;
+          opps++;
+          if (r.status === 'completed') {
+            count++;
+            rev += parseFloat(r.jobTotal || 0) || 0;
+          }
+        });
+        // If we found no rows at all, return null so the caller uses the fallback
+        if (opps === 0 && count === 0) return null;
+        var avg = count > 0 ? Math.round(rev / count) : 0;
+        var conv = opps > 0 ? Math.round((count / opps) * 100) : 0;
+        return { count: count, total_revenue: Math.round(rev), avg_sale: avg, opps: opps, conv_pct: conv };
+      } catch(e) {
+        console.warn('mgrComputeInstallsLive failed', e);
+        return null;
+      }
+    }
+    window.mgrComputeInstallsLive = mgrComputeInstallsLive;
+
     function renderRookieCards() {
       let html = '';
 
@@ -13325,7 +13373,14 @@ if (typeof Chart !== 'undefined') {
       const mgrTierLower = 'b';
       const mgrCompBarColor = '#60A5FA';
       const ms = mgrLoadStats();
-      const mgrInstalls = { count: 5, total_revenue: 69610, avg_sale: 13922, opps: 10, conv_pct: 40 };
+      // v218.53: Auto-pull last-90-day install stats from TGL store. Use live
+      // figures when they exceed the hardcoded baseline; otherwise stick with
+      // the baseline so the card never under-reports historical performance.
+      const mgrLiveInstalls = mgrComputeInstallsLive();
+      const mgrBaseline = { count: 5, total_revenue: 69610, avg_sale: 13922, opps: 10, conv_pct: 40 };
+      const mgrInstalls = (mgrLiveInstalls && mgrLiveInstalls.total_revenue > mgrBaseline.total_revenue)
+        ? mgrLiveInstalls
+        : mgrBaseline;
       const mgrNexstar = { total_revenue: 7083, avg_sale: 403, conversion_rate: 36, spps_sold: 5, tech_gen_leads: 2, sold_hours: 13.45 };
       html += `
         <div class="rookie-flip-container no-flip">
