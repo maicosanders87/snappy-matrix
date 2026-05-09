@@ -2726,6 +2726,38 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260508IfNeeded failed', e); }
     }
 
+    // v218.54: Heal MTD memberships for 5/6 and 5/7. Original WLB seeds for those days
+    // updated weekly leaderboard memSold/memOpps but did NOT bump tech.mtd_memberships,
+    // so rookie cards still showed seeded-through-5/5 totals plus only the 5/8 daily.
+    // Per source data:
+    //   5/6: Dewone +1/1, Chris +1/1, Benji +0/1
+    //   5/7: Dewone +1/1
+    // Additive only, runs once via FLAG. Also recomputes mem_pct.
+    function _mtdMembershipsHealV21854IfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_memberships_heal_v218_54';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        var bumps = [
+          // (name, addSold, addOpps) — combined 5/6 + 5/7
+          { name: 'Dewone', s: 2, o: 2 },
+          { name: 'Chris',  s: 1, o: 1 },
+          { name: 'Benji',  s: 0, o: 1 }
+        ];
+        bumps.forEach(function(b) {
+          var st = stData.find(function(s){ return s.name === b.name; });
+          if (!st) return;
+          if (!st.mtd_memberships) st.mtd_memberships = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
+          st.mtd_memberships.total_mem_sold = (st.mtd_memberships.total_mem_sold || 0) + b.s;
+          st.mtd_memberships.total_mem_opps = (st.mtd_memberships.total_mem_opps || 0) + b.o;
+          if (st.mtd_memberships.total_mem_opps > 0) {
+            st.mtd_memberships.total_mem_pct = Math.round((st.mtd_memberships.total_mem_sold / st.mtd_memberships.total_mem_opps) * 100);
+          }
+        });
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_mtdMembershipsHealV21854IfNeeded failed', e); }
+    }
+
     // v217: One-shot Brayden install seed for May 4, 2026 ($30,271.55, sold by Brayden Bond, lead by Chris Monahan).
     function _braydenSeedMay20260504IfNeeded() {
       try {
@@ -20311,6 +20343,7 @@ if (typeof Chart !== 'undefined') {
     try { _wlbCorrect20260506DeeIfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260507IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260508IfNeeded(); } catch(e) {}
+    try { _mtdMembershipsHealV21854IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260504IfNeeded(); } catch(e) {}
     try { _tglSeedMay20260504IfNeeded(); } catch(e) {}
     // v218.29: Heal stored leadGeneratedBy values for rows imported under older normalizer
