@@ -2997,7 +2997,12 @@ document.addEventListener('visibilitychange', function() {
     // local stores. Idempotent — gated on snappy_brayden_tgl_heal_v21849 flag.
     function _braydenTglHealV21849IfNeeded() {
       try {
-        var FLAG = 'snappy_brayden_tgl_heal_v21849';
+        // v218.50: bumped flag so heal re-runs ONCE on this version. The v218.49
+        // pass surfaced 4 of 5 rows but missed Gladson (lead='Dewone',
+        // $7,499.59, 5/7) likely because the local row has a different
+        // jobNumber AND customer spelling. v218.50 adds a date+amount fallback
+        // and is more aggressive about matching.
+        var FLAG = 'snappy_brayden_tgl_heal_v21850';
         if (localStorage.getItem(FLAG) === '1') return;
         if (typeof tglLoad !== 'function' || typeof tglSave !== 'function') return;
         var d = tglLoad();
@@ -3019,13 +3024,34 @@ document.addEventListener('visibilitychange', function() {
         var nowIso = new Date().toISOString();
 
         BRAYDEN_MAY_2026.forEach(function(spec){
-          // Find by jobNumber first; fall back to customer match.
+          // Find by jobNumber first; fall back to customer match; final fallback
+          // by date + amount (within $1) + soldBy/assigned/leadGen association.
           var idx = rows.findIndex(function(r){ return r && r.jobNumber === spec.jobNumber; });
           if (idx < 0) {
             idx = rows.findIndex(function(r){
-              return r && _norm(r.customer) === _norm(spec.customer) &&
-                     (r.soldBy === 'Brayden Bond' || (Array.isArray(r.assignedTechnicians) && r.assignedTechnicians.indexOf('Brayden Bond') >= 0));
+              return r && _norm(r.customer) === _norm(spec.customer);
             });
+          }
+          if (idx < 0) {
+            // Fallback: date + amount within $1 (any status) — pick any row
+            // that smells like this install regardless of who's currently on it.
+            var specDate = spec.date;
+            var specTotal = spec.total;
+            idx = rows.findIndex(function(r){
+              if (!r) return false;
+              var rd = (r.completedDate || r.dateGenerated || '').slice(0,10);
+              var rt = parseFloat(r.jobTotal) || 0;
+              return rd === specDate && Math.abs(rt - specTotal) < 1;
+            });
+          }
+          if (idx < 0) {
+            // Last fallback: customer name partial-match (last name only)
+            var lastName = (spec.customer.split(/\s+/).pop() || '').toLowerCase();
+            if (lastName.length >= 4) {
+              idx = rows.findIndex(function(r){
+                return r && _norm(r.customer).split(' ').indexOf(lastName) >= 0;
+              });
+            }
           }
           var assigned = ['Brayden Bond'].concat(spec.installers || []);
           if (idx < 0) {
@@ -3102,7 +3128,7 @@ document.addEventListener('visibilitychange', function() {
         if (changed > 0) {
           tglSave(d);
           try { localStorage.setItem('snappy_open_tgls_v1_localMod', String(Date.now())); } catch(e) {}
-          console.log('[v218.49] Brayden TGL heal: ' + changed + ' row(s) updated.');
+          console.log('[v218.50] Brayden TGL heal: ' + changed + ' row(s) updated.');
           // Cascade: refresh views + re-run dependent backfills
           try { if (typeof tglBackfillNormalizeNamesIfNeeded === 'function') tglBackfillNormalizeNamesIfNeeded(); } catch(e) {}
           try { if (typeof tglFullCascade === 'function') tglFullCascade(); } catch(e) {}
@@ -3115,7 +3141,7 @@ document.addEventListener('visibilitychange', function() {
             }
           } catch(e) {}
         } else {
-          console.log('[v218.49] Brayden TGL heal: no changes needed.');
+          console.log('[v218.50] Brayden TGL heal: no changes needed.');
         }
         localStorage.setItem(FLAG, '1');
       } catch(e) { console.warn('_braydenTglHealV21849IfNeeded failed', e); }
