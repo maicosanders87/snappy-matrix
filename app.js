@@ -4921,6 +4921,9 @@ document.addEventListener('visibilitychange', function() {
               return tglNormalizeTechName(an) === techShort;
             });
           }
+          // v218.48: defense-in-depth — auto-paired completed rows may have
+          // installer-only ranBy/assigned but still carry sales credit via soldBy.
+          if (!match && r.soldBy === techShort) match = true;
         } else {
           match = (r.leadGeneratedBy === techShort);
         }
