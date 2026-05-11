@@ -2734,7 +2734,7 @@ document.addEventListener('visibilitychange', function() {
     // Locks the canonical numbers in one pass. Runs once via FLAG.
     function _mtdSourceOfTruthHealV21855IfNeeded() {
       try {
-        var FLAG = 'snappy_mtd_source_of_truth_heal_v218_55';
+        var FLAG = 'snappy_mtd_source_of_truth_heal_v218_58';
         if (localStorage.getItem(FLAG) === '1') return;
         if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
         // From ServiceTitan IMG_0244 (Nexstar) + IMG_0245 (Memberships) MTD May 2026:
@@ -13903,6 +13903,17 @@ if (typeof Chart !== 'undefined') {
                         <div class="s-tier-sparkle"></div><div class="s-tier-sparkle"></div>
                       </div>
                       <div class="s-tier-color-cycle"></div>
+                    ` : ''}
+                    ${tierLower === 'a' ? `
+                      <div class="a-tier-embers">
+                        <div class="a-ember"></div><div class="a-ember"></div><div class="a-ember"></div>
+                        <div class="a-ember"></div><div class="a-ember"></div><div class="a-ember"></div>
+                      </div>
+                      <div class="a-tier-sparks">
+                        <div class="a-tier-spark"></div><div class="a-tier-spark"></div>
+                        <div class="a-tier-spark"></div><div class="a-tier-spark"></div>
+                        <div class="a-tier-spark"></div>
+                      </div>
                     ` : ''}
                     <div class="rookie-label">
                       <span class="rookie-tag">Snappy Services</span>

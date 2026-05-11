@@ -1626,6 +1626,90 @@
       100% { transform: scaleX(0.98) scaleY(0.95); opacity: 0.45; }
     }
 
+    /* === A-TIER AVATAR EMBER ANIMATIONS === v218.58 — toned-down S-tier flames in red/orange/gold only */
+    .rookie-tier-a .rookie-avatar-wrap {
+      overflow: hidden;
+    }
+    .a-tier-embers {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .a-ember {
+      position: absolute;
+      bottom: 0;
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+      filter: blur(7px);
+      mix-blend-mode: screen;
+      transform-origin: bottom center;
+    }
+    .a-ember:nth-child(1) {
+      left: -3%; width: 24%; height: 55%;
+      background: radial-gradient(ellipse at 50% 80%, rgba(249,115,22,0.55) 0%, rgba(220,38,38,0.30) 45%, transparent 70%);
+      animation: sFlameDance1 2.4s ease-in-out infinite alternate;
+    }
+    .a-ember:nth-child(2) {
+      left: 5%; width: 18%; height: 42%;
+      background: radial-gradient(ellipse at 50% 80%, rgba(251,191,36,0.45) 0%, rgba(249,115,22,0.25) 50%, transparent 70%);
+      animation: sFlameDance2 2.8s ease-in-out infinite alternate;
+      animation-delay: -0.5s;
+    }
+    .a-ember:nth-child(3) {
+      left: 14%; width: 14%; height: 35%;
+      background: radial-gradient(ellipse at 50% 75%, rgba(220,38,38,0.40) 0%, rgba(185,28,28,0.22) 50%, transparent 70%);
+      animation: sFlameDance3 2s ease-in-out infinite alternate;
+      animation-delay: -1s;
+    }
+    .a-ember:nth-child(4) {
+      right: -3%; left: auto; width: 24%; height: 52%;
+      background: radial-gradient(ellipse at 50% 80%, rgba(249,115,22,0.50) 0%, rgba(220,38,38,0.28) 45%, transparent 70%);
+      animation: sFlameDance1 2.6s ease-in-out infinite alternate;
+      animation-delay: -0.8s;
+    }
+    .a-ember:nth-child(5) {
+      right: 5%; left: auto; width: 18%; height: 40%;
+      background: radial-gradient(ellipse at 50% 80%, rgba(251,191,36,0.42) 0%, rgba(249,115,22,0.24) 45%, transparent 70%);
+      animation: sFlameDance2 2.2s ease-in-out infinite alternate;
+      animation-delay: -1.3s;
+    }
+    .a-ember:nth-child(6) {
+      left: 5%; width: 90%; height: 28%; bottom: -4%;
+      background: radial-gradient(ellipse at 50% 100%, rgba(249,115,22,0.45) 0%, rgba(220,38,38,0.22) 40%, transparent 70%);
+      animation: sFlameBase 2s ease-in-out infinite alternate;
+      filter: blur(11px);
+      border-radius: 50%;
+    }
+
+    /* Floating amber sparks — fewer + smaller than S-tier sparkles */
+    .a-tier-sparks {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 3;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .a-tier-spark {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,210,140,0.85) 0%, rgba(251,191,36,0.4) 50%, transparent 80%);
+      box-shadow: 0 0 8px rgba(251,191,36,0.6);
+      animation: aTierSparkFloat ease-in-out infinite;
+      opacity: 0;
+    }
+    .a-tier-spark:nth-child(1) { left: 12%; top: 65%; animation-delay: 0s;   animation-duration: 3.5s; width: 4px; height: 4px; }
+    .a-tier-spark:nth-child(2) { left: 30%; top: 75%; animation-delay: 0.9s; animation-duration: 4s;   width: 3px; height: 3px; }
+    .a-tier-spark:nth-child(3) { left: 55%; top: 55%; animation-delay: 1.6s; animation-duration: 3.2s; width: 5px; height: 5px; }
+    .a-tier-spark:nth-child(4) { left: 75%; top: 70%; animation-delay: 0.4s; animation-duration: 3.8s; width: 4px; height: 4px; }
+    .a-tier-spark:nth-child(5) { left: 88%; top: 50%; animation-delay: 2.2s; animation-duration: 3.6s; width: 3px; height: 3px; }
+    @keyframes aTierSparkFloat {
+      0%, 100% { opacity: 0; transform: translateY(0) scale(0.6); }
+      25% { opacity: 0.85; transform: translateY(-12px) scale(1); }
+      50% { opacity: 0.6; transform: translateY(-24px) scale(0.85); }
+      75% { opacity: 0.3; transform: translateY(-36px) scale(0.7); }
+    }
+
     /* Floating diamond sparkles — PRESERVED */
     .s-tier-sparkles {
       position: absolute;
