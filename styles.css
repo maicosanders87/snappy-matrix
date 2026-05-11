@@ -1253,22 +1253,109 @@
     .rookie-tier-b .rookie-stat-label { color: rgba(147,197,253,0.5); }
     .rookie-tier-b .rookie-composite-label { color: rgba(147,197,253,0.5); }
 
-    /* A-TIER: Deep red — PRESERVED */
+    /* A-TIER: Fire/Championship holographic — v218.57 — toned-down S-tier with red/orange/gold palette */
     .rookie-tier-a {
       background:
-        radial-gradient(ellipse at 20% 90%, rgba(220,38,38,0.24) 0%, transparent 55%),
-        radial-gradient(ellipse at 85% 15%, rgba(248,113,113,0.18) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 50%, rgba(185,28,28,0.12) 0%, transparent 65%),
-        linear-gradient(160deg, #1A0A0A 0%, #2D0F0F 30%, #3B1212 55%, #280E0E 100%);
-      box-shadow: 0 4px 28px rgba(220,38,38,0.3), 0 2px 8px rgba(0,0,0,0.15);
-      animation: rookiePulseA 4s ease-in-out infinite;
+        radial-gradient(ellipse at 25% 85%, rgba(220,38,38,0.22) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 15%, rgba(249,115,22,0.20) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(251,191,36,0.10) 0%, transparent 60%),
+        radial-gradient(ellipse at 10% 30%, rgba(248,113,113,0.14) 0%, transparent 45%),
+        radial-gradient(ellipse at 90% 70%, rgba(185,28,28,0.14) 0%, transparent 45%),
+        linear-gradient(160deg, #1A0A0A 0%, #2A0F0F 25%, #2E1410 50%, #2A1208 75%, #1F0A08 100%);
+      box-shadow:
+        0 4px 28px rgba(220,38,38,0.25),
+        0 4px 24px rgba(249,115,22,0.18),
+        0 0 50px rgba(251,191,36,0.05),
+        0 2px 8px rgba(0,0,0,0.15);
+      animation: aTierFireShimmer 6s ease infinite;
+      will-change: box-shadow;
     }
-    @keyframes rookiePulseA {
-      0%, 100% { box-shadow: 0 4px 28px rgba(220,38,38,0.3), 0 2px 8px rgba(0,0,0,0.15); }
-      50% { box-shadow: 0 6px 36px rgba(220,38,38,0.45), 0 2px 12px rgba(248,113,113,0.2); }
+    /* Animated fire gradient overlay — slower + lower opacity than S-tier rainbow */
+    .rookie-tier-a::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 14px;
+      background: linear-gradient(
+        135deg,
+        rgba(220,38,38,0.06) 0%,
+        rgba(249,115,22,0.06) 25%,
+        rgba(251,191,36,0.06) 50%,
+        rgba(249,115,22,0.06) 75%,
+        rgba(220,38,38,0.06) 100%
+      );
+      background-size: 400% 400%;
+      animation: aTierFireGradient 8s ease infinite;
+      z-index: 0;
+      pointer-events: none;
+    }
+    /* Subtle diagonal heat-shimmer streak — slower + dimmer than S-tier */
+    .rookie-tier-a::after {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: linear-gradient(
+        115deg,
+        transparent 0%,
+        transparent 42%,
+        rgba(251,191,36,0.04) 47%,
+        rgba(255,200,100,0.08) 50%,
+        rgba(251,191,36,0.04) 53%,
+        transparent 58%,
+        transparent 100%
+      );
+      animation: aTierLightStreak 6s ease-in-out infinite;
+      z-index: 1;
+      pointer-events: none;
+      border-radius: 14px;
+      will-change: transform, opacity;
+    }
+    @keyframes aTierLightStreak {
+      0% { transform: translateX(-80%) translateY(-20%) rotate(0deg); opacity: 0; }
+      20% { opacity: 1; }
+      55% { transform: translateX(80%) translateY(20%) rotate(0deg); opacity: 1; }
+      75% { opacity: 0; }
+      100% { transform: translateX(80%) translateY(20%) rotate(0deg); opacity: 0; }
+    }
+    @keyframes aTierFireGradient {
+      0% { background-position: 0% 0%; }
+      33% { background-position: 100% 50%; }
+      66% { background-position: 50% 100%; }
+      100% { background-position: 0% 0%; }
+    }
+    @keyframes aTierFireShimmer {
+      0%, 100% {
+        box-shadow:
+          0 4px 30px rgba(220,38,38,0.28),
+          0 4px 24px rgba(249,115,22,0.18),
+          0 0 50px rgba(251,191,36,0.05);
+      }
+      50% {
+        box-shadow:
+          0 4px 30px rgba(249,115,22,0.30),
+          0 4px 24px rgba(251,191,36,0.18),
+          0 0 50px rgba(220,38,38,0.08);
+      }
     }
     .rookie-tier-a:hover {
-      box-shadow: 0 12px 44px rgba(220,38,38,0.5), 0 6px 16px rgba(248,113,113,0.3);
+      box-shadow:
+        0 12px 50px rgba(220,38,38,0.45),
+        0 8px 40px rgba(249,115,22,0.30),
+        0 0 70px rgba(251,191,36,0.10);
+    }
+    /* A-tier amber aura breathing on flip container — toned down vs S-tier */
+    .rookie-flip-container:has(.rookie-tier-a) {
+      animation: aTierAuraPulse 4s ease-in-out infinite;
+      border-radius: 16px;
+    }
+    @keyframes aTierAuraPulse {
+      0%, 100% {
+        filter: drop-shadow(0 0 6px rgba(220,38,38,0.12)) drop-shadow(0 0 16px rgba(249,115,22,0.06));
+      }
+      50% {
+        filter: drop-shadow(0 0 12px rgba(249,115,22,0.22)) drop-shadow(0 0 28px rgba(251,191,36,0.10));
+      }
     }
     .rookie-tier-a .rookie-stat {
       background: rgba(220,38,38,0.12);
