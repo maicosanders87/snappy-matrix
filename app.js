@@ -9294,8 +9294,16 @@ document.addEventListener('visibilitychange', function() {
       const aptScore = getTechAptitudeScore(tech);
 
       // 2. Skills tag score (0–100): assigned skills / total skills available
-      const totalSkillsAvailable = Object.values(skillsData.categories).reduce((sum, cat) => sum + cat.skills.length, 0);
-      const assignedSkills = (skillsData.assignments[tech.short] || []).length;
+      // v218.61: Exclude isNew tags from denominator unless this tech is already assigned them.
+      // Tags added after a tech's last review shouldn't punish techs who haven't been re-evaluated yet (only-help rule).
+      const assignedList = (skillsData.assignments[tech.short] || []);
+      const assignedSkills = assignedList.length;
+      // Build a flat list of all skill objects with their ids
+      const allSkills = Object.values(skillsData.categories).reduce((arr, cat) => arr.concat(cat.skills), []);
+      const baseSkillCount = allSkills.filter(s => !s.isNew).length;
+      const techIsNewAssignedCount = allSkills.filter(s => s.isNew && assignedList.indexOf(s.id) !== -1).length;
+      const effectiveTotal = baseSkillCount + techIsNewAssignedCount;
+      const totalSkillsAvailable = effectiveTotal > 0 ? effectiveTotal : allSkills.length;
       const skillScore = Math.min((assignedSkills / totalSkillsAvailable) * 100, 100);
 
       // 3. Manager score (0–100): 1–10 scale → percentage
@@ -9318,8 +9326,9 @@ document.addEventListener('visibilitychange', function() {
           const billableNorm = Math.min(st.productivity.billable_hours / 140, 1) * 100;
           const tasksNorm = Math.min(st.productivity.tasks_per_opp / 3, 1) * 100;
           stScore = (jobsNorm * 0.30 + convNorm * 0.25 + flatRateNorm * 0.15 + callbackNorm * 0.10 + billableNorm * 0.10 + tasksNorm * 0.10);
-          // v218.60 Fix 1: Warranty techs can't install equipment — raise floor 40 → 70 (only-help rule).
-          installScore = 70;
+          // v218.60 Fix 1 + v218.61: Warranty techs can't install equipment — floor at 80 (only-help rule).
+          // 80 is still below team average of strong installers (Chris 97, Benji 58) and reflects neutral role-credit.
+          installScore = 80;
         } else {
           const convNorm = Math.min(st.nexstar.conversion_rate / 85, 1) * 100;
           const revNorm = Math.min(st.nexstar.total_revenue / 25000, 1) * 100;
