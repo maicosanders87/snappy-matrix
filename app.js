@@ -2726,6 +2726,45 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260508IfNeeded failed', e); }
     }
 
+    // v218.55: Hard-set MTD nexstar + memberships to ServiceTitan source-of-truth values
+    // (IMG_0244 Nexstar tab + IMG_0245 Memberships tab, both captured 5/8 EOD).
+    // The previous incremental bump approach was leaving the rookie card top stats
+    // (Revenue / Avg Ticket / Conv Rate / Mem Sold / Mem Conv) under-reported because
+    // WLB daily seeds only updated service_rev, not mtd_nexstar fields.
+    // Locks the canonical numbers in one pass. Runs once via FLAG.
+    function _mtdSourceOfTruthHealV21855IfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_source_of_truth_heal_v218_55';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        // From ServiceTitan IMG_0244 (Nexstar) + IMG_0245 (Memberships) MTD May 2026:
+        var truth = {
+          Daniel: { nx: { total_revenue: 8111, avg_sale: 676, conversion_rate: 86, spps_sold: 2, tech_gen_leads: 1, sold_hours: 23.95, flat_rate_tasks: 3.08 }, mb: { total_mem_sold: 2, total_mem_opps: 4, total_mem_pct: 50 } },
+          Chris:  { nx: { total_revenue: 4657, avg_sale: 884, conversion_rate: 83, spps_sold: 2, tech_gen_leads: 3, sold_hours: 13.45, flat_rate_tasks: 3 },    mb: { total_mem_sold: 2, total_mem_opps: 4, total_mem_pct: 50 } },
+          Benji:  { nx: { total_revenue: 4150, avg_sale: 991, conversion_rate: 57, spps_sold: 1, tech_gen_leads: 3, sold_hours: 20.25, tech_sold_hr_eff: 0.38, flat_rate_tasks: 3 }, mb: { total_mem_sold: 1, total_mem_opps: 5, total_mem_pct: 20 } },
+          Dewone: { nx: { total_revenue: 3697, avg_sale: 403, conversion_rate: 90, spps_sold: 4, tech_gen_leads: 4, sold_hours: 19.2,  flat_rate_tasks: 1.78 }, mb: { total_mem_sold: 4, total_mem_opps: 5, total_mem_pct: 80 } },
+          Dee:    { nx: { total_revenue: 1953, avg_sale: 469, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 12.7, flat_rate_tasks: 1.75 }, mb: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 } }
+        };
+        Object.keys(truth).forEach(function(name) {
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          // Preserve any extra fields (recalls, etc.) by merging
+          st.mtd_nexstar = Object.assign({}, st.mtd_nexstar || {}, truth[name].nx);
+          st.mtd_memberships = Object.assign({}, st.mtd_memberships || {}, truth[name].mb);
+          // Also update mtd_service_rev (legacy scalar still used by Overview tiles)
+          st.mtd_service_rev = truth[name].nx.total_revenue;
+          // Recompute rev/hr in mtd_productivity if billable_hours present
+          if (st.mtd_productivity && truth[name].nx.sold_hours > 0) {
+            st.mtd_productivity.billable_hours = truth[name].nx.sold_hours;
+            st.mtd_productivity.rev_hr = Math.round(truth[name].nx.total_revenue / truth[name].nx.sold_hours);
+            st.mtd_productivity.tasks_per_opp = truth[name].nx.flat_rate_tasks;
+          }
+        });
+        // Also clear the stale v218.54 incremental flag so any future runs are clean
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_mtdSourceOfTruthHealV21855IfNeeded failed', e); }
+    }
+
     // v218.54: Heal MTD memberships for 5/6 and 5/7. Original WLB seeds for those days
     // updated weekly leaderboard memSold/memOpps but did NOT bump tech.mtd_memberships,
     // so rookie cards still showed seeded-through-5/5 totals plus only the 5/8 daily.
@@ -20344,6 +20383,7 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260507IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260508IfNeeded(); } catch(e) {}
     try { _mtdMembershipsHealV21854IfNeeded(); } catch(e) {}
+    try { _mtdSourceOfTruthHealV21855IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260504IfNeeded(); } catch(e) {}
     try { _tglSeedMay20260504IfNeeded(); } catch(e) {}
     // v218.29: Heal stored leadGeneratedBy values for rows imported under older normalizer
