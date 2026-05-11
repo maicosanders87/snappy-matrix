@@ -13640,6 +13640,10 @@ body.rookie-modal-open { overflow: hidden; }
 .wlb-perf-pill.wlb-perf-a   { background: rgba(74,222,128,0.16); color: #86efac; border-color: rgba(74,222,128,0.40); }
 .wlb-perf-pill.wlb-perf-s   { background: rgba(251,191,36,0.18); color: #fcd34d; border-color: rgba(251,191,36,0.45); }
 .wlb-perf-pill.wlb-perf-sp  { background: linear-gradient(90deg, rgba(255,215,0,0.25), rgba(251,191,36,0.20)); color: #FFD700; border-color: rgba(255,215,0,0.55); box-shadow: 0 0 8px rgba(255,215,0,0.30); }
+/* v218.68 — inner structure for badge / week / pts */
+.wlb-perf-pill .wlb-perf-badge { font-weight: 800; }
+.wlb-perf-pill .wlb-perf-week  { font-weight: 500; opacity: 0.85; }
+.wlb-perf-pill .wlb-perf-pts   { font-weight: 700; opacity: 0.95; }
 
 /* v162 — How points translate to composite score */
 .pts-translate {

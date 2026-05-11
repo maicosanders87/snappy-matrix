@@ -8182,10 +8182,21 @@ document.addEventListener('visibilitychange', function() {
                 '<div class="wlb-name">' + r.name + '</div>' +
                 '<div class="wlb-meta"><span class="wlb-tier-pill tier-' + r.tier + '">' + r.tier + '-Tier</span> ' + delta +
                 ((r.perfBonus && r.perfBonus.bonus > 0) ? (function(){
-                  var b = r.perfBonus.bonus;
-                  var cls = b >= 12 ? 'sp' : b >= 9 ? 's' : b >= 6 ? 'a' : b >= 3.5 ? 'b' : 'act';
-                  var basis = r.perfBonus.basis === 'thisWeek' ? 'this wk' : 'recent';
-                  return ' <span class="wlb-perf-pill wlb-perf-' + cls + '" title="Composite bonus from this week\u2019s leaderboard pace (' + r.perfBonus.label + ', ' + r.perfBonus.basisPts + ' pts ' + basis + ')">\u26a1 +' + b.toFixed(1) + ' composite</span>';
+                  // v218.68: chip now leads with the earned BADGE + WEEK, with bonus pts secondary
+                  // and a rich “why” tooltip explaining the carryover rule.
+                  var pb = r.perfBonus;
+                  var b = pb.bonus;
+                  var badge = pb.badge || '';
+                  var cls = badge === 'S+' ? 'sp' : badge === 'S' ? 's' : badge === 'A' ? 'a' : badge === 'B' ? 'b' : 'act';
+                  var icon = badge === 'S+' ? '\ud83d\udc51' : badge === 'S' ? '\ud83c\udfc6' : badge === 'A' ? '\ud83e\udd47' : badge === 'B' ? '\ud83e\udd48' : '\u26a1';
+                  var weekStr = pb.weekLabelStr || '';
+                  var basisTxt = pb.basis === 'thisWeek' ? 'this week\u2019s pace' : 'best of last 4 weeks';
+                  var tip = pb.label + ' \u2014 earned ' + pb.basisPts + ' leaderboard pts during ' + (weekStr || 'recent week') + ' (' + basisTxt + '). Composite boost: +' + b.toFixed(1) + '. Carries until this week beats it (only-help rule).';
+                  return ' <span class="wlb-perf-pill wlb-perf-' + cls + '" title="' + tip.replace(/"/g, '&quot;') + '">' +
+                           '<span class="wlb-perf-badge">' + icon + ' ' + pb.label + '</span>' +
+                           (weekStr ? '<span class="wlb-perf-week"> \u00b7 ' + weekStr + '</span>' : '') +
+                           '<span class="wlb-perf-pts"> \u00b7 +' + b.toFixed(1) + '</span>' +
+                         '</span>';
                 })() : '') +
               '</div>' +
                 pillsHTML +
@@ -9299,19 +9310,25 @@ document.addEventListener('visibilitychange', function() {
         }
 
         // Tiered bonus — only positive (boosted v160 — leaderboard wins matter)
-        var bonus = 0, label = 'No bonus';
-        if (basisPts >= 40)      { bonus = 12.0; label = 'S+ week'; }
-        else if (basisPts >= 30) { bonus = 9.0;  label = 'S week'; }
-        else if (basisPts >= 20) { bonus = 6.0;  label = 'A week'; }
-        else if (basisPts >= 10) { bonus = 3.5;  label = 'B week'; }
-        else if (basisPts >= 1)  { bonus = 1.5;  label = 'Active week'; }
+        // v218.68: also emit a short badge code (S+/S/A/B/ACT) for chip rendering
+        var bonus = 0, label = 'No bonus', badge = '';
+        if (basisPts >= 40)      { bonus = 12.0; label = 'S+ week'; badge = 'S+'; }
+        else if (basisPts >= 30) { bonus = 9.0;  label = 'S week';  badge = 'S';  }
+        else if (basisPts >= 20) { bonus = 6.0;  label = 'A week';  badge = 'A';  }
+        else if (basisPts >= 10) { bonus = 3.5;  label = 'B week';  badge = 'B';  }
+        else if (basisPts >= 1)  { bonus = 1.5;  label = 'Active';  badge = 'ACT';}
+
+        var weekLabelStr = '';
+        try { weekLabelStr = (basisWeek && typeof _wlbWeekLabel === 'function') ? _wlbWeekLabel(basisWeek) : ''; } catch(e) {}
 
         return {
           bonus: bonus,
           basis: basis,
           basisPts: Math.round(basisPts * 10) / 10,
           basisWeek: basisWeek,
+          weekLabelStr: weekLabelStr,
           label: label,
+          badge: badge,
           hasData: basis !== 'none'
         };
       } catch(e) {
