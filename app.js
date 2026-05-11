@@ -2733,9 +2733,17 @@ document.addEventListener('visibilitychange', function() {
     // WLB daily seeds only updated service_rev, not mtd_nexstar fields.
     // Locks the canonical numbers in one pass. Runs once via FLAG.
     function _mtdSourceOfTruthHealV21855IfNeeded() {
+      // v218.59: NEUTRALIZED — baseline stData now contains canonical ServiceTitan MTD numbers.
+      // The heal is no longer needed and is short-circuited to avoid any re-runs.
       try {
         var FLAG = 'snappy_mtd_source_of_truth_heal_v218_58';
-        if (localStorage.getItem(FLAG) === '1') return;
+        localStorage.setItem(FLAG, '1');
+        return;
+      } catch(e) {}
+      // (unreachable legacy body retained for reference)
+      try {
+        var FLAG2 = 'snappy_mtd_source_of_truth_heal_v218_58';
+        if (localStorage.getItem(FLAG2) === '1') return;
         if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
         // From ServiceTitan IMG_0244 (Nexstar) + IMG_0245 (Memberships) MTD May 2026:
         var truth = {
@@ -2773,9 +2781,17 @@ document.addEventListener('visibilitychange', function() {
     //   5/7: Dewone +1/1
     // Additive only, runs once via FLAG. Also recomputes mem_pct.
     function _mtdMembershipsHealV21854IfNeeded() {
+      // v218.59: NEUTRALIZED — baseline stData now contains canonical ServiceTitan MTD memberships.
+      // The additive 5/6+5/7 heal would double-bump if it ran against the new baseline.
       try {
         var FLAG = 'snappy_mtd_memberships_heal_v218_54';
-        if (localStorage.getItem(FLAG) === '1') return;
+        localStorage.setItem(FLAG, '1');
+        return;
+      } catch(e) {}
+      // (unreachable legacy body retained for reference)
+      try {
+        var FLAG2 = 'snappy_mtd_memberships_heal_v218_54';
+        if (localStorage.getItem(FLAG2) === '1') return;
         if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
         var bumps = [
           // (name, addSold, addOpps) — combined 5/6 + 5/7
@@ -12380,17 +12396,16 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Dewone",
         color: "#E07B3A",
-        // v218.11: May 2026 through Tue 5/5 live cascade.
-        // 5/5 add: $872 svc / 1 call / 100% / TGL=1 / 5.2 hrs / 4 FRT / mem 0/0.
-        mtd_service_rev: 1827,
+        // v218.59: Baseline hardcoded to ServiceTitan source-of-truth MTD May 2026 (IMG_0244/0245).
+        mtd_service_rev: 3697,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 1827, avg_sale: 365, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 2, sold_hours: 12.5, flat_rate_tasks: 2.4 },
-        mtd_productivity: { rev_hr: 146, billable_hours: 12.5, sold_hrs_on_job_pct: 0, tasks_per_opp: 2.4, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 3697, avg_sale: 403, conversion_rate: 90, spps_sold: 4, tech_gen_leads: 4, sold_hours: 19.2, tech_sold_hr_eff: 0, flat_rate_tasks: 1.78 },
+        mtd_productivity: { rev_hr: 193, billable_hours: 19.2, sold_hrs_on_job_pct: 0, tasks_per_opp: 1.78, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 2, total_mem_pct: 50 },
+        mtd_memberships: { total_mem_sold: 4, total_mem_opps: 5, total_mem_pct: 80 },
         mtd_sales: { close_rate: 0 },
         monthly_archive: {
           '2026-04': {
@@ -12419,17 +12434,17 @@ if (typeof Chart !== 'undefined') {
         name: "Benji",
         displayName: "Ben Tinahui",
         color: "#5B4A8A",
-        // v218.11: May 2026 through Tue 5/5. 5/5 add: $354 svc / 1 call / 50% conv / 1 TGL / 5.3 hrs / 0.53 TSHE / 3 FRT / mem 0/1.
-        mtd_service_rev: 1326,
+        // v218.59: Baseline hardcoded to ServiceTitan source-of-truth MTD May 2026 (IMG_0244/0245).
+        mtd_service_rev: 4150,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 1326, avg_sale: 663, conversion_rate: 50, spps_sold: 0, tech_gen_leads: 2, sold_hours: 13.15, tech_sold_hr_eff: 0.49, flat_rate_tasks: 3 },
-        mtd_productivity: { rev_hr: 101, billable_hours: 13.15, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 4150, avg_sale: 991, conversion_rate: 57, spps_sold: 1, tech_gen_leads: 3, sold_hours: 20.25, tech_sold_hr_eff: 0.38, flat_rate_tasks: 3 },
+        mtd_productivity: { rev_hr: 205, billable_hours: 20.25, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 3, total_mem_pct: 0 },
-        mtd_sales: { close_rate: 50 },
+        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 5, total_mem_pct: 20 },
+        mtd_sales: { close_rate: 57 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -12456,17 +12471,17 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Daniel",
         color: "#C47F17",
-        // v218.11: May 2026 through Tue 5/5. 5/5 add: $1,439 svc / 100% conv / $480 avg / 4.35 hrs / 2 FRT / mem 0/1.
-        mtd_service_rev: 4149,
+        // v218.59: Baseline hardcoded to ServiceTitan source-of-truth MTD May 2026 (IMG_0244/0245).
+        mtd_service_rev: 8111,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 4149, avg_sale: 593, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 0, sold_hours: 11.55, flat_rate_tasks: 2.71 },
-        mtd_productivity: { rev_hr: 359, billable_hours: 11.55, sold_hrs_on_job_pct: 0, tasks_per_opp: 2.71, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 8111, avg_sale: 676, conversion_rate: 86, spps_sold: 2, tech_gen_leads: 1, sold_hours: 23.95, tech_sold_hr_eff: 0, flat_rate_tasks: 3.08 },
+        mtd_productivity: { rev_hr: 339, billable_hours: 23.95, sold_hrs_on_job_pct: 0, tasks_per_opp: 3.08, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 3, total_mem_pct: 33 },
-        mtd_sales: { close_rate: 100 },
+        mtd_memberships: { total_mem_sold: 2, total_mem_opps: 4, total_mem_pct: 50 },
+        mtd_sales: { close_rate: 86 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -12493,18 +12508,18 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Chris",
         color: "#8B3A3A",
-        // v218.11: May 2026 through Tue 5/5. 5/5 add: $1,097 svc / 50% conv / $1,028 avg / 1 SPP / 2.3 hrs / 4 FRT / mem 1/2.
-        mtd_service_rev: 3660,
+        // v218.59: Baseline hardcoded to ServiceTitan source-of-truth MTD May 2026 (IMG_0244/0245).
+        mtd_service_rev: 4657,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_install_tgl_for_others: 1,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 3660, avg_sale: 1220, conversion_rate: 50, spps_sold: 1, tech_gen_leads: 1, sold_hours: 6.1, flat_rate_tasks: 3.25 },
-        mtd_productivity: { rev_hr: 600, billable_hours: 6.1, sold_hrs_on_job_pct: 0, tasks_per_opp: 3.25, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 4657, avg_sale: 884, conversion_rate: 83, spps_sold: 2, tech_gen_leads: 3, sold_hours: 13.45, tech_sold_hr_eff: 0, flat_rate_tasks: 3 },
+        mtd_productivity: { rev_hr: 346, billable_hours: 13.45, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 2, total_mem_pct: 50 },
-        mtd_sales: { close_rate: 50 },
+        mtd_memberships: { total_mem_sold: 2, total_mem_opps: 4, total_mem_pct: 50 },
+        mtd_sales: { close_rate: 83 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -12532,17 +12547,17 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Dee",
         color: "#2D6A6A",
-        // v217: May 2026 through Mon 5/4. 5/4: $218 svc / 100% conv / $218 avg / 3.3 hrs / 1 FRT.
-        mtd_service_rev: 297,
+        // v218.59: Baseline hardcoded to ServiceTitan source-of-truth MTD May 2026 (IMG_0244/0245).
+        mtd_service_rev: 1953,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 297, avg_sale: 218, conversion_rate: 50, spps_sold: 0, tech_gen_leads: 1, sold_hours: 5.4, flat_rate_tasks: 0.5 },
-        mtd_productivity: { rev_hr: 55, billable_hours: 5.4, sold_hrs_on_job_pct: 0, tasks_per_opp: 0.5, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 1953, avg_sale: 469, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 12.7, tech_sold_hr_eff: 0, flat_rate_tasks: 1.75 },
+        mtd_productivity: { rev_hr: 154, billable_hours: 12.7, sold_hrs_on_job_pct: 0, tasks_per_opp: 1.75, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
-        mtd_sales: { close_rate: 50 },
+        mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -13613,7 +13628,7 @@ if (typeof Chart !== 'undefined') {
         const tierBadgeText = isRookie ? 'ROOKIE' : (tierInfo.tier + '-TIER');
         const compBarColorFinal = isRookie ? 'linear-gradient(90deg, #3A6BA5, #60A5FA, #FCD9A5)' : compBarColor;
 
-        // Build ST stat rows — MTD / STD / 90-Day toggle (v218)
+        // Build ST stat rows — Weekly / MTD / STD toggle (v218.59)
         var stRows = '';
         if (st) {
           var isW = st.isWarrantyTech;
@@ -13622,11 +13637,32 @@ if (typeof Chart !== 'undefined') {
           var mp = st.mtd_productivity || st.productivity;
           var mm = st.mtd_memberships || st.memberships;
           var ms = st.mtd_sales || st.sales;
-          // 90-day data
-          var n90 = st.nexstar;
-          var p90 = st.productivity;
-          var m90 = st.memberships;
-          var s90 = st.sales;
+          // Weekly data (v218.59) — derived from _wlbLoad() for the current active week.
+          // WLB stores { service, installCount, installRev, memSold, memOpps } per tech per week.
+          // We map that into the same {nexstar, productivity, memberships, sales} shape so buildStGrid works unchanged.
+          var wkView = (function() {
+            var nx = { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, flat_rate_tasks: 0, tech_sold_hr_eff: 0 };
+            var pr = { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 };
+            var mb = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
+            var sl = { close_rate: 0 };
+            try {
+              var all = (typeof _wlbLoad === 'function') ? _wlbLoad() : {};
+              var wk = (typeof _wlbActiveWeek === 'function') ? _wlbActiveWeek() : null;
+              var weekData = (wk && all[wk]) ? all[wk] : {};
+              var entry = (typeof _wlbReadEntry === 'function') ? _wlbReadEntry(weekData, t.short) : null;
+              if (entry) {
+                nx.total_revenue = Math.round(entry.service || 0);
+                mb.total_mem_sold = entry.memSold || 0;
+                mb.total_mem_opps = entry.memOpps || 0;
+                mb.total_mem_pct = mb.total_mem_opps > 0 ? Math.round((mb.total_mem_sold / mb.total_mem_opps) * 100) : 0;
+              }
+            } catch(e) {}
+            return { nexstar: nx, productivity: pr, memberships: mb, sales: sl };
+          })();
+          var wn = wkView.nexstar;
+          var wp = wkView.productivity;
+          var wm = wkView.memberships;
+          var wsl = wkView.sales;
           // Season-to-Date data (sum of all months in current season's archive + current MTD)
           var stdAgg = computeSeasonToDateForTech(st);
           var sn = stdAgg.nexstar;
@@ -13702,11 +13738,14 @@ if (typeof Chart !== 'undefined') {
             <div class="rookie-st-section">
               <div class="rookie-st-header">
                 ServiceTitan Performance
-                <div class="rookie-st-toggle" onclick="event.stopPropagation();" title="MTD = month-to-date | STD = season-to-date (${stdAgg.label}) | 90-Day = trailing 90 days">
+                <div class="rookie-st-toggle" onclick="event.stopPropagation();" title="Weekly = current week | MTD = month-to-date | STD = season-to-date (${stdAgg.label})">
+                  <span class="rookie-st-toggle-opt" data-view="week" onclick="event.stopPropagation();rookieStToggle(this,'week')">Weekly</span>
                   <span class="rookie-st-toggle-opt is-active" data-view="mtd" onclick="event.stopPropagation();rookieStToggle(this,'mtd')">MTD</span>
                   <span class="rookie-st-toggle-opt" data-view="std" onclick="event.stopPropagation();rookieStToggle(this,'std')">STD</span>
-                  <span class="rookie-st-toggle-opt" data-view="90d" onclick="event.stopPropagation();rookieStToggle(this,'90d')">90-Day</span>
                 </div>
+              </div>
+              <div id="${cardId}-week" class="rookie-st-view" data-view="week">
+                ${buildStGrid(wn, wp, wm, wsl, 'Weekly', isW, st)}
               </div>
               <div id="${cardId}-mtd" class="rookie-st-view is-visible" data-view="mtd">
                 ${buildStGrid(mn, mp, mm, ms, 'MTD', isW, st)}
@@ -13714,10 +13753,6 @@ if (typeof Chart !== 'undefined') {
               <div id="${cardId}-std" class="rookie-st-view" data-view="std">
                 ${buildStGrid(sn, sp, sm, ss, 'STD', isW, st)}
               </div>
-              <div id="${cardId}-90d" class="rookie-st-view" data-view="90d">
-                ${buildStGrid(n90, p90, m90, s90, '90-Day', isW, st)}
-              </div>
-            </div>
             <div class="rookie-st-section">
               <div class="rookie-st-header">Install Performance</div>
               <div class="rookie-st-grid">
@@ -20389,6 +20424,14 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
+    // v218.59: Baseline stData now contains canonical MTD totals through 5/8.
+    // Pre-set the 5/6, 5/7, 5/8 seed FLAGs so the additive MTD-bump path inside
+    // those seeds is short-circuited on fresh browsers (would otherwise double-count).
+    try {
+      localStorage.setItem('snappy_wlb_day_seeded_2026_05_06_v1', '1');
+      localStorage.setItem('snappy_wlb_day_seeded_2026_05_07_v1', '1');
+      localStorage.setItem('snappy_wlb_day_seeded_2026_05_08_v1', '1');
+    } catch(e) {}
     try { _wlbSeedDay20260506IfNeeded(); } catch(e) {}
     try { _wlbCorrect20260506DeeIfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260507IfNeeded(); } catch(e) {}
