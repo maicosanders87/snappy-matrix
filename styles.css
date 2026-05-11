@@ -1622,7 +1622,25 @@
       100% { background-position: 0% 50%; }
     }
     .rookie-card-border.tier-b { border: 2px solid rgba(59,130,246,0.7); background: none; box-shadow: inset 0 0 30px rgba(59,130,246,0.12), inset 0 0 60px rgba(37,99,235,0.06); }
-    .rookie-card-border.tier-a { border: 3px solid rgba(220,38,38,0.7); background: none; box-shadow: inset 0 0 30px rgba(220,38,38,0.12), inset 0 0 60px rgba(248,113,113,0.06); }
+    /* v218.56: A-tier holographic "fire/championship" border — deep red → orange → gold shimmer */
+    .rookie-card-border.tier-a {
+      border: 3px solid transparent;
+      background: linear-gradient(135deg, #B91C1C, #EF4444, #F97316, #FBBF24, #F97316, #DC2626, #B91C1C) border-box;
+      background-size: 300% 300%;
+      animation: aTierBorderShift 5s linear infinite;
+      -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      box-shadow:
+        inset 0 0 30px rgba(239,68,68,0.18),
+        inset 0 0 60px rgba(251,191,36,0.08),
+        0 0 18px rgba(220,38,38,0.30);
+    }
+    @keyframes aTierBorderShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
     .rookie-card-border.tier-s {
       border: 3px solid transparent;
       background: linear-gradient(135deg, #FF6B6B, #FFD93D, #6BCB77, #4D96FF, #9B59B6, #FF6B6B) border-box;
@@ -1662,7 +1680,20 @@
       letter-spacing: 0.08em;
     }
     .rookie-tier-badge.tier-b { background: linear-gradient(135deg, #4A90D9, #2563EB); color: #EBF5FF; }
-    .rookie-tier-badge.tier-a { background: linear-gradient(135deg, #EF4444, #B91C1C); color: #FEF2F2; text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    /* v218.56: A-tier holo badge — matches fire/championship border */
+    .rookie-tier-badge.tier-a {
+      background: linear-gradient(135deg, #B91C1C, #EF4444, #F97316, #FBBF24, #F97316, #B91C1C);
+      background-size: 300% 300%;
+      animation: aTierBadgeShift 4s ease infinite;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.35);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35), 0 0 12px rgba(249,115,22,0.35);
+    }
+    @keyframes aTierBadgeShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
     .rookie-tier-badge.tier-s {
       background: linear-gradient(135deg, #FFD700, #FF6B6B, #8B5CF6, #4D96FF, #6BCB77, #FFD700);
       background-size: 300% 300%;
