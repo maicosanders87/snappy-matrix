@@ -9456,15 +9456,19 @@ document.addEventListener('visibilitychange', function() {
         // v218.66: Leads threshold lowered from >20 to >15 for season-to-date norm (Apr 1 onward).
         if (bestConvB > 75 && reviewScore > 75 && bestLeadsB > 15) serviceExcellenceBonus += 4;
       }
-      // v218.64: Scale additive bonuses by 0.5 to prevent stacked inflation pushing techs above their true tier.
-      // Dispatch is intentionally NOT scaled (already small and is a manager-controlled assignment tag).
+      // v218.66: Scale additive bonuses by 0.5 to prevent stacked inflation pushing techs above their true tier.
+      // v218.67: Dispatch bonus now also scaled (was NOT scaled in v218.64—v218.66) because lead-tech/RAT dispatch
+      // tags were pushing Chris (Lead Tech +1) and Dee (Warranty Tech +1) above their honest tier when combined with
+      // the season-to-date base recalibration. Still only-help (additive, never subtracts).
+      // v218.67: TGL bump scale lowered 0.5 → 0.3 so closed-lead credit stays meaningful without flipping tiers.
       const BONUS_SCALE = 0.5;
+      const TGL_SCALE = 0.3;
       const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05
-        + dispatchBonus
+        + dispatchBonus * BONUS_SCALE
         + efficiencyBonus * BONUS_SCALE
         + performanceBonus * BONUS_SCALE
         + championBonus * BONUS_SCALE
-        + tglBump * BONUS_SCALE
+        + tglBump * TGL_SCALE
         + serviceExcellenceBonus;
       // Season soft reset penalty (carries for current season only)
       const seasonPenalty = (typeof getSeasonSoftResetPenalty === 'function') ? getSeasonSoftResetPenalty(tech.short) : 0;
