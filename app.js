@@ -2726,6 +2726,37 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260508IfNeeded failed', e); }
     }
 
+    // v218.65: Mon 5/11/26 daily seed (new week '2026-05-11'). Source: ServiceTitan EOD (IMG_0252/0253/0254).
+    function _wlbSeedDay20260511IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_11_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var WEEK = '2026-05-11'; // Mon-start week (5/11 is Monday)
+        var d = _wlbLoad();
+        var existing = d[WEEK] || {};
+        function add(short, svc, ic, ir, ms, mo) {
+          var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+          existing[short] = {
+            service:      (prev.service || 0)      + svc,
+            installCount: (prev.installCount || 0) + ic,
+            installRev:   (prev.installRev || 0)   + ir,
+            memSold:      (prev.memSold || 0)      + ms,
+            memOpps:      (prev.memOpps || 0)      + mo
+          };
+        }
+        // 5/11 daily numbers from screenshots
+        add('Chris',  823, 0, 0, 1, 1);
+        add('Benji',  536, 0, 0, 0, 0);
+        add('Daniel', 188, 0, 0, 0, 0);
+        add('Dewone',   0, 0, 0, 0, 0);
+        add('Dee',      0, 0, 0, 0, 0);
+        d[WEEK] = existing;
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260511IfNeeded failed', e); }
+    }
+
     // v218.55: Hard-set MTD nexstar + memberships to ServiceTitan source-of-truth values
     // (IMG_0244 Nexstar tab + IMG_0245 Memberships tab, both captured 5/8 EOD).
     // The previous incremental bump approach was leaving the rookie card top stats
@@ -9319,11 +9350,13 @@ document.addEventListener('visibilitychange', function() {
           // Warranty tech scoring: volume & efficiency over revenue & leads
           // v218.60 Fix 3: Recall penalty is the warranty tech's literal job—
           // soft cap at -5 total (not -25/recall) so handling warranty/recall work doesn't hurt composite.
-          const jobsNorm = Math.min((st.completedJobs || 0) / 120, 1) * 100;  // 120 jobs/90d = 100%
+          // v218.66: Rescaled from 120 (90d) to 60 (season-to-date Apr 1 onward) per user directive.
+          const jobsNorm = Math.min((st.completedJobs || 0) / 60, 1) * 100;
           const convNorm = Math.min(st.nexstar.conversion_rate / 85, 1) * 100;
           const flatRateNorm = Math.min(st.nexstar.flat_rate_tasks / 3, 1) * 100;
           const callbackNorm = Math.max(95, 100 - Math.min((st.productivity.recalls || 0), 5)); // soft cap — max -5 total across all recalls
-          const billableNorm = Math.min(st.productivity.billable_hours / 140, 1) * 100;
+          // v218.66: Rescaled from 140 (90d) to 70 (season-to-date) per user directive.
+          const billableNorm = Math.min(st.productivity.billable_hours / 70, 1) * 100;
           const tasksNorm = Math.min(st.productivity.tasks_per_opp / 3, 1) * 100;
           stScore = (jobsNorm * 0.30 + convNorm * 0.25 + flatRateNorm * 0.15 + callbackNorm * 0.10 + billableNorm * 0.10 + tasksNorm * 0.10);
           // v218.60 Fix 1 + v218.61: Warranty techs can't install equipment — floor at 80 (only-help rule).
@@ -9359,9 +9392,9 @@ document.addEventListener('visibilitychange', function() {
           const optsNormOld = Math.min(st.productivity.options_per_opp / 3, 1) * 100;
           const memNormOld = Math.min(st.memberships.total_mem_pct / 50, 1) * 100;
           const stScoreOld = (convNormOld * 0.25 + revNormOld * 0.25 + leadsNormOld * 0.15 + closeNormOld * 0.15 + optsNormOld * 0.10 + memNormOld * 0.10);
-          // v218.64: Soften v218.62 boost — scale the gain by 0.5 so techs aren't over-credited
-          // (still only-help: never lower than stScoreOld; cap at stScoreNew)
-          stScore = Math.max(stScoreOld, stScoreOld + (stScoreNew - stScoreOld) * 0.5);
+          // v218.66: Full new-formula boost (was 0.5) since season-to-date data now matches new-formula calibration.
+          // Still only-help: Math.max keeps the higher of old/new.
+          stScore = Math.max(stScoreOld, stScoreNew);
 
           // 5. Install revenue score (0–100)
           // v218.62: Recalibrated to mid-team install levels (only-help via Math.max)
@@ -9375,8 +9408,8 @@ document.addEventListener('visibilitychange', function() {
           const instRevNormOld = Math.min(st.installs.total_revenue / 150000, 1) * 100;
           const instAvgNormOld = Math.min(st.installs.avg_sale / 15000, 1) * 100;
           const installScoreOld = (instRevNormOld * 0.45 + instCountNormOld * 0.35 + instAvgNormOld * 0.20);
-          // v218.64: Soften v218.62 install boost — scale the gain by 0.5
-          installScore = Math.max(installScoreOld, installScoreOld + (installScoreNew - installScoreOld) * 0.5);
+          // v218.66: Full install boost (was 0.5) since season-to-date data matches new-formula calibration.
+          installScore = Math.max(installScoreOld, installScoreNew);
         }
       }
 
@@ -9420,7 +9453,8 @@ document.addEventListener('visibilitychange', function() {
         const mNexB = (st.mtd_nexstar || {});
         const bestConvB = Math.max(st.nexstar.conversion_rate || 0, mNexB.conversion_rate || 0);
         const bestLeadsB = Math.max(st.nexstar.tech_gen_leads || 0, (mNexB.tech_gen_leads || 0) * 3);
-        if (bestConvB > 75 && reviewScore > 75 && bestLeadsB > 20) serviceExcellenceBonus += 4;
+        // v218.66: Leads threshold lowered from >20 to >15 for season-to-date norm (Apr 1 onward).
+        if (bestConvB > 75 && reviewScore > 75 && bestLeadsB > 15) serviceExcellenceBonus += 4;
       }
       // v218.64: Scale additive bonuses by 0.5 to prevent stacked inflation pushing techs above their true tier.
       // Dispatch is intentionally NOT scaled (already small and is a manager-controlled assignment tag).
@@ -20511,6 +20545,7 @@ if (typeof Chart !== 'undefined') {
     try { _wlbCorrect20260506DeeIfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260507IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260508IfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260511IfNeeded(); } catch(e) {}
     try { _mtdMembershipsHealV21854IfNeeded(); } catch(e) {}
     try { _mtdSourceOfTruthHealV21855IfNeeded(); } catch(e) {}
     try { _braydenSeedMay20260504IfNeeded(); } catch(e) {}
