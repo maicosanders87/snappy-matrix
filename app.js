@@ -1468,10 +1468,10 @@ document.addEventListener('visibilitychange', function() {
     if (typeof window !== 'undefined') window.managerScores = managerScores;
 
     // ========== TIER RANKING SYSTEM ==========
-    // S = Elite (102+) — maxed out / near-perfect across the board
-    // A = Advanced (95–101) — strong all-around performer
-    // B = Solid (86–94) — competent with room to grow
-    // C = Developing (<86) — building fundamentals
+    // S = Elite (92+) — maxed out / near-perfect across the board
+    // A = Advanced (85–91) — strong all-around performer
+    // B = Solid (78–84) — competent with room to grow
+    // C = Developing (<78) — building fundamentals
     //
     // Composite score (0–100) built from:
     //   Aptitude (30%) + ST performance (35%) + Skills Tags (10%) + Manager (10%) + Installs (10%) + Reviews (5%)
@@ -2191,10 +2191,10 @@ document.addEventListener('visibilitychange', function() {
         } catch(e) {}
 
         var tiers = [
-          { key: 'S', label: 'Elite',    color: '#FFD700', desc: '102+' },
-          { key: 'A', label: 'Advanced', color: '#EF4444', desc: '95-101' },
-          { key: 'B', label: 'Solid',    color: '#60A5FA', desc: '86-94' },
-          { key: 'C', label: 'Rising',   color: '#94A3B8', desc: '<86' }
+          { key: 'S', label: 'Elite',    color: '#FFD700', desc: '92+' },
+          { key: 'A', label: 'Advanced', color: '#EF4444', desc: '85-91' },
+          { key: 'B', label: 'Solid',    color: '#60A5FA', desc: '78-84' },
+          { key: 'C', label: 'Rising',   color: '#94A3B8', desc: '<78' }
         ];
 
         function badgeHTML(s, t) {
@@ -8750,10 +8750,10 @@ document.addEventListener('visibilitychange', function() {
         }).join('');
 
         var tiers = [
-          { key: 'S', label: 'Elite',    color: '#FFD700', bg: 'linear-gradient(135deg,#FFD700,#E08A3A)', range: '102+' },
-          { key: 'A', label: 'Advanced', color: '#EF4444', bg: 'linear-gradient(135deg,#EF4444,#7F1D1D)', range: '95-101' },
-          { key: 'B', label: 'Solid',    color: '#60A5FA', bg: 'linear-gradient(135deg,#60A5FA,#1E3A8A)', range: '86-94' },
-          { key: 'C', label: 'Rising',   color: '#94A3B8', bg: 'linear-gradient(135deg,#94A3B8,#475569)', range: '<86' }
+          { key: 'S', label: 'Elite',    color: '#FFD700', bg: 'linear-gradient(135deg,#FFD700,#E08A3A)', range: '92+' },
+          { key: 'A', label: 'Advanced', color: '#EF4444', bg: 'linear-gradient(135deg,#EF4444,#7F1D1D)', range: '85-91' },
+          { key: 'B', label: 'Solid',    color: '#60A5FA', bg: 'linear-gradient(135deg,#60A5FA,#1E3A8A)', range: '78-84' },
+          { key: 'C', label: 'Rising',   color: '#94A3B8', bg: 'linear-gradient(135deg,#94A3B8,#475569)', range: '<78' }
         ];
         var tiersHTML = tiers.map(function(t) {
           return '<span class="ce-tier" style="background:' + t.bg + '">' + t.key + '-TIER <span class="ce-tier-val">&middot; ' + t.range + '</span></span>';
@@ -9359,7 +9359,9 @@ document.addEventListener('visibilitychange', function() {
           const optsNormOld = Math.min(st.productivity.options_per_opp / 3, 1) * 100;
           const memNormOld = Math.min(st.memberships.total_mem_pct / 50, 1) * 100;
           const stScoreOld = (convNormOld * 0.25 + revNormOld * 0.25 + leadsNormOld * 0.15 + closeNormOld * 0.15 + optsNormOld * 0.10 + memNormOld * 0.10);
-          stScore = Math.max(stScoreNew, stScoreOld);
+          // v218.64: Soften v218.62 boost — scale the gain by 0.5 so techs aren't over-credited
+          // (still only-help: never lower than stScoreOld; cap at stScoreNew)
+          stScore = Math.max(stScoreOld, stScoreOld + (stScoreNew - stScoreOld) * 0.5);
 
           // 5. Install revenue score (0–100)
           // v218.62: Recalibrated to mid-team install levels (only-help via Math.max)
@@ -9373,7 +9375,8 @@ document.addEventListener('visibilitychange', function() {
           const instRevNormOld = Math.min(st.installs.total_revenue / 150000, 1) * 100;
           const instAvgNormOld = Math.min(st.installs.avg_sale / 15000, 1) * 100;
           const installScoreOld = (instRevNormOld * 0.45 + instCountNormOld * 0.35 + instAvgNormOld * 0.20);
-          installScore = Math.max(installScoreNew, installScoreOld);
+          // v218.64: Soften v218.62 install boost — scale the gain by 0.5
+          installScore = Math.max(installScoreOld, installScoreOld + (installScoreNew - installScoreOld) * 0.5);
         }
       }
 
@@ -9409,31 +9412,36 @@ document.addEventListener('visibilitychange', function() {
       const championBonus = champData.total || 0;
       // v218.22: TGL closed-lead bump — +1 per closed TGL, capped at +5 (only helps, never hurts)
       const tglBump = (typeof tglCompositeBump === 'function') ? (tglCompositeBump(tech.short) || 0) : 0;
-      // v218.62: Service Excellence Bonus — rewards service-side strengths so high-conversion / high-review / high-leads
-      // techs aren't held back by being light installers. Additive, only-help.
-      //   • Review excellence: +(reviewScore - 75) × 0.15, capped at +4
-      //   • Versatile-service bonus: +4 if best-of conversion > 75 AND reviewScore > 75 AND best-of leads > 20
+      // v218.62/v218.64: Service Excellence Bonus — rewards versatile service techs (high-conversion + high-reviews + high-leads).
+      // v218.64: Dropped the linear "review excellence" piece; kept only the +4 versatile-service trigger so the bonus is small
+      // and only fires for techs who are strong across multiple service dimensions. Additive, only-help.
       let serviceExcellenceBonus = 0;
       if (st && !st.isWarrantyTech) {
         const mNexB = (st.mtd_nexstar || {});
         const bestConvB = Math.max(st.nexstar.conversion_rate || 0, mNexB.conversion_rate || 0);
         const bestLeadsB = Math.max(st.nexstar.tech_gen_leads || 0, (mNexB.tech_gen_leads || 0) * 3);
-        if (reviewScore > 75) serviceExcellenceBonus += Math.min((reviewScore - 75) * 0.15, 4);
         if (bestConvB > 75 && reviewScore > 75 && bestLeadsB > 20) serviceExcellenceBonus += 4;
       }
-      const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus + performanceBonus + championBonus + tglBump + serviceExcellenceBonus;
+      // v218.64: Scale additive bonuses by 0.5 to prevent stacked inflation pushing techs above their true tier.
+      // Dispatch is intentionally NOT scaled (already small and is a manager-controlled assignment tag).
+      const BONUS_SCALE = 0.5;
+      const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05
+        + dispatchBonus
+        + efficiencyBonus * BONUS_SCALE
+        + performanceBonus * BONUS_SCALE
+        + championBonus * BONUS_SCALE
+        + tglBump * BONUS_SCALE
+        + serviceExcellenceBonus;
       // Season soft reset penalty (carries for current season only)
       const seasonPenalty = (typeof getSeasonSoftResetPenalty === 'function') ? getSeasonSoftResetPenalty(tech.short) : 0;
       const composite = Math.max(0, compositeRawPreSeason - seasonPenalty);
 
       let tier, tierLabel;
-      // v218.63: Threshold recalibration to fit current bonus stack (champion, TGL, dispatch, etc.)
-      // Previous thresholds (78/85/92) were set before the bonus systems were fully built out;
-      // the additive bonuses now routinely add +5 to +15 points, pushing techs above their true tier.
-      // Shifting thresholds +8 absorbs that bonus inflation without breaking any only-help guarantees.
-      if (composite >= 102) { tier = 'S'; tierLabel = 'Elite'; }
-      else if (composite >= 95) { tier = 'A'; tierLabel = 'Advanced'; }
-      else if (composite >= 86) { tier = 'B'; tierLabel = 'Solid'; }
+      // v218.64: Revert thresholds to original ranges (user preference).
+      // Bonus inflation is instead handled by scaling additive bonuses + softening v218.62 base boost.
+      if (composite >= 92) { tier = 'S'; tierLabel = 'Elite'; }
+      else if (composite >= 85) { tier = 'A'; tierLabel = 'Advanced'; }
+      else if (composite >= 78) { tier = 'B'; tierLabel = 'Solid'; }
       else { tier = 'C'; tierLabel = 'Developing'; }
 
       return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct, championBonus: Math.round(championBonus * 100) / 100, championEntries: champData.entries || [], tglBump: tglBump, serviceExcellenceBonus: Math.round(serviceExcellenceBonus * 100) / 100 };
@@ -9443,10 +9451,10 @@ document.addEventListener('visibilitychange', function() {
     // ========== GAMIFICATION: XP BAR SYSTEM ==========
     function getXPData(tech) {
       const info = getTechTier(tech);
-      const thresholds = { C: 0, B: 86, A: 95, S: 102 }; // v218.63 shifted to absorb bonus stack
+      const thresholds = { C: 0, B: 78, A: 85, S: 92 }; // v218.64 reverted to original ranges
       const tierFloor = thresholds[info.tier];
       const nextTier = { C: 'B', B: 'A', A: 'S', S: null }[info.tier];
-      const nextThreshold = nextTier ? thresholds[nextTier] : 110; // v218.63: S-tier ceiling raised to match shifted thresholds
+      const nextThreshold = nextTier ? thresholds[nextTier] : 100;
       const tierRange = nextThreshold - tierFloor;
       const progress = nextTier ? ((info.composite - tierFloor) / tierRange) * 100 : 100;
       const xpCurrent = Math.round(info.composite * 10); // XP = composite * 10
@@ -14251,7 +14259,7 @@ if (typeof Chart !== 'undefined') {
           <div class="rpg-node-icon">${tierIcons[tier]}</div>
           <div class="rpg-node-label">${tier}-Tier</div>
           <div class="rpg-node-sublabel">${tierNames[tier]}</div>
-          <div class="rpg-node-threshold">${i === 0 ? '<86' : threshold + '+ pts'}</div>
+          <div class="rpg-node-threshold">${i === 0 ? '<78' : threshold + '+ pts'}</div>
           <div class="rpg-node-avatars">${techsInTier.map(t => 
             techAvatars[t.short] 
               ? '<img loading="lazy" decoding="async" class="rpg-mini-avatar" src="' + techAvatars[t.short] + '" title="' + t.short + '">' 
