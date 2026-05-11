@@ -1468,10 +1468,10 @@ document.addEventListener('visibilitychange', function() {
     if (typeof window !== 'undefined') window.managerScores = managerScores;
 
     // ========== TIER RANKING SYSTEM ==========
-    // S = Elite (92+) — maxed out / near-perfect across the board
-    // A = Advanced (85–91) — strong all-around performer
-    // B = Solid (78–84) — competent with room to grow
-    // C = Developing (<78) — building fundamentals
+    // S = Elite (102+) — maxed out / near-perfect across the board
+    // A = Advanced (95–101) — strong all-around performer
+    // B = Solid (86–94) — competent with room to grow
+    // C = Developing (<86) — building fundamentals
     //
     // Composite score (0–100) built from:
     //   Aptitude (30%) + ST performance (35%) + Skills Tags (10%) + Manager (10%) + Installs (10%) + Reviews (5%)
@@ -2191,10 +2191,10 @@ document.addEventListener('visibilitychange', function() {
         } catch(e) {}
 
         var tiers = [
-          { key: 'S', label: 'Elite',    color: '#FFD700', desc: '92+' },
-          { key: 'A', label: 'Advanced', color: '#EF4444', desc: '85-91' },
-          { key: 'B', label: 'Solid',    color: '#60A5FA', desc: '78-84' },
-          { key: 'C', label: 'Rising',   color: '#94A3B8', desc: '<78' }
+          { key: 'S', label: 'Elite',    color: '#FFD700', desc: '102+' },
+          { key: 'A', label: 'Advanced', color: '#EF4444', desc: '95-101' },
+          { key: 'B', label: 'Solid',    color: '#60A5FA', desc: '86-94' },
+          { key: 'C', label: 'Rising',   color: '#94A3B8', desc: '<86' }
         ];
 
         function badgeHTML(s, t) {
@@ -8750,10 +8750,10 @@ document.addEventListener('visibilitychange', function() {
         }).join('');
 
         var tiers = [
-          { key: 'S', label: 'Elite',    color: '#FFD700', bg: 'linear-gradient(135deg,#FFD700,#E08A3A)', range: '92+' },
-          { key: 'A', label: 'Advanced', color: '#EF4444', bg: 'linear-gradient(135deg,#EF4444,#7F1D1D)', range: '85-91' },
-          { key: 'B', label: 'Solid',    color: '#60A5FA', bg: 'linear-gradient(135deg,#60A5FA,#1E3A8A)', range: '78-84' },
-          { key: 'C', label: 'Rising',   color: '#94A3B8', bg: 'linear-gradient(135deg,#94A3B8,#475569)', range: '<78' }
+          { key: 'S', label: 'Elite',    color: '#FFD700', bg: 'linear-gradient(135deg,#FFD700,#E08A3A)', range: '102+' },
+          { key: 'A', label: 'Advanced', color: '#EF4444', bg: 'linear-gradient(135deg,#EF4444,#7F1D1D)', range: '95-101' },
+          { key: 'B', label: 'Solid',    color: '#60A5FA', bg: 'linear-gradient(135deg,#60A5FA,#1E3A8A)', range: '86-94' },
+          { key: 'C', label: 'Rising',   color: '#94A3B8', bg: 'linear-gradient(135deg,#94A3B8,#475569)', range: '<86' }
         ];
         var tiersHTML = tiers.map(function(t) {
           return '<span class="ce-tier" style="background:' + t.bg + '">' + t.key + '-TIER <span class="ce-tier-val">&middot; ' + t.range + '</span></span>';
@@ -9427,9 +9427,13 @@ document.addEventListener('visibilitychange', function() {
       const composite = Math.max(0, compositeRawPreSeason - seasonPenalty);
 
       let tier, tierLabel;
-      if (composite >= 92) { tier = 'S'; tierLabel = 'Elite'; }
-      else if (composite >= 85) { tier = 'A'; tierLabel = 'Advanced'; }
-      else if (composite >= 78) { tier = 'B'; tierLabel = 'Solid'; }
+      // v218.63: Threshold recalibration to fit current bonus stack (champion, TGL, dispatch, etc.)
+      // Previous thresholds (78/85/92) were set before the bonus systems were fully built out;
+      // the additive bonuses now routinely add +5 to +15 points, pushing techs above their true tier.
+      // Shifting thresholds +8 absorbs that bonus inflation without breaking any only-help guarantees.
+      if (composite >= 102) { tier = 'S'; tierLabel = 'Elite'; }
+      else if (composite >= 95) { tier = 'A'; tierLabel = 'Advanced'; }
+      else if (composite >= 86) { tier = 'B'; tierLabel = 'Solid'; }
       else { tier = 'C'; tierLabel = 'Developing'; }
 
       return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct, championBonus: Math.round(championBonus * 100) / 100, championEntries: champData.entries || [], tglBump: tglBump, serviceExcellenceBonus: Math.round(serviceExcellenceBonus * 100) / 100 };
@@ -9439,10 +9443,10 @@ document.addEventListener('visibilitychange', function() {
     // ========== GAMIFICATION: XP BAR SYSTEM ==========
     function getXPData(tech) {
       const info = getTechTier(tech);
-      const thresholds = { C: 0, B: 78, A: 85, S: 92 };
+      const thresholds = { C: 0, B: 86, A: 95, S: 102 }; // v218.63 shifted to absorb bonus stack
       const tierFloor = thresholds[info.tier];
       const nextTier = { C: 'B', B: 'A', A: 'S', S: null }[info.tier];
-      const nextThreshold = nextTier ? thresholds[nextTier] : 100;
+      const nextThreshold = nextTier ? thresholds[nextTier] : 110; // v218.63: S-tier ceiling raised to match shifted thresholds
       const tierRange = nextThreshold - tierFloor;
       const progress = nextTier ? ((info.composite - tierFloor) / tierRange) * 100 : 100;
       const xpCurrent = Math.round(info.composite * 10); // XP = composite * 10
@@ -14247,7 +14251,7 @@ if (typeof Chart !== 'undefined') {
           <div class="rpg-node-icon">${tierIcons[tier]}</div>
           <div class="rpg-node-label">${tier}-Tier</div>
           <div class="rpg-node-sublabel">${tierNames[tier]}</div>
-          <div class="rpg-node-threshold">${i === 0 ? '<78' : threshold + '+ pts'}</div>
+          <div class="rpg-node-threshold">${i === 0 ? '<86' : threshold + '+ pts'}</div>
           <div class="rpg-node-avatars">${techsInTier.map(t => 
             techAvatars[t.short] 
               ? '<img loading="lazy" decoding="async" class="rpg-mini-avatar" src="' + techAvatars[t.short] + '" title="' + t.short + '">' 
