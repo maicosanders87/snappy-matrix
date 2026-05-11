@@ -9309,15 +9309,17 @@ document.addEventListener('visibilitychange', function() {
       if (st) {
         if (st.isWarrantyTech) {
           // Warranty tech scoring: volume & efficiency over revenue & leads
+          // v218.60 Fix 3: Recall penalty is the warranty tech's literal job—
+          // soft cap at -5 total (not -25/recall) so handling warranty/recall work doesn't hurt composite.
           const jobsNorm = Math.min((st.completedJobs || 0) / 120, 1) * 100;  // 120 jobs/90d = 100%
           const convNorm = Math.min(st.nexstar.conversion_rate / 85, 1) * 100;
           const flatRateNorm = Math.min(st.nexstar.flat_rate_tasks / 3, 1) * 100;
-          const callbackNorm = Math.max(0, 100 - (st.productivity.recalls * 25)); // 0 recalls=100, each costs 25pts
+          const callbackNorm = Math.max(95, 100 - Math.min((st.productivity.recalls || 0), 5)); // soft cap — max -5 total across all recalls
           const billableNorm = Math.min(st.productivity.billable_hours / 140, 1) * 100;
           const tasksNorm = Math.min(st.productivity.tasks_per_opp / 3, 1) * 100;
           stScore = (jobsNorm * 0.30 + convNorm * 0.25 + flatRateNorm * 0.15 + callbackNorm * 0.10 + billableNorm * 0.10 + tasksNorm * 0.10);
-          // Warranty techs don't get penalized on installs — give baseline
-          installScore = 40;
+          // v218.60 Fix 1: Warranty techs can't install equipment — raise floor 40 → 70 (only-help rule).
+          installScore = 70;
         } else {
           const convNorm = Math.min(st.nexstar.conversion_rate / 85, 1) * 100;
           const revNorm = Math.min(st.nexstar.total_revenue / 25000, 1) * 100;
@@ -9336,9 +9338,12 @@ document.addEventListener('visibilitychange', function() {
       }
 
       // 6. Google reviews score (0–100)
+      // v218.60 Fix 2: An empty gr entry (count=0) used to fall through and produce reviewScore=0,
+      // double-penalizing techs whose role limits customer-facing reviews. Now treat empty entries
+      // the same as a missing entry — keep the 30 default until real reviews exist.
       const gr = googleReviews[tech.short];
       let reviewScore = 30;
-      if (gr) {
+      if (gr && gr.count > 0) {
         const countNorm = Math.min(gr.count / 25, 1) * 100;
         const qualityNorm = (gr.fiveStar / Math.max(gr.count, 1)) * 100;
         reviewScore = countNorm * 0.6 + qualityNorm * 0.4;
