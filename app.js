@@ -10784,7 +10784,8 @@ document.addEventListener('visibilitychange', function() {
         'st_update_20260501_mtd': { date: '2026-05-01', text: 'May Day 1 (5/1/26) \u2014 fresh month. Chris $2,563 svc (100% conv, $1,282 avg, 2.3 sold hrs, 3.5 tasks/call) leads. Daniel $1,329 svc (100% conv, $665 avg, 1 SPP, 3.2 sold hrs) + 1 mem sold (1/1, 100%). Benji $883 svc (100% conv, $804 avg, 5.1 sold hrs, 0.61 eff, 0/1 mem). Dewone $383 svc (100% conv, 1 TGL, 3.7 sold hrs). Dee $79 svc (0% conv, 1 TGL, 2.1 sold hrs). 1 install today \u2014 Brayden Bond sold Denise Cartier $14,607 HVAC install (Job 91767937). Team day-1 totals: $5,238 svc / 16.4 sold hrs / 2 TGL / 1 SPP / 1 mem sold (1/2 = 50%) / 1 install ($14,607).' },
         'st_update_20260506_mtd': { date: '2026-05-06', text: 'Wednesday 5/6/26 \u2014 strong mid-week pop (corrected 5/8). Benji $2,170 svc (50% conv on 2 opps, $2,170 avg, 1 TGL, 1.0 sold hr, 0.09 TSHE, 2 FRT/call, 0/1 mem). Daniel $2,162 svc (100% conv 2/2, $1,081 avg, 5.8 hrs, 4.5 FRT/call). Dewone $1,875 svc (100% conv, $937 avg, 1 SPP, 1 TGL, 1.4 hrs, 2 FRT/call, 1/1 mem = 100%). Dee $1,097 svc (100% conv 2/2, $548 avg, 2.5 hrs, 1.5 FRT/call). Chris $379 svc (100% conv, $300 avg, 1 SPP, 5.1 hrs, 2 FRT/call, 1/1 mem = 100%). Nick: no data. Team daily: $7,682 svc / 89% conv / $950 avg / 2 SPP / 2 TGL / 15.8 sold hrs / 1.47 TSHE / 2.5 FRT/call / 2 mem sold of 3 opps (67%) / 0 installs. May MTD totals: Daniel $6,311 \u00b7 Chris $4,039 \u00b7 Benji $3,496 \u00b7 Dewone $3,702 \u00b7 Dee $1,394 \u00b7 Nick $0. Team MTD svc $18,942. Brayden install MTD: 2 / $44,879 (held).' },
         'st_update_20260504_mtd': { date: '2026-05-04', text: 'Monday 5/4/26 \u2014 first day of new week (week of 5/3). Daniel $1,381 svc (100% conv, $690 avg, 4.0 hrs, 3.5 FRT/call, 0/1 mem). Dee $218 svc (100% conv, $218 avg, 3.3 hrs, 1 FRT/call). Benji $89 svc (0% conv on 1 opp, 2.75 hrs, 0.29 TSHE, 1 TGL, 0/1 mem). Chris $0 svc (0% conv, 1.5 hrs, 1 TGL credited \u2192 Brayden $30,272 install). Brayden Bond install $30,271.55 (Job 91881584, lead by Chris Monahan). Dewone & Nick: no data. Team daily $1,688 svc / 11.55 sold hrs / 2 TGL / 1 install ($30,272). May MTD totals: Daniel $2,710 \u00b7 Chris $2,563 \u00b7 Benji $972 \u00b7 Dewone $955 \u00b7 Dee $297 \u00b7 Nick $0. Brayden install MTD: 2 / $44,879.' },
-        'st_update_20260507_mtd': { date: '2026-05-07', text: 'Thursday 5/7/26 \u2014 lighter day after Wednesday\u2019s pop. Daniel $625 svc (50% conv on 2 opps, $625 avg, 2.0 sold hrs, 2 FRT/call, 0/0 mem). Dee $560 svc (100% conv, $560 avg, 2.8 sold hrs, 2 FRT/call, 0/0 mem). Dewone $300 svc (50% conv on 2 opps, $300 avg, 1 SPP, 3.0 sold hrs, 1 FRT/call, 1/1 mem = 100%). Benji $0 svc (0% conv on 1 opp, 2.5 sold hrs, 0.36 TSHE, 0 FRT, 0/0 mem). Chris & Nick: off / unscheduled. Team daily: $1,485 svc / blended ~50% conv / $495 avg / 1 SPP / 0 TGL / 10.3 sold hrs / 1 mem sold of 1 opp (100%) / 0 installs. May MTD totals: Daniel $6,936 \u00b7 Chris $4,039 \u00b7 Dewone $4,002 \u00b7 Benji $3,496 \u00b7 Dee $1,954 \u00b7 Nick $0. Team MTD svc $20,427. Brayden install MTD: 2 / $44,879 (held).' }
+        'st_update_20260507_mtd': { date: '2026-05-07', text: 'Thursday 5/7/26 \u2014 lighter day after Wednesday\u2019s pop. Daniel $625 svc (50% conv on 2 opps, $625 avg, 2.0 sold hrs, 2 FRT/call, 0/0 mem). Dee $560 svc (100% conv, $560 avg, 2.8 sold hrs, 2 FRT/call, 0/0 mem). Dewone $300 svc (50% conv on 2 opps, $300 avg, 1 SPP, 3.0 sold hrs, 1 FRT/call, 1/1 mem = 100%). Benji $0 svc (0% conv on 1 opp, 2.5 sold hrs, 0.36 TSHE, 0 FRT, 0/0 mem). Chris & Nick: off / unscheduled. Team daily: $1,485 svc / blended ~50% conv / $495 avg / 1 SPP / 0 TGL / 10.3 sold hrs / 1 mem sold of 1 opp (100%) / 0 installs. May MTD totals: Daniel $6,936 \u00b7 Chris $4,039 \u00b7 Dewone $4,002 \u00b7 Benji $3,496 \u00b7 Dee $1,954 \u00b7 Nick $0. Team MTD svc $20,427. Brayden install MTD: 2 / $44,879 (held).' },
+        'st_update_20260511_mtd': { date: '2026-05-11', text: 'Monday 5/11/26 + TGL Apr 1\u2013May 11 sync. Today: Chris +$823 svc (100% conv, $823 avg, 3.9 sold hrs, 1 SPP, 1/1 mem = 100%). Benji +$536 svc (100% conv, $536 avg, 6.1 sold hrs, 1 TGL). Daniel +$188 svc (100% conv, $188 avg, 3.4 sold hrs). Dee & Dewone: no data today. Team daily: $1,547 svc / 13.4 sold hrs / 1 TGL / 1 SPP / 1 mem of 1 (100%) / 0 installs. May MTD now: Daniel $8,299 (100% conv) \u00b7 Chris $5,480 (100% conv, 60% mem) \u00b7 Benji $4,686 (100% conv) \u00b7 Dewone $3,697 (held, 80% mem) \u00b7 Dee $1,953 (held, warranty) \u00b7 Nick $0. Team MTD svc $24,115. TGL Apr 1\u2013May 11 closed installs: Chris 4 / $90,452 (13 leads) \u00b7 Dewone 4 / $58,862 (16 leads) \u00b7 Benji 3 / $35,847 (6 leads). Daniel & Dee: 0 TGL installs in window.' }
       };
       var changed = false;
       Object.keys(seededIds).forEach(function(sid) {
@@ -12465,7 +12466,7 @@ if (typeof Chart !== 'undefined') {
       {
         name: "Dewone",
         color: "#E07B3A",
-        // v218.59: Baseline hardcoded to ServiceTitan source-of-truth MTD May 2026 (IMG_0244/0245).
+        // v218.65: Baseline updated to ServiceTitan MTD May 2026 + TGL Apr 1 – May 11 (IMG_0252/0253/0254, TGL PDF dated 04/01/26-05/12/26).
         mtd_service_rev: 3697,
         mtd_installs: 0,
         mtd_install_rev: 0,
@@ -12475,7 +12476,7 @@ if (typeof Chart !== 'undefined') {
         mtd_productivity: { rev_hr: 193, billable_hours: 19.2, sold_hrs_on_job_pct: 0, tasks_per_opp: 1.78, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 4, total_mem_opps: 5, total_mem_pct: 80 },
-        mtd_sales: { close_rate: 0 },
+        mtd_sales: { close_rate: 90 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -12491,29 +12492,30 @@ if (typeof Chart !== 'undefined') {
             mtd_sales: { close_rate: 88 }
           }
         },
-        nexstar: { total_revenue: 25675, avg_sale: 440, conversion_rate: 79, spps_sold: 8, tech_gen_leads: 34, sold_hours: 138.55, tech_sold_hr_eff: 0, flat_rate_tasks: 1.84 },
-        overview: { revenue: 25675, total_job_avg: 153, opp_job_avg: 351, opp_conversion: 79, opps: 71, converted_jobs: 56 },
-        leads: { opps: 71, leads_set: 34, conv_rate: 48, avg_sale: 440 },
-        memberships: { total_mem_sold: 8, total_mem_opps: 17, total_mem_pct: 47 },
-        productivity: { rev_hr: 97, billable_hours: 138.55, sold_hrs_on_job_pct: 52, tasks_per_opp: 1.79, options_per_opp: 2.81, recalls: 0 },
-        sales: { total_sales: 31760, avg_sale_s: 565, close_rate: 79, sales_opps: 68, options_per_opp_s: 2.81 },
-        installs: { count: 3, total_revenue: 28781, avg_sale: 9594, leads_generated: 3, self_sourced: 3 }
+        // v218.65: nexstar/leads/memberships/productivity/sales now reflect SEASON-TO-DATE (Apr 1 – May 11) per user directive.
+        nexstar: { total_revenue: 14385, avg_sale: 1598, conversion_rate: 87, spps_sold: 9, tech_gen_leads: 16, sold_hours: 68.65, tech_sold_hr_eff: 0, flat_rate_tasks: 1.75 },
+        overview: { revenue: 14385, total_job_avg: 153, opp_job_avg: 351, opp_conversion: 87, opps: 71, converted_jobs: 56 },
+        leads: { opps: 71, leads_set: 16, conv_rate: 23, avg_sale: 1598 },
+        memberships: { total_mem_sold: 9, total_mem_opps: 12, total_mem_pct: 75 },
+        productivity: { rev_hr: 210, billable_hours: 68.65, sold_hrs_on_job_pct: 49, tasks_per_opp: 1.75, options_per_opp: 2.81, recalls: 0 },
+        sales: { total_sales: 31760, avg_sale_s: 565, close_rate: 89, sales_opps: 68, options_per_opp_s: 2.81 },
+        installs: { count: 4, total_revenue: 58862.48, avg_sale: 14716, leads_generated: 16, self_sourced: 0 }
       },
       {
         name: "Benji",
         displayName: "Ben Tinahui",
         color: "#5B4A8A",
-        // v218.59: Baseline hardcoded to ServiceTitan source-of-truth MTD May 2026 (IMG_0244/0245).
-        mtd_service_rev: 4150,
+        // v218.65: Baseline updated to ServiceTitan MTD May 2026 + TGL Apr 1 – May 11 (IMG_0252/0253/0254, TGL PDF).
+        mtd_service_rev: 4686,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 4150, avg_sale: 991, conversion_rate: 57, spps_sold: 1, tech_gen_leads: 3, sold_hours: 20.25, tech_sold_hr_eff: 0.38, flat_rate_tasks: 3 },
-        mtd_productivity: { rev_hr: 205, billable_hours: 20.25, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 4686, avg_sale: 1041, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 4, sold_hours: 26.35, tech_sold_hr_eff: 0.38, flat_rate_tasks: 3 },
+        mtd_productivity: { rev_hr: 178, billable_hours: 26.35, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 1, total_mem_opps: 5, total_mem_pct: 20 },
-        mtd_sales: { close_rate: 57 },
+        mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -12529,28 +12531,29 @@ if (typeof Chart !== 'undefined') {
             mtd_sales: { close_rate: 72 }
           }
         },
-        nexstar: { total_revenue: 18238, avg_sale: 445, conversion_rate: 56, spps_sold: 2, tech_gen_leads: 9, sold_hours: 130.65, tech_sold_hr_eff: 0.28, flat_rate_tasks: 2.17 },
-        overview: { revenue: 18238, total_job_avg: 108, opp_job_avg: 260, opp_conversion: 56, opps: 66, converted_jobs: 37 },
-        leads: { opps: 66, leads_set: 9, conv_rate: 14, avg_sale: 445 },
-        memberships: { total_mem_sold: 2, total_mem_opps: 24, total_mem_pct: 8 },
-        productivity: { rev_hr: 72, billable_hours: 130.65, sold_hrs_on_job_pct: 52, tasks_per_opp: 1.51, options_per_opp: 1.15, recalls: 1 },
-        sales: { total_sales: 38776, avg_sale_s: 1362, close_rate: 45, sales_opps: 62, options_per_opp_s: 1.15 },
-        installs: { count: 7, total_revenue: 68998, avg_sale: 9857, leads_generated: 2, self_sourced: 7 }
+        // v218.65: nexstar/leads/memberships/productivity/sales now reflect SEASON-TO-DATE (Apr 1 – May 11) per user directive.
+        nexstar: { total_revenue: 13306, avg_sale: 4435, conversion_rate: 87, spps_sold: 3, tech_gen_leads: 6, sold_hours: 84.7, tech_sold_hr_eff: 0.28, flat_rate_tasks: 2.44 },
+        overview: { revenue: 13306, total_job_avg: 108, opp_job_avg: 260, opp_conversion: 87, opps: 66, converted_jobs: 37 },
+        leads: { opps: 66, leads_set: 6, conv_rate: 9, avg_sale: 4435 },
+        memberships: { total_mem_sold: 3, total_mem_opps: 14, total_mem_pct: 21 },
+        productivity: { rev_hr: 157, billable_hours: 84.7, sold_hrs_on_job_pct: 50, tasks_per_opp: 2.44, options_per_opp: 1.15, recalls: 1 },
+        sales: { total_sales: 38776, avg_sale_s: 1362, close_rate: 86, sales_opps: 62, options_per_opp_s: 1.15 },
+        installs: { count: 3, total_revenue: 35847.38, avg_sale: 11949, leads_generated: 6, self_sourced: 0 }
       },
       {
         name: "Daniel",
         color: "#C47F17",
-        // v218.59: Baseline hardcoded to ServiceTitan source-of-truth MTD May 2026 (IMG_0244/0245).
-        mtd_service_rev: 8111,
+        // v218.65: Baseline updated to ServiceTitan MTD May 2026 + TGL Apr 1 – May 11 (IMG_0252/0253/0254, TGL PDF).
+        mtd_service_rev: 8299,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 8111, avg_sale: 676, conversion_rate: 86, spps_sold: 2, tech_gen_leads: 1, sold_hours: 23.95, tech_sold_hr_eff: 0, flat_rate_tasks: 3.08 },
-        mtd_productivity: { rev_hr: 339, billable_hours: 23.95, sold_hrs_on_job_pct: 0, tasks_per_opp: 3.08, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 8299, avg_sale: 691, conversion_rate: 100, spps_sold: 2, tech_gen_leads: 1, sold_hours: 27.35, tech_sold_hr_eff: 0, flat_rate_tasks: 3.08 },
+        mtd_productivity: { rev_hr: 303, billable_hours: 27.35, sold_hrs_on_job_pct: 0, tasks_per_opp: 3.08, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
         mtd_memberships: { total_mem_sold: 2, total_mem_opps: 4, total_mem_pct: 50 },
-        mtd_sales: { close_rate: 86 },
+        mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -12566,29 +12569,30 @@ if (typeof Chart !== 'undefined') {
             mtd_sales: { close_rate: 80 }
           }
         },
-        nexstar: { total_revenue: 19162, avg_sale: 547, conversion_rate: 64, spps_sold: 4, tech_gen_leads: 5, sold_hours: 120.75, tech_sold_hr_eff: 0, flat_rate_tasks: 2.03 },
-        overview: { revenue: 19162, total_job_avg: 121, opp_job_avg: 355, opp_conversion: 64, opps: 53, converted_jobs: 34 },
-        leads: { opps: 53, leads_set: 5, conv_rate: 9, avg_sale: 547 },
-        memberships: { total_mem_sold: 5, total_mem_opps: 16, total_mem_pct: 31 },
-        productivity: { rev_hr: 43, billable_hours: 120.75, sold_hrs_on_job_pct: 27, tasks_per_opp: 1.57, options_per_opp: 0.56, recalls: 2 },
-        sales: { total_sales: 8761, avg_sale_s: 876, close_rate: 24, sales_opps: 41, options_per_opp_s: 0.56 },
-        installs: { count: 1, total_revenue: 9926, avg_sale: 9926, leads_generated: 1, self_sourced: 1 }
+        // v218.65: nexstar/leads/memberships/productivity/sales now reflect SEASON-TO-DATE (Apr 1 – May 11) per user directive.
+        nexstar: { total_revenue: 18070, avg_sale: 9035, conversion_rate: 91, spps_sold: 2, tech_gen_leads: 0, sold_hours: 73.5, tech_sold_hr_eff: 0, flat_rate_tasks: 2.44 },
+        overview: { revenue: 18070, total_job_avg: 121, opp_job_avg: 355, opp_conversion: 91, opps: 53, converted_jobs: 34 },
+        leads: { opps: 53, leads_set: 0, conv_rate: 0, avg_sale: 9035 },
+        memberships: { total_mem_sold: 3, total_mem_opps: 9, total_mem_pct: 33 },
+        productivity: { rev_hr: 246, billable_hours: 73.5, sold_hrs_on_job_pct: 27, tasks_per_opp: 2.44, options_per_opp: 0.56, recalls: 2 },
+        sales: { total_sales: 8761, avg_sale_s: 876, close_rate: 90, sales_opps: 41, options_per_opp_s: 0.56 },
+        installs: { count: 0, total_revenue: 0, avg_sale: 0, leads_generated: 0, self_sourced: 0 }
       },
       {
         name: "Chris",
         color: "#8B3A3A",
-        // v218.59: Baseline hardcoded to ServiceTitan source-of-truth MTD May 2026 (IMG_0244/0245).
-        mtd_service_rev: 4657,
+        // v218.65: Baseline updated to ServiceTitan MTD May 2026 + TGL Apr 1 – May 11 (IMG_0252/0253/0254, TGL PDF).
+        mtd_service_rev: 5480,
         mtd_installs: 0,
         mtd_install_rev: 0,
         mtd_install_self_sourced: 0,
         mtd_install_tgl_for_others: 1,
         mtd_on_job_pct: 0,
-        mtd_nexstar: { total_revenue: 4657, avg_sale: 884, conversion_rate: 83, spps_sold: 2, tech_gen_leads: 3, sold_hours: 13.45, tech_sold_hr_eff: 0, flat_rate_tasks: 3 },
-        mtd_productivity: { rev_hr: 346, billable_hours: 13.45, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
+        mtd_nexstar: { total_revenue: 5480, avg_sale: 913, conversion_rate: 100, spps_sold: 3, tech_gen_leads: 3, sold_hours: 17.35, tech_sold_hr_eff: 0, flat_rate_tasks: 3 },
+        mtd_productivity: { rev_hr: 316, billable_hours: 17.35, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 2, total_mem_opps: 4, total_mem_pct: 50 },
-        mtd_sales: { close_rate: 83 },
+        mtd_memberships: { total_mem_sold: 3, total_mem_opps: 5, total_mem_pct: 60 },
+        mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
             label: 'April 2026',
@@ -12605,18 +12609,19 @@ if (typeof Chart !== 'undefined') {
             mtd_sales: { close_rate: 63 }
           }
         },
-        nexstar: { total_revenue: 15359, avg_sale: 360, conversion_rate: 55, spps_sold: 6, tech_gen_leads: 26, sold_hours: 127.67, tech_sold_hr_eff: 0, flat_rate_tasks: 1.91 },
-        overview: { revenue: 15359, total_job_avg: 86, opp_job_avg: 203, opp_conversion: 55, opps: 73, converted_jobs: 40 },
-        leads: { opps: 73, leads_set: 26, conv_rate: 36, avg_sale: 360 },
-        memberships: { total_mem_sold: 7, total_mem_opps: 20, total_mem_pct: 35 },
-        productivity: { rev_hr: 51, billable_hours: 127.67, sold_hrs_on_job_pct: 42, tasks_per_opp: 1.45, options_per_opp: 1.9, recalls: 1 },
-        sales: { total_sales: 38480, avg_sale_s: 924, close_rate: 50, sales_opps: 78, options_per_opp_s: 1.9 },
-        installs: { count: 12, total_revenue: 151465, avg_sale: 12622, leads_generated: 12, self_sourced: 12 }
+        // v218.65: nexstar/leads/memberships/productivity/sales now reflect SEASON-TO-DATE (Apr 1 – May 11) per user directive.
+        nexstar: { total_revenue: 13404, avg_sale: 1915, conversion_rate: 84, spps_sold: 7, tech_gen_leads: 13, sold_hours: 72.25, tech_sold_hr_eff: 0, flat_rate_tasks: 2.36 },
+        overview: { revenue: 13404, total_job_avg: 86, opp_job_avg: 203, opp_conversion: 84, opps: 73, converted_jobs: 40 },
+        leads: { opps: 73, leads_set: 13, conv_rate: 18, avg_sale: 1915 },
+        memberships: { total_mem_sold: 8, total_mem_opps: 16, total_mem_pct: 50 },
+        productivity: { rev_hr: 186, billable_hours: 72.25, sold_hrs_on_job_pct: 42, tasks_per_opp: 2.36, options_per_opp: 1.9, recalls: 1 },
+        sales: { total_sales: 38480, avg_sale_s: 924, close_rate: 82, sales_opps: 78, options_per_opp_s: 1.9 },
+        installs: { count: 4, total_revenue: 90451.54, avg_sale: 22613, leads_generated: 13, self_sourced: 0 }
       },
       {
         name: "Dee",
         color: "#2D6A6A",
-        // v218.59: Baseline hardcoded to ServiceTitan source-of-truth MTD May 2026 (IMG_0244/0245).
+        // v218.65: Baseline updated to ServiceTitan MTD May 2026 + TGL Apr 1 – May 11 (IMG_0252/0253/0254, TGL PDF) — Dee warranty (no installs, no leads).
         mtd_service_rev: 1953,
         mtd_installs: 0,
         mtd_install_rev: 0,
@@ -12643,14 +12648,15 @@ if (typeof Chart !== 'undefined') {
           }
         },
         isWarrantyTech: true,
-        completedJobs: 113,
-        nexstar: { total_revenue: 6416, avg_sale: 562, conversion_rate: 85, spps_sold: 0, tech_gen_leads: 3, sold_hours: 87.35, tech_sold_hr_eff: 0, flat_rate_tasks: 2.65 },
-        overview: { revenue: 6416, total_job_avg: 57, opp_job_avg: 475, opp_conversion: 85, opps: 13, converted_jobs: 11 },
-        leads: { opps: 13, leads_set: 3, conv_rate: 23, avg_sale: 562 },
-        memberships: { total_mem_sold: 0, total_mem_opps: 8, total_mem_pct: 0 },
-        productivity: { rev_hr: 24, billable_hours: 87.35, sold_hrs_on_job_pct: 32, tasks_per_opp: 2.63, options_per_opp: 0.75, recalls: 1 },
-        sales: { total_sales: 1233, avg_sale_s: 411, close_rate: 38, sales_opps: 8, options_per_opp_s: 0.75 },
-        installs: { count: 1, total_revenue: 13410, avg_sale: 13410, leads_generated: 1, self_sourced: 0 }
+        completedJobs: 55,  // v218.65: season-to-date (Apr 1–May 11) estimate — 35 Apr + ~20 May 1–11
+        // v218.65: nexstar/leads/memberships/productivity/sales now reflect SEASON-TO-DATE (Apr 1 – May 11) per user directive. Warranty tech — 0 TGL installs in window.
+        nexstar: { total_revenue: 5871, avg_sale: 587, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 2, sold_hours: 39.55, tech_sold_hr_eff: 0, flat_rate_tasks: 4.25 },
+        overview: { revenue: 5871, total_job_avg: 57, opp_job_avg: 475, opp_conversion: 100, opps: 13, converted_jobs: 11 },
+        leads: { opps: 13, leads_set: 2, conv_rate: 15, avg_sale: 587 },
+        memberships: { total_mem_sold: 1, total_mem_opps: 1, total_mem_pct: 100 },
+        productivity: { rev_hr: 148, billable_hours: 39.55, sold_hrs_on_job_pct: 32, tasks_per_opp: 4.25, options_per_opp: 0.75, recalls: 1 },
+        sales: { total_sales: 1233, avg_sale_s: 411, close_rate: 100, sales_opps: 8, options_per_opp_s: 0.75 },
+        installs: { count: 0, total_revenue: 0, avg_sale: 0, leads_generated: 0, self_sourced: 0 }
       },
       {
         name: "Nick",
