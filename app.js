@@ -9330,19 +9330,50 @@ document.addEventListener('visibilitychange', function() {
           // 80 is still below team average of strong installers (Chris 97, Benji 58) and reflects neutral role-credit.
           installScore = 80;
         } else {
-          const convNorm = Math.min(st.nexstar.conversion_rate / 85, 1) * 100;
-          const revNorm = Math.min(st.nexstar.total_revenue / 25000, 1) * 100;
-          const leadsNorm = Math.min(st.nexstar.tech_gen_leads / 30, 1) * 100;
-          const closeNorm = Math.min(st.sales.close_rate / 80, 1) * 100;
-          const optsNorm = Math.min(st.productivity.options_per_opp / 3, 1) * 100;
-          const memNorm = Math.min(st.memberships.total_mem_pct / 50, 1) * 100;
-          stScore = (convNorm * 0.25 + revNorm * 0.25 + leadsNorm * 0.15 + closeNorm * 0.15 + optsNorm * 0.10 + memNorm * 0.10);
+          // v218.62: ST sub-score recalibration (only-help)
+          // - Lowered targets reflect realistic team-level expectations vs over-calibrated stretch goals
+          // - Best-of MTD vs 90d on conv/close/mem/rev/leads so a strong recent month always helps
+          // - Final stScore wrapped with Math.max(oldFormula, newFormula) so nobody can be hurt
+          const mtdMonth = (typeof getActiveMTDMonth === 'function') ? getActiveMTDMonth(st) : null;
+          const mNex = (mtdMonth && mtdMonth.mtd_nexstar) || (st.mtd_nexstar || {});
+          const mSales = (mtdMonth && mtdMonth.mtd_sales) || (st.mtd_sales || {});
+          const mMem = (mtdMonth && mtdMonth.mtd_memberships) || (st.mtd_memberships || {});
+          const bestConv = Math.max(st.nexstar.conversion_rate || 0, mNex.conversion_rate || 0);
+          const bestRev = Math.max(st.nexstar.total_revenue || 0, (mNex.total_revenue || 0) * 3);
+          const bestLeads = Math.max(st.nexstar.tech_gen_leads || 0, (mNex.tech_gen_leads || 0) * 3);
+          const bestClose = Math.max(st.sales.close_rate || 0, mSales.close_rate || 0);
+          const bestMem = Math.max(st.memberships.total_mem_pct || 0, mMem.total_mem_pct || 0);
+          // New (recalibrated) targets
+          const convNormNew = Math.min(bestConv / 85, 1) * 100;
+          const revNormNew = Math.min(bestRev / 15000, 1) * 100;
+          const leadsNormNew = Math.min(bestLeads / 10, 1) * 100;
+          const closeNormNew = Math.min(bestClose / 50, 1) * 100;
+          const optsNormNew = Math.min((st.productivity.options_per_opp || 0) / 3, 1) * 100;
+          const memNormNew = Math.min(bestMem / 30, 1) * 100;
+          const stScoreNew = (convNormNew * 0.25 + revNormNew * 0.25 + leadsNormNew * 0.15 + closeNormNew * 0.15 + optsNormNew * 0.10 + memNormNew * 0.10);
+          // Old (legacy) targets — kept for only-help guarantee
+          const convNormOld = Math.min(st.nexstar.conversion_rate / 85, 1) * 100;
+          const revNormOld = Math.min(st.nexstar.total_revenue / 25000, 1) * 100;
+          const leadsNormOld = Math.min(st.nexstar.tech_gen_leads / 30, 1) * 100;
+          const closeNormOld = Math.min(st.sales.close_rate / 80, 1) * 100;
+          const optsNormOld = Math.min(st.productivity.options_per_opp / 3, 1) * 100;
+          const memNormOld = Math.min(st.memberships.total_mem_pct / 50, 1) * 100;
+          const stScoreOld = (convNormOld * 0.25 + revNormOld * 0.25 + leadsNormOld * 0.15 + closeNormOld * 0.15 + optsNormOld * 0.10 + memNormOld * 0.10);
+          stScore = Math.max(stScoreNew, stScoreOld);
 
           // 5. Install revenue score (0–100)
-          const instCountNorm = Math.min(st.installs.count / 10, 1) * 100;
-          const instRevNorm = Math.min(st.installs.total_revenue / 150000, 1) * 100;
-          const instAvgNorm = Math.min(st.installs.avg_sale / 15000, 1) * 100;
-          installScore = (instRevNorm * 0.45 + instCountNorm * 0.35 + instAvgNorm * 0.20);
+          // v218.62: Recalibrated to mid-team install levels (only-help via Math.max)
+          // + Service-install floor: techs with <3 installs floor at 60 (their role is service, not install)
+          const instCountNormNew = Math.min(st.installs.count / 4, 1) * 100;
+          const instRevNormNew = Math.min(st.installs.total_revenue / 60000, 1) * 100;
+          const instAvgNormNew = Math.min(st.installs.avg_sale / 10000, 1) * 100;
+          let installScoreNew = (instRevNormNew * 0.45 + instCountNormNew * 0.35 + instAvgNormNew * 0.20);
+          if ((st.installs.count || 0) < 3) installScoreNew = Math.max(installScoreNew, 60);
+          const instCountNormOld = Math.min(st.installs.count / 10, 1) * 100;
+          const instRevNormOld = Math.min(st.installs.total_revenue / 150000, 1) * 100;
+          const instAvgNormOld = Math.min(st.installs.avg_sale / 15000, 1) * 100;
+          const installScoreOld = (instRevNormOld * 0.45 + instCountNormOld * 0.35 + instAvgNormOld * 0.20);
+          installScore = Math.max(installScoreNew, installScoreOld);
         }
       }
 
@@ -9378,7 +9409,19 @@ document.addEventListener('visibilitychange', function() {
       const championBonus = champData.total || 0;
       // v218.22: TGL closed-lead bump — +1 per closed TGL, capped at +5 (only helps, never hurts)
       const tglBump = (typeof tglCompositeBump === 'function') ? (tglCompositeBump(tech.short) || 0) : 0;
-      const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus + performanceBonus + championBonus + tglBump;
+      // v218.62: Service Excellence Bonus — rewards service-side strengths so high-conversion / high-review / high-leads
+      // techs aren't held back by being light installers. Additive, only-help.
+      //   • Review excellence: +(reviewScore - 75) × 0.15, capped at +4
+      //   • Versatile-service bonus: +4 if best-of conversion > 75 AND reviewScore > 75 AND best-of leads > 20
+      let serviceExcellenceBonus = 0;
+      if (st && !st.isWarrantyTech) {
+        const mNexB = (st.mtd_nexstar || {});
+        const bestConvB = Math.max(st.nexstar.conversion_rate || 0, mNexB.conversion_rate || 0);
+        const bestLeadsB = Math.max(st.nexstar.tech_gen_leads || 0, (mNexB.tech_gen_leads || 0) * 3);
+        if (reviewScore > 75) serviceExcellenceBonus += Math.min((reviewScore - 75) * 0.15, 4);
+        if (bestConvB > 75 && reviewScore > 75 && bestLeadsB > 20) serviceExcellenceBonus += 4;
+      }
+      const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05 + dispatchBonus + efficiencyBonus + performanceBonus + championBonus + tglBump + serviceExcellenceBonus;
       // Season soft reset penalty (carries for current season only)
       const seasonPenalty = (typeof getSeasonSoftResetPenalty === 'function') ? getSeasonSoftResetPenalty(tech.short) : 0;
       const composite = Math.max(0, compositeRawPreSeason - seasonPenalty);
@@ -9389,7 +9432,7 @@ document.addEventListener('visibilitychange', function() {
       else if (composite >= 78) { tier = 'B'; tierLabel = 'Solid'; }
       else { tier = 'C'; tierLabel = 'Developing'; }
 
-      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct, championBonus: Math.round(championBonus * 100) / 100, championEntries: champData.entries || [], tglBump: tglBump };
+      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct, championBonus: Math.round(championBonus * 100) / 100, championEntries: champData.entries || [], tglBump: tglBump, serviceExcellenceBonus: Math.round(serviceExcellenceBonus * 100) / 100 };
     }
 
 
