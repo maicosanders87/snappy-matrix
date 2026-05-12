@@ -6478,16 +6478,18 @@ document.addEventListener('visibilitychange', function() {
     }
     window.tglMultiSelectCell = tglMultiSelectCell;
 
-    // Close any open multi-select panels when clicking outside one
+    // v218.70p5 fix: outside-click handler uses bubble phase (NOT capture) so
+    // toggles and checkbox clicks fire first. Also ignores clicks on the chip
+    // trigger itself so opening doesn't immediately close.
     if (typeof window !== 'undefined' && !window.__tglMultiOutsideHandler) {
       document.addEventListener('click', function(ev) {
+        // If the click is inside any .tgl-multi container, do nothing.
+        if (ev.target && ev.target.closest && ev.target.closest('.tgl-multi')) return;
         var panels = document.querySelectorAll('.tgl-multi-panel');
         panels.forEach(function(p) {
-          if (p.style.display === 'block' && !p.parentNode.contains(ev.target)) {
-            p.style.display = 'none';
-          }
+          if (p.style.display === 'block') p.style.display = 'none';
         });
-      }, true);
+      }, false);
       window.__tglMultiOutsideHandler = true;
     }
 
@@ -6511,11 +6513,16 @@ document.addEventListener('visibilitychange', function() {
       if (!panel) return;
       var boxes = panel.querySelectorAll('input[type=checkbox]');
       boxes.forEach(function(b){ b.checked = false; });
-      // Use first checkbox as proxy to fire update
+      // Trigger a save with empty selection (use first checkbox as proxy)
       if (boxes[0]) tglMultiChange(boxes[0]);
     }
     window.tglMultiClear = tglMultiClear;
 
+    // v218.70p5 fix: debounce the cascade so multiple checkbox clicks in quick
+    // succession all save, but re-render only fires AFTER the user is done
+    // clicking. Without this, every checkbox change re-rendered the entire
+    // Lead Editor and destroyed the open panel mid-interaction.
+    var __tglMultiCascadeTimer = null;
     function tglMultiChange(checkbox) {
       var panel = checkbox.closest('.tgl-multi-panel');
       if (!panel) return;
@@ -6526,7 +6533,17 @@ document.addEventListener('visibilitychange', function() {
       panel.querySelectorAll('input[type=checkbox]:checked').forEach(function(b){ selected.push(b.value); });
       var v = selected.join(', ');
       var ok = tglUpdateRow(jobNumber, sig, field, v);
-      if (ok) tglFullCascade();
+      if (ok) {
+        // Update row background highlight on the checkbox label immediately for feedback
+        var lbl = checkbox.closest('label');
+        if (lbl) lbl.style.background = checkbox.checked ? 'rgba(167,139,250,0.10)' : 'transparent';
+        // Debounced cascade — re-render after 600ms of no further checkbox activity.
+        if (__tglMultiCascadeTimer) clearTimeout(__tglMultiCascadeTimer);
+        __tglMultiCascadeTimer = setTimeout(function(){
+          __tglMultiCascadeTimer = null;
+          tglFullCascade();
+        }, 600);
+      }
     }
     window.tglMultiChange = tglMultiChange;
 
