@@ -19509,7 +19509,7 @@ if (typeof Chart !== 'undefined') {
           return;
         }
         // Show in viewer modal using the data URL
-        _mgrLibraryOpenViewer({ pdf: dataUrl, title: it.title });
+        _mgrLibraryOpenViewer({ id: it.id, pdf: dataUrl, title: it.title });
         return;
       }
       // 2. External link / built-in PDF base64 lookup
@@ -19528,12 +19528,26 @@ if (typeof Chart !== 'undefined') {
       modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;';
       var safePdf = String(it.pdf).replace(/"/g,'&quot;');
       var safeTitle = mgrEscape(it.title || 'Training');
+      // v218.77: add a Download button inside the viewer so users have a way
+      // to save the file from the viewer (and a clear, visible Close button).
+      var safeId = it.id ? String(it.id).replace(/[^a-zA-Z0-9_\-]/g,'') : '';
+      var dlBtn = '';
+      if (safeId) {
+        dlBtn = '<button type="button" class="mgr-btn secondary sm" onclick="mgrLibraryDownload(\'' + safeId + '\')" style="border-color:rgba(16,185,129,0.5);color:#10b981;">\u2b07 Download</button>';
+      } else {
+        // Inline blob-fetch download when no item id is available (e.g. raw viewer call).
+        dlBtn = '<a href="' + safePdf + '" download class="mgr-btn secondary sm" style="text-decoration:none;border-color:rgba(16,185,129,0.5);color:#10b981;">\u2b07 Download</a>';
+      }
       modal.innerHTML = '' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:#111;border-bottom:1px solid var(--border);flex-shrink:0;">' +
-          '<div style="font-weight:700;font-size:14px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + safeTitle + '</div>' +
+          '<div style="display:flex;align-items:center;gap:10px;overflow:hidden;">' +
+            '<button type="button" class="mgr-btn secondary sm" onclick="_mgrLibraryCloseViewer()" title="Back" style="flex-shrink:0;">\u2190 Back</button>' +
+            '<div style="font-weight:700;font-size:14px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + safeTitle + '</div>' +
+          '</div>' +
           '<div style="display:flex;gap:6px;flex-shrink:0;">' +
-            '<a href="' + safePdf + '" target="_blank" rel="noopener" class="mgr-btn secondary sm" style="text-decoration:none;">↗ New Tab</a>' +
-            '<button type="button" class="mgr-btn secondary sm" onclick="_mgrLibraryCloseViewer()" style="border-color:rgba(255,100,100,0.5);color:#f87171;">✕ Close</button>' +
+            dlBtn +
+            '<a href="' + safePdf + '" target="_blank" rel="noopener" class="mgr-btn secondary sm" style="text-decoration:none;">\u2197 New Tab</a>' +
+            '<button type="button" class="mgr-btn secondary sm" onclick="_mgrLibraryCloseViewer()" style="border-color:rgba(255,100,100,0.5);color:#f87171;">\u2715 Close</button>' +
           '</div>' +
         '</div>' +
         '<div style="flex:1;overflow:hidden;background:#222;">' +
@@ -19554,26 +19568,56 @@ if (typeof Chart !== 'undefined') {
       if (e.key === 'Escape') _mgrLibraryCloseViewer();
     }
 
+    // v218.77: robust download — fetches relative repo PDFs as blob so the
+    // `download` attribute reliably triggers a Save dialog (esp. on iOS Safari,
+    // which ignores `download` on cross-protocol links). Falls back to opening
+    // the viewer modal (which has a Close button) if the blob fetch fails.
     async function mgrLibraryDownload(id) {
       var it = mgrLibraryFind(id);
       if (!it) return;
       var href = '';
       var fileName = '';
+      var isBlobUrl = false;
 
       if (it.hasFile) {
         // Resolve uploaded file from cache or Drive
-        mgrLibraryToast('☁ Preparing download…', '#1e40af');
+        mgrLibraryToast('\u2601 Preparing download\u2026', '#1e40af');
         var dataUrl = await mgrLibraryResolveUploadedFile(it);
         if (!dataUrl) { alert('Could not load this file. It may still be syncing to Drive — try again shortly.'); return; }
         href = dataUrl;
         fileName = it.fileName || (it.title ? (it.title + '.pdf') : 'download.pdf');
       } else if (it.pdf) {
         if (typeof PDF_BASE64 !== 'undefined' && PDF_BASE64[it.pdf]) {
-          href = 'data:application/pdf;base64,' + PDF_BASE64[it.pdf];
+          // Convert base64 -> Blob URL for reliable download trigger.
+          try {
+            var bin = atob(PDF_BASE64[it.pdf]);
+            var bytes = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            var blob = new Blob([bytes], { type: 'application/pdf' });
+            href = URL.createObjectURL(blob);
+            isBlobUrl = true;
+          } catch (e) {
+            href = 'data:application/pdf;base64,' + PDF_BASE64[it.pdf];
+          }
           fileName = (it.title || 'download') + '.pdf';
         } else {
-          href = it.pdf;
-          fileName = it.pdf.split('/').pop().split('?')[0] || 'download';
+          // Same-origin or remote URL — fetch as blob to force a download prompt.
+          mgrLibraryToast('\u2b07 Preparing download\u2026', '#1e40af');
+          fileName = (it.title ? it.title + '.pdf' : (it.pdf.split('/').pop().split('?')[0] || 'download.pdf'));
+          try {
+            var resp = await fetch(it.pdf, { credentials: 'omit' });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            var blob2 = await resp.blob();
+            href = URL.createObjectURL(blob2);
+            isBlobUrl = true;
+          } catch (e) {
+            console.warn('Blob fetch failed, falling back to viewer:', e);
+            // Fallback: open the file in the in-app viewer (which has a Close
+            // button) instead of navigating away with no way back.
+            _mgrLibraryOpenViewer({ id: it.id, pdf: it.pdf, title: it.title });
+            mgrLibraryToast('Couldn\u2019t auto-download \u2014 opened in viewer. Use \u2197 New Tab \u2192 browser Save.', '#b45309');
+            return;
+          }
         }
       } else {
         alert('No file attached to this training.');
@@ -19583,9 +19627,18 @@ if (typeof Chart !== 'undefined') {
       var a = document.createElement('a');
       a.href = href;
       a.download = fileName;
+      a.rel = 'noopener';
+      // target=_blank helps iOS Safari, which still tends to navigate; combined
+      // with the blob URL it now usually opens a save sheet.
+      a.target = '_blank';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      if (isBlobUrl) {
+        // Release the blob URL after the click has been handled.
+        setTimeout(function(){ try { URL.revokeObjectURL(href); } catch(e){} }, 4000);
+      }
+      mgrLibraryToast('\u2b07 Download started', '#059669');
     }
 
     function mgrLibraryDelete(id) {
