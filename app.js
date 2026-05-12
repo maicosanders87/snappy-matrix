@@ -8655,7 +8655,7 @@ document.addEventListener('visibilitychange', function() {
     function ipServiceTechRoster() {
       // Pulled from the locked tech list. Excludes Maico (mgr), Brayden/Adam (sales),
       // Thomas/Terrell (installers — they have their own sections above).
-      return [
+      var base = [
         { short: 'Chris',  display: 'Chris Monahan'  },
         { short: 'Dewone', display: 'Dewone Martin'  },
         { short: 'Benji',  display: 'Ben Tinahui'    },
@@ -8663,7 +8663,137 @@ document.addEventListener('visibilitychange', function() {
         { short: 'Dee',    display: 'Dee Williams'   },
         { short: 'Nick',   display: 'Nick Goehler'   }
       ];
+      // v218.75: include any manually-added custom rows from the override store.
+      try {
+        var ov = ipServiceTechOverrides();
+        var weekAny = Object.keys(ov.weeks || {});
+        var seen = {};
+        base.forEach(function(b){ seen[b.short] = true; });
+        weekAny.forEach(function(wk){
+          var byTech = ov.weeks[wk] || {};
+          Object.keys(byTech).forEach(function(k){
+            if (!seen[k] && byTech[k] && byTech[k].__custom) {
+              base.push({ short: k, display: byTech[k].__display || k, custom: true });
+              seen[k] = true;
+            }
+          });
+        });
+      } catch(e) {}
+      return base;
     }
+
+    // v218.75: override store — keyed by weekStart (Mon ISO) → techShort → { monthMemSold?, weekRev?, weekInstallRev?, weekLeadsSet?, __custom?, __display?, __deleted? }
+    // Any field present in the override is used in place of the computed value.
+    // __deleted=true hides the row for that week. __custom=true adds a non-roster tech.
+    var IP_SVC_TECH_OVERRIDE_KEY = 'snappy_svc_tech_overrides_v1';
+    function ipServiceTechOverrides() {
+      try {
+        var raw = localStorage.getItem(IP_SVC_TECH_OVERRIDE_KEY);
+        var d = raw ? JSON.parse(raw) : { weeks: {} };
+        if (!d.weeks) d.weeks = {};
+        return d;
+      } catch(e) { return { weeks: {} }; }
+    }
+    function ipServiceTechOverridesSave(d) {
+      try { localStorage.setItem(IP_SVC_TECH_OVERRIDE_KEY, JSON.stringify(d)); } catch(e) {}
+    }
+    function ipServiceTechSetField(weekStart, techShort, field, value) {
+      var d = ipServiceTechOverrides();
+      if (!d.weeks[weekStart]) d.weeks[weekStart] = {};
+      if (!d.weeks[weekStart][techShort]) d.weeks[weekStart][techShort] = {};
+      // Coerce numeric for the 4 metric fields; leave strings alone otherwise.
+      if (['monthMemSold','weekRev','weekInstallRev','weekLeadsSet'].indexOf(field) !== -1) {
+        var n = parseFloat(value);
+        if (isNaN(n)) { delete d.weeks[weekStart][techShort][field]; }
+        else { d.weeks[weekStart][techShort][field] = n; }
+      } else {
+        d.weeks[weekStart][techShort][field] = value;
+      }
+      ipServiceTechOverridesSave(d);
+    }
+    function ipServiceTechDeleteRow(weekStart, techShort) {
+      var d = ipServiceTechOverrides();
+      if (!d.weeks[weekStart]) d.weeks[weekStart] = {};
+      if (!d.weeks[weekStart][techShort]) d.weeks[weekStart][techShort] = {};
+      d.weeks[weekStart][techShort].__deleted = true;
+      ipServiceTechOverridesSave(d);
+    }
+    function ipServiceTechRestoreRow(weekStart, techShort) {
+      var d = ipServiceTechOverrides();
+      if (!d.weeks[weekStart]) return;
+      if (!d.weeks[weekStart][techShort]) return;
+      delete d.weeks[weekStart][techShort].__deleted;
+      ipServiceTechOverridesSave(d);
+    }
+    function ipServiceTechAddCustom(weekStart, techShort, display) {
+      if (!techShort) return;
+      var d = ipServiceTechOverrides();
+      if (!d.weeks[weekStart]) d.weeks[weekStart] = {};
+      if (!d.weeks[weekStart][techShort]) d.weeks[weekStart][techShort] = {};
+      d.weeks[weekStart][techShort].__custom = true;
+      d.weeks[weekStart][techShort].__display = display || techShort;
+      ipServiceTechOverridesSave(d);
+    }
+    function ipServiceTechResetRow(weekStart, techShort) {
+      var d = ipServiceTechOverrides();
+      if (!d.weeks[weekStart]) return;
+      if (!d.weeks[weekStart][techShort]) return;
+      // Remove edits but keep __custom/__display if it's a custom row.
+      var keep = {};
+      if (d.weeks[weekStart][techShort].__custom) keep.__custom = true;
+      if (d.weeks[weekStart][techShort].__display) keep.__display = d.weeks[weekStart][techShort].__display;
+      d.weeks[weekStart][techShort] = keep;
+      ipServiceTechOverridesSave(d);
+    }
+    window.ipServiceTechSetField = ipServiceTechSetField;
+    window.ipServiceTechDeleteRow = ipServiceTechDeleteRow;
+    window.ipServiceTechRestoreRow = ipServiceTechRestoreRow;
+    window.ipServiceTechAddCustom = ipServiceTechAddCustom;
+    window.ipServiceTechResetRow = ipServiceTechResetRow;
+
+    // Prompt-driven add row.
+    function ipServiceTechAddPrompt(weekEndingSat) {
+      var weekStart = ipWeekStartMonStr(weekEndingSat);
+      var name = window.prompt('Add a row to Service Techs for week of ' + weekStart + '.\n\nName / label (e.g. "Apprentice"):', '');
+      if (!name) return;
+      var short = name.trim().replace(/\s+/g,'_').slice(0,20);
+      if (!short) return;
+      // Avoid colliding with roster shorts.
+      var roster = ipServiceTechRoster();
+      if (roster.some(function(r){ return r.short === short && !r.custom; })) {
+        alert('That name overlaps with a built-in tech. Edit the existing row instead.');
+        return;
+      }
+      ipServiceTechAddCustom(weekStart, short, name.trim());
+      try { renderInstallPay(); } catch(e) {}
+    }
+    window.ipServiceTechAddPrompt = ipServiceTechAddPrompt;
+
+    // Field-edit handler bound to inline inputs.
+    function ipServiceTechFieldEdit(weekStart, techShort, field, inputEl) {
+      try {
+        var v = inputEl ? inputEl.value : '';
+        ipServiceTechSetField(weekStart, techShort, field, v);
+        renderInstallPay();
+      } catch(e) { console.warn('ipServiceTechFieldEdit failed', e); }
+    }
+    window.ipServiceTechFieldEdit = ipServiceTechFieldEdit;
+
+    function ipServiceTechDeletePrompt(weekStart, techShort, display) {
+      var ok = window.confirm('Delete ' + (display || techShort) + ' from the Service Techs section for week of ' + weekStart + '?\n\nThis hides the row for this week only \u2014 you can restore it later.');
+      if (!ok) return;
+      ipServiceTechDeleteRow(weekStart, techShort);
+      try { renderInstallPay(); } catch(e) {}
+    }
+    window.ipServiceTechDeletePrompt = ipServiceTechDeletePrompt;
+
+    function ipServiceTechResetPrompt(weekStart, techShort, display) {
+      var ok = window.confirm('Clear manual overrides for ' + (display || techShort) + ' for week of ' + weekStart + '?\n\nValues will revert to the computed numbers from Matrix data.');
+      if (!ok) return;
+      ipServiceTechResetRow(weekStart, techShort);
+      try { renderInstallPay(); } catch(e) {}
+    }
+    window.ipServiceTechResetPrompt = ipServiceTechResetPrompt;
     function ipMonthStartFromWeekEnd(weekEndingSat) {
       // Anchor on the Saturday of the selected week — use its month as the "this month" view.
       try {
@@ -8676,6 +8806,45 @@ document.addEventListener('visibilitychange', function() {
     function ipWeekStartMonStr(weekEndingSat) {
       try { return ipWeekStartMon(weekEndingSat); } catch(e) { return weekEndingSat; }
     }
+    // Applies overrides on top of computed values. Drops __deleted rows.
+    function ipServiceTechApplyOverrides(weekStart, computedByTech) {
+      var ov = ipServiceTechOverrides();
+      var weekOv = (ov.weeks && ov.weeks[weekStart]) || {};
+      var out = {};
+      Object.keys(computedByTech).forEach(function(short){
+        var c = computedByTech[short];
+        var o = weekOv[short] || {};
+        if (o.__deleted) return; // hide row this week
+        var merged = {
+          display: o.__display || c.display,
+          monthMemSold:  (typeof o.monthMemSold  === 'number') ? o.monthMemSold  : c.monthMemSold,
+          weekRev:       (typeof o.weekRev       === 'number') ? o.weekRev       : c.weekRev,
+          weekInstallRev:(typeof o.weekInstallRev=== 'number') ? o.weekInstallRev: c.weekInstallRev,
+          weekLeadsSet:  (typeof o.weekLeadsSet  === 'number') ? o.weekLeadsSet  : c.weekLeadsSet,
+          edited: !!(typeof o.monthMemSold === 'number' || typeof o.weekRev === 'number' || typeof o.weekInstallRev === 'number' || typeof o.weekLeadsSet === 'number'),
+          custom: !!o.__custom
+        };
+        out[short] = merged;
+      });
+      // Add any custom rows from overrides that aren't in the computed set yet (covers techs the roster picks up via override).
+      Object.keys(weekOv).forEach(function(short){
+        if (out[short]) return;
+        var o = weekOv[short];
+        if (!o || o.__deleted) return;
+        if (!o.__custom) return;
+        out[short] = {
+          display: o.__display || short,
+          monthMemSold:  (typeof o.monthMemSold  === 'number') ? o.monthMemSold  : 0,
+          weekRev:       (typeof o.weekRev       === 'number') ? o.weekRev       : 0,
+          weekInstallRev:(typeof o.weekInstallRev=== 'number') ? o.weekInstallRev: 0,
+          weekLeadsSet:  (typeof o.weekLeadsSet  === 'number') ? o.weekLeadsSet  : 0,
+          edited: false,
+          custom: true
+        };
+      });
+      return out;
+    }
+
     function ipServiceTechMetrics(weekEndingSat) {
       var weekStart = ipWeekStartMonStr(weekEndingSat);
       var weekStartIso = weekStart;
@@ -8778,7 +8947,9 @@ document.addEventListener('visibilitychange', function() {
         }
       } catch(e) { console.warn('ipServiceTechMetrics leads set failed', e); }
 
-      return { weekStart: weekStart, weekEnd: weekEndIso, monthStart: monthStart, metrics: metrics };
+      // v218.75: layer manual overrides on top of computed values, drop deleted rows.
+      var finalMetrics = ipServiceTechApplyOverrides(weekStart, metrics);
+      return { weekStart: weekStart, weekEnd: weekEndIso, monthStart: monthStart, metrics: finalMetrics };
     }
     function ipRenderServiceTechsSection(weekEndingSat) {
       var res = ipServiceTechMetrics(weekEndingSat);
@@ -8807,30 +8978,76 @@ document.addEventListener('visibilitychange', function() {
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Week\'s Service Rev</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Week\'s Install Rev (Paired)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Week\'s Leads Set</th>';
+      html += '<th style="text-align:center;padding:8px;border:1px solid #1e3a5f;">Actions</th>';
       html += '</tr></thead><tbody>';
       var teamMem = 0, teamRev = 0, teamInst = 0, teamLeads = 0;
-      roster.forEach(function(r){
-        var m = res.metrics[r.short] || { monthMemSold:0, weekRev:0, weekInstallRev:0, weekLeadsSet:0 };
+      var ws = res.weekStart;
+      var inputStyle = 'width:90px;padding:4px 6px;background:#0b1426;border:1px solid #1e3a5f;color:#f1f5f9;border-radius:4px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;';
+      var btnStyle = 'background:transparent;color:#94a3b8;border:1px solid #1e3a5f;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;margin-left:4px;';
+      var dangerBtn = 'background:transparent;color:#dc2626;border:1px solid #7c2d2d;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;margin-left:4px;';
+      // Add edit-column header.
+      // (Inserted via string replace below — simpler: rebuild header here.)
+      // We'll just append the actions column via a separate string concat at end of header rebuild.
+      // For simplicity here, just inject the column — we leave the original header above and
+      // attach extra <th> by closing+reopening the row.
+      // (Already declared above before this block runs.)
+      // -- rows --
+      var rosterShorts = roster.map(function(r){ return r.short; });
+      // Include any extra metrics keys from overrides not in roster (e.g. custom shorts)
+      Object.keys(res.metrics).forEach(function(k){ if (rosterShorts.indexOf(k) === -1) rosterShorts.push(k); });
+      rosterShorts.forEach(function(short){
+        var m = res.metrics[short];
+        if (!m) return; // deleted or absent
+        var displayName = m.display;
         teamMem += m.monthMemSold;
         teamRev += m.weekRev;
         teamInst += m.weekInstallRev;
         teamLeads += m.weekLeadsSet;
+        var badge = '';
+        if (m.custom) badge = '<span style="font-size:10px;color:#fbbf24;background:#451a03;padding:2px 6px;border-radius:4px;margin-left:6px;">custom</span>';
+        else if (m.edited) badge = '<span style="font-size:10px;color:#10B981;background:#022c22;padding:2px 6px;border-radius:4px;margin-left:6px;" title="Has manual overrides">edited</span>';
         html += '<tr>';
-        html += '<td style="padding:8px;border:1px solid #1e3a5f;font-weight:600;">' + r.display + '</td>';
-        html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;font-variant-numeric:tabular-nums;">' + m.monthMemSold + '</td>';
-        html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;font-variant-numeric:tabular-nums;">$' + (Math.round(m.weekRev)).toLocaleString() + '</td>';
-        html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + (m.weekInstallRev).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
-        html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;font-variant-numeric:tabular-nums;">' + m.weekLeadsSet + '</td>';
+        html += '<td style="padding:8px;border:1px solid #1e3a5f;font-weight:600;">' + displayName + badge + '</td>';
+        html += '<td style="text-align:right;padding:4px;border:1px solid #1e3a5f;"><input type="number" min="0" step="1" value="' + m.monthMemSold + '" onchange="ipServiceTechFieldEdit(\'' + ws + '\',\'' + short + '\',\'monthMemSold\',this)" style="' + inputStyle + '"></td>';
+        html += '<td style="text-align:right;padding:4px;border:1px solid #1e3a5f;"><input type="number" min="0" step="1" value="' + (Math.round(m.weekRev)) + '" onchange="ipServiceTechFieldEdit(\'' + ws + '\',\'' + short + '\',\'weekRev\',this)" style="' + inputStyle + 'color:#10B981;"></td>';
+        html += '<td style="text-align:right;padding:4px;border:1px solid #1e3a5f;"><input type="number" min="0" step="0.01" value="' + (m.weekInstallRev.toFixed(2)) + '" onchange="ipServiceTechFieldEdit(\'' + ws + '\',\'' + short + '\',\'weekInstallRev\',this)" style="' + inputStyle + 'color:#3B82F6;"></td>';
+        html += '<td style="text-align:right;padding:4px;border:1px solid #1e3a5f;"><input type="number" min="0" step="1" value="' + m.weekLeadsSet + '" onchange="ipServiceTechFieldEdit(\'' + ws + '\',\'' + short + '\',\'weekLeadsSet\',this)" style="' + inputStyle + 'width:70px;"></td>';
+        html += '<td style="text-align:center;padding:4px;border:1px solid #1e3a5f;white-space:nowrap;">';
+        if (m.edited || m.custom) {
+          html += '<button onclick="ipServiceTechResetPrompt(\'' + ws + '\',\'' + short + '\',\'' + displayName.replace(/\\/g,"\\\\").replace(/\u0027/g,"\\\u0027") + '\')" style="' + btnStyle + '" title="Clear manual overrides for this row this week">\u21bb Reset</button>';
+        }
+        html += '<button onclick="ipServiceTechDeletePrompt(\'' + ws + '\',\'' + short + '\',\'' + displayName.replace(/\\/g,"\\\\").replace(/\u0027/g,"\\\u0027") + '\')" style="' + dangerBtn + '" title="Hide this row for this week">\ud83d\uddd1 Delete</button>';
+        html += '</td>';
         html += '</tr>';
       });
+      // Any deleted rows: surface a restore option.
+      try {
+        var ov = ipServiceTechOverrides();
+        var weekOv = (ov.weeks && ov.weeks[ws]) || {};
+        var deletedShorts = Object.keys(weekOv).filter(function(k){ return weekOv[k] && weekOv[k].__deleted; });
+        if (deletedShorts.length) {
+          html += '<tr><td colspan="6" style="padding:8px;border:1px solid #1e3a5f;background:#0b1426;color:#94a3b8;font-size:11px;">';
+          html += 'Hidden this week: ';
+          deletedShorts.forEach(function(short, idx){
+            var label = (weekOv[short].__display) || short;
+            html += (idx > 0 ? ' \u00b7 ' : '') + '<button onclick="ipServiceTechRestoreRow(\'' + ws + '\',\'' + short + '\');renderInstallPay();" style="' + btnStyle + '">\u21ba Restore ' + label + '</button>';
+          });
+          html += '</td></tr>';
+        }
+      } catch(e) {}
       html += '<tr style="background:#0b1426;font-weight:700;">';
       html += '<td style="padding:8px;border:1px solid #1e3a5f;">Team</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;font-variant-numeric:tabular-nums;">' + teamMem + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;font-variant-numeric:tabular-nums;">$' + (Math.round(teamRev)).toLocaleString() + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + (teamInst).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;font-variant-numeric:tabular-nums;">' + teamLeads + '</td>';
+      html += '<td style="padding:8px;border:1px solid #1e3a5f;"></td>';
       html += '</tr>';
       html += '</tbody></table></div>';
+      // Add-row button below table.
+      html += '<div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">';
+      html += '<button onclick="ipServiceTechAddPrompt(\'' + weekEndingSat + '\')" style="background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">+ Add row</button>';
+      html += '</div>';
       html += '</div>';
       return html;
     }
