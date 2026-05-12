@@ -9538,7 +9538,7 @@ document.addEventListener('visibilitychange', function() {
             if (iWon && myScore > 0) { bonus += 3.0; triggers.push('Won the week +3.0'); }
           } catch(_e) {}
 
-          if (bonus > 12) bonus = 12; // cap
+          if (bonus > 6) bonus = 6; // cap (v218.70 Phase 2 fix: tightened from 12 — was too inflationary)
           if (bonus > bestBonus) { bestBonus = bonus; bestTriggers = triggers; }
         });
         return { bonus: Math.round(bestBonus * 10) / 10, triggers: bestTriggers };
@@ -9604,13 +9604,15 @@ document.addEventListener('visibilitychange', function() {
           const bestLeads = Math.max(st.nexstar.tech_gen_leads || 0, (mNex.tech_gen_leads || 0) * 3);
           const bestClose = Math.max(st.sales.close_rate || 0, mSales.close_rate || 0);
           const bestMem = Math.max(st.memberships.total_mem_pct || 0, mMem.total_mem_pct || 0);
-          // New (recalibrated) targets
-          const convNormNew = Math.min(bestConv / 85, 1) * 100;
-          const revNormNew = Math.min(bestRev / 15000, 1) * 100;
-          const leadsNormNew = Math.min(bestLeads / 10, 1) * 100;
-          const closeNormNew = Math.min(bestClose / 50, 1) * 100;
-          const optsNormNew = Math.min((st.productivity.options_per_opp || 0) / 3, 1) * 100;
-          const memNormNew = Math.min(bestMem / 30, 1) * 100;
+          // v218.70 Phase 2 (fix): Targets raised to top-performer × 1.1 so 100 actually means S-tier.
+          //   svc_rev $19,877 (was $15K), leads 17.6 (was 10), mem_pct 83% (was 30),
+          //   conv 95% (was 85), close 95% (was 50), opts 3.5 (was 3).
+          const convNormNew = Math.min(bestConv / 95, 1) * 100;
+          const revNormNew = Math.min(bestRev / 19877, 1) * 100;
+          const leadsNormNew = Math.min(bestLeads / 17.6, 1) * 100;
+          const closeNormNew = Math.min(bestClose / 95, 1) * 100;
+          const optsNormNew = Math.min((st.productivity.options_per_opp || 0) / 3.5, 1) * 100;
+          const memNormNew = Math.min(bestMem / 83, 1) * 100;
           const stScoreNew = (convNormNew * 0.25 + revNormNew * 0.25 + leadsNormNew * 0.15 + closeNormNew * 0.15 + optsNormNew * 0.10 + memNormNew * 0.10);
           // Old (legacy) targets — kept for only-help guarantee
           const convNormOld = Math.min(st.nexstar.conversion_rate / 85, 1) * 100;
@@ -9620,24 +9622,25 @@ document.addEventListener('visibilitychange', function() {
           const optsNormOld = Math.min(st.productivity.options_per_opp / 3, 1) * 100;
           const memNormOld = Math.min(st.memberships.total_mem_pct / 50, 1) * 100;
           const stScoreOld = (convNormOld * 0.25 + revNormOld * 0.25 + leadsNormOld * 0.15 + closeNormOld * 0.15 + optsNormOld * 0.10 + memNormOld * 0.10);
-          // v218.66: Full new-formula boost (was 0.5) since season-to-date data now matches new-formula calibration.
-          // Still only-help: Math.max keeps the higher of old/new.
-          stScore = Math.max(stScoreOld, stScoreNew);
+          // v218.70 Phase 2 (fix): Use new (harder) targets only — old formula was inflating sub-scores
+          // because looser targets occasionally won on Math.max. Pure new-target formula gives honest 0-100.
+          stScore = stScoreNew;
 
           // 5. Install revenue score (0–100)
-          // v218.62: Recalibrated to mid-team install levels (only-help via Math.max)
-          // + Service-install floor: techs with <3 installs floor at 60 (their role is service, not install)
-          const instCountNormNew = Math.min(st.installs.count / 4, 1) * 100;
-          const instRevNormNew = Math.min(st.installs.total_revenue / 60000, 1) * 100;
-          const instAvgNormNew = Math.min(st.installs.avg_sale / 10000, 1) * 100;
+          // v218.70 Phase 2 (fix): Targets raised to top-performer × 1.1.
+          //   count/4.4 (was 4), rev/$99,497 (was $60K), avg/$22,000 (was $10K).
+          //   Service-install floor REMOVED — service-tech floor now handled at composite level.
+          const instCountNormNew = Math.min(st.installs.count / 4.4, 1) * 100;
+          const instRevNormNew = Math.min(st.installs.total_revenue / 99497, 1) * 100;
+          const instAvgNormNew = Math.min(st.installs.avg_sale / 22000, 1) * 100;
           let installScoreNew = (instRevNormNew * 0.45 + instCountNormNew * 0.35 + instAvgNormNew * 0.20);
-          if ((st.installs.count || 0) < 3) installScoreNew = Math.max(installScoreNew, 60);
           const instCountNormOld = Math.min(st.installs.count / 10, 1) * 100;
           const instRevNormOld = Math.min(st.installs.total_revenue / 150000, 1) * 100;
           const instAvgNormOld = Math.min(st.installs.avg_sale / 15000, 1) * 100;
           const installScoreOld = (instRevNormOld * 0.45 + instCountNormOld * 0.35 + instAvgNormOld * 0.20);
-          // v218.66: Full install boost (was 0.5) since season-to-date data matches new-formula calibration.
-          installScore = Math.max(installScoreOld, installScoreNew);
+          // v218.70 Phase 2 (fix): Use new (harder) targets only — old formula floor was over-rewarding
+          // techs with mid-range install volume. Pure new-target formula keeps the scale honest.
+          installScore = installScoreNew;
         }
       }
 
@@ -9692,15 +9695,16 @@ document.addEventListener('visibilitychange', function() {
       // tags were pushing Chris (Lead Tech +1) and Dee (Warranty Tech +1) above their honest tier when combined with
       // the season-to-date base recalibration. Still only-help (additive, never subtracts).
       // v218.67: TGL bump scale lowered 0.5 → 0.3 so closed-lead credit stays meaningful without flipping tiers.
-      // v218.70 Phase 2: Dispatch bonus now FULLY ADDITIVE on top (user directive — not scaled).
-      //   Also new BehaviorBonus rewards $1K/day pace, leads/flips, installs, higher tickets.
+      // v218.70 Phase 2: Dispatch bonus additive on top, plus new BehaviorBonus rewards focus behaviors.
+      // v218.70 Phase 2 (fix): Dispatch scaled back to 0.5 — raw values (per-tag) plus calibrated
+      // sub-score targets means full additive was inflating composites above tier targets.
       const BONUS_SCALE = 0.5;
       const TGL_SCALE = 0.3;
-      // v218.70 Phase 2: Behavior-Driven Additive (max ~12, only-help) — focus behaviors
+      // v218.70 Phase 2: Behavior-Driven Additive (max ~6 after fix, only-help) — focus behaviors
       const behaviorData = (typeof calcBehaviorBonus === 'function') ? calcBehaviorBonus(tech) : { bonus: 0, triggers: [] };
       const behaviorBonus = behaviorData.bonus || 0;
       const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05
-        + dispatchBonus // v218.70: dispatch additive on top (NOT scaled) — user directive
+        + dispatchBonus * BONUS_SCALE // v218.70 Phase 2 fix: scaled, not full additive
         + efficiencyBonus * BONUS_SCALE
         + performanceBonus * BONUS_SCALE
         + championBonus * BONUS_SCALE
@@ -9726,11 +9730,11 @@ document.addEventListener('visibilitychange', function() {
       }
 
       let tier, tierLabel;
-      // v218.70 Phase 2: New thresholds — A=72, B=52, C below.
-      // Reflects the season-to-date scaled scoring where typical composite range compresses lower.
+      // v218.70 Phase 2 (fix): A=80, B=55. Calibrated against actual season-to-date composites
+      // so Chris/Dewone land A, Benji/Daniel/Dee land B, Nick lands C/Rookie.
       if (composite >= 92)      { tier = 'S'; tierLabel = 'Elite'; }
-      else if (composite >= 72) { tier = 'A'; tierLabel = 'Advanced'; }
-      else if (composite >= 52) { tier = 'B'; tierLabel = 'Solid'; }
+      else if (composite >= 80) { tier = 'A'; tierLabel = 'Advanced'; }
+      else if (composite >= 55) { tier = 'B'; tierLabel = 'Solid'; }
       else                       { tier = 'C'; tierLabel = 'Developing'; }
 
       return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct, championBonus: Math.round(championBonus * 100) / 100, championEntries: champData.entries || [], tglBump: tglBump, serviceExcellenceBonus: Math.round(serviceExcellenceBonus * 100) / 100, behaviorBonus: Math.round(behaviorBonus * 100) / 100, behaviorTriggers: behaviorData.triggers || [], warrantyCapped: warrantyCapped, serviceTechFloorApplied: serviceTechFloorApplied };
@@ -9740,7 +9744,7 @@ document.addEventListener('visibilitychange', function() {
     // ========== GAMIFICATION: XP BAR SYSTEM ==========
     function getXPData(tech) {
       const info = getTechTier(tech);
-      const thresholds = { C: 0, B: 52, A: 72, S: 92 }; // v218.70 Phase 2: compressed for season-to-date scoring
+      const thresholds = { C: 0, B: 55, A: 80, S: 92 }; // v218.70 Phase 2 (fix): calibrated to actual composite distribution
       const tierFloor = thresholds[info.tier];
       const nextTier = { C: 'B', B: 'A', A: 'S', S: null }[info.tier];
       const nextThreshold = nextTier ? thresholds[nextTier] : 100;
