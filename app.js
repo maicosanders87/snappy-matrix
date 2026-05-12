@@ -8951,7 +8951,76 @@ document.addEventListener('visibilitychange', function() {
       var finalMetrics = ipServiceTechApplyOverrides(weekStart, metrics);
       return { weekStart: weekStart, weekEnd: weekEndIso, monthStart: monthStart, metrics: finalMetrics };
     }
-    function ipRenderServiceTechsSection(weekEndingSat) {
+    // v218.76: Service Techs section uses an independent week pointer so the user
+    // can toggle through weeks without affecting the rest of the Payout tab.
+    function ipServiceTechGetViewWeek(defaultWeekEndingSat) {
+      try {
+        var stored = localStorage.getItem('snappy_svc_tech_view_week_v1');
+        if (stored && /^\d{4}-\d{2}-\d{2}$/.test(stored)) return stored;
+      } catch(e) {}
+      return defaultWeekEndingSat;
+    }
+    function ipServiceTechSetViewWeek(weekEndingSat) {
+      try { localStorage.setItem('snappy_svc_tech_view_week_v1', weekEndingSat); } catch(e) {}
+    }
+    window.ipServiceTechSetViewWeek = ipServiceTechSetViewWeek;
+    function ipServiceTechNavWeek(deltaWeeks) {
+      var cur = ipServiceTechGetViewWeek(ipWeekEndingSat(new Date().toISOString().slice(0,10)));
+      var d = new Date(cur + 'T12:00:00');
+      d.setTime(d.getTime() + deltaWeeks * 7 * 86400000);
+      ipServiceTechSetViewWeek(d.toISOString().slice(0,10));
+      if (typeof renderInstallPay === 'function') renderInstallPay();
+    }
+    window.ipServiceTechNavWeek = ipServiceTechNavWeek;
+    function ipServiceTechPickWeek(selectEl) {
+      if (!selectEl || !selectEl.value) return;
+      ipServiceTechSetViewWeek(selectEl.value);
+      if (typeof renderInstallPay === 'function') renderInstallPay();
+    }
+    window.ipServiceTechPickWeek = ipServiceTechPickWeek;
+    function ipServiceTechJumpCurrent() {
+      var today = new Date().toISOString().slice(0,10);
+      ipServiceTechSetViewWeek(ipWeekEndingSat(today));
+      if (typeof renderInstallPay === 'function') renderInstallPay();
+    }
+    window.ipServiceTechJumpCurrent = ipServiceTechJumpCurrent;
+    function ipServiceTechWeekOptions(activeWeekEndingSat) {
+      // Build a list of recent weeks (current ± 8). Mark any that have overrides or data.
+      var todaySat = ipWeekEndingSat(new Date().toISOString().slice(0,10));
+      var weeks = [];
+      var anchor = new Date(todaySat + 'T12:00:00');
+      for (var i = 8; i >= -4; i--) {
+        var d = new Date(anchor.getTime() - i * 7 * 86400000);
+        weeks.push(d.toISOString().slice(0,10));
+      }
+      // Also include the active week if not in range.
+      if (weeks.indexOf(activeWeekEndingSat) === -1) weeks.unshift(activeWeekEndingSat);
+      // Dedupe and sort desc.
+      var seen = {};
+      weeks = weeks.filter(function(w){ if (seen[w]) return false; seen[w] = 1; return true; });
+      weeks.sort(function(a,b){ return b.localeCompare(a); });
+      // Build option HTML with labels like "May 11 → May 16".
+      var ov = {};
+      try { ov = (ipServiceTechOverrides().weeks) || {}; } catch(e) {}
+      var opts = '';
+      weeks.forEach(function(wEnd){
+        var wStart = ipWeekStartMonStr(wEnd);
+        var mStart = new Date(wStart + 'T12:00:00');
+        var mEnd = new Date(wEnd + 'T12:00:00');
+        var mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var label = mn[mStart.getMonth()] + ' ' + mStart.getDate() + ' \u2192 ' + mn[mEnd.getMonth()] + ' ' + mEnd.getDate();
+        var marker = '';
+        if (wEnd === todaySat) marker = ' (current)';
+        else if (ov[wStart]) marker = ' \u2022 edited';
+        var sel = (wEnd === activeWeekEndingSat) ? ' selected' : '';
+        opts += '<option value="' + wEnd + '"' + sel + '>' + label + marker + '</option>';
+      });
+      return opts;
+    }
+
+    function ipRenderServiceTechsSection(defaultWeekEndingSat) {
+      // Toggle: use stored view week if set, else default (from Payout's selectedWeek).
+      var weekEndingSat = ipServiceTechGetViewWeek(defaultWeekEndingSat);
       var res = ipServiceTechMetrics(weekEndingSat);
       var monthLabel = '';
       try {
@@ -8959,15 +9028,25 @@ document.addEventListener('visibilitychange', function() {
         monthLabel = ['January','February','March','April','May','June','July','August','September','October','November','December'][md.getMonth()] + ' ' + md.getFullYear();
       } catch(e) { monthLabel = res.monthStart; }
       var roster = ipServiceTechRoster();
+      var todaySat = ipWeekEndingSat(new Date().toISOString().slice(0,10));
+      var isCurrent = (weekEndingSat === todaySat);
       var html = '';
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;margin-bottom:14px;">';
       html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
       html += '<div>';
-      html += '<div style="font-size:14px;font-weight:700;">\ud83d\udd27 Service Techs \u00b7 Week of ' + res.weekStart + ' \u2192 ' + res.weekEnd + '</div>';
+      html += '<div style="font-size:14px;font-weight:700;">\ud83d\udd27 Service Techs \u00b7 Week of ' + res.weekStart + ' \u2192 ' + res.weekEnd + (isCurrent ? ' <span style=\"font-size:10px;color:#10B981;background:#022c22;padding:2px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;\">current</span>' : '') + '</div>';
       html += '<div style="font-size:11px;color:#64748b;margin-top:2px;">Monthly memberships shown for ' + monthLabel + ' MTD \u00b7 Week metrics for Mon \u2192 Sat</div>';
       html += '</div>';
-      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-      html += '<button onclick="ipServiceTechsExportPdf(\'' + weekEndingSat + '\')" style="background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">\ud83d\udcc4 Service Techs PDF</button>';
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">';
+      // Week toggle controls
+      var navBtn = 'background:#0b1426;color:#cbd5e1;border:1px solid #1e3a5f;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;';
+      html += '<button onclick="ipServiceTechNavWeek(-1)" style="' + navBtn + '" title="Previous week">\u2190 Prev</button>';
+      html += '<select onchange="ipServiceTechPickWeek(this)" style="background:#0b1426;color:#cbd5e1;border:1px solid #1e3a5f;border-radius:6px;padding:6px 8px;font-size:12px;font-weight:600;cursor:pointer;">' + ipServiceTechWeekOptions(weekEndingSat) + '</select>';
+      html += '<button onclick="ipServiceTechNavWeek(1)" style="' + navBtn + '" title="Next week">Next \u2192</button>';
+      if (!isCurrent) {
+        html += '<button onclick="ipServiceTechJumpCurrent()" style="background:#0b1426;color:#10B981;border:1px solid #065f46;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;" title="Jump to current week">\u2022 Today</button>';
+      }
+      html += '<button onclick="ipServiceTechsExportPdf(\'' + weekEndingSat + '\')" style="background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">\ud83d\udcc4 PDF</button>';
       html += '</div>';
       html += '</div>';
       html += '<div style="overflow-x:auto;">';
