@@ -6428,6 +6428,108 @@ document.addEventListener('visibilitychange', function() {
     }
     window.tglSelectCell = tglSelectCell;
 
+    // v218.70p4: Multi-select chip dropdown for fields that take multiple values
+    // (e.g. installedBy — assign 2+ installers per job). Renders a clickable
+    // pill showing selected names; clicking opens a checkbox panel of options.
+    // Stores result as comma-joined string which tglUpdateRow splits to array.
+    function tglMultiSelectCell(row, field, options, currentArr, opts) {
+      opts = opts || {};
+      var jobNumber = (row.jobNumber||'').replace(/"/g,'&quot;');
+      var sig = ((row.customer||'')+'|'+(row.dateGenerated||'')+'|'+(row.leadGeneratedBy||'')).replace(/"/g,'&quot;');
+      var width = opts.width || '140px';
+      var bg = opts.bg || '#0b1426';
+      var color = opts.color || '#cbd5e1';
+      var border = opts.border || '#1e3a5f';
+      var selected = Array.isArray(currentArr) ? currentArr.slice() : (currentArr ? [currentArr] : []);
+      var label = selected.length === 0 ? '— None —' :
+                  selected.length === 1 ? selected[0] :
+                  selected.length + ' installers';
+      var labelColor = selected.length === 0 ? '#94a3b8' : '#cbd5e1';
+      // Unique id so we can show/hide the matching panel
+      var uid = 'tgms_' + Math.random().toString(36).slice(2,9);
+      var html = '<div class="tgl-multi" style="position:relative;display:inline-block;width:'+width+';vertical-align:middle;">';
+      html += '<div onclick="tglMultiToggle(\''+uid+'\')" ' +
+              'style="background:'+bg+';color:'+labelColor+';border:1px solid '+border+';border-radius:5px;padding:3px 22px 3px 6px;font-size:11px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;">' +
+              label +
+              '<span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:8px;color:#64748b;">▼</span>' +
+              '</div>';
+      html += '<div id="'+uid+'" class="tgl-multi-panel" ' +
+              'data-tgl-job="'+jobNumber+'" data-tgl-sig="'+sig+'" data-tgl-field="'+field+'" ' +
+              'style="display:none;position:absolute;top:100%;left:0;margin-top:2px;min-width:160px;max-height:240px;overflow-y:auto;background:#0f1729;border:1px solid '+border+';border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:1000;padding:6px 0;">';
+      options.forEach(function(o){
+        var checked = selected.indexOf(o) >= 0 ? 'checked' : '';
+        var rowBg = checked ? 'background:rgba(167,139,250,0.10);' : '';
+        html += '<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:12px;color:#e2e8f0;cursor:pointer;'+rowBg+'" ' +
+                'onmouseover="this.style.background=\'rgba(96,165,250,0.12)\'" ' +
+                'onmouseout="this.style.background=\''+(checked?'rgba(167,139,250,0.10)':'transparent')+'\'">' +
+                '<input type="checkbox" value="'+o+'" '+checked+' ' +
+                'onchange="tglMultiChange(this)" ' +
+                'style="accent-color:#A78BFA;cursor:pointer;">' +
+                '<span>'+o+'</span>' +
+                '</label>';
+      });
+      html += '<div style="border-top:1px solid '+border+';padding:6px 10px;display:flex;justify-content:space-between;font-size:11px;">' +
+              '<a href="#" onclick="tglMultiClear(\''+uid+'\');return false;" style="color:#94a3b8;text-decoration:none;">Clear</a>' +
+              '<a href="#" onclick="tglMultiClose(\''+uid+'\');return false;" style="color:#5eead4;text-decoration:none;font-weight:600;">Done</a>' +
+              '</div>';
+      html += '</div>';
+      html += '</div>';
+      return html;
+    }
+    window.tglMultiSelectCell = tglMultiSelectCell;
+
+    // Close any open multi-select panels when clicking outside one
+    if (typeof window !== 'undefined' && !window.__tglMultiOutsideHandler) {
+      document.addEventListener('click', function(ev) {
+        var panels = document.querySelectorAll('.tgl-multi-panel');
+        panels.forEach(function(p) {
+          if (p.style.display === 'block' && !p.parentNode.contains(ev.target)) {
+            p.style.display = 'none';
+          }
+        });
+      }, true);
+      window.__tglMultiOutsideHandler = true;
+    }
+
+    function tglMultiToggle(uid) {
+      var panel = document.getElementById(uid);
+      if (!panel) return;
+      // Close all other open panels first
+      document.querySelectorAll('.tgl-multi-panel').forEach(function(p){ if (p.id !== uid) p.style.display = 'none'; });
+      panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    }
+    window.tglMultiToggle = tglMultiToggle;
+
+    function tglMultiClose(uid) {
+      var panel = document.getElementById(uid);
+      if (panel) panel.style.display = 'none';
+    }
+    window.tglMultiClose = tglMultiClose;
+
+    function tglMultiClear(uid) {
+      var panel = document.getElementById(uid);
+      if (!panel) return;
+      var boxes = panel.querySelectorAll('input[type=checkbox]');
+      boxes.forEach(function(b){ b.checked = false; });
+      // Use first checkbox as proxy to fire update
+      if (boxes[0]) tglMultiChange(boxes[0]);
+    }
+    window.tglMultiClear = tglMultiClear;
+
+    function tglMultiChange(checkbox) {
+      var panel = checkbox.closest('.tgl-multi-panel');
+      if (!panel) return;
+      var jobNumber = panel.getAttribute('data-tgl-job') || '';
+      var sig = panel.getAttribute('data-tgl-sig') || '';
+      var field = panel.getAttribute('data-tgl-field') || '';
+      var selected = [];
+      panel.querySelectorAll('input[type=checkbox]:checked').forEach(function(b){ selected.push(b.value); });
+      var v = selected.join(', ');
+      var ok = tglUpdateRow(jobNumber, sig, field, v);
+      if (ok) tglFullCascade();
+    }
+    window.tglMultiChange = tglMultiChange;
+
     // v218.43: roster of people who can be selected as Lead/Sold/Installer.
     // Sales-credit-eligible: Maico, Brayden Bond, Adam Bunyard.
     // Lead-eligible techs: Benji, Chris, Dewone, Dee, Daniel, Nick.
@@ -6695,12 +6797,12 @@ document.addEventListener('visibilitychange', function() {
         var installerList = (r.installedBy && r.installedBy.length) ? r.installedBy.join(', ')
           : ((r.status === 'completed' && r.assignedTechnicians && r.assignedTechnicians.length) ?
              r.assignedTechnicians.filter(function(t){ return t !== r.soldBy; }).join(', ') : '');
-        // For the installer dropdown, current value = first in list (multi-installer entries
-        // shown as text in jobInfo). User picks one primary installer; second can be added
-        // by editing the assigned cell elsewhere.
-        var installerPrimary = (r.installedBy && r.installedBy[0]) ||
-          (r.status === 'completed' && r.assignedTechnicians ?
-            r.assignedTechnicians.filter(function(t){ return t !== r.soldBy; })[0] : '') || '';
+        // v218.70p4: installer is now a true multi-select. Show ALL assigned installers
+        // in the dropdown chip. Falls back to assignedTechnicians (minus seller) for
+        // legacy completed rows that don't yet have installedBy[] populated.
+        var installersAll = (r.installedBy && r.installedBy.length) ? r.installedBy.slice()
+          : (r.status === 'completed' && r.assignedTechnicians ?
+              r.assignedTechnicians.filter(function(t){ return t !== r.soldBy; }) : []);
         var totDisp = (r.jobTotal && r.jobTotal > 0) ? ('$' + Math.round(r.jobTotal).toLocaleString()) : '';
         var dateDisp = r.completedDate || r.dateGenerated || '';
         var statusBadge = r.status === 'completed'
@@ -6721,7 +6823,7 @@ document.addEventListener('visibilitychange', function() {
         html += '<td style="padding:6px 10px;color:#94a3b8;font-variant-numeric:tabular-nums;">' + (dateDisp || '—') + '</td>';
         html += '<td style="padding:6px 10px;">' + tglSelectCell(r,'leadBy',leadRoster,leadBy,{width:'130px'}) + '</td>';
         html += '<td style="padding:6px 10px;">' + tglSelectCell(r,'soldBy',soldRoster,soldBy,{width:'130px'}) + '</td>';
-        html += '<td style="padding:6px 10px;">' + tglSelectCell(r,'installedBy',installRoster,installerPrimary,{width:'140px'}) + '</td>';
+        html += '<td style="padding:6px 10px;">' + tglMultiSelectCell(r,'installedBy',installRoster,installersAll,{width:'140px'}) + '</td>';
         html += '<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + tglEditableCell(r,'jobTotal',totDisp,{color:'#10B981',style:'font-weight:700;'}) + '</td>';
         html += '<td style="padding:6px 6px;text-align:center;">' + statusBadge + '</td>';
         html += '<td style="padding:6px 4px;text-align:center;">' + delBtn + '</td>';
@@ -6729,7 +6831,7 @@ document.addEventListener('visibilitychange', function() {
       });
 
       html += '</tbody></table></div>';
-      html += '<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:6px;">Tip: picking a tech (Benji/Chris/Dewone/Dee) as Sold by auto-flags the row as a tech-sell so they don\u2019t double-count. Total cell is click-to-edit.</div>';
+      html += '<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:6px;">Tip: Installed by supports multiple installers \u2014 click the field to check off everyone who ran the job. Picking a tech (Benji/Chris/Dewone/Dee) as Sold by auto-flags the row as a tech-sell so they don\u2019t double-count. Total cell is click-to-edit.</div>';
       html += '</div>';
       return html;
     }
