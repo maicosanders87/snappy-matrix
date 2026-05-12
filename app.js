@@ -3328,6 +3328,126 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_auditSeedV21847IfNeeded failed', e); }
     }
 
+    // v218.72: One-shot seed of Tuesday 5/12/26 daily numbers from ServiceTitan reports
+    // (TGL-sales-and-commission 5/12-5/12 + Tech-rev 5/12-5/12).
+    //  - 3 TGL flips generated (Ben→Dashalone Ross open, Chris→Dianne Ferguson SOLD $11,938.71,
+    //    Dewone→Marietta Commercial Tire open).
+    //  - Chris's Dianne Ferguson install: Thomas Gilbert + Terrell Upshur installed for $11,938.71.
+    //    Pushed to snappy_brayden_installs (paired sale credit via Brayden's MTD bumps).
+    //  - Brayden MTD bumps: 5 → 6 installs, $90,283.61 → $102,222.32.
+    //  - Bulletin entry for today's win + day summary.
+    // Idempotent: guarded by FLAG; tglUpsert/install push both dedupe by jobNumber.
+    function _dailySeed20260512IfNeeded() {
+      try {
+        var FLAG = 'snappy_daily_seed_2026_05_12_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+
+        // 1) TGL flips generated today
+        if (typeof tglUpsert === 'function') {
+          // Ben → Dashalone Ross, $0 (open, assigned to Brayden)
+          tglUpsert({
+            jobNumber: '91921137', invoiceNumber: '91921137',
+            customer: 'Dashalone Ross',
+            dateGenerated: '2026-05-12',
+            assignedTechnicians: ['Brayden Bond'],
+            soldBy: 'Brayden Bond',
+            leadGeneratedBy: 'Benji',
+            source: 'Maintenance',
+            leadGeneratedFromJob: '91684840',
+            status: 'open'
+          });
+          // Chris → Dianne Ferguson, SOLD same-day $11,938.71 (installed by Thomas + Terrell)
+          tglUpsert({
+            jobNumber: '92058857', invoiceNumber: '92058857',
+            customer: 'Dianne Ferguson',
+            dateGenerated: '2026-05-12',
+            completedDate: '2026-05-12',
+            assignedTechnicians: ['Thomas Gilbert', 'Terrell Upshur'],
+            soldBy: '', // install techs only on this row per ST grouping
+            leadGeneratedBy: 'Chris',
+            source: 'Maintenance',
+            status: 'completed',
+            jobTotal: 11938.71
+          });
+          // Dewone → Marietta Commercial Tire, $0 (open, assigned to Brayden)
+          tglUpsert({
+            jobNumber: '92133266', invoiceNumber: '92133266',
+            customer: 'Marietta Commercial Tire',
+            dateGenerated: '2026-05-12',
+            assignedTechnicians: ['Brayden Bond'],
+            soldBy: 'Brayden Bond',
+            leadGeneratedBy: 'Dewone',
+            source: 'Service',
+            leadGeneratedFromJob: '92113382',
+            status: 'open'
+          });
+        }
+
+        // 2) Push Chris's Dianne Ferguson install into snappy_brayden_installs (paired sale)
+        try {
+          var brRaw = localStorage.getItem('snappy_brayden_installs');
+          var brArr = [];
+          try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+          if (!Array.isArray(brArr)) brArr = [];
+          var dupFerg = brArr.some(function(x){ return x && (x.jobNumber === '92058857' || x.invoice === '92058857'); });
+          if (!dupFerg) {
+            brArr.push({
+              id: 'brayden_daily_20260512_ferguson',
+              date: '2026-05-12',
+              customer: 'Dianne Ferguson',
+              jobNumber: '92058857',
+              invoice: '92058857',
+              businessUnit: 'HVAC Install',
+              soldBy: 'Brayden Bond',
+              leadGeneratedBy: 'Chris',
+              jobsTotal: 11938.71,
+              completionDate: '2026-05-12'
+            });
+            localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+            console.log('[v218.72] Added Dianne Ferguson install ($11,938.71) to snappy_brayden_installs.');
+          }
+        } catch(e) { console.warn('[v218.72] brayden install push failed', e); }
+
+        // 3) Bump Brayden's MTD stats (5 → 6 installs, $90,283.61 → $102,222.32)
+        try {
+          var stats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : {};
+          var curRev = Number(stats.mtd_revenue || 0);
+          var curClosed = Number(stats.mtd_closed || 0);
+          var targetRev = 102222.32; // 90283.61 + 11938.71
+          var targetClosed = 6;
+          if (curRev < targetRev) {
+            stats.mtd_revenue = String(targetRev);
+          }
+          if (curClosed < targetClosed) {
+            stats.mtd_closed = String(targetClosed);
+          }
+          if (typeof braydenSaveStats === 'function') braydenSaveStats(stats);
+          console.log('[v218.72] braydenstats bumped to 6 / $102,222.32');
+        } catch(e) { console.warn('[v218.72] braydenstats bump failed', e); }
+
+        // 4) Bulletin entry for today's day summary
+        try {
+          var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+          if (bb) {
+            if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+            var exists = bb.matrixUpdates.some(function(u){ return u.id === 'st_update_20260512_daily'; });
+            if (!exists) {
+              bb.matrixUpdates.push({
+                id: 'st_update_20260512_daily',
+                date: '2026-05-12',
+                text: 'Tuesday 5/12/26 — 17 service/maint jobs completed, $1,494.43 tech rev. 3 TGL flips generated: Benji→Dashalone Ross (open), Chris→Dianne Ferguson SOLD same-day $11,938.71 (Thomas+Terrell installed), Dewone→Marietta Commercial Tire (open). Daniel revenue leader at $1,153.40 (Jennifer Lewis $787.44 + Sandra Barber $365.96). Dewone $341.03 with 9 estimates built. Chris\'s Dianne Ferguson is the playbook-done-right example for tomorrow\'s 5/13 training. Brayden May install MTD now: 6 / $102,222.32.',
+                createdAt: Date.now()
+              });
+              if (typeof bbSave === 'function') bbSave(bb);
+              console.log('[v218.72] Added 5/12 daily bulletin entry.');
+            }
+          }
+        } catch(e) { console.warn('[v218.72] bulletin push failed', e); }
+
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_dailySeed20260512IfNeeded failed', e); }
+    }
+
     // v218.49: One-shot reconciler — heals local TGL store so My Leads + Sales
     // Scorecard + Payout views all match for Brayden. Targets the 5 May completed
     // installs that may be missing or have stale ranBy/assigned data on legacy
@@ -21205,6 +21325,7 @@ if (typeof Chart !== 'undefined') {
     try { _braydenSeedMay20260501IfNeeded(); } catch(e) {}
     try { _auditSeedV21847IfNeeded(); } catch(e) {}
     try { _braydenTglHealV21849IfNeeded(); } catch(e) {}
+    try { _dailySeed20260512IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
