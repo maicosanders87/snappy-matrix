@@ -9730,11 +9730,13 @@ document.addEventListener('visibilitychange', function() {
       }
 
       let tier, tierLabel;
-      // v218.70 Phase 2 (fix): A=80, B=55. Calibrated against actual season-to-date composites
-      // so Chris/Dewone land A, Benji/Daniel/Dee land B, Nick lands C/Rookie.
-      if (composite >= 92)      { tier = 'S'; tierLabel = 'Elite'; }
-      else if (composite >= 80) { tier = 'A'; tierLabel = 'Advanced'; }
-      else if (composite >= 55) { tier = 'B'; tierLabel = 'Solid'; }
+      // v218.70 Phase 2 (fix #2): A=85, B=72. Bumped thresholds because real composites land
+      // ~5-8 higher than modeled due to efficiency/performance/TGL bonuses stacking.
+      // Targets: Chris/Dewone A (85-94), Benji/Daniel B (72-84), Dee B (warranty cap 71 lifted to 72 floor),
+      // Nick C/Rookie (<72).
+      if (composite >= 95)      { tier = 'S'; tierLabel = 'Elite'; }
+      else if (composite >= 85) { tier = 'A'; tierLabel = 'Advanced'; }
+      else if (composite >= 65) { tier = 'B'; tierLabel = 'Solid'; }
       else                       { tier = 'C'; tierLabel = 'Developing'; }
 
       return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct, championBonus: Math.round(championBonus * 100) / 100, championEntries: champData.entries || [], tglBump: tglBump, serviceExcellenceBonus: Math.round(serviceExcellenceBonus * 100) / 100, behaviorBonus: Math.round(behaviorBonus * 100) / 100, behaviorTriggers: behaviorData.triggers || [], warrantyCapped: warrantyCapped, serviceTechFloorApplied: serviceTechFloorApplied };
@@ -9744,7 +9746,7 @@ document.addEventListener('visibilitychange', function() {
     // ========== GAMIFICATION: XP BAR SYSTEM ==========
     function getXPData(tech) {
       const info = getTechTier(tech);
-      const thresholds = { C: 0, B: 55, A: 80, S: 92 }; // v218.70 Phase 2 (fix): calibrated to actual composite distribution
+      const thresholds = { C: 0, B: 65, A: 85, S: 95 }; // v218.70 Phase 2 (fix #2): bumped to match actual composite distribution
       const tierFloor = thresholds[info.tier];
       const nextTier = { C: 'B', B: 'A', A: 'S', S: null }[info.tier];
       const nextThreshold = nextTier ? thresholds[nextTier] : 100;
