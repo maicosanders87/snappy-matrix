@@ -9442,7 +9442,10 @@ document.addEventListener('visibilitychange', function() {
         reviewScore = countNorm * 0.6 + qualityNorm * 0.4;
       }
 
-      // 7. Dispatch tag bonus: premium tags (Lead Tech, Ride Along Trainer, Warranty Tech) = +1.0 each, all others = +0.25 each
+      // 7. Dispatch tag bonus (v218.70): per-tag values, soft-capped at +5.0
+      //    Lead Tech +2.0 | Warranty Tech / Ride Along Trainer / Sales Capable +1.5
+      //    Install/Changeout +1.0 | Diagnostics +0.75 | Maintenance / Solo Approved / Commercial property +0.5
+      //    Extension ladder / Trust Dale +0.25
       const dispData = dispLoad();
       const dispTags = (dispData.assignments && dispData.assignments[tech.short]) || [];
       const dispatchBonus = calcDispatchBonus(dispTags);
@@ -13994,7 +13997,7 @@ if (typeof Chart !== 'undefined') {
                   <div class="rookie-back-area-bar">
                     <div class="rookie-back-area-bar-fill" style="width:${Math.min(tierInfo.dispatchBonus / 4 * 100, 100)}%;background:${tierInfo.dispatchBonus >= 2 ? '#4ADE80' : tierInfo.dispatchBonus >= 1 ? nextColor : '#EF4444'}"></div>
                   </div>
-                  <div class="rookie-back-area-tip">${tierInfo.dispatchTagCount} tag${tierInfo.dispatchTagCount !== 1 ? 's' : ''} assigned (+${tierInfo.dispatchBonus.toFixed(2)} pts) — Lead Tech, Ride Along Trainer &amp; Warranty Tech = +1.0 each, all others +0.25</div>
+                  <div class="rookie-back-area-tip">${tierInfo.dispatchTagCount} tag${tierInfo.dispatchTagCount !== 1 ? 's' : ''} assigned (+${tierInfo.dispatchBonus.toFixed(2)} pts) — Lead Tech +2.0 · Warranty Tech / Ride Along Trainer / Sales Capable +1.5 · Install +1.0 · others +0.25–+0.75 · capped at +5.0</div>
                 </div>
                 <div class="rookie-back-area">
                   <div class="rookie-back-area-header">
@@ -14407,7 +14410,7 @@ if (typeof Chart !== 'undefined') {
                 <div class="prog-area-bar">
                   <div class="prog-area-bar-fill" style="width:${Math.min(info.dispatchBonus / 4 * 100, 100)}%;background:${info.dispatchBonus >= 2 ? 'var(--accent-green)' : info.dispatchBonus >= 1 ? 'var(--snappy-blue-light)' : 'var(--accent-red)'}"></div>
                 </div>
-                <div class="prog-area-tip">${info.dispatchTagCount} tag${info.dispatchTagCount !== 1 ? 's' : ''} (+${info.dispatchBonus.toFixed(2)} pts) \u2014 Lead Tech, Ride Along Trainer &amp; Warranty Tech = +1.0 each, all others +0.25</div>
+                <div class="prog-area-tip">${info.dispatchTagCount} tag${info.dispatchTagCount !== 1 ? 's' : ''} (+${info.dispatchBonus.toFixed(2)} pts) \u2014 Lead Tech +2.0 · Premium roles +1.5 · Install +1.0 · others +0.25–+0.75 · capped at +5.0</div>
               </div>
               <div class="prog-area ${info.efficiencyBonus >= 1.5 ? 'is-strong' : info.efficiencyBonus >= 0.5 ? 'is-ok' : 'is-weak'}">
                 <div class="prog-area-header">
@@ -19828,15 +19831,33 @@ if (typeof Chart !== 'undefined') {
       { bg: '#E0F7FA', text: '#00838F' },
       { bg: '#FBE9E7', text: '#D84315' }
     ];
-    const DISP_MAX_TAGS = 10;
-    // Premium tags worth 1 full point toward composite (all others +0.25)
-    const DISP_PREMIUM_TAGS = ['Lead Tech', 'Ride Along Trainer', 'Warranty Tech'];
+    const DISP_MAX_TAGS = 12;
+    // v218.70: Per-tag bonus values (additive to composite, soft-capped at +5.0)
+    // User-set values aligned to 4 sales goals (daily $1K, leads/flips, installs, high tickets)
+    const DISP_TAG_VALUES = {
+      'Lead Tech':           2.0,
+      'Warranty Tech':       1.5,
+      'Ride Along Trainer':  1.5,
+      'Sales Capable':       1.5,
+      'Install / Changeout': 1.0,
+      'Diagnostics':         0.75,
+      'Maintenance':         0.5,
+      'Solo Approved':       0.5,
+      'Commercial property': 0.5,
+      'Extension ladder':    0.25,
+      'Trust Dale':          0.25
+    };
+    // Legacy premium set kept for color/UI logic.
+    const DISP_PREMIUM_TAGS = ['Lead Tech', 'Ride Along Trainer', 'Warranty Tech', 'Sales Capable'];
+    const DISP_BONUS_CAP = 5.0;
     function calcDispatchBonus(tags) {
       var bonus = 0;
       (tags || []).forEach(function(tag) {
-        bonus += DISP_PREMIUM_TAGS.includes(tag) ? 1.0 : 0.25;
+        var v = DISP_TAG_VALUES[tag];
+        if (typeof v === 'number') { bonus += v; }
+        else { bonus += 0.25; } // unknown tag fallback
       });
-      return bonus;
+      return Math.min(bonus, DISP_BONUS_CAP);
     }
 
     // Sold/Billable Hour Efficiency Bonus — composite score boost based on MTD on-job %
@@ -19851,15 +19872,20 @@ if (typeof Chart !== 'undefined') {
       if (pct >= 30) return { bonus: 0.50, label: 'Average', pct: pct };
       return { bonus: 0, label: 'Below Average', pct: pct };
     }
+    // v218.70: Full default tag pool (with 3 new tags). Duplicates from older app versions
+    // (lowercase 'Warranty tech', misspelled 'Ride along trianer') are merged during dispLoad migration v3.
     const DISP_DEFAULT_TAGS = [
       'Lead Tech',
       'Ride Along Trainer',
       'Warranty Tech',
-      'Diagnostics',
-      'Install / Changeout',
-      'Maintenance',
       'Sales Capable',
-      'Solo Approved'
+      'Install / Changeout',
+      'Diagnostics',
+      'Maintenance',
+      'Solo Approved',
+      'Commercial property',
+      'Extension ladder',
+      'Trust Dale'
     ];
 
     function dispLoad() {
@@ -19900,20 +19926,53 @@ if (typeof Chart !== 'undefined') {
             data._migV2 = true;
             localStorage.setItem(DISP_STORAGE, JSON.stringify(data));
           }
+          // Migration v3 (v218.70): merge duplicate tags, add new tags, reassign Ride Along Trainer to Benji
+          if (!data._migV3) {
+            if (!data.tags) data.tags = [];
+            if (!data.assignments) data.assignments = {};
+            // Canonicalize: merge legacy duplicates into canonical names
+            var DUPE_MAP = {
+              'Warranty tech': 'Warranty Tech',
+              'Ride along trianer': 'Ride Along Trainer',
+              'Ride along trainer': 'Ride Along Trainer'
+            };
+            // Remove dupes from tag pool, replace assignments
+            data.tags = data.tags.map(function(t){ return DUPE_MAP[t] || t; });
+            // Dedupe tag pool while preserving order
+            var seen = {}; data.tags = data.tags.filter(function(t){ if (seen[t]) return false; seen[t]=true; return true; });
+            // Add any missing default tags (preserves new v218.70 tags)
+            DISP_DEFAULT_TAGS.forEach(function(t){ if (!data.tags.includes(t)) data.tags.push(t); });
+            // Canonicalize assignments
+            Object.keys(data.assignments).forEach(function(tech){
+              data.assignments[tech] = (data.assignments[tech] || []).map(function(t){ return DUPE_MAP[t] || t; });
+              var as = {}; data.assignments[tech] = data.assignments[tech].filter(function(t){ if (as[t]) return false; as[t]=true; return true; });
+            });
+            // v218.70 corrected tag assignments — Benji is Ride Along Trainer, not Dewone
+            if (data.assignments['Dewone']) {
+              data.assignments['Dewone'] = data.assignments['Dewone'].filter(function(t){ return t !== 'Ride Along Trainer'; });
+            }
+            if (!data.assignments['Benji']) data.assignments['Benji'] = [];
+            if (!data.assignments['Benji'].includes('Ride Along Trainer')) {
+              data.assignments['Benji'].unshift('Ride Along Trainer');
+            }
+            data._migV3 = true;
+            localStorage.setItem(DISP_STORAGE, JSON.stringify(data));
+          }
           return data;
         }
       } catch(e) {}
-      // Defaults
+      // v218.70 defaults — Benji = Ride Along Trainer, Dewone keeps Sales Capable + Maintenance
       return {
         tags: DISP_DEFAULT_TAGS.slice(),
         assignments: {
           'Chris':  ['Lead Tech', 'Diagnostics', 'Install / Changeout', 'Sales Capable', 'Solo Approved'],
-          'Dewone': ['Ride Along Trainer', 'Maintenance', 'Sales Capable'],
-          'Benji':  ['Diagnostics', 'Maintenance'],
+          'Dewone': ['Maintenance', 'Sales Capable'],
+          'Benji':  ['Ride Along Trainer', 'Diagnostics', 'Maintenance'],
           'Daniel': ['Diagnostics', 'Install / Changeout', 'Maintenance', 'Sales Capable'],
           'Dee':    ['Warranty Tech', 'Diagnostics', 'Install / Changeout', 'Maintenance'],
           'Nick':   ['Maintenance']
-        }
+        },
+        _migV1: true, _migV2: true, _migV3: true
       };
     }
     function dispSave(data) {
