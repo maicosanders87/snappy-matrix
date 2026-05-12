@@ -3428,40 +3428,144 @@ document.addEventListener('visibilitychange', function() {
       };
     }
 
-    // v145: Point system
-    // Revenue: 1 point per $1k of service revenue (continuous; not tiered)
-    // Installs (count): S=4+ (10pts), A=2-3 (7pts), B=1 (4pts), 0=0
-    // Mem conv %: S=70%+ (10pts), A=50-69% (7pts), B=30-49% (4pts), C=1-29% (1pt), 0% or no opps=0
-    function _wlbPoints(entry) {
+    // v218.70 Phase 2: Six-Lane Weekly Leaderboard (max 110)
+    // REV (max 20)  : svc rev pts ($500/pt cap 12) + daily $1K kicker (5/4/3 = 5/3/1) + big-week kicker ($5K/$4K/$3K = 3/2/1)
+    // SVC (max 20)  : avg ticket tier ($900/$700/$500 -> 10/6/3) + job count cap 4 + conv proxy 2/4/6
+    // MEM (max 20)  : count tiers (2/each cap 8) + attach % tiers (70%/50%/30% -> 6/4/2) + SPP proxy 0.4/each cap 4 + 70%+ kicker 2
+    // LEAD (max 20) : leads count 1.5/each cap 9 + flips 5/each cap 8 + 40%+ flip rate +3
+    // INST (max 20) : install count 6/each cap 12 + rev/5K cap 6 + high-ticket ($10K+/each cap 6) + 1-call-close cap 4
+    // GR★ (max 10)  : reviews/wk × 3 cap 6 + 4.5★ avg +2 + volume bonus (3+ this week) +2
+    //
+    // Legacy fields kept for back-compat: revPts/instPts/memPts/instTier/memTier/memPct.
+    // Returns extended object: revLane/svcLane/memLane/leadLane/instLane/grLane (each max).
+    function _wlbPoints(entry, ctx) {
       if (!entry) return null;
-      // Revenue points: 1 per $1k, continuous (e.g. $3,107 -> 3.1)
-      var revPts = Math.round((entry.service / 1000) * 10) / 10;
-      // Install points by count
-      var ic = entry.installCount || 0;
+      ctx = ctx || {};
+      var svc = entry.service || 0;
+      var ic  = entry.installCount || 0;
+      var ir  = entry.installRev || 0;
+      var ms  = entry.memSold || 0;
+      var mo  = entry.memOpps || 0;
+
+      // === REV lane (max 20) ===
+      var revBase = Math.min((svc / 500), 12);   // $500/pt cap 12
+      var daily1k = entry.daily1kCount;
+      if (typeof daily1k !== 'number') {
+        // infer from svc volume (matches behavior bonus heuristic)
+        if (svc >= 5000) daily1k = 5;
+        else if (svc >= 4000) daily1k = 4;
+        else if (svc >= 3000) daily1k = 3;
+        else if (svc >= 2000) daily1k = 2;
+        else if (svc >= 1000) daily1k = 1;
+        else daily1k = 0;
+      }
+      var dailyKick = 0;
+      if (daily1k >= 5) dailyKick = 5;
+      else if (daily1k >= 4) dailyKick = 3;
+      else if (daily1k >= 3) dailyKick = 1;
+      var bigKick = 0;
+      if (svc >= 5000) bigKick = 3;
+      else if (svc >= 4000) bigKick = 2;
+      else if (svc >= 3000) bigKick = 1;
+      var revLane = Math.min(revBase + dailyKick + bigKick, 20);
+
+      // === SVC quality lane (max 20) ===
+      var jobs = entry.jobCount || 0;
+      var avgTicket = jobs > 0 ? (svc / jobs) : (svc > 0 ? svc / 5 : 0); // 5-job fallback
+      var avgPts = 0;
+      if (avgTicket >= 900) avgPts = 10;
+      else if (avgTicket >= 700) avgPts = 6;
+      else if (avgTicket >= 500) avgPts = 3;
+      var jobPts = Math.min(jobs * 1, 4);
+      var convPct = entry.convRate || ctx.convRate || 0; // 0..100
+      var convPts = 0;
+      if (convPct >= 85) convPts = 6;
+      else if (convPct >= 70) convPts = 4;
+      else if (convPct >= 50) convPts = 2;
+      var svcLane = Math.min(avgPts + jobPts + convPts, 20);
+
+      // === MEM lane (max 20) ===
+      var memCountPts = Math.min(ms * 2, 8);
+      var memPct = null, memAttachPts = 0;
+      if (mo > 0) {
+        memPct = (ms / mo) * 100;
+        if (memPct >= 70) memAttachPts = 6;
+        else if (memPct >= 50) memAttachPts = 4;
+        else if (memPct >= 30) memAttachPts = 2;
+      }
+      var spp = entry.sppCount || 0;
+      var sppPts = Math.min(spp * 0.4, 4);
+      var memKicker = (memPct !== null && memPct >= 70) ? 2 : 0;
+      var memLane = Math.min(memCountPts + memAttachPts + sppPts + memKicker, 20);
+
+      // === LEAD lane (max 20) ===
+      var leads = entry.leadsCount || 0;
+      var flips = entry.flipCount || 0;
+      var leadPts = Math.min(leads * 1.5, 9);
+      var flipPts = Math.min(flips * 5, 8);
+      var flipRateKick = 0;
+      if (leads > 0 && (flips / leads) >= 0.4) flipRateKick = 3;
+      var leadLane = Math.min(leadPts + flipPts + flipRateKick, 20);
+
+      // === INST lane (max 20) ===
+      var instCountPts = Math.min(ic * 6, 12);
+      var instRevPts = Math.min((ir / 5000), 6);
+      var highTickets = entry.highTickets || 0; // installs $10K+
+      var highPts = Math.min(highTickets * 2, 6);
+      var oneCall = entry.oneCallCloses || 0;
+      var oneCallPts = Math.min(oneCall * 2, 4);
+      var instLane = Math.min(instCountPts + instRevPts + highPts + oneCallPts, 20);
+
+      // === GR★ lane (max 10) ===
+      var grCount = entry.grCount || 0;
+      var grAvg = entry.grAvg || 0;  // average stars this week
+      var grPts = Math.min(grCount * 3, 6);
+      if (grAvg >= 4.5 && grCount >= 1) grPts += 2;
+      if (grCount >= 3) grPts += 2;
+      var grLane = Math.min(grPts, 10);
+
+      var sixLaneTotal = Math.round((revLane + svcLane + memLane + leadLane + instLane + grLane) * 10) / 10;
+
+      // === LEGACY 3-lane fields (kept for back-compat with old chip + history) ===
+      var revPts = Math.round((svc / 1000) * 10) / 10;
       var instPts = 0, instTier = '\u2013';
       if (ic >= 4)      { instPts = 10; instTier = 'S'; }
       else if (ic >= 2) { instPts = 7;  instTier = 'A'; }
       else if (ic >= 1) { instPts = 4;  instTier = 'B'; }
       else              { instPts = 0;  instTier = '0'; }
-      // Mem points by conversion %
-      var memPct = null, memPts = 0, memTier = '\u2013';
-      if (entry.memOpps > 0) {
-        memPct = (entry.memSold / entry.memOpps) * 100;
+      var memPts = 0, memTier = '\u2013';
+      if (mo > 0) {
         if (memPct >= 70)      { memPts = 10; memTier = 'S'; }
         else if (memPct >= 50) { memPts = 7;  memTier = 'A'; }
         else if (memPct >= 30) { memPts = 4;  memTier = 'B'; }
         else if (memPct >= 1)  { memPts = 1;  memTier = 'C'; }
         else                   { memPts = 0;  memTier = '0'; }
-      } else {
-        memTier = '\u2013'; // no opps tracked
       }
-      var total = Math.round((revPts + instPts + memPts) * 10) / 10;
+      // v218.70 Phase 2: total is now SIX-LANE total (replaces legacy 3-lane total).
+      // Legacy 3-lane sum still emitted as legacyTotal for backward-compat consumers.
+      var legacyTotal = Math.round((revPts + instPts + memPts) * 10) / 10;
+
       return {
-        revPts: revPts,
-        instPts: instPts, instTier: instTier,
+        // legacy fields
+        revPts: revPts, instPts: instPts, instTier: instTier,
         memPts: memPts, memTier: memTier, memPct: memPct,
-        total: total
+        legacyTotal: legacyTotal,
+        // v218.70 Phase 2 six-lane
+        revLane: Math.round(revLane * 10) / 10,
+        svcLane: Math.round(svcLane * 10) / 10,
+        memLane: Math.round(memLane * 10) / 10,
+        leadLane: Math.round(leadLane * 10) / 10,
+        instLane: Math.round(instLane * 10) / 10,
+        grLane: Math.round(grLane * 10) / 10,
+        total: sixLaneTotal
       };
+    }
+
+    // v218.70 Phase 2: Helper for behavior bonus "won the week" comparison.
+    function _wlbSixLaneTotal(entry, short) {
+      if (!entry) return 0;
+      var p = _wlbPoints(entry);
+      return p ? (p.total || 0) : 0;
     }
 
     // ========== v216: WEEKLY CHAMPION BONUS + STREAK + SOFT SEASON RESET ==========
@@ -9311,11 +9415,13 @@ document.addEventListener('visibilitychange', function() {
 
         // Tiered bonus — only positive (boosted v160 — leaderboard wins matter)
         // v218.68: also emit a short badge code (S+/S/A/B/ACT) for chip rendering
+        // v218.70 Phase 2: thresholds re-scaled for new 6-lane max-110 leaderboard.
+        //   S+ 92+, S 75-91, A 53-74, B 31-52, ACT 1-30
         var bonus = 0, label = 'No bonus', badge = '';
-        if (basisPts >= 40)      { bonus = 12.0; label = 'S+ week'; badge = 'S+'; }
-        else if (basisPts >= 30) { bonus = 9.0;  label = 'S week';  badge = 'S';  }
-        else if (basisPts >= 20) { bonus = 6.0;  label = 'A week';  badge = 'A';  }
-        else if (basisPts >= 10) { bonus = 3.5;  label = 'B week';  badge = 'B';  }
+        if (basisPts >= 92)      { bonus = 12.0; label = 'S+ week'; badge = 'S+'; }
+        else if (basisPts >= 75) { bonus = 9.0;  label = 'S week';  badge = 'S';  }
+        else if (basisPts >= 53) { bonus = 6.0;  label = 'A week';  badge = 'A';  }
+        else if (basisPts >= 31) { bonus = 3.5;  label = 'B week';  badge = 'B';  }
         else if (basisPts >= 1)  { bonus = 1.5;  label = 'Active';  badge = 'ACT';}
 
         var weekLabelStr = '';
@@ -9336,6 +9442,111 @@ document.addEventListener('visibilitychange', function() {
       }
     }
     window.calcPerformanceBonus = calcPerformanceBonus;
+
+    // v218.70 Phase 2: Behavior-Driven Additive Bonus (max ~12, only-help)
+    // Rewards the four focus behaviors: $1K/day sales pace, leads/flips, installs, higher tickets.
+    // Reads from THIS-week + recent-best weekly entries; pure additive, never subtracts.
+    //
+    // Triggers (cumulative, cap +12):
+    //   - 5/5 weekdays $1K+ svc rev (~$5K/wk solo)        : +2.0
+    //   - 4/5 weekdays $1K+ (~$4K/wk)                     : +1.0  (mutually exclusive with above)
+    //   - Avg ticket >= $900 (svc rev / job count proxy)   : +3.0
+    //   - Avg ticket >= $700                                : +2.0  (m.e.)
+    //   - Avg ticket >= $500                                : +1.0  (m.e.)
+    //   - 2+ installs in week                              : +2.0
+    //   - 1 install in week                                : +1.0  (m.e.)
+    //   - Flip rate >= 50% (closed leads / leads)          : +1.5
+    //   - SVC rev >= $3K in week                           : +2.0
+    //   - SVC rev >= $2K in week                           : +1.0  (m.e.)
+    //   - Mem attach >= 50%                                : +2.0
+    //   - Mem attach >= 30%                                : +1.0  (m.e.)
+    //   - Won the week (#1 in 6-lane LB scoring)           : +3.0
+    function calcBehaviorBonus(tech) {
+      try {
+        if (typeof _wlbLoad !== 'function' || typeof _wlbWeekStart !== 'function' || typeof _wlbReadEntry !== 'function') {
+          return { bonus: 0, triggers: [] };
+        }
+        var data = _wlbLoad();
+        var thisWk = _wlbWeekStart();
+
+        // Pick BEST week (this week or any of last 4 prior) for only-help carryover.
+        var weeks = [thisWk];
+        var wk = _wlbPrevWeek(thisWk);
+        for (var i = 0; i < 4; i++) { weeks.push(wk); wk = _wlbPrevWeek(wk); }
+
+        var bestBonus = 0, bestTriggers = [];
+        weeks.forEach(function(weekKey) {
+          var entry = _wlbReadEntry(data[weekKey] || {}, tech.short);
+          if (!entry) return;
+          var bonus = 0, triggers = [];
+          var svc = entry.service || 0;
+          var instCount = entry.installCount || 0;
+          var memSold = entry.memSold || 0;
+          var memOpps = entry.memOpps || 0;
+          var leads = entry.leadsCount || 0;
+          var flips = entry.flipCount || 0;
+          // Proxy avg ticket: svc / (jobCount fallback to 5)
+          var jobs = entry.jobCount || 0;
+          var avgTicket = jobs > 0 ? (svc / jobs) : (svc > 0 ? svc / 5 : 0);
+
+          // $1K/day streak proxy from daily seed if available, else infer from svc volume
+          var daily1k = entry.daily1kCount || 0;
+          if (daily1k === 0 && svc > 0) {
+            // Infer: if svc >= $5K assume 5/5, $4K assume 4/5
+            if (svc >= 5000) daily1k = 5;
+            else if (svc >= 4000) daily1k = 4;
+            else if (svc >= 3000) daily1k = 3;
+            else if (svc >= 2000) daily1k = 2;
+            else if (svc >= 1000) daily1k = 1;
+          }
+          if (daily1k >= 5)      { bonus += 2.0; triggers.push('5/5 $1K days +2.0'); }
+          else if (daily1k >= 4) { bonus += 1.0; triggers.push('4/5 $1K days +1.0'); }
+
+          if (avgTicket >= 900)      { bonus += 3.0; triggers.push('Avg ticket $900+ +3.0'); }
+          else if (avgTicket >= 700) { bonus += 2.0; triggers.push('Avg ticket $700+ +2.0'); }
+          else if (avgTicket >= 500) { bonus += 1.0; triggers.push('Avg ticket $500+ +1.0'); }
+
+          if (instCount >= 2)      { bonus += 2.0; triggers.push(instCount + ' installs +2.0'); }
+          else if (instCount >= 1) { bonus += 1.0; triggers.push('1 install +1.0'); }
+
+          if (leads > 0) {
+            var flipRate = flips / leads;
+            if (flipRate >= 0.5) { bonus += 1.5; triggers.push('Flip rate ' + Math.round(flipRate*100) + '% +1.5'); }
+          }
+
+          if (svc >= 3000)      { bonus += 2.0; triggers.push('SVC $3K+ +2.0'); }
+          else if (svc >= 2000) { bonus += 1.0; triggers.push('SVC $2K+ +1.0'); }
+
+          if (memOpps > 0) {
+            var memPct = memSold / memOpps;
+            if (memPct >= 0.5)      { bonus += 2.0; triggers.push('Mem attach ' + Math.round(memPct*100) + '% +2.0'); }
+            else if (memPct >= 0.3) { bonus += 1.0; triggers.push('Mem attach ' + Math.round(memPct*100) + '% +1.0'); }
+          }
+
+          // Won the week: compare this tech's 6-lane score to all others in same week
+          try {
+            var weekData = data[weekKey] || {};
+            var myScore = (typeof _wlbSixLaneTotal === 'function') ? _wlbSixLaneTotal(entry, tech.short) : 0;
+            var iWon = true;
+            (techs || []).forEach(function(other) {
+              if (other.short === tech.short) return;
+              var oe = _wlbReadEntry(weekData, other.short);
+              if (!oe) return;
+              var os = (typeof _wlbSixLaneTotal === 'function') ? _wlbSixLaneTotal(oe, other.short) : 0;
+              if (os > myScore) iWon = false;
+            });
+            if (iWon && myScore > 0) { bonus += 3.0; triggers.push('Won the week +3.0'); }
+          } catch(_e) {}
+
+          if (bonus > 12) bonus = 12; // cap
+          if (bonus > bestBonus) { bestBonus = bonus; bestTriggers = triggers; }
+        });
+        return { bonus: Math.round(bestBonus * 10) / 10, triggers: bestTriggers };
+      } catch(e) {
+        return { bonus: 0, triggers: [] };
+      }
+    }
+    window.calcBehaviorBonus = calcBehaviorBonus;
 
     function getTechTier(tech) {
       // 1. Aptitude test score (0–100): actual test percentage — PRIMARY knowledge gauge
@@ -9481,35 +9692,55 @@ document.addEventListener('visibilitychange', function() {
       // tags were pushing Chris (Lead Tech +1) and Dee (Warranty Tech +1) above their honest tier when combined with
       // the season-to-date base recalibration. Still only-help (additive, never subtracts).
       // v218.67: TGL bump scale lowered 0.5 → 0.3 so closed-lead credit stays meaningful without flipping tiers.
+      // v218.70 Phase 2: Dispatch bonus now FULLY ADDITIVE on top (user directive — not scaled).
+      //   Also new BehaviorBonus rewards $1K/day pace, leads/flips, installs, higher tickets.
       const BONUS_SCALE = 0.5;
       const TGL_SCALE = 0.3;
+      // v218.70 Phase 2: Behavior-Driven Additive (max ~12, only-help) — focus behaviors
+      const behaviorData = (typeof calcBehaviorBonus === 'function') ? calcBehaviorBonus(tech) : { bonus: 0, triggers: [] };
+      const behaviorBonus = behaviorData.bonus || 0;
       const compositeRawPreSeason = stScore * 0.35 + aptScore * 0.30 + skillScore * 0.10 + mgrScore * 0.10 + installScore * 0.10 + reviewScore * 0.05
-        + dispatchBonus * BONUS_SCALE
+        + dispatchBonus // v218.70: dispatch additive on top (NOT scaled) — user directive
         + efficiencyBonus * BONUS_SCALE
         + performanceBonus * BONUS_SCALE
         + championBonus * BONUS_SCALE
         + tglBump * TGL_SCALE
-        + serviceExcellenceBonus;
+        + serviceExcellenceBonus
+        + behaviorBonus; // v218.70 Phase 2: focus-behavior additive
       // Season soft reset penalty (carries for current season only)
       const seasonPenalty = (typeof getSeasonSoftResetPenalty === 'function') ? getSeasonSoftResetPenalty(tech.short) : 0;
-      const composite = Math.max(0, compositeRawPreSeason - seasonPenalty);
+      let composite = Math.max(0, compositeRawPreSeason - seasonPenalty);
+
+      // v218.70 Phase 2: Warranty composite cap — warranty techs cap at 71 (B-tier ceiling).
+      // Their role's metrics naturally inflate sub-scores (no sales/install penalty) but they
+      // shouldn't out-rank field-sales techs on the same scale. Only-help: cap, not penalty.
+      let warrantyCapped = false;
+      if (st && st.isWarrantyTech && composite > 71) { composite = 71; warrantyCapped = true; }
+
+      // v218.70 Phase 2: Service-Tech Floor — strong service techs with empty install/lead lanes
+      // get a small floor (only-help): if stScore >= 85 (high service performance) AND composite < 55,
+      // floor at 55 so their service strength isn't drowned by missing install/lead contributions.
+      let serviceTechFloorApplied = false;
+      if (st && !st.isWarrantyTech && stScore >= 85 && composite < 55) {
+        composite = 55; serviceTechFloorApplied = true;
+      }
 
       let tier, tierLabel;
-      // v218.64: Revert thresholds to original ranges (user preference).
-      // Bonus inflation is instead handled by scaling additive bonuses + softening v218.62 base boost.
-      if (composite >= 92) { tier = 'S'; tierLabel = 'Elite'; }
-      else if (composite >= 85) { tier = 'A'; tierLabel = 'Advanced'; }
-      else if (composite >= 78) { tier = 'B'; tierLabel = 'Solid'; }
-      else { tier = 'C'; tierLabel = 'Developing'; }
+      // v218.70 Phase 2: New thresholds — A=72, B=52, C below.
+      // Reflects the season-to-date scaled scoring where typical composite range compresses lower.
+      if (composite >= 92)      { tier = 'S'; tierLabel = 'Elite'; }
+      else if (composite >= 72) { tier = 'A'; tierLabel = 'Advanced'; }
+      else if (composite >= 52) { tier = 'B'; tierLabel = 'Solid'; }
+      else                       { tier = 'C'; tierLabel = 'Developing'; }
 
-      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct, championBonus: Math.round(championBonus * 100) / 100, championEntries: champData.entries || [], tglBump: tglBump, serviceExcellenceBonus: Math.round(serviceExcellenceBonus * 100) / 100 };
+      return { tier, tierLabel, composite: Math.round(composite), compositeRaw: composite, aptScore: Math.round(aptScore), skillScore: Math.round(skillScore), stScore: Math.round(stScore), installScore: Math.round(installScore), reviewScore: Math.round(reviewScore), mgrScore: Math.round(mgrScore), performanceBonus: performanceBonus, performanceBasis: perfBonusData.basis, performanceBasisPts: perfBonusData.basisPts, performanceLabel: perfBonusData.label, performanceHasData: perfBonusData.hasData, dispatchBonus: Math.round(dispatchBonus * 100) / 100, dispatchTagCount: dispTags.length, efficiencyBonus: effData.bonus, efficiencyLabel: effData.label, efficiencyPct: effData.pct, championBonus: Math.round(championBonus * 100) / 100, championEntries: champData.entries || [], tglBump: tglBump, serviceExcellenceBonus: Math.round(serviceExcellenceBonus * 100) / 100, behaviorBonus: Math.round(behaviorBonus * 100) / 100, behaviorTriggers: behaviorData.triggers || [], warrantyCapped: warrantyCapped, serviceTechFloorApplied: serviceTechFloorApplied };
     }
 
 
     // ========== GAMIFICATION: XP BAR SYSTEM ==========
     function getXPData(tech) {
       const info = getTechTier(tech);
-      const thresholds = { C: 0, B: 78, A: 85, S: 92 }; // v218.64 reverted to original ranges
+      const thresholds = { C: 0, B: 52, A: 72, S: 92 }; // v218.70 Phase 2: compressed for season-to-date scoring
       const tierFloor = thresholds[info.tier];
       const nextTier = { C: 'B', B: 'A', A: 'S', S: null }[info.tier];
       const nextThreshold = nextTier ? thresholds[nextTier] : 100;
