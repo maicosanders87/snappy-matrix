@@ -2911,6 +2911,93 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260511IfNeeded failed', e); }
     }
 
+    // v218.73: Tue 5/12/26 WLB + MTD daily bump (companion to v218.72 _dailySeed20260512IfNeeded).
+    // The v218.72 seed handled TGL rows, Brayden install, and bulletin. This one drives
+    // weekly leaderboard (week '2026-05-11') + per-tech stData MTD (service rev, memberships,
+    // sold hours, FRT, TGLs, conv) so rookie cards / KPI tiles / Tier Progression / leaderboard
+    // all reflect today.
+    // Source: Tech-rev_Dated-05_12_26 PDF + TGL-sales-and-commission 5/12 PDF + IMG_0257 (Memberships).
+    //   Daniel: $1,153.40 svc · 5 jobs · 0 mem sold / 0 mem opp · 0 TGL
+    //   Dewone: $341.03   svc · 3 jobs · 0 mem sold / 0 mem opp · 1 TGL (Marietta Comm Tire → Brayden open)
+    //   Chris:  $0        svc · 4 jobs · 0 mem sold / 0 mem opp · 1 TGL (Dianne Ferguson SOLD $11,938.71)
+    //   Benji:  $0        svc · 4 jobs · 0 mem sold / 1 mem opp · 1 TGL (Dashalone Ross → Brayden open)
+    //   Dee:    $0        svc · 1 job  · 0 mem sold / 0 mem opp · 0 TGL
+    // Team daily: $1,494.43 svc / 17 jobs / 0 mem sold / 1 mem opp / 3 TGL / 1 TGL sold = $11,938.71 install
+    function _wlbSeedDay20260512IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_12_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var WEEK = '2026-05-11'; // Mon-start week (5/12 is Tuesday of this week)
+        var d = _wlbLoad();
+        var existing = d[WEEK] || {};
+        function add(short, svc, ic, ir, ms, mo) {
+          var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+          existing[short] = {
+            service:      (prev.service || 0)      + svc,
+            installCount: (prev.installCount || 0) + ic,
+            installRev:   (prev.installRev || 0)   + ir,
+            memSold:      (prev.memSold || 0)      + ms,
+            memOpps:      (prev.memOpps || 0)      + mo
+          };
+        }
+        // 5/12 daily numbers (service rev only — install $ flows through Brayden, not tech tile)
+        add('Daniel', 1153.40, 0, 0, 0, 0);
+        add('Dewone',  341.03, 0, 0, 0, 0);
+        add('Chris',     0,    0, 0, 0, 0); // tech rev $0 today — his win was the TGL flip
+        add('Benji',     0,    0, 0, 0, 1); // 0 sold / 1 opp
+        add('Dee',       0,    0, 0, 0, 0);
+        d[WEEK] = existing;
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+
+        // Also bump stData MTD so rookie cards / Overview tiles / Tier Progression reflect today.
+        try {
+          if (typeof stData !== 'undefined' && Array.isArray(stData)) {
+            var addMtd = function(name, svc, ms, mo, soldHrs, frt, spps, tgls) {
+              var st = stData.find(function(s){ return s.name === name; });
+              if (!st) return;
+              st.mtd_service_rev = (st.mtd_service_rev || 0) + svc;
+              if (typeof st.completedJobs === 'number') st.completedJobs = st.completedJobs + 0; // jobs counted separately, not bumped per-call here
+              if (!st.mtd_nexstar) st.mtd_nexstar = {};
+              st.mtd_nexstar.total_revenue = (st.mtd_nexstar.total_revenue || 0) + svc;
+              st.mtd_nexstar.spps_sold = (st.mtd_nexstar.spps_sold || 0) + (spps || 0);
+              st.mtd_nexstar.tech_gen_leads = (st.mtd_nexstar.tech_gen_leads || 0) + (tgls || 0);
+              st.mtd_nexstar.sold_hours = (st.mtd_nexstar.sold_hours || 0) + (soldHrs || 0);
+              st.mtd_nexstar.flat_rate_tasks = (st.mtd_nexstar.flat_rate_tasks || 0) + (frt || 0);
+              if (!st.mtd_memberships) st.mtd_memberships = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
+              st.mtd_memberships.total_mem_sold = (st.mtd_memberships.total_mem_sold || 0) + (ms || 0);
+              st.mtd_memberships.total_mem_opps = (st.mtd_memberships.total_mem_opps || 0) + (mo || 0);
+              if (st.mtd_memberships.total_mem_opps > 0) {
+                st.mtd_memberships.total_mem_pct = Math.round((st.mtd_memberships.total_mem_sold / st.mtd_memberships.total_mem_opps) * 100);
+              }
+              if (!st.mtd_productivity) st.mtd_productivity = {};
+              st.mtd_productivity.billable_hours = (st.mtd_productivity.billable_hours || 0) + (soldHrs || 0);
+            };
+            // (name, svc, memSold, memOpps, soldHrs, frt, spps, tgls)
+            // Sold hrs estimated from job count × ~1.5hr avg (rough — ST PDF doesn't expose hrs).
+            // FRT estimated from estimate counts in tech-rev PDF.
+            addMtd('Daniel', 1153.40, 0, 0, 7.5,  3,  0, 0); // 5 jobs, 3 estimates total
+            addMtd('Dewone',  341.03, 0, 0, 4.5,  9,  0, 1); // 3 jobs, 9 estimates, +1 TGL
+            addMtd('Chris',     0,    0, 0, 6.0,  7,  0, 1); // 4 jobs, 7 estimates, +1 TGL
+            addMtd('Benji',     0,    0, 1, 6.0,  6,  0, 1); // 4 jobs, 6 estimates (incl office conf), +1 TGL, 1 mem opp
+            addMtd('Dee',       0,    0, 0, 1.5,  0,  0, 0); // 1 job, 0 estimates
+            // Bump completed job counts (used by Tier Progression jobs-norm calc).
+            (function(){
+              var jobsDelta = { Daniel: 5, Dewone: 3, Chris: 4, Benji: 4, Dee: 1 };
+              Object.keys(jobsDelta).forEach(function(name) {
+                var st = stData.find(function(s){ return s.name === name; });
+                if (st && typeof st.completedJobs === 'number') {
+                  st.completedJobs = st.completedJobs + jobsDelta[name];
+                }
+              });
+            })();
+          }
+        } catch(e) { console.warn('[v218.73] MTD bump failed', e); }
+
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260512IfNeeded failed', e); }
+    }
+
     // v218.55: Hard-set MTD nexstar + memberships to ServiceTitan source-of-truth values
     // (IMG_0244 Nexstar tab + IMG_0245 Memberships tab, both captured 5/8 EOD).
     // The previous incremental bump approach was leaving the rookie card top stats
@@ -21326,6 +21413,7 @@ if (typeof Chart !== 'undefined') {
     try { _auditSeedV21847IfNeeded(); } catch(e) {}
     try { _braydenTglHealV21849IfNeeded(); } catch(e) {}
     try { _dailySeed20260512IfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260512IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
