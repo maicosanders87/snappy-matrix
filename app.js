@@ -7685,6 +7685,12 @@ document.addEventListener('visibilitychange', function() {
         html += '</div>';
       });
 
+      // v218.74: Service Techs section — monthly mem sold, week's svc rev,
+      // week's install rev (paired to TGL lead), week's leads set.
+      try {
+        html += ipRenderServiceTechsSection(selectedWeek);
+      } catch(e) { console.warn('Service Techs section render failed', e); }
+
       // Mon–Sat sheet
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;">';
       html += '<div style="font-size:14px;font-weight:700;margin-bottom:10px;">Mon–Sat Sheet · Week ending '+selectedWeek+'</div>';
@@ -8641,6 +8647,265 @@ document.addEventListener('visibilitychange', function() {
       setTimeout(function(){ w.focus(); w.print(); }, 250);
     }
     window.ipExportPdf = ipExportPdf;
+
+    // v218.74: Service Techs payout section.
+    // Shows per-service-tech: Month's Memberships Sold, Week's Service Rev,
+    // Week's Install Revenue (paired to TGL leads they generated), Week's Leads Set.
+    // Week alignment uses Mon–Sat (matches Install Pay week ending). Month is calendar month.
+    function ipServiceTechRoster() {
+      // Pulled from the locked tech list. Excludes Maico (mgr), Brayden/Adam (sales),
+      // Thomas/Terrell (installers — they have their own sections above).
+      return [
+        { short: 'Chris',  display: 'Chris Monahan'  },
+        { short: 'Dewone', display: 'Dewone Martin'  },
+        { short: 'Benji',  display: 'Ben Tinahui'    },
+        { short: 'Daniel', display: 'Daniel Gazaway' },
+        { short: 'Dee',    display: 'Dee Williams'   },
+        { short: 'Nick',   display: 'Nick Goehler'   }
+      ];
+    }
+    function ipMonthStartFromWeekEnd(weekEndingSat) {
+      // Anchor on the Saturday of the selected week — use its month as the "this month" view.
+      try {
+        var d = new Date(weekEndingSat + 'T12:00:00');
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        return y + '-' + m + '-01';
+      } catch(e) { return null; }
+    }
+    function ipWeekStartMonStr(weekEndingSat) {
+      try { return ipWeekStartMon(weekEndingSat); } catch(e) { return weekEndingSat; }
+    }
+    function ipServiceTechMetrics(weekEndingSat) {
+      var weekStart = ipWeekStartMonStr(weekEndingSat);
+      var weekStartIso = weekStart;
+      var weekEndIso = weekEndingSat;
+      var monthStart = ipMonthStartFromWeekEnd(weekEndingSat);
+      var roster = ipServiceTechRoster();
+      var metrics = {};
+      roster.forEach(function(r){
+        metrics[r.short] = { display: r.display, monthMemSold: 0, weekRev: 0, weekInstallRev: 0, weekLeadsSet: 0 };
+      });
+
+      // 1) Month memberships sold — from stData[].mtd_memberships (calendar-month MTD).
+      try {
+        if (typeof stData !== 'undefined' && Array.isArray(stData)) {
+          stData.forEach(function(st){
+            if (!metrics[st.name]) return;
+            var ms = st.mtd_memberships && st.mtd_memberships.total_mem_sold;
+            metrics[st.name].monthMemSold = (typeof ms === 'number' && !isNaN(ms)) ? ms : 0;
+          });
+        }
+      } catch(e) { console.warn('ipServiceTechMetrics month mem failed', e); }
+
+      // 2) Week's service rev — from WLB store. WLB week keys are Mon-start ISO strings.
+      try {
+        if (typeof _wlbLoad === 'function') {
+          var wlb = _wlbLoad();
+          var wk = wlb[weekStart];
+          if (wk) {
+            Object.keys(metrics).forEach(function(short){
+              if (wk[short] && typeof wk[short].service === 'number') {
+                metrics[short].weekRev = wk[short].service;
+              }
+            });
+          }
+        }
+      } catch(e) { console.warn('ipServiceTechMetrics week rev failed', e); }
+
+      // 3) Week's install revenue paired to TGL leads — sum snappy_brayden_installs in week,
+      //    bucketed by leadGeneratedBy. Also include any tglLoad rows with jobTotal>0
+      //    where status='completed' and completedDate within week.
+      try {
+        var raw = localStorage.getItem('snappy_brayden_installs');
+        var arr = [];
+        try { arr = raw ? JSON.parse(raw) : []; } catch(e) { arr = []; }
+        if (Array.isArray(arr)) {
+          arr.forEach(function(item){
+            if (!item) return;
+            var date = item.date || item.completionDate;
+            if (!date || date < weekStartIso || date > weekEndIso) return;
+            var lead = item.leadGeneratedBy;
+            if (!lead || !metrics[lead]) return;
+            var amt = parseFloat(item.jobsTotal || item.jobTotal || 0) || 0;
+            metrics[lead].weekInstallRev += amt;
+          });
+        }
+      } catch(e) { console.warn('ipServiceTechMetrics install rev failed', e); }
+      // Also include tgl rows with $ that completed in-week (covers Chris→Ferguson type).
+      try {
+        if (typeof tglLoad === 'function') {
+          var d = tglLoad();
+          if (d && Array.isArray(d.rows)) {
+            d.rows.forEach(function(r){
+              if (!r) return;
+              if (r.status !== 'completed') return;
+              var dt = r.completedDate || r.dateGenerated;
+              if (!dt || dt < weekStartIso || dt > weekEndIso) return;
+              var lead = r.leadGeneratedBy;
+              if (!lead || !metrics[lead]) return;
+              var amt = parseFloat(r.jobTotal || 0) || 0;
+              // Avoid double-counting: only add if jobNumber isn't already in brayden_installs for same week.
+              try {
+                var raw2 = localStorage.getItem('snappy_brayden_installs');
+                var arr2 = raw2 ? JSON.parse(raw2) : [];
+                var dup = Array.isArray(arr2) && arr2.some(function(x){
+                  return x && (x.jobNumber === r.jobNumber || x.invoice === r.jobNumber);
+                });
+                if (!dup) metrics[lead].weekInstallRev += amt;
+              } catch(e2) {
+                metrics[lead].weekInstallRev += amt;
+              }
+            });
+          }
+        }
+      } catch(e) { console.warn('ipServiceTechMetrics tgl install rev failed', e); }
+
+      // 4) Week's leads set — count tglLoad rows generated in-week by each service tech.
+      try {
+        if (typeof tglLoad === 'function') {
+          var d2 = tglLoad();
+          if (d2 && Array.isArray(d2.rows)) {
+            d2.rows.forEach(function(r){
+              if (!r) return;
+              var dt = r.dateGenerated;
+              if (!dt || dt < weekStartIso || dt > weekEndIso) return;
+              var lead = r.leadGeneratedBy;
+              if (!lead || !metrics[lead]) return;
+              metrics[lead].weekLeadsSet += 1;
+            });
+          }
+        }
+      } catch(e) { console.warn('ipServiceTechMetrics leads set failed', e); }
+
+      return { weekStart: weekStart, weekEnd: weekEndIso, monthStart: monthStart, metrics: metrics };
+    }
+    function ipRenderServiceTechsSection(weekEndingSat) {
+      var res = ipServiceTechMetrics(weekEndingSat);
+      var monthLabel = '';
+      try {
+        var md = new Date(res.monthStart + 'T12:00:00');
+        monthLabel = ['January','February','March','April','May','June','July','August','September','October','November','December'][md.getMonth()] + ' ' + md.getFullYear();
+      } catch(e) { monthLabel = res.monthStart; }
+      var roster = ipServiceTechRoster();
+      var html = '';
+      html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;margin-bottom:14px;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
+      html += '<div>';
+      html += '<div style="font-size:14px;font-weight:700;">\ud83d\udd27 Service Techs \u00b7 Week of ' + res.weekStart + ' \u2192 ' + res.weekEnd + '</div>';
+      html += '<div style="font-size:11px;color:#64748b;margin-top:2px;">Monthly memberships shown for ' + monthLabel + ' MTD \u00b7 Week metrics for Mon \u2192 Sat</div>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+      html += '<button onclick="ipServiceTechsExportPdf(\'' + weekEndingSat + '\')" style="background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">\ud83d\udcc4 Service Techs PDF</button>';
+      html += '</div>';
+      html += '</div>';
+      html += '<div style="overflow-x:auto;">';
+      html += '<table style="width:100%;min-width:760px;border-collapse:collapse;font-size:12px;">';
+      html += '<thead><tr style="color:#64748b;text-transform:uppercase;font-size:10px;letter-spacing:0.4px;background:#0b1426;">';
+      html += '<th style="text-align:left;padding:8px;border:1px solid #1e3a5f;">Tech</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Month Memberships Sold</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Week\'s Service Rev</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Week\'s Install Rev (Paired)</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Week\'s Leads Set</th>';
+      html += '</tr></thead><tbody>';
+      var teamMem = 0, teamRev = 0, teamInst = 0, teamLeads = 0;
+      roster.forEach(function(r){
+        var m = res.metrics[r.short] || { monthMemSold:0, weekRev:0, weekInstallRev:0, weekLeadsSet:0 };
+        teamMem += m.monthMemSold;
+        teamRev += m.weekRev;
+        teamInst += m.weekInstallRev;
+        teamLeads += m.weekLeadsSet;
+        html += '<tr>';
+        html += '<td style="padding:8px;border:1px solid #1e3a5f;font-weight:600;">' + r.display + '</td>';
+        html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;font-variant-numeric:tabular-nums;">' + m.monthMemSold + '</td>';
+        html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;font-variant-numeric:tabular-nums;">$' + (Math.round(m.weekRev)).toLocaleString() + '</td>';
+        html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + (m.weekInstallRev).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
+        html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;font-variant-numeric:tabular-nums;">' + m.weekLeadsSet + '</td>';
+        html += '</tr>';
+      });
+      html += '<tr style="background:#0b1426;font-weight:700;">';
+      html += '<td style="padding:8px;border:1px solid #1e3a5f;">Team</td>';
+      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;font-variant-numeric:tabular-nums;">' + teamMem + '</td>';
+      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;font-variant-numeric:tabular-nums;">$' + (Math.round(teamRev)).toLocaleString() + '</td>';
+      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + (teamInst).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
+      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;font-variant-numeric:tabular-nums;">' + teamLeads + '</td>';
+      html += '</tr>';
+      html += '</tbody></table></div>';
+      html += '</div>';
+      return html;
+    }
+    window.ipRenderServiceTechsSection = ipRenderServiceTechsSection;
+
+    // v218.74: PDF export for the Service Techs section.
+    function ipServiceTechsExportPdf(weekEndingSat) {
+      var res = ipServiceTechMetrics(weekEndingSat);
+      var monthLabel = '';
+      try {
+        var md = new Date(res.monthStart + 'T12:00:00');
+        monthLabel = ['January','February','March','April','May','June','July','August','September','October','November','December'][md.getMonth()] + ' ' + md.getFullYear();
+      } catch(e) { monthLabel = res.monthStart; }
+      var roster = ipServiceTechRoster();
+      function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+      var rows = '';
+      var teamMem = 0, teamRev = 0, teamInst = 0, teamLeads = 0;
+      roster.forEach(function(r){
+        var m = res.metrics[r.short] || { monthMemSold:0, weekRev:0, weekInstallRev:0, weekLeadsSet:0 };
+        teamMem += m.monthMemSold;
+        teamRev += m.weekRev;
+        teamInst += m.weekInstallRev;
+        teamLeads += m.weekLeadsSet;
+        rows += '<tr>'
+          + '<td style="padding:6px;border:1px solid #888;font-weight:600;">' + escapeHtml(r.display) + '</td>'
+          + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + m.monthMemSold + '</td>'
+          + '<td style="text-align:right;padding:6px;border:1px solid #888;">$' + Math.round(m.weekRev).toLocaleString() + '</td>'
+          + '<td style="text-align:right;padding:6px;border:1px solid #888;">$' + m.weekInstallRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
+          + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + m.weekLeadsSet + '</td>'
+          + '</tr>';
+      });
+      rows += '<tr style="background:#eee;font-weight:700;">'
+        + '<td style="padding:6px;border:1px solid #888;">Team</td>'
+        + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + teamMem + '</td>'
+        + '<td style="text-align:right;padding:6px;border:1px solid #888;">$' + Math.round(teamRev).toLocaleString() + '</td>'
+        + '<td style="text-align:right;padding:6px;border:1px solid #888;">$' + teamInst.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
+        + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + teamLeads + '</td>'
+        + '</tr>';
+      var doc = '<html><head><title>Service Techs \u2014 Week Ending ' + weekEndingSat + '</title>'
+        + '<style>body{font-family:Arial,sans-serif;color:#000;margin:24px;}h1{font-size:18pt;margin:0;}h2{font-size:13pt;margin:8px 0;}table{width:100%;border-collapse:collapse;margin-top:12px;}td,th{border:1px solid #888;padding:6px;font-size:10pt;}th{background:#eee;text-align:left;}@media print{body{margin:12mm;}}</style>'
+        + '</head><body>'
+          + '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #000;padding-bottom:10px;">'
+            + '<div><h1>Service Techs \u2014 Weekly Scorecard</h1>'
+              + '<div style="font-size:10pt;color:#444;">Week ending Saturday ' + weekEndingSat + ' (Mon ' + res.weekStart + ' \u2192 Sat ' + res.weekEnd + ')</div>'
+              + '<div style="font-size:10pt;color:#444;">Monthly memberships shown for ' + monthLabel + ' MTD</div>'
+            + '</div>'
+            + '<div style="text-align:right;font-size:10pt;">'
+              + '<div><b>Week Service Rev:</b> $' + Math.round(teamRev).toLocaleString() + '</div>'
+              + '<div><b>Week Install Rev (Paired):</b> $' + teamInst.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>'
+              + '<div><b>Week Leads Set:</b> ' + teamLeads + '</div>'
+              + '<div><b>Month Memberships Sold:</b> ' + teamMem + '</div>'
+            + '</div>'
+          + '</div>'
+          + '<table><thead><tr>'
+            + '<th>Tech</th>'
+            + '<th style="text-align:right;">Month Memberships Sold</th>'
+            + '<th style="text-align:right;">Week\'s Service Rev</th>'
+            + '<th style="text-align:right;">Week\'s Install Rev (Paired)</th>'
+            + '<th style="text-align:right;">Week\'s Leads Set</th>'
+          + '</tr></thead><tbody>' + rows + '</tbody></table>'
+          + '<div style="margin-top:18px;font-size:9pt;color:#666;">'
+            + '<b>Definitions:</b> Month Memberships Sold = calendar-month MTD memberships sold per tech. '
+            + 'Week\'s Service Rev = tech-driven service revenue logged for the week. '
+            + 'Week\'s Install Rev (Paired) = install $ tied to a TGL the tech generated (Brayden-installed or completed in-week). '
+            + 'Week\'s Leads Set = TGL flips generated in-week by the tech.'
+          + '</div>'
+          + '<div style="margin-top:20px;font-size:9pt;color:#666;">Generated by Snappy Matrix \u00b7 Submitted by Maico Sanders \u00b7 ' + new Date().toISOString().slice(0,10) + '</div>'
+        + '</body></html>';
+      var w = window.open('', '_blank', 'width=900,height=1100');
+      if (!w) { alert('Pop-up blocked. Allow pop-ups to export the Service Techs PDF.'); return; }
+      w.document.write(doc);
+      w.document.close();
+      setTimeout(function(){ w.focus(); w.print(); }, 250);
+    }
+    window.ipServiceTechsExportPdf = ipServiceTechsExportPdf;
 
     // Initialize: install default PIN, apply visibility on load
     try { ipGetPinHash(); } catch(e) {}
