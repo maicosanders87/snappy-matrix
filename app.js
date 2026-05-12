@@ -14,6 +14,160 @@ function createChart(canvasId, config) {
 }
 
 // ========== SCORE BREAKDOWN PDF DOWNLOAD ==========
+// v218.70 Phase 2: Composite Packet — transparent breakdown of every score input.
+// Opens an in-app modal that shows all sub-scores, bonuses, caps/floors, and the final tier.
+// Includes "Print / Save as PDF" using the browser's native print pipeline (no extra deps).
+function openCompositePacket(techShort) {
+  try {
+    var tech = (typeof techs !== 'undefined' ? techs : []).find(function(t) { return t.short === techShort; });
+    if (!tech) { alert('Tech not found: ' + techShort); return; }
+    if (typeof getTechTier !== 'function') { alert('Tier system not loaded yet'); return; }
+    var info = getTechTier(tech);
+    var st = (typeof stData !== 'undefined' ? stData.find(function(s) { return s.name === tech.short; }) : null);
+    var apt = (typeof aptitudeTests !== 'undefined' ? aptitudeTests[tech.short] : null);
+    var assignedSkills = (typeof skillsData !== 'undefined' && skillsData.assignments) ? (skillsData.assignments[tech.short] || []) : [];
+    var dispData = (typeof dispLoad === 'function') ? dispLoad() : { assignments: {} };
+    var dispTags = (dispData.assignments && dispData.assignments[tech.short]) || [];
+
+    // ----- Calc raw weighted contributions -----
+    var W = { st:0.35, apt:0.30, skill:0.10, mgr:0.10, install:0.10, review:0.05 };
+    var contribs = [
+      { key:'st',     label:'ServiceTitan',  raw:info.stScore,     weight:W.st,     contrib: info.stScore*W.st },
+      { key:'apt',    label:'Aptitude',      raw:info.aptScore,    weight:W.apt,    contrib: info.aptScore*W.apt },
+      { key:'skill',  label:'Skills Tags',   raw:info.skillScore,  weight:W.skill,  contrib: info.skillScore*W.skill },
+      { key:'mgr',    label:'Manager',       raw:info.mgrScore,    weight:W.mgr,    contrib: info.mgrScore*W.mgr },
+      { key:'install',label:'Installs',      raw:info.installScore,weight:W.install,contrib: info.installScore*W.install },
+      { key:'review', label:'Google Reviews',raw:info.reviewScore, weight:W.review, contrib: info.reviewScore*W.review }
+    ];
+    var baseTotal = contribs.reduce(function(s,c){ return s + c.contrib; }, 0);
+
+    var bonusItems = [];
+    if (info.dispatchBonus)         bonusItems.push({ label:'Dispatch tags ('+ info.dispatchTagCount +')', val: info.dispatchBonus, scale: 0.5, note: 'per-tag values (cap +5), scaled ×0.5' });
+    if (info.efficiencyBonus)       bonusItems.push({ label:'Sold/Billable Efficiency', val: info.efficiencyBonus, scale: 0.5, note: info.efficiencyLabel || '' });
+    if (info.performanceBonus)      bonusItems.push({ label:'Weekly Performance', val: info.performanceBonus, scale: 0.5, note: info.performanceLabel || '' });
+    if (info.championBonus)         bonusItems.push({ label:'Champion Bonus', val: info.championBonus, scale: 0.5, note: 'podium / streak / category' });
+    if (info.tglBump)               bonusItems.push({ label:'TGL closed leads', val: info.tglBump, scale: 0.3, note: '+1/closed lead, cap +5' });
+    if (info.serviceExcellenceBonus)bonusItems.push({ label:'Service Excellence', val: info.serviceExcellenceBonus, scale: 1.0, note: 'high conv + reviews + leads' });
+    if (info.behaviorBonus)         bonusItems.push({ label:'Behavior bonus', val: info.behaviorBonus, scale: 1.0, note: (info.behaviorTriggers||[]).join(', ') });
+
+    var bonusTotal = bonusItems.reduce(function(s,b){ return s + (b.val * b.scale); }, 0);
+    var capNote = '';
+    if (info.warrantyCapped) capNote = 'Warranty composite cap applied: composite floored to 71.';
+    if (info.serviceTechFloorApplied) capNote += (capNote?' ':'') + 'Service-tech floor applied: composite raised to 55.';
+
+    var fmt = function(n) { return (Math.round(n*10)/10).toFixed(1); };
+    var tierColor = { S:'#FFD700', A:'#22D3EE', B:'#A78BFA', C:'#94A3B8' }[info.tier] || '#94A3B8';
+
+    var html = '';
+    html += '<div class="cp-overlay" id="cp-overlay" onclick="if(event.target.id===\'cp-overlay\')closeCompositePacket()">';
+    html += '  <div class="cp-modal" id="cp-modal">';
+    html += '    <div class="cp-actions-bar">';
+    html += '      <button class="cp-action-btn cp-action-print" onclick="printCompositePacket()" title="Print or Save as PDF"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print / PDF</button>';
+    html += '      <button class="cp-action-btn cp-action-close" onclick="closeCompositePacket()" title="Close">\u00d7</button>';
+    html += '    </div>';
+    html += '    <div class="cp-printable" id="cp-printable">';
+    html += '      <div class="cp-header">';
+    html += '        <div class="cp-header-left">';
+    html += '          <div class="cp-title">Composite Packet</div>';
+    html += '          <div class="cp-name">' + (tech.name || techShort) + '</div>';
+    html += '          <div class="cp-sub">' + (tech.position || '') + ' \u00b7 ' + (tech.years||0) + ' yrs \u00b7 v218.70 Phase 2</div>';
+    html += '        </div>';
+    html += '        <div class="cp-header-right">';
+    html += '          <div class="cp-final-tier tier-' + info.tier.toLowerCase() + '">'+ info.tier +'-TIER</div>';
+    html += '          <div class="cp-final-score">' + info.composite + '<span class="cp-final-unit"> / 100</span></div>';
+    html += '          <div class="cp-final-label">' + info.tierLabel + '</div>';
+    html += '        </div>';
+    html += '      </div>';
+
+    // Base sub-scores table
+    html += '      <div class="cp-section">';
+    html += '        <div class="cp-section-title">Weighted Sub-Scores (Base)</div>';
+    html += '        <table class="cp-table">';
+    html += '          <thead><tr><th>Factor</th><th>Raw (0-100)</th><th>Weight</th><th>Contribution</th></tr></thead><tbody>';
+    contribs.forEach(function(c) {
+      html += '<tr><td>'+ c.label +'</td><td>'+ Math.round(c.raw) +'</td><td>'+ (c.weight*100).toFixed(0) +'%</td><td>'+ fmt(c.contrib) +'</td></tr>';
+    });
+    html += '          <tr class="cp-total-row"><td colspan="3"><b>Base composite</b></td><td><b>'+ fmt(baseTotal) +'</b></td></tr>';
+    html += '        </tbody></table>';
+    html += '      </div>';
+
+    // Bonuses table
+    html += '      <div class="cp-section">';
+    html += '        <div class="cp-section-title">Additive Bonuses (only-help)</div>';
+    if (bonusItems.length === 0) {
+      html += '        <div class="cp-empty">No active bonuses.</div>';
+    } else {
+      html += '        <table class="cp-table">';
+      html += '          <thead><tr><th>Bonus</th><th>Earned</th><th>Scale</th><th>Applied</th><th>Note</th></tr></thead><tbody>';
+      bonusItems.forEach(function(b) {
+        html += '<tr><td>'+ b.label +'</td><td>+'+ fmt(b.val) +'</td><td>\u00d7'+ b.scale +'</td><td>+'+ fmt(b.val*b.scale) +'</td><td class="cp-note">'+ (b.note||'') +'</td></tr>';
+      });
+      html += '          <tr class="cp-total-row"><td colspan="3"><b>Total bonus applied</b></td><td><b>+'+ fmt(bonusTotal) +'</b></td><td></td></tr>';
+      html += '        </tbody></table>';
+    }
+    html += '      </div>';
+
+    // Caps / floors
+    if (capNote) {
+      html += '      <div class="cp-section cp-caps"><div class="cp-section-title">Caps / Floors</div><div>' + capNote + '</div></div>';
+    }
+
+    // Tier thresholds
+    html += '      <div class="cp-section">';
+    html += '        <div class="cp-section-title">Tier Thresholds (v218.70 Phase 2)</div>';
+    html += '        <table class="cp-table cp-tier-table"><thead><tr><th>Tier</th><th>Range</th><th>Label</th></tr></thead><tbody>';
+    html += '          <tr class="'+ (info.tier==='S'?'cp-here':'') +'"><td><span class="cp-tier-pill tier-s">S</span></td><td>95-100</td><td>Elite</td></tr>';
+    html += '          <tr class="'+ (info.tier==='A'?'cp-here':'') +'"><td><span class="cp-tier-pill tier-a">A</span></td><td>85-94</td><td>Advanced</td></tr>';
+    html += '          <tr class="'+ (info.tier==='B'?'cp-here':'') +'"><td><span class="cp-tier-pill tier-b">B</span></td><td>65-84</td><td>Solid</td></tr>';
+    html += '          <tr class="'+ (info.tier==='C'?'cp-here':'') +'"><td><span class="cp-tier-pill tier-c">C</span></td><td>0-64</td><td>Developing</td></tr>';
+    html += '        </tbody></table>';
+    html += '      </div>';
+
+    // Final calculation summary
+    html += '      <div class="cp-section cp-final-calc">';
+    html += '        <div class="cp-section-title">Final Calculation</div>';
+    html += '        <div class="cp-formula">Base ('+ fmt(baseTotal) +') + Bonuses (+'+ fmt(bonusTotal) +')';
+    if (info.warrantyCapped || info.serviceTechFloorApplied) html += ' \u2192 capped/floored';
+    html += ' = <b>'+ info.composite +'</b> \u2192 <b>'+ info.tier +'-Tier</b></div>';
+    html += '      </div>';
+
+    // Dispatch tags detail
+    if (dispTags.length) {
+      html += '      <div class="cp-section">';
+      html += '        <div class="cp-section-title">Dispatch Tags Detail</div>';
+      html += '        <div class="cp-tag-list">' + dispTags.map(function(t){ return '<span class="cp-tag">'+t+'</span>'; }).join(' ') + '</div>';
+      html += '      </div>';
+    }
+
+    html += '      <div class="cp-footer">Generated ' + new Date().toLocaleString() + ' \u00b7 Snappy Matrix v218.70 Phase 2</div>';
+    html += '    </div>';  // end printable
+    html += '  </div>';    // end modal
+    html += '</div>';      // end overlay
+
+    var host = document.getElementById('cp-host');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'cp-host';
+      document.body.appendChild(host);
+    }
+    host.innerHTML = html;
+  } catch(e) {
+    console.error('openCompositePacket failed', e);
+    alert('Could not open composite packet: ' + e.message);
+  }
+}
+function closeCompositePacket() {
+  var host = document.getElementById('cp-host'); if (host) host.innerHTML = '';
+}
+function printCompositePacket() {
+  // Use the browser's print pipeline. The print stylesheet hides everything except .cp-printable.
+  try {
+    document.body.classList.add('cp-printing');
+    window.print();
+    setTimeout(function(){ document.body.classList.remove('cp-printing'); }, 1000);
+  } catch(e) { console.warn('print failed', e); window.print(); }
+}
+
 function downloadScorePDF(techShort) {
   if (typeof TECH_SCORE_PDFS === 'undefined' || !TECH_SCORE_PDFS[techShort]) {
     alert('Score breakdown PDF not available for ' + techShort);
@@ -12471,7 +12625,10 @@ if (typeof Chart !== 'undefined') {
             <div class="tdv2-body">
             ${renderXPBar(t, '')}
 
-            ${(typeof TECH_SCORE_PDFS !== 'undefined' && TECH_SCORE_PDFS[t.short]) ? `<button class="score-pdf-btn" onclick="downloadScorePDF('${t.short}')" title="Download Score Breakdown PDF"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg> Score Breakdown</button>` : ''}
+            <div class="tdv2-action-row">
+              <button class="composite-packet-btn" onclick="openCompositePacket('${t.short}')" title="View full Composite Score breakdown"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Composite Packet</button>
+              ${(typeof TECH_SCORE_PDFS !== 'undefined' && TECH_SCORE_PDFS[t.short]) ? `<button class="score-pdf-btn" onclick="downloadScorePDF('${t.short}')" title="Download Score Breakdown PDF"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg> Score Breakdown</button>` : ''}
+            </div>
 
             <div class="manager-notes" id="mgr-notes-${t.short}">
               <div class="manager-notes-title">
