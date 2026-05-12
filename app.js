@@ -3092,6 +3092,61 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_trainingSeedWed20260506IfNeeded failed', e); }
     }
 
+    // v218.71: One-shot seed of Wed 5/13/26 training \u2014 "Building Estimates & Flip Credits ($25)".
+    // Audience: whole tech team. Outcome: 4-tier estimates discipline, $25 flip credit checklist, daily huddle rhythm,
+    // Item of the Week leaderboard, and Chris-led IAQ installation lab pass-off.
+    function _trainingSeedWed20260513IfNeeded() {
+      try {
+        var FLAG = 'snappy_training_seeded_2026_05_13_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (!Array.isArray(mgrState.trainings)) mgrState.trainings = [];
+        var WEEK_OF = '2026-05-10'; // Sunday-anchored; Wed = +3 = 5/13/26
+        var existing = mgrState.trainings.find(function(t) { return t.weekOf === WEEK_OF; });
+        var entry = {
+          weekOf: WEEK_OF,
+          topic: 'Building Estimates & Flip Credits ($25)',
+          rationale: 'Tighten the on-call discipline that turns inspections into sold work: 4-tier estimate structure in ServiceTitan, the 5-requirement checklist for a $25 flip credit, the daily huddle rhythm that feeds the Item of the Week leaderboard, and Chris-led IAQ install lab pass-off so techs can earn the IAQ skill tag. Goal: lift estimate-attach rate, lift flip conversion, and start crediting IAQ work to the techs who can actually install it.',
+          outline: {
+            duration: '60min',
+            keyPoints: [
+              'Daily huddle rhythm (10min) \u2014 2m wins/losses, 1m focus, 4m round-room, 1m Item of the Week update, 2m open floor. Everyone stands. Phones down.',
+              'Item of the Week leaderboard \u2014 Mon\u2013Fri count of most-sold item. Last week\'s leaderboard winner picks this week\'s item (eligible: equipment add-ons, memberships, or 5-star reviews). Tracked in Matrix bulletin.',
+              'Every call requirements \u2014 pictures of system + nameplate, ServiceTitan stickers on outdoor + indoor unit, signed inspection sheet (customer signature, NOT initials), estimates built before leaving driveway, written summary in invoice notes.',
+              '4-Tier estimate structure \u2014 (1) REPAIR: fix what failed today. (2) REPAIR + ENHANCE: fix + add (capacitor, surge, IAQ). (3) BIG BOY: full system replacement quote. (4) SCHEDULE FLIP: book Brayden same-day if 4-of-5 flip qualifiers hit.',
+              '$25 Flip Credit \u2014 5 requirements to earn: (1) signed inspection sheet uploaded to ST, (2) all 4 estimate tiers built in ServiceTitan, (3) pictures attached, (4) dollar-amount conversation documented in notes, (5) Brayden booked AND customer emailed the appointment confirmation. Miss any one = no credit.',
+              'IAQ installation lab \u2014 Chris runs the lab at the shop after this meeting. Bring your tools. Pass-off scoring: install demo IAQ kit start-to-finish, signed-off by Chris = earn the IAQ skill tag in your composite. IAQ tag unlocks IAQ install dispatch + counts toward Skills sub-score.',
+              'Common mistakes \u2014 initialing the inspection sheet instead of signing, only building 1 or 2 tiers, photos of system but not nameplate, forgetting the email confirmation to customer (last step kills more flip credits than anything else).',
+              'How this hits Matrix \u2014 Flip credits show on TGL tab and Sales card. IAQ tag shows in Skills sub-score. Estimate completeness audited weekly by manager review of ST jobs.',
+              'Tier targets reminder \u2014 Chris A-Tier, Dewone A-Tier, Benji B-Tier, Daniel B-Tier, Dee B-Tier, Nick C/Rookie. This training moves the B-tier guys toward A by lifting estimate + flip discipline.'
+            ],
+            materials: 'Print: 1-page Tech Handout (4-tier cheat, $25 flip checklist, daily huddle, IOTW, IAQ lab \u2014 attached). Sticky pads for every tech. Whiteboard for IOTW leaderboard. 5 signed inspection sheets from last week (good + bad examples). Demo IAQ kit at shop for the lab portion.',
+            redBarn: true,
+            redBarnScenario: 'Tech runs maintenance on a 12-yr-old 3-ton system. Capacitor weak, low refrigerant charge, blower wheel filthy, evap coil rust-stained. Owner mentions $410/mo summer bill and the upstairs bedrooms never cool. Decision-makers both home. Walk through: which of the 4 tiers do you build? (Answer: ALL FOUR \u2014 Repair (cap + refrigerant + clean), Repair+Enhance (add IAQ + surge), Big Boy (full system quote), Schedule Flip (4-of-5 qualifiers hit \u2014 age, repeat issues, comfort complaint, bill signal, DMs present \u2014 slack Brayden, hold customer, photos of nameplate + coil). All four built = flip credit eligible.)'
+          },
+          moment: {
+            hook: 'Last week we built 4 tiers on 31% of completed inspections. Top shops do 80%+. Half the gap is just discipline \u2014 the other half is the $25 flip credit checklist nobody finishes the last step on (email confirmation to customer).',
+            example: 'Chris\'s 5/7 Mary Ann Caldwell ticket \u2014 all 4 tiers built, signed inspection, photos, $-amount in notes, AND he emailed the customer the appointment confirmation before leaving. That\'s the only flip credit paid out last week. The playbook works when you finish it.',
+            takeaway: 'No signed inspection sheet = no flip credit. No email to customer = no flip credit. Both have to happen before you leave the driveway. After the meeting, everyone meets Chris at the shop bay for IAQ lab.'
+          },
+          attendance: [],
+          meetingNotes: '',
+          meetingActions: ''
+        };
+        if (existing) {
+          if (!existing.topic || existing.topic === '(not set)') {
+            Object.assign(existing, entry, { updatedAt: Date.now() });
+          }
+        } else {
+          mgrState.trainings.push(Object.assign({
+            id: (typeof mgrUID === 'function' ? mgrUID() : ('train_' + Date.now())),
+            createdAt: Date.now(), updatedAt: Date.now()
+          }, entry));
+        }
+        if (typeof mgrSave === 'function') mgrSave();
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_trainingSeedWed20260513IfNeeded failed', e); }
+    }
+
     // v206: One-shot seed of Brayden's 5/1 install (Denise Cartier $14,606.68) into braydenStats.mtd_revenue
     // v218.9: Also push the install into snappy_brayden_installs so the team-overview
     // Install KPI tile and Sales rep equipment list both pick it up. Without this entry,
@@ -15059,6 +15114,33 @@ if (typeof Chart !== 'undefined') {
         tags: ['Sales','Lead','Flip','Instructor','Wed 5/6'],
         weekOf: '2026-05-03',
         builtin: true
+      },
+      // v218.71 — Week of 5/13/26: Estimates + Flip Credits + IAQ Lab
+      {
+        id: 'training_plan_2026_05_13',
+        title: 'Weekly Training Plan — 5/13/26 (Manager Playbook)',
+        category: 'Sales · Estimates/Flip',
+        categoryKey: 'sales',
+        categoryColor: '#facc15',
+        description: 'Wed 5/13/26 weekly meeting playbook. 9 sections — tools, daily huddle structure, Item of the Week, expectations for every call, building estimates (4-tier role-play), $25 Flip Credit standard, IAQ install lab with Chris, week-at-a-glance, Matrix hooks.',
+        pdf: 'training_plan_2026-05-13.pdf',
+        duration: '60min',
+        tags: ['Sales','Estimates','Flip Credit','IAQ','Manager','Wed 5/13'],
+        weekOf: '2026-05-10',
+        builtin: true
+      },
+      {
+        id: 'training_handout_2026_05_13',
+        title: 'This Week at Snappy — 5/13/26 (Tech Handout)',
+        category: 'Sales · Estimates/Flip',
+        categoryKey: 'sales',
+        categoryColor: '#facc15',
+        description: '1-page tech handout for the clipboard. $25 Flip Credit checklist, 4-tier estimate cheat with wording cues, daily huddle structure, IAQ lab pass-off, Item of the Week, week-at-a-glance. Print 1 per tech.',
+        pdf: 'training_handout_2026-05-13.pdf',
+        duration: 'Print',
+        tags: ['Sales','Estimates','Flip Credit','IAQ','Tech','Van Card','Wed 5/13'],
+        weekOf: '2026-05-10',
+        builtin: true
       }
     ];
 
@@ -21203,6 +21285,7 @@ if (typeof Chart !== 'undefined') {
       try { if (typeof tglBackfillJobTotalsIfNeeded === 'function') tglBackfillJobTotalsIfNeeded(); } catch(e) {}
     } catch(e) { console.warn('TGL init sweep failed', e); }
     try { _trainingSeedWed20260506IfNeeded(); } catch(e) {}
+    try { _trainingSeedWed20260513IfNeeded(); } catch(e) {}
     // v218.13: One-time migration — clear stale SHA from old private repo so first push to public repo works.
     try {
       var _ipMigKey = 'snappy_install_pay_cloud_repo_v2_migrated';
