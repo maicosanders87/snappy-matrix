@@ -3792,6 +3792,55 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_mariettaDedupeHealV21894IfNeeded failed', e); }
     }
 
+    // v218.95: Source-of-truth Generated-Installs reconciliation (5/1–5/13 PDF).
+    // The absolute report shows 9 installs / $131,543.10 total. Brayden's 7
+    // installs were already seeded (Denise/Kathryn/Joseph/Andrew/Mike/Dianne/Marietta).
+    // The 2 missing rows were:
+    //   - Carol Terwilliger #91959179, 5/7/26, lead by Benji, sold by Maico, $11,500
+    //   - Shannon Zangas #91134699, 5/11/26, no lead/sold, $0 (informational)
+    // This heal seeds Carol into the TGL store (auto-credits Maico in his sales
+    // scorecard + mgrComputeInstallsLive 90-day card) and adds Shannon as an
+    // unattributed $0 reference row so My Leads matches the source PDF exactly.
+    function _carolTerwilligerHealV21895IfNeeded() {
+      try {
+        var FLAG = 'snappy_carol_terwilliger_heal_v21895';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof tglUpsert !== 'function') return;
+
+        // 1) Carol Terwilliger — Benji lead, Maico sold, $11,500, 5/7/26
+        tglUpsert({
+          jobNumber: '91959179', invoiceNumber: '91959179',
+          customer: 'Carol Terwilliger',
+          dateGenerated: '2026-05-07',
+          completedDate: '2026-05-07',
+          assignedTechnicians: ['Thomas Gilbert', 'Terrell Upshur'],
+          soldBy: 'Maico',
+          leadGeneratedBy: 'Benji',
+          source: 'Maintenance',
+          status: 'completed',
+          jobTotal: 11500.00
+        });
+        console.log('[v218.95] TGL seeded Carol Terwilliger #91959179 ($11,500, Benji lead, Maico sold).');
+
+        // 2) Shannon Zangas — informational $0 row, no attribution (5/11/26)
+        tglUpsert({
+          jobNumber: '91134699', invoiceNumber: '91134699',
+          customer: 'Shannon Zangas',
+          dateGenerated: '2026-05-11',
+          completedDate: '2026-05-11',
+          assignedTechnicians: [],
+          soldBy: '',
+          leadGeneratedBy: '',
+          source: 'Service',
+          status: 'completed',
+          jobTotal: 0
+        });
+        console.log('[v218.95] TGL seeded Shannon Zangas #91134699 ($0 informational).');
+
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_carolTerwilligerHealV21895IfNeeded failed', e); }
+    }
+
     // v218.94: User-driven TGL row edit + delete (My Leads / Tech File panels).
     // Lets the manager fix mis-parsed PDF rows, remove orphan phantom rows, or
     // adjust customer/jobNumber/lead/installer/total inline without touching code.
@@ -23001,6 +23050,7 @@ if (typeof Chart !== 'undefined') {
     try { _dailySeed20260513IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260513IfNeeded(); } catch(e) {}
     try { _mariettaDedupeHealV21894IfNeeded(); } catch(e) {}
+    try { _carolTerwilligerHealV21895IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
