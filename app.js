@@ -9413,7 +9413,7 @@ document.addEventListener('visibilitychange', function() {
               pillsHTML = '<div class="wlb-pt-pills">' + pills.join('') + '</div>';
             }
 
-            return '<div class="wlb-row tier-' + r.tier + ' rank-' + rank + '">' +
+            return '<div class="wlb-row tier-' + r.tier + ' rank-' + rank + '" data-tech-short="' + r.short + '" onclick="window._wlbOpenTechBreakdown && window._wlbOpenTechBreakdown(\'' + r.short + '\', \'' + activeWeek + '\')" style="cursor:pointer" title="Click for daily breakdown">' +
               '<div class="wlb-rank">' + (medal || rank) + '</div>' +
               avatar +
               '<div class="wlb-name-block">' +
@@ -9541,6 +9541,237 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('renderWeeklyLeaderboard failed', e); }
     }
     window.renderWeeklyLeaderboard = renderWeeklyLeaderboard;
+
+    // ===========================================================================
+    // v218.81: Click-to-breakdown — Mon-today daily rows for a single tech.
+    // Pulls weekly entry from WLB store + per-day installs from tglLoad() filtered
+    // by tech short and completedDate within the active week. Shows composite
+    // score impact (calcPerformanceBonus) + tier movement (prev vs current week).
+    // SVC/MEM/Sold-Hrs/FRT/Conv aren't tracked daily yet (entered as weekly totals),
+    // so those columns show the week total in the footer with a "(weekly total)" note.
+    // ===========================================================================
+    function _wlbOpenTechBreakdown(techShort, weekKey) {
+      try {
+        var roster = (typeof techs !== 'undefined' && techs) ? techs : [];
+        var tech = roster.find(function(t){ return t.short === techShort; });
+        if (!tech) return;
+
+        // Pull weekly entry + prev entry
+        var data = _wlbLoad();
+        var prevKey = _wlbPrevWeek(weekKey);
+        var entry = _wlbReadEntry(data[weekKey] || {}, techShort);
+        var prevEntry = _wlbReadEntry(data[prevKey] || {}, techShort);
+        var pts = entry ? _wlbPoints(entry) : null;
+        var prevPts = prevEntry ? _wlbPoints(prevEntry) : null;
+
+        // Tier movement: compute tier from getTechTier (uses current entry)
+        var curTier = 'C', prevTier = '\u2013';
+        try { var ti = (typeof getTechTier === 'function') ? getTechTier(tech) : null; if (ti && ti.tier) curTier = ti.tier; } catch(e) {}
+        // Approximate prev-week tier from prev pts vs same thresholds (best-effort visual cue)
+        if (prevPts) {
+          var pt = prevPts.total;
+          prevTier = pt >= 95 ? 'S' : pt >= 85 ? 'A' : pt >= 65 ? 'B' : 'C';
+        }
+
+        // Composite bonus (currently active carry-over)
+        var perfBonus = null;
+        try { perfBonus = (typeof calcPerformanceBonus === 'function') ? calcPerformanceBonus(tech) : null; } catch(e) {}
+
+        // Pull TGL rows for this tech in this week (daily installs)
+        var tglRows = [];
+        try {
+          var tglData = (typeof tglLoad === 'function') ? tglLoad() : { rows: [] };
+          tglRows = (tglData && Array.isArray(tglData.rows)) ? tglData.rows : [];
+        } catch(e) { tglRows = []; }
+
+        // Week dates Mon..Sun
+        var weekStart = new Date(weekKey + 'T00:00:00');
+        var today = new Date(); today.setHours(0,0,0,0);
+        var days = [];
+        for (var i = 0; i < 7; i++) {
+          var d = new Date(weekStart); d.setDate(d.getDate() + i);
+          var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+          days.push({ iso: iso, date: d, isFuture: d > today, isToday: d.getTime() === today.getTime() });
+        }
+
+        // For each day, compute install count + install rev for this tech.
+        // Match by techShort in assignedTechnicians OR installedBy OR leadGeneratedBy.
+        var nameMatch = function(arr, short) {
+          if (!arr) return false;
+          var s = Array.isArray(arr) ? arr.join(',') : String(arr);
+          return s.toLowerCase().indexOf(short.toLowerCase()) >= 0 ||
+                 s.toLowerCase().indexOf((tech.name||'').toLowerCase()) >= 0;
+        };
+        var dailyAgg = {};
+        days.forEach(function(dy){ dailyAgg[dy.iso] = { installs: 0, instRev: 0, leads: 0 }; });
+        tglRows.forEach(function(r){
+          if (!r) return;
+          var dt = (r.completedDate || r.dateGenerated || '').slice(0,10);
+          if (!dailyAgg[dt]) return; // not in this week
+          var jobTot = parseFloat(r.jobTotal) || 0;
+          var installed = nameMatch(r.installedBy, techShort) || nameMatch(r.assignedTechnicians, techShort);
+          var leadOwn = nameMatch(r.leadGeneratedBy, techShort);
+          if (installed && jobTot > 0) {
+            dailyAgg[dt].installs += 1;
+            dailyAgg[dt].instRev += jobTot;
+          }
+          if (leadOwn) dailyAgg[dt].leads += 1;
+        });
+
+        // Tally totals from daily rows for weekly install count check
+        var weekInstalls = 0, weekInstRev = 0, weekLeads = 0;
+        days.forEach(function(dy){
+          weekInstalls += dailyAgg[dy.iso].installs;
+          weekInstRev  += dailyAgg[dy.iso].instRev;
+          weekLeads    += dailyAgg[dy.iso].leads;
+        });
+
+        // ----- Build modal HTML -----
+        var existing = document.getElementById('wlbBreakdownOverlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'wlbBreakdownOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto;';
+        overlay.onclick = function(ev){ if (ev.target === overlay) overlay.remove(); };
+
+        var modal = document.createElement('div');
+        modal.style.cssText = 'background:#0f1c33;border:1px solid #1e3a5f;border-radius:14px;max-width:920px;width:100%;max-height:92vh;overflow-y:auto;color:#e2e8f0;font-family:Inter,system-ui,sans-serif;';
+
+        var dayLabel = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        var fmtMoney = function(n){ return _wlbFmtMoney(n); };
+        var dot = ' \u00b7 ';
+
+        // Header
+        var tierDelta = '';
+        if (prevTier !== '\u2013' && prevTier !== curTier) {
+          var order = { C:0, B:1, A:2, S:3 };
+          if (order[curTier] > order[prevTier]) tierDelta = '<span style="color:#22c55e;font-weight:600;"> \u25b2 up from ' + prevTier + '</span>';
+          else if (order[curTier] < order[prevTier]) tierDelta = '<span style="color:#ef4444;font-weight:600;"> \u25bc down from ' + prevTier + '</span>';
+        } else if (prevTier === curTier) {
+          tierDelta = '<span style="color:#94a3b8;"> \u00b7 same as last week</span>';
+        }
+
+        var perfHTML = '';
+        if (perfBonus && perfBonus.bonus > 0) {
+          var badge = perfBonus.badge || '';
+          var icon = badge === 'S+' ? '\ud83d\udc51' : badge === 'S' ? '\ud83c\udfc6' : badge === 'A' ? '\ud83e\udd47' : badge === 'B' ? '\ud83e\udd48' : '\u26a1';
+          var basis = perfBonus.basis === 'thisWeek' ? "this week's pace" : 'best of last 4 weeks';
+          perfHTML =
+            '<div style="margin-top:6px;padding:10px 14px;background:rgba(255,215,0,0.08);border:1px solid #c9a227;border-radius:8px;font-size:13px;">' +
+              '<span style="font-weight:600;color:#FFD700;">' + icon + ' Composite Boost: +' + perfBonus.bonus.toFixed(1) + ' pts</span>' +
+              '<span style="color:#cbd5e1;margin-left:8px;">' + (perfBonus.label || '') + (perfBonus.weekLabelStr ? dot + perfBonus.weekLabelStr : '') + dot + 'from ' + basis + '</span>' +
+            '</div>';
+        } else {
+          perfHTML =
+            '<div style="margin-top:6px;padding:10px 14px;background:rgba(148,163,184,0.08);border:1px solid #334155;border-radius:8px;font-size:13px;color:#94a3b8;">' +
+              'No active composite bonus this week.' +
+            '</div>';
+        }
+
+        var headerHTML =
+          '<div style="padding:18px 22px;border-bottom:1px solid #1e3a5f;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">' +
+            (tech.avatar ? '<img src="' + tech.avatar + '" alt="" style="width:54px;height:54px;border-radius:50%;border:2px solid #1e3a5f;object-fit:cover;">' : '') +
+            '<div style="flex:1;min-width:200px;">' +
+              '<div style="font-size:20px;font-weight:700;color:#f1f5f9;">' + (tech.name || techShort) + '</div>' +
+              '<div style="font-size:13px;color:#94a3b8;margin-top:2px;">Daily Breakdown \u00b7 Week of ' + _wlbWeekLabel(weekKey) + '</div>' +
+              '<div style="margin-top:6px;font-size:13px;">' +
+                '<span style="display:inline-block;padding:3px 10px;border-radius:6px;background:#1e3a5f;color:#a5d8ff;font-weight:600;">' + curTier + '-Tier</span>' +
+                tierDelta +
+              '</div>' +
+            '</div>' +
+            '<button id="wlbBreakdownClose" style="background:transparent;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;">Close \u2715</button>' +
+          '</div>';
+
+        // ----- Daily table -----
+        var tableHTML =
+          '<div style="padding:18px 22px;">' +
+            '<div style="font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:10px;">Mon \u2192 Today (Daily Installs &amp; Leads)</div>' +
+            '<div style="overflow-x:auto;">' +
+              '<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:640px;">' +
+                '<thead><tr style="background:#16243d;color:#a5d8ff;">' +
+                  '<th style="padding:8px 10px;text-align:left;border-bottom:1px solid #1e3a5f;">Day</th>' +
+                  '<th style="padding:8px 10px;text-align:right;border-bottom:1px solid #1e3a5f;">Date</th>' +
+                  '<th style="padding:8px 10px;text-align:right;border-bottom:1px solid #1e3a5f;">Installs</th>' +
+                  '<th style="padding:8px 10px;text-align:right;border-bottom:1px solid #1e3a5f;">Install $</th>' +
+                  '<th style="padding:8px 10px;text-align:right;border-bottom:1px solid #1e3a5f;">Leads Set</th>' +
+                '</tr></thead><tbody>';
+        days.forEach(function(dy, idx){
+          var ag = dailyAgg[dy.iso];
+          var rowBg = dy.isToday ? 'background:rgba(34,197,94,0.08);' : (dy.isFuture ? 'opacity:0.4;' : '');
+          tableHTML +=
+            '<tr style="' + rowBg + 'border-bottom:1px solid #1e3a5f;">' +
+              '<td style="padding:8px 10px;color:#cbd5e1;font-weight:' + (dy.isToday ? '700' : '500') + ';">' + dayLabel[idx] + (dy.isToday ? ' \u2190 today' : '') + '</td>' +
+              '<td style="padding:8px 10px;text-align:right;color:#94a3b8;">' + dy.iso.slice(5) + '</td>' +
+              '<td style="padding:8px 10px;text-align:right;color:' + (ag.installs > 0 ? '#22c55e' : '#475569') + ';font-weight:' + (ag.installs > 0 ? '700' : '400') + ';">' + (ag.installs || '\u2013') + '</td>' +
+              '<td style="padding:8px 10px;text-align:right;color:' + (ag.instRev > 0 ? '#22c55e' : '#475569') + ';">' + (ag.instRev > 0 ? fmtMoney(ag.instRev) : '\u2013') + '</td>' +
+              '<td style="padding:8px 10px;text-align:right;color:' + (ag.leads > 0 ? '#a5d8ff' : '#475569') + ';font-weight:' + (ag.leads > 0 ? '700' : '400') + ';">' + (ag.leads || '\u2013') + '</td>' +
+            '</tr>';
+        });
+        tableHTML +=
+          '<tr style="background:#16243d;font-weight:700;">' +
+            '<td style="padding:10px;color:#FFD700;" colspan="2">Week Total</td>' +
+            '<td style="padding:10px;text-align:right;color:#22c55e;">' + weekInstalls + '</td>' +
+            '<td style="padding:10px;text-align:right;color:#22c55e;">' + fmtMoney(weekInstRev) + '</td>' +
+            '<td style="padding:10px;text-align:right;color:#a5d8ff;">' + weekLeads + '</td>' +
+          '</tr></tbody></table></div></div>';
+
+        // ----- Weekly six-lane summary (since SVC/MEM/Sold-Hrs/FRT/Conv aren't daily) -----
+        var sixLaneHTML = '';
+        if (entry && pts) {
+          var memPct = entry.memOpps > 0 ? Math.round((entry.memSold/entry.memOpps)*100) : 0;
+          sixLaneHTML =
+            '<div style="padding:0 22px 18px;">' +
+              '<div style="font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:8px;">Weekly Six-Lane Totals <span style="font-size:11px;color:#94a3b8;font-weight:400;">(entered as weekly totals \u2014 daily granularity for SVC/MEM coming soon)</span></div>' +
+              '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">' +
+                _wlbLaneCard('REV', fmtMoney(entry.service), pts.revLane != null ? pts.revLane : pts.revPts, 20, '#3b82f6') +
+                _wlbLaneCard('SVC', (entry.service > 0 ? fmtMoney(entry.service) : '\u2013'), pts.svcLane != null ? pts.svcLane : 0, 20, '#22c55e') +
+                _wlbLaneCard('MEM', entry.memSold + '/' + entry.memOpps + (entry.memOpps ? ' \u00b7 ' + memPct + '%' : ''), pts.memLane != null ? pts.memLane : pts.memPts, 20, '#a855f7') +
+                _wlbLaneCard('LEAD', String(weekLeads), pts.leadLane != null ? pts.leadLane : 0, 20, '#06b6d4') +
+                _wlbLaneCard('INST', weekInstalls + ' \u00b7 ' + fmtMoney(weekInstRev), pts.instLane != null ? pts.instLane : pts.instPts, 20, '#f59e0b') +
+                _wlbLaneCard('GR\u2605', '\u2013', pts.grLane != null ? pts.grLane : 0, 10, '#FFD700') +
+              '</div>' +
+              '<div style="margin-top:10px;padding:10px 14px;background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;color:#cbd5e1;">' +
+                '<b>Total Weekly Pts:</b> <span style="color:#FFD700;font-weight:700;">' + pts.total + '</span> / 110' +
+                (prevPts ? '<span style="margin-left:14px;color:#94a3b8;">Last week: ' + prevPts.total + ' pts ' + ((pts.total - prevPts.total) >= 0 ? '<span style="color:#22c55e;">(+' + (pts.total-prevPts.total).toFixed(1) + ')</span>' : '<span style="color:#ef4444;">(' + (pts.total-prevPts.total).toFixed(1) + ')</span>') + '</span>' : '') +
+              '</div>' +
+            '</div>';
+        } else {
+          sixLaneHTML =
+            '<div style="padding:0 22px 18px;">' +
+              '<div style="padding:14px;background:#0b1426;border:1px solid #334155;border-radius:8px;color:#94a3b8;font-size:13px;">No weekly entry recorded yet. Use "Enter Numbers" on the leaderboard to add this week\'s totals.</div>' +
+            '</div>';
+        }
+
+        // ----- Composite + tier section -----
+        var compHTML =
+          '<div style="padding:0 22px 22px;">' +
+            '<div style="font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:8px;">Composite Score Impact</div>' +
+            perfHTML +
+          '</div>';
+
+        modal.innerHTML = headerHTML + tableHTML + sixLaneHTML + compHTML;
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        var closeBtn = document.getElementById('wlbBreakdownClose');
+        if (closeBtn) closeBtn.onclick = function(){ overlay.remove(); };
+      } catch(e) { console.warn('_wlbOpenTechBreakdown failed', e); }
+    }
+    window._wlbOpenTechBreakdown = _wlbOpenTechBreakdown;
+
+    function _wlbLaneCard(label, raw, p, max, color) {
+      var pct = max > 0 ? Math.min(100, (p / max) * 100) : 0;
+      return '<div style="padding:10px 12px;background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;">' +
+               '<div style="display:flex;justify-content:space-between;align-items:baseline;">' +
+                 '<span style="font-size:11px;font-weight:700;color:' + color + ';letter-spacing:0.5px;">' + label + '</span>' +
+                 '<span style="font-size:13px;font-weight:700;color:#f1f5f9;">' + (p != null ? Math.round(p*10)/10 : 0) + '<span style="color:#94a3b8;font-weight:400;">/' + max + '</span></span>' +
+               '</div>' +
+               '<div style="font-size:12px;color:#cbd5e1;margin-top:3px;">' + raw + '</div>' +
+               '<div style="margin-top:6px;height:4px;background:#1e3a5f;border-radius:2px;overflow:hidden;">' +
+                 '<div style="width:' + pct + '%;height:100%;background:' + color + ';"></div>' +
+               '</div>' +
+             '</div>';
+    }
 
     // ---------- Editor modal ----------
     function _wlbOpenEditor(weekKey) {
