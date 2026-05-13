@@ -3535,6 +3535,189 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_dailySeed20260512IfNeeded failed', e); }
     }
 
+    // v218.93: Wed 5/13/26 daily seed — TGL flips + Brayden install + bulletin.
+    // Source: TGL-sales-and-commission 5/13 PDF, Memberships 5/13 PDF.
+    //   - Amelia Soto / 91921510  — marketed lead, no Lead Gen By tech (skip)
+    //   - William Bronson / 92118765 — Ben Tinahui lead, Brayden assigned, OPEN replacement
+    //   - Marietta Commercial Tire / 92135482 — Dewone lead, install crew Thomas+Terrell+Brayden,
+    //                                            SOLD same-day $17,820.78
+    function _dailySeed20260513IfNeeded() {
+      try {
+        var FLAG = 'snappy_daily_seed_2026_05_13_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+
+        // 1) TGL flips generated today
+        if (typeof tglUpsert === 'function') {
+          // Ben → William Bronson, $0 open replacement lead (assigned to Brayden)
+          tglUpsert({
+            jobNumber: '92118765', invoiceNumber: '92118765',
+            customer: 'William Bronson',
+            dateGenerated: '2026-05-13',
+            assignedTechnicians: ['Brayden Bond'],
+            soldBy: 'Brayden Bond',
+            leadGeneratedBy: 'Benji',
+            source: 'Maintenance',
+            leadGeneratedFromJob: '91912467',
+            status: 'open'
+          });
+          // Dewone → Marietta Commercial Tire, SOLD same-day $17,820.78
+          // (installed by Thomas Gilbert + Terrell Upshur, sold by Brayden Bond)
+          tglUpsert({
+            jobNumber: '92135482', invoiceNumber: '92135482',
+            customer: 'Marietta Commercial Tire',
+            dateGenerated: '2026-05-13',
+            completedDate: '2026-05-13',
+            assignedTechnicians: ['Thomas Gilbert', 'Terrell Upshur', 'Brayden Bond'],
+            soldBy: 'Brayden Bond',
+            leadGeneratedBy: 'Dewone',
+            source: 'Service',
+            status: 'completed',
+            jobTotal: 17820.78
+          });
+        }
+
+        // 2) Push Dewone's Marietta install into snappy_brayden_installs (paired sale)
+        try {
+          var brRaw = localStorage.getItem('snappy_brayden_installs');
+          var brArr = [];
+          try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+          if (!Array.isArray(brArr)) brArr = [];
+          var dupMari = brArr.some(function(x){ return x && (x.jobNumber === '92135482' || x.invoice === '92135482'); });
+          if (!dupMari) {
+            brArr.push({
+              id: 'brayden_daily_20260513_marietta',
+              date: '2026-05-13',
+              customer: 'Marietta Commercial Tire',
+              jobNumber: '92135482',
+              invoice: '92135482',
+              businessUnit: 'HVAC Install',
+              soldBy: 'Brayden Bond',
+              leadGeneratedBy: 'Dewone',
+              jobsTotal: 17820.78,
+              completionDate: '2026-05-13'
+            });
+            localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+            console.log('[v218.93] Added Marietta Commercial Tire install ($17,820.78) to snappy_brayden_installs.');
+          }
+        } catch(e) { console.warn('[v218.93] brayden install push failed', e); }
+
+        // 3) Bump Brayden's MTD stats (6 → 7 installs, $102,222.32 → $120,043.10)
+        try {
+          var stats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : {};
+          var curRev2 = Number(stats.mtd_revenue || 0);
+          var curClosed2 = Number(stats.mtd_closed || 0);
+          var targetRev2 = 120043.10; // 102222.32 + 17820.78
+          var targetClosed2 = 7;
+          if (curRev2 < targetRev2) { stats.mtd_revenue = String(targetRev2); }
+          if (curClosed2 < targetClosed2) { stats.mtd_closed = String(targetClosed2); }
+          if (typeof braydenSaveStats === 'function') braydenSaveStats(stats);
+          console.log('[v218.93] braydenstats bumped to 7 / $120,043.10');
+        } catch(e) { console.warn('[v218.93] braydenstats bump failed', e); }
+
+        // 4) Bulletin entry for today's day summary
+        try {
+          var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+          if (bb) {
+            if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+            var exists13 = bb.matrixUpdates.some(function(u){ return u.id === 'st_update_20260513_daily'; });
+            if (!exists13) {
+              bb.matrixUpdates.push({
+                id: 'st_update_20260513_daily',
+                date: '2026-05-13',
+                text: 'Wednesday 5/13/26 — Service team $4,861.84 tech rev across the day. 2 TGL flips: Benji\u2192William Bronson (open replacement) and Dewone\u2192Marietta Commercial Tire SOLD same-day $17,820.78 (Thomas+Terrell installed, Brayden sold). Memberships (service-only, Terrell excluded): 1 sold of 2 opps = 50%. Chris\u2019s Mary Rivera was the lone close (1/1, 100%). Daniel revenue leader at $2,030.37, Benji $1,700.72, Dewone $871.75. Brayden May install MTD now: 7 / $120,043.10. Dewone closed back-to-back same-day flips on Marietta calls (5/12 + 5/13) \u2014 leadership-by-action.',
+                createdAt: Date.now()
+              });
+              if (typeof bbSave === 'function') bbSave(bb);
+              console.log('[v218.93] Added 5/13 daily bulletin entry.');
+            }
+          }
+        } catch(e) { console.warn('[v218.93] bulletin push failed', e); }
+
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_dailySeed20260513IfNeeded failed', e); }
+    }
+
+    // v218.93: Wed 5/13/26 WLB + MTD daily bump.
+    // Source: Memberships PDF 5/13 (service revenue + opps), TGL PDF 5/13 (lead credit + install).
+    // Service rev per tech today (HVAC Maint + Service + Install, minus install crew):
+    //   Benji $1,700.72 (svc); Daniel $2,030.37 (svc, 1 mem opp 0 sold);
+    //   Dewone $871.75 (svc); Chris $259 (svc, 1 mem opp 1 sold = 100%);
+    //   Dee $0; Nick $0
+    // Install $17,820.78 (Marietta) flows through Brayden, NOT into any tech tile.
+    // Terrell\u2019s membership row excluded \u2014 he\u2019s install side.
+    function _wlbSeedDay20260513IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_13_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var WEEK = '2026-05-11'; // 5/13 is Wednesday of the Mon-start week 5/11
+        var d = _wlbLoad();
+        var existing = d[WEEK] || {};
+        function add(short, svc, ic, ir, ms, mo) {
+          var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+          existing[short] = {
+            service:      (prev.service || 0)      + svc,
+            installCount: (prev.installCount || 0) + ic,
+            installRev:   (prev.installRev || 0)   + ir,
+            memSold:      (prev.memSold || 0)      + ms,
+            memOpps:      (prev.memOpps || 0)      + mo
+          };
+        }
+        // 5/13 daily numbers — service rev only; Marietta install flows via Brayden tile.
+        add('Benji',  1700.72, 0, 0, 0, 0);
+        add('Daniel', 2030.37, 0, 0, 0, 1); // 1 mem opp not closed
+        add('Dewone',  871.75, 0, 0, 0, 0);
+        add('Chris',   259.00, 0, 0, 1, 1); // 100% mem conv
+        add('Dee',       0,    0, 0, 0, 0);
+        d[WEEK] = existing;
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+
+        // Also bump stData MTD so rookie cards / Overview tiles / Tier Progression reflect today.
+        try {
+          if (typeof stData !== 'undefined' && Array.isArray(stData)) {
+            var addMtd13 = function(name, svc, ms, mo, soldHrs, frt, spps, tgls) {
+              var st = stData.find(function(s){ return s.name === name; });
+              if (!st) return;
+              st.mtd_service_rev = (st.mtd_service_rev || 0) + svc;
+              if (!st.mtd_nexstar) st.mtd_nexstar = {};
+              st.mtd_nexstar.total_revenue = (st.mtd_nexstar.total_revenue || 0) + svc;
+              st.mtd_nexstar.spps_sold = (st.mtd_nexstar.spps_sold || 0) + (spps || 0);
+              st.mtd_nexstar.tech_gen_leads = (st.mtd_nexstar.tech_gen_leads || 0) + (tgls || 0);
+              st.mtd_nexstar.sold_hours = (st.mtd_nexstar.sold_hours || 0) + (soldHrs || 0);
+              st.mtd_nexstar.flat_rate_tasks = (st.mtd_nexstar.flat_rate_tasks || 0) + (frt || 0);
+              if (!st.mtd_memberships) st.mtd_memberships = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
+              st.mtd_memberships.total_mem_sold = (st.mtd_memberships.total_mem_sold || 0) + (ms || 0);
+              st.mtd_memberships.total_mem_opps = (st.mtd_memberships.total_mem_opps || 0) + (mo || 0);
+              if (st.mtd_memberships.total_mem_opps > 0) {
+                st.mtd_memberships.total_mem_pct = Math.round((st.mtd_memberships.total_mem_sold / st.mtd_memberships.total_mem_opps) * 100);
+              }
+              if (!st.mtd_productivity) st.mtd_productivity = {};
+              st.mtd_productivity.billable_hours = (st.mtd_productivity.billable_hours || 0) + (soldHrs || 0);
+            };
+            // (name, svc, memSold, memOpps, soldHrs, frt, spps, tgls)
+            // TGLs: Benji 1 (Bronson lead), Dewone 1 (Marietta lead SOLD same-day)
+            addMtd13('Benji',  1700.72, 0, 0, 4.5, 2, 0, 1);
+            addMtd13('Daniel', 2030.37, 0, 1, 6.0, 3, 0, 0);
+            addMtd13('Dewone',  871.75, 0, 0, 3.0, 2, 0, 1);
+            addMtd13('Chris',   259.00, 1, 1, 3.5, 2, 0, 0);
+            addMtd13('Dee',       0,    0, 0, 1.5, 0, 0, 0);
+            // Job count deltas for Tier Progression jobs-norm calc.
+            (function(){
+              var jobsDelta = { Benji: 3, Daniel: 4, Dewone: 3, Chris: 4, Dee: 1 };
+              Object.keys(jobsDelta).forEach(function(name){
+                var st = stData.find(function(s){ return s.name === name; });
+                if (st && typeof st.completedJobs === 'number') {
+                  st.completedJobs = st.completedJobs + jobsDelta[name];
+                }
+              });
+            })();
+          }
+        } catch(e) { console.warn('[v218.93] MTD bump failed', e); }
+
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260513IfNeeded failed', e); }
+    }
+
     // v218.49: One-shot reconciler — heals local TGL store so My Leads + Sales
     // Scorecard + Payout views all match for Brayden. Targets the 5 May completed
     // installs that may be missing or have stale ranBy/assigned data on legacy
@@ -22651,6 +22834,8 @@ if (typeof Chart !== 'undefined') {
     try { _braydenTglHealV21849IfNeeded(); } catch(e) {}
     try { _dailySeed20260512IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260512IfNeeded(); } catch(e) {}
+    try { _dailySeed20260513IfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260513IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
