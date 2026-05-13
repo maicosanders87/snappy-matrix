@@ -3818,30 +3818,80 @@ document.addEventListener('visibilitychange', function() {
 
     // v145: per-tech weekly entry schema is { service, installCount, installRev, memSold, memOpps }.
     // Backward-compat: accepts legacy number, or v144 { service, install, memberships }.
-    function _wlbReadEntry(weekData, short) {
+    // v218.83: now also merges live TGL store — auto-counts leads + flips (sold installs)
+    // for the given week. Leads/flips augment manual entry but never reduce it (only-help).
+    function _wlbReadEntry(weekData, short, weekKey) {
       var v = weekData[short];
-      if (v == null) return null;
-      if (typeof v === 'number') {
-        return { service: v, installCount: 0, installRev: 0, memSold: 0, memOpps: 0, total: v, _legacy: true };
+      // v218.83: build base from manual entry (may be null if no manual data yet)
+      var base;
+      if (v == null) {
+        base = null;
+      } else if (typeof v === 'number') {
+        base = { service: v, installCount: 0, installRev: 0, memSold: 0, memOpps: 0, total: v, _legacy: true };
+      } else {
+        var svc = (typeof v.service === 'number') ? v.service : 0;
+        var instCount = (typeof v.installCount === 'number') ? v.installCount : 0;
+        var instRev   = (typeof v.installRev === 'number') ? v.installRev
+                      : ((typeof v.install === 'number') ? v.install : 0);
+        if (!instCount && instRev > 0 && typeof v.installCount === 'undefined') instCount = 1;
+        var memSold = (typeof v.memSold === 'number') ? v.memSold
+                    : ((typeof v.memberships === 'number') ? v.memberships : 0);
+        var memOpps = (typeof v.memOpps === 'number') ? v.memOpps : 0;
+        base = {
+          service: svc,
+          installCount: instCount,
+          installRev: instRev,
+          memSold: memSold,
+          memOpps: memOpps,
+          total: svc + instRev
+        };
       }
-      var svc = (typeof v.service === 'number') ? v.service : 0;
-      // v144 had { install: $rev, memberships: count }; map both legacy + v145 fields
-      var instCount = (typeof v.installCount === 'number') ? v.installCount : 0;
-      var instRev   = (typeof v.installRev === 'number') ? v.installRev
-                    : ((typeof v.install === 'number') ? v.install : 0);
-      // If we have legacy install rev but no count, infer 1 install for any nonzero rev
-      if (!instCount && instRev > 0 && typeof v.installCount === 'undefined') instCount = 1;
-      var memSold = (typeof v.memSold === 'number') ? v.memSold
-                  : ((typeof v.memberships === 'number') ? v.memberships : 0);
-      var memOpps = (typeof v.memOpps === 'number') ? v.memOpps : 0;
-      return {
-        service: svc,
-        installCount: instCount,
-        installRev: instRev,
-        memSold: memSold,
-        memOpps: memOpps,
-        total: svc + instRev
-      };
+
+      // v218.83: TGL augmentation — derive leads & flips (sold installs) for this tech this week.
+      // Lead = TGL row where leadGeneratedBy === short, dateGenerated in week.
+      // Flip = TGL row where leadGeneratedBy === short AND jobTotal > 0 AND completedDate in week.
+      // Same-week leads count once even if also a flip.
+      var leadsCount = 0, flipCount = 0, highTickets = 0;
+      try {
+        if (weekKey && typeof tglLoad === 'function') {
+          var weekStartD = new Date(weekKey + 'T00:00:00');
+          var weekEndD = new Date(weekStartD); weekEndD.setDate(weekEndD.getDate() + 6);
+          var startIso = weekKey;
+          var endIso = weekEndD.getFullYear() + '-' + String(weekEndD.getMonth()+1).padStart(2,'0') + '-' + String(weekEndD.getDate()).padStart(2,'0');
+          var d3 = tglLoad();
+          if (d3 && Array.isArray(d3.rows)) {
+            var leadJobIds = {};
+            d3.rows.forEach(function(r){
+              if (!r) return;
+              if (r.leadGeneratedBy !== short) return;
+              var dg = (r.dateGenerated || '').slice(0,10);
+              var cd = (r.completedDate || '').slice(0,10);
+              var jobTot = parseFloat(r.jobTotal) || 0;
+              // Count as a lead if generated in-week
+              if (dg >= startIso && dg <= endIso) {
+                if (!leadJobIds[r.jobNumber]) { leadsCount += 1; leadJobIds[r.jobNumber] = true; }
+              }
+              // Count as a flip (sold install) if completed in-week with $
+              if (cd >= startIso && cd <= endIso && jobTot > 0) {
+                flipCount += 1;
+                if (jobTot >= 10000) highTickets += 1;
+              }
+            });
+          }
+        }
+      } catch(e) { console.warn('_wlbReadEntry TGL merge failed', e); }
+
+      // v218.83: if no manual entry exists but TGL has lead/flip activity, surface a minimal entry.
+      if (!base && (leadsCount > 0 || flipCount > 0)) {
+        base = { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0, total: 0 };
+      }
+      if (!base) return null;
+
+      // Attach TGL-derived counters so _wlbPoints picks them up (LEAD + INST lanes).
+      base.leadsCount = Math.max(base.leadsCount || 0, leadsCount);
+      base.flipCount  = Math.max(base.flipCount  || 0, flipCount);
+      base.highTickets = Math.max(base.highTickets || 0, highTickets);
+      return base;
     }
 
     // v218.70 Phase 2: Six-Lane Weekly Leaderboard (max 110)
@@ -8301,6 +8351,15 @@ document.addEventListener('visibilitychange', function() {
         return '<label style="display:flex;align-items:center;gap:8px;background:#16243d;border:1px solid #1e3a5f;border-radius:6px;padding:8px 10px;cursor:pointer;font-size:13px;color:#f1f5f9;"><input type="checkbox" class="ip_installer_chk" data-installer="'+safe+'" value="'+safe+'"'+checked+' onchange="ipUpdateLivePreview()" style="accent-color:#10B981;"> '+safe+'</label>';
       }).join('');
       var jobTypeOpts = ['<option value="">— Select job type —</option>'].concat(INSTALL_PAY_JOB_TYPES.map(function(t){ var s = (existing && existing.jobType === t) ? ' selected' : ''; return '<option value="'+t+'"'+s+'>'+t+'</option>'; })).join('');
+      // v218.83: Lead By / Sold By options.
+      // Lead By = service techs only (they generate leads on calls).
+      // Sold By = sales team (Brayden, Adam) + manager (Maico) + service techs (for self-sells).
+      var SVC_TECH_SHORTS = ['Chris','Dewone','Benji','Daniel','Dee','Nick'];
+      var SALES_NAMES = ['Brayden Bond','Adam Bunyard','Maico'];
+      var preLead = (existing && existing.leadGeneratedBy) || '';
+      var preSold = (existing && existing.soldBy) || '';
+      var leadByOpts = '<option value="">\u2014 Lead By \u2014</option>' + SVC_TECH_SHORTS.map(function(n){ var s = (n === preLead) ? ' selected' : ''; return '<option value="'+n+'"'+s+'>'+n+'</option>'; }).join('');
+      var soldByOpts = '<option value="">\u2014 Sold By \u2014</option>' + SALES_NAMES.concat(SVC_TECH_SHORTS).map(function(n){ var s = (n === preSold) ? ' selected' : ''; return '<option value="'+n+'"'+s+'>'+n+'</option>'; }).join('');
       var modal = document.createElement('div');
       modal.id = 'ipAddJobModal';
       modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
@@ -8327,6 +8386,11 @@ document.addEventListener('visibilitychange', function() {
           '</div>' +
           '<div style="margin-top:10px;">' +
             '<label style="font-size:11px;color:#94a3b8;">Job Type<select id="ip_jobType" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;">'+jobTypeOpts+'</select></label>' +
+          '</div>' +
+          // v218.83: Lead By / Sold By — credits the TGL store + Service Tech leaderboard lane.
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">' +
+            '<label style="font-size:11px;color:#94a3b8;">Lead By <span style="color:#64748b;">(service tech)</span><select id="ip_leadBy" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;">'+leadByOpts+'</select></label>' +
+            '<label style="font-size:11px;color:#94a3b8;">Sold By <span style="color:#64748b;">(sales / tech)</span><select id="ip_soldBy" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;">'+soldByOpts+'</select></label>' +
           '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;">' +
             '<label style="font-size:11px;color:#94a3b8;">Plenums<input id="ip_plenums" type="number" min="0" step="1" value="'+((existing&&existing.plenums)||0)+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
@@ -8420,6 +8484,9 @@ document.addEventListener('visibilitychange', function() {
       var fluPipe = !!((document.getElementById('ip_fluPipe')||{}).checked);
       var basePay = Number((document.getElementById('ip_basePay')||{}).value) || 0;
       var notes = ((document.getElementById('ip_notes')||{}).value||'').trim();
+      // v218.83: capture Lead By / Sold By for TGL credit + leaderboard lane.
+      var leadBy = ((document.getElementById('ip_leadBy')||{}).value||'').trim();
+      var soldBy = ((document.getElementById('ip_soldBy')||{}).value||'').trim();
       var nowIso = new Date().toISOString();
       // v218.15: gather selected installers (multi-pick when adding, single when editing)
       var installers = ipGetSelectedInstallers();
@@ -8441,6 +8508,8 @@ document.addEventListener('visibilitychange', function() {
           fluPipe: fluPipe,
           basePay: basePay,
           notes: notes,
+          leadGeneratedBy: leadBy, // v218.83
+          soldBy: soldBy,          // v218.83
           dateUpdated: nowIso
         };
       }
@@ -8457,8 +8526,33 @@ document.addEventListener('visibilitychange', function() {
         });
       }
       ipSaveData(data);
+
+      // v218.83: If Lead By / Sold By provided, upsert a matching TGL row so the
+      // Weekly Leaderboard's LEAD lane auto-credits the service tech. Only when we
+      // have a jobNumber to dedupe on. Never overrides existing TGL data.
+      try {
+        if (leadBy && jobNumber && typeof tglUpsert === 'function') {
+          tglUpsert({
+            jobNumber: jobNumber,
+            invoiceNumber: jobNumber,
+            customer: customer,
+            dateGenerated: date,
+            completedDate: date, // assumed completed when entering Install Pay
+            assignedTechnicians: installers,
+            installedBy: installers,
+            soldBy: soldBy || '',
+            leadGeneratedBy: leadBy,
+            source: jobType || 'Install',
+            status: 'completed',
+            jobTotal: 0 // basePay alone isn't the full job total; leave 0 unless caller sets it later
+          });
+        }
+      } catch(e) { console.warn('[v218.83] ipSubmitJob TGL upsert failed', e); }
+
       ipCloseAddJob();
       renderInstallPay();
+      // v218.83: cascade so the leaderboard reflects the new TGL row immediately.
+      try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
     }
     function ipDeleteJob(id) {
       if (!confirm('Delete this install entry?')) return;
@@ -9267,8 +9361,8 @@ document.addEventListener('visibilitychange', function() {
 
         // Build ranking rows (v145: rank by total points)
         var rows = roster.map(function(t) {
-          var entry = _wlbReadEntry(weekData, t.short);
-          var prevEntry = _wlbReadEntry(prevData, t.short);
+          var entry = _wlbReadEntry(weekData, t.short, activeWeek);
+          var prevEntry = _wlbReadEntry(prevData, t.short, prevWeek);
           var pts = entry ? _wlbPoints(entry) : null;
           var prevPts = prevEntry ? _wlbPoints(prevEntry) : null;
           var tier = 'C';
@@ -9308,7 +9402,7 @@ document.addEventListener('visibilitychange', function() {
 
         // Compute prior-week ranks for delta arrows (by points)
         var prevRanked = roster.map(function(t) {
-          var pe = _wlbReadEntry(prevData, t.short);
+          var pe = _wlbReadEntry(prevData, t.short, prevWeek);
           var pp = pe ? _wlbPoints(pe) : null;
           return { short: t.short, score: pp ? pp.total : null };
         }).filter(function(r) { return r.score !== null; })
@@ -9582,8 +9676,8 @@ document.addEventListener('visibilitychange', function() {
         // Pull weekly entry + prev entry
         var data = _wlbLoad();
         var prevKey = _wlbPrevWeek(weekKey);
-        var entry = _wlbReadEntry(data[weekKey] || {}, techShort);
-        var prevEntry = _wlbReadEntry(data[prevKey] || {}, techShort);
+        var entry = _wlbReadEntry(data[weekKey] || {}, techShort, weekKey);
+        var prevEntry = _wlbReadEntry(data[prevKey] || {}, techShort, prevKey);
         var pts = entry ? _wlbPoints(entry) : null;
         var prevPts = prevEntry ? _wlbPoints(prevEntry) : null;
 
@@ -9617,28 +9711,25 @@ document.addEventListener('visibilitychange', function() {
           days.push({ iso: iso, date: d, isFuture: d > today, isToday: d.getTime() === today.getTime() });
         }
 
-        // For each day, compute install count + install rev for this tech.
-        // Match by techShort in assignedTechnicians OR installedBy OR leadGeneratedBy.
-        var nameMatch = function(arr, short) {
-          if (!arr) return false;
-          var s = Array.isArray(arr) ? arr.join(',') : String(arr);
-          return s.toLowerCase().indexOf(short.toLowerCase()) >= 0 ||
-                 s.toLowerCase().indexOf((tech.name||'').toLowerCase()) >= 0;
-        };
+        // v218.83: Generated Installs = TGL rows this tech generated (leadGeneratedBy === short)
+        // that completed in-week with jobTotal > 0. Even if they didn't physically install,
+        // the tech generated the lead that became the install — they get the credit.
+        // Leads Set = any TGL row this tech generated in-week (regardless of sold status).
         var dailyAgg = {};
         days.forEach(function(dy){ dailyAgg[dy.iso] = { installs: 0, instRev: 0, leads: 0 }; });
         tglRows.forEach(function(r){
           if (!r) return;
-          var dt = (r.completedDate || r.dateGenerated || '').slice(0,10);
-          if (!dailyAgg[dt]) return; // not in this week
+          if (r.leadGeneratedBy !== techShort) return; // only credit this tech's leads
+          var dg = (r.dateGenerated || '').slice(0,10);
+          var cd = (r.completedDate || '').slice(0,10);
           var jobTot = parseFloat(r.jobTotal) || 0;
-          var installed = nameMatch(r.installedBy, techShort) || nameMatch(r.assignedTechnicians, techShort);
-          var leadOwn = nameMatch(r.leadGeneratedBy, techShort);
-          if (installed && jobTot > 0) {
-            dailyAgg[dt].installs += 1;
-            dailyAgg[dt].instRev += jobTot;
+          // Lead bucket: counted on day generated
+          if (dailyAgg[dg]) dailyAgg[dg].leads += 1;
+          // Generated install bucket: counted on day completed (if sold)
+          if (dailyAgg[cd] && jobTot > 0) {
+            dailyAgg[cd].installs += 1;
+            dailyAgg[cd].instRev += jobTot;
           }
-          if (leadOwn) dailyAgg[dt].leads += 1;
         });
 
         // Tally totals from daily rows for weekly install count check
@@ -9709,13 +9800,13 @@ document.addEventListener('visibilitychange', function() {
         // ----- Daily table -----
         var tableHTML =
           '<div style="padding:18px 22px;">' +
-            '<div style="font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:10px;">Mon \u2192 Today (Daily Installs &amp; Leads)</div>' +
+            '<div style="font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:10px;">Mon \u2192 Today (Daily Generated Installs &amp; Leads)</div>' +
             '<div style="overflow-x:auto;">' +
               '<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:640px;">' +
                 '<thead><tr style="background:#16243d;color:#a5d8ff;">' +
                   '<th style="padding:8px 10px;text-align:left;border-bottom:1px solid #1e3a5f;">Day</th>' +
                   '<th style="padding:8px 10px;text-align:right;border-bottom:1px solid #1e3a5f;">Date</th>' +
-                  '<th style="padding:8px 10px;text-align:right;border-bottom:1px solid #1e3a5f;">Installs</th>' +
+                  '<th style="padding:8px 10px;text-align:right;border-bottom:1px solid #1e3a5f;">Generated Installs</th>' +
                   '<th style="padding:8px 10px;text-align:right;border-bottom:1px solid #1e3a5f;">Install $</th>' +
                   '<th style="padding:8px 10px;text-align:right;border-bottom:1px solid #1e3a5f;">Leads Set</th>' +
                 '</tr></thead><tbody>';
