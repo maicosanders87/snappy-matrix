@@ -9314,10 +9314,59 @@ document.addEventListener('visibilitychange', function() {
         var weekData = data[activeWeek] || {};
         var prevData = data[prevWeek] || {};
 
+        // v218.87: scoped TGL augmentation — build a per-tech weekly TGL summary so the
+        // leaderboard surfaces "Generated Installs" credit (e.g. Chris's Ferguson lead
+        // sold by Brayden) without changing _wlbReadEntry globally (which destabilized
+        // rookie cards in v218.83). Only-help: TGL never reduces a manual entry.
+        function _tglWeekSummary(short, weekKey) {
+          var out = { instCount: 0, instRev: 0, leadsCount: 0, highTickets: 0 };
+          try {
+            if (!weekKey || typeof tglLoad !== 'function') return out;
+            var wsD = new Date(weekKey + 'T00:00:00');
+            var weD = new Date(wsD); weD.setDate(weD.getDate() + 6);
+            var startIso = weekKey;
+            var endIso = weD.getFullYear() + '-' + String(weD.getMonth()+1).padStart(2,'0') + '-' + String(weD.getDate()).padStart(2,'0');
+            var d3 = tglLoad();
+            if (!d3 || !Array.isArray(d3.rows)) return out;
+            var leadIds = {};
+            d3.rows.forEach(function(r){
+              if (!r || r.leadGeneratedBy !== short) return;
+              var dg = (r.dateGenerated || '').slice(0,10);
+              var cd = (r.completedDate || '').slice(0,10);
+              var jt = parseFloat(r.jobTotal) || 0;
+              if (dg >= startIso && dg <= endIso) {
+                if (!leadIds[r.jobNumber]) { out.leadsCount += 1; leadIds[r.jobNumber] = true; }
+              }
+              if (cd >= startIso && cd <= endIso && jt > 0) {
+                out.instCount += 1;
+                out.instRev += jt;
+                if (jt >= 10000) out.highTickets += 1;
+              }
+            });
+          } catch(e) {}
+          return out;
+        }
+        function _mergeTgl(entry, tgl) {
+          if (!entry && tgl.instCount === 0 && tgl.leadsCount === 0) return null;
+          var base = entry ? Object.assign({}, entry) : {
+            service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0, total: 0
+          };
+          base.installCount = Math.max(base.installCount || 0, tgl.instCount);
+          base.installRev   = Math.max(base.installRev   || 0, tgl.instRev);
+          base.leadsCount   = Math.max(base.leadsCount   || 0, tgl.leadsCount);
+          base.highTickets  = Math.max(base.highTickets  || 0, tgl.highTickets);
+          base.total = (base.service || 0) + (base.installRev || 0);
+          return base;
+        }
+
         // Build ranking rows (v145: rank by total points)
         var rows = roster.map(function(t) {
-          var entry = _wlbReadEntry(weekData, t.short, activeWeek);
-          var prevEntry = _wlbReadEntry(prevData, t.short, prevWeek);
+          var rawEntry = _wlbReadEntry(weekData, t.short);
+          var rawPrev  = _wlbReadEntry(prevData, t.short);
+          var tgl = _tglWeekSummary(t.short, activeWeek);
+          var tglP = _tglWeekSummary(t.short, prevWeek);
+          var entry = _mergeTgl(rawEntry, tgl);
+          var prevEntry = _mergeTgl(rawPrev, tglP);
           var pts = entry ? _wlbPoints(entry) : null;
           var prevPts = prevEntry ? _wlbPoints(prevEntry) : null;
           var tier = 'C';
