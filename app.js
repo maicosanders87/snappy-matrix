@@ -9358,6 +9358,9 @@ document.addEventListener('visibilitychange', function() {
           base.installCount = Math.max(base.installCount || 0, tgl.instCount);
           base.installRev   = Math.max(base.installRev   || 0, tgl.instRev);
           base.leadsCount   = Math.max(base.leadsCount   || 0, tgl.leadsCount);
+          // v218.89: flipCount = sold installs from leads (same as instCount when sourced from TGL).
+          // _wlbPoints LEAD lane gives +5 pts per flip up to cap 8, plus +3 if flip-rate ≥ 40%.
+          base.flipCount    = Math.max(base.flipCount    || 0, tgl.instCount);
           base.highTickets  = Math.max(base.highTickets  || 0, tgl.highTickets);
           base.total = (base.service || 0) + (base.installRev || 0);
           return base;
@@ -9495,6 +9498,21 @@ document.addEventListener('visibilitychange', function() {
                   '<span class="wlb-pt-val">' + p.instPts + ' pts</span>' +
                 '</span>'
               );
+              // v218.89: LEAD pill — leads generated + flips (sold installs from those leads)
+              var leadsN = e.leadsCount || 0;
+              var flipsN = e.flipCount || 0;
+              if (leadsN > 0 || flipsN > 0) {
+                var leadRaw = leadsN + (leadsN === 1 ? ' lead' : ' leads');
+                if (flipsN > 0) leadRaw += ' · ' + flipsN + ' flip' + (flipsN === 1 ? '' : 's');
+                var leadTitle = 'Leads set (1.5 pts ea, cap 9) + flips/sold installs (5 pts ea, cap 8) + 40%+ flip-rate kicker (+3)';
+                pills.push(
+                  '<span class="wlb-pt-pill lead" title="' + leadTitle + '">' +
+                    '<span class="wlb-pt-label">LEAD</span>' +
+                    '<span class="wlb-pt-raw">' + leadRaw + '</span>' +
+                    '<span class="wlb-pt-val">' + (p.leadLane || 0) + ' pts</span>' +
+                  '</span>'
+                );
+              }
               // MEM pill: sold/opps · % · tier · pts
               var memRaw, memTitle;
               if (e.memOpps > 0) {

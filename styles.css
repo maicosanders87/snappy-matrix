@@ -12996,6 +12996,9 @@ body.rookie-modal-open { overflow: hidden; }
 .wlb-pt-pill.inst .wlb-pt-label { background: rgba(96,165,250,0.18); color: #93c5fd; }
 .wlb-pt-pill.mem  { border-color: rgba(167,139,250,0.25); }
 .wlb-pt-pill.mem  .wlb-pt-label { background: rgba(167,139,250,0.18); color: #c4b5fd; }
+/* v218.89: LEAD pill — amber/gold accent to differentiate from SVC/INST/MEM */
+.wlb-pt-pill.lead { border-color: rgba(251,191,36,0.30); }
+.wlb-pt-pill.lead .wlb-pt-label { background: rgba(251,191,36,0.18); color: #fbbf24; }
 
 /* Big points total in rev block */
 .wlb-rev.wlb-pts-total {
