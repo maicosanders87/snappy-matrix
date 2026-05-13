@@ -9328,19 +9328,23 @@ document.addEventListener('visibilitychange', function() {
             var endIso = weD.getFullYear() + '-' + String(weD.getMonth()+1).padStart(2,'0') + '-' + String(weD.getDate()).padStart(2,'0');
             var d3 = tglLoad();
             if (!d3 || !Array.isArray(d3.rows)) return out;
-            var leadIds = {};
+            // v218.88: dedupe by jobNumber+customer+date to prevent doubled installs.
+            var seenInst = {}, seenLead = {};
             d3.rows.forEach(function(r){
               if (!r || r.leadGeneratedBy !== short) return;
               var dg = (r.dateGenerated || '').slice(0,10);
               var cd = (r.completedDate || '').slice(0,10);
               var jt = parseFloat(r.jobTotal) || 0;
-              if (dg >= startIso && dg <= endIso) {
-                if (!leadIds[r.jobNumber]) { out.leadsCount += 1; leadIds[r.jobNumber] = true; }
+              var instKey = (r.jobNumber || '') + '|' + cd + '|' + (r.customer || '');
+              var leadKey = (r.jobNumber || '') + '|' + dg + '|' + (r.customer || '');
+              if (dg >= startIso && dg <= endIso && !seenLead[leadKey]) {
+                out.leadsCount += 1; seenLead[leadKey] = true;
               }
-              if (cd >= startIso && cd <= endIso && jt > 0) {
+              if (cd >= startIso && cd <= endIso && jt > 0 && !seenInst[instKey]) {
                 out.instCount += 1;
                 out.instRev += jt;
                 if (jt >= 10000) out.highTickets += 1;
+                seenInst[instKey] = true;
               }
             });
           } catch(e) {}
@@ -9721,18 +9725,27 @@ document.addEventListener('visibilitychange', function() {
         // Leads Set = any TGL row this tech generated in-week (regardless of sold status).
         var dailyAgg = {};
         days.forEach(function(dy){ dailyAgg[dy.iso] = { installs: 0, instRev: 0, leads: 0 }; });
+        // v218.88: dedupe TGL rows by jobNumber (fallback: customer+completedDate) so the
+        // same install is never counted twice even if multiple seed paths created rows.
+        var seenInst = {}, seenLead = {};
         tglRows.forEach(function(r){
           if (!r) return;
           if (r.leadGeneratedBy !== techShort) return; // only credit this tech's leads
           var dg = (r.dateGenerated || '').slice(0,10);
           var cd = (r.completedDate || '').slice(0,10);
           var jobTot = parseFloat(r.jobTotal) || 0;
-          // Lead bucket: counted on day generated
-          if (dailyAgg[dg]) dailyAgg[dg].leads += 1;
-          // Generated install bucket: counted on day completed (if sold)
-          if (dailyAgg[cd] && jobTot > 0) {
+          var instKey = (r.jobNumber || '') + '|' + cd + '|' + (r.customer || '');
+          var leadKey = (r.jobNumber || '') + '|' + dg + '|' + (r.customer || '');
+          // Lead bucket: counted on day generated (dedupe)
+          if (dailyAgg[dg] && !seenLead[leadKey]) {
+            dailyAgg[dg].leads += 1;
+            seenLead[leadKey] = true;
+          }
+          // Generated install bucket: counted on day completed (if sold, dedupe)
+          if (dailyAgg[cd] && jobTot > 0 && !seenInst[instKey]) {
             dailyAgg[cd].installs += 1;
             dailyAgg[cd].instRev += jobTot;
+            seenInst[instKey] = true;
           }
         });
 
