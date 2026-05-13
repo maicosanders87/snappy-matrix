@@ -14660,3 +14660,279 @@ body.cp-printing .cp-final-tier.tier-c { background: #f1f5f9 !important; color: 
   body.cp-printing .cp-modal { page-break-inside: avoid; }
   body.cp-printing .cp-section { page-break-inside: avoid; }
 }
+
+/* ============================================================
+   v218.92 — Tabbed Tech Profile + Per-Tech Notes Log
+   ============================================================ */
+
+/* Tab strip pinned at top of profile body */
+.tdv2-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 4px 12px;
+  margin: -4px -4px 14px;
+  background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(15,23,42,0.92) 70%, rgba(15,23,42,0.78) 100%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(148,163,184,0.18);
+}
+
+.tdv2-tab {
+  flex: 1 1 auto;
+  min-width: 88px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148,163,184,0.25);
+  background: rgba(30,41,59,0.55);
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 80ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.tdv2-tab:hover {
+  background: rgba(51,65,85,0.7);
+  color: #e2e8f0;
+  border-color: rgba(148,163,184,0.4);
+}
+
+.tdv2-tab:active {
+  transform: scale(0.97);
+}
+
+.tdv2-tab.active {
+  background: linear-gradient(135deg, rgba(56,189,248,0.22) 0%, rgba(99,102,241,0.22) 100%);
+  color: #f8fafc;
+  border-color: rgba(56,189,248,0.55);
+  box-shadow: 0 4px 14px -6px rgba(56,189,248,0.55), 0 0 0 1px rgba(56,189,248,0.22) inset;
+}
+
+.tdv2-tab-icon {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Notes Log */
+.notes-log {
+  margin-top: 4px;
+  padding: 14px 16px 16px;
+  background: linear-gradient(180deg, rgba(30,41,59,0.55) 0%, rgba(15,23,42,0.55) 100%);
+  border: 1px solid rgba(167,139,250,0.28);
+  border-radius: 12px;
+}
+
+.notes-log-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #ddd6fe;
+  margin-bottom: 10px;
+}
+
+.notes-log-title::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: #a78bfa;
+}
+
+.notes-log-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c4b5fd;
+  background: rgba(167,139,250,0.15);
+  border: 1px solid rgba(167,139,250,0.3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+
+.notes-log-add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.notes-log-input {
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148,163,184,0.3);
+  background: rgba(15,23,42,0.7);
+  color: #e2e8f0;
+  font-size: 13px;
+  line-height: 1.45;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.notes-log-input:focus {
+  outline: none;
+  border-color: rgba(167,139,250,0.6);
+  box-shadow: 0 0 0 2px rgba(167,139,250,0.18);
+}
+
+.notes-log-input::placeholder {
+  color: #64748b;
+}
+
+.notes-log-add-btn {
+  align-self: flex-end;
+  min-height: 36px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(167,139,250,0.45);
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: transform 80ms ease, box-shadow 140ms ease, opacity 140ms ease;
+  touch-action: manipulation;
+}
+
+.notes-log-add-btn:hover {
+  box-shadow: 0 6px 18px -6px rgba(139,92,246,0.7);
+}
+
+.notes-log-add-btn:active {
+  transform: scale(0.97);
+}
+
+.notes-log-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notes-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.notes-log-list::-webkit-scrollbar { width: 6px; }
+.notes-log-list::-webkit-scrollbar-track { background: transparent; }
+.notes-log-list::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.3); border-radius: 3px; }
+
+.notes-log-entry {
+  padding: 10px 12px;
+  background: rgba(15,23,42,0.55);
+  border: 1px solid rgba(148,163,184,0.2);
+  border-left: 3px solid rgba(167,139,250,0.6);
+  border-radius: 8px;
+}
+
+.notes-log-entry-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+
+.notes-log-date {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.03em;
+}
+
+.notes-log-delete {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(248,113,113,0.3);
+  background: rgba(248,113,113,0.1);
+  color: #fca5a5;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+  touch-action: manipulation;
+}
+
+.notes-log-delete:hover {
+  background: rgba(248,113,113,0.25);
+  color: #fff;
+}
+
+.notes-log-entry-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.notes-log-empty {
+  padding: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+  background: rgba(15,23,42,0.4);
+  border: 1px dashed rgba(148,163,184,0.25);
+  border-radius: 8px;
+}
+
+/* Hide non-active sections by default; switchProfileTab toggles inline display */
+.tech-detail-card.v139 .tdv2-body[data-active-tab="overview"] .tdv2-section[data-section]:not([data-section="overview"]),
+.tech-detail-card.v139 .tdv2-body[data-active-tab="overview"] .tdv2-section-append[data-section]:not([data-section="overview"]),
+.tech-detail-card.v139 .tdv2-body[data-active-tab="performance"] .tdv2-section[data-section]:not([data-section="performance"]),
+.tech-detail-card.v139 .tdv2-body[data-active-tab="performance"] .tdv2-section-append[data-section]:not([data-section="performance"]),
+.tech-detail-card.v139 .tdv2-body[data-active-tab="skills"] .tdv2-section[data-section]:not([data-section="skills"]),
+.tech-detail-card.v139 .tdv2-body[data-active-tab="skills"] .tdv2-section-append[data-section]:not([data-section="skills"]),
+.tech-detail-card.v139 .tdv2-body[data-active-tab="coaching"] .tdv2-section[data-section]:not([data-section="coaching"]),
+.tech-detail-card.v139 .tdv2-body[data-active-tab="coaching"] .tdv2-section-append[data-section]:not([data-section="coaching"]),
+.tech-detail-card.v139 .tdv2-body[data-active-tab="notes"] .tdv2-section[data-section]:not([data-section="notes"]),
+.tech-detail-card.v139 .tdv2-body[data-active-tab="notes"] .tdv2-section-append[data-section]:not([data-section="notes"]) {
+  display: none;
+}
+
+/* iPad / narrow tweaks */
+@media (max-width: 768px) {
+  .tdv2-tabs {
+    padding: 8px 2px 10px;
+    gap: 4px;
+  }
+  .tdv2-tab {
+    min-width: 0;
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .notes-log { padding: 12px 12px 14px; }
+  .notes-log-list { max-height: 260px; }
+}
+
+@media (max-width: 480px) {
+  .tdv2-tab { font-size: 11px; padding: 7px 8px; }
+  .tdv2-tab-icon { display: none; }
+}

@@ -14031,14 +14031,28 @@ if (typeof Chart !== 'undefined') {
               <div class="tdv2-factor" onclick="navigateToKpi('scorecards','overview')" title="Reviews"><div class="tdv2-factor-label">Rev</div><div class="tdv2-factor-val">${tierInfo.reviewScore}</div></div>
             </div>
 
-            <div class="tdv2-body">
+            <div class="tdv2-body" data-active-tab="overview">
+            <!-- v218.92: tabbed profile sections — click a tab to swap content in-place -->
+            <div class="tdv2-tabs" role="tablist">
+              <button type="button" class="tdv2-tab active" data-tab="overview" onclick="switchProfileTab(this,'overview')">Overview</button>
+              <button type="button" class="tdv2-tab" data-tab="performance" onclick="switchProfileTab(this,'performance')">Performance</button>
+              <button type="button" class="tdv2-tab" data-tab="skills" onclick="switchProfileTab(this,'skills')">Skills</button>
+              <button type="button" class="tdv2-tab" data-tab="coaching" onclick="switchProfileTab(this,'coaching')">Coaching</button>
+              <button type="button" class="tdv2-tab" data-tab="notes" onclick="switchProfileTab(this,'notes')">Notes</button>
+            </div>
+
+            <!-- OVERVIEW TAB -->
+            <div class="tdv2-section" data-section="overview">
             ${renderXPBar(t, '')}
 
             <div class="tdv2-action-row">
               <button class="composite-packet-btn" onclick="openCompositePacket('${t.short}')" title="View full Composite Score breakdown"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Composite Packet</button>
               ${(typeof TECH_SCORE_PDFS !== 'undefined' && TECH_SCORE_PDFS[t.short]) ? `<button class="score-pdf-btn" onclick="downloadScorePDF('${t.short}')" title="Download Score Breakdown PDF"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg> Score Breakdown</button>` : ''}
             </div>
+            </div><!-- /overview -->
 
+            <!-- NOTES TAB (Manager Notes + Notes Log) -->
+            <div class="tdv2-section" data-section="notes" style="display:none">
             <div class="manager-notes" id="mgr-notes-${t.short}">
               <div class="manager-notes-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -14060,6 +14074,12 @@ if (typeof Chart !== 'undefined') {
               ).join('')}</div>` : ''}
             </div>
 
+            <!-- v218.92: Notes Log — timestamped append-only notes per tech -->
+            ${renderNotesLog(t.short)}
+            </div><!-- /notes -->
+
+            <!-- SKILLS TAB -->
+            <div class="tdv2-section" data-section="skills" style="display:none">
             ${(() => {
               const apt = aptitudeTests[t.short];
 
@@ -14114,7 +14134,10 @@ if (typeof Chart !== 'undefined') {
               out += '</div>';
               return out;
             })()}
+            </div><!-- /skills -->
 
+            <!-- COACHING TAB (Google Reviews + Coaching History) -->
+            <div class="tdv2-section" data-section="coaching" style="display:none">
             ${(() => { const gr = googleReviews[t.short]; return gr ? `
             <div class="google-reviews profile-section-link" onclick="window.open('https://www.google.com/maps/place/Snappy+Services+-+Electric,+Plumbing,+Heating+%26+Air/@34.0072193,-84.5263963,17z/data=!4m8!3m7!1s0x88f514994f0e3935:0x22b134f3a8a78d1f!8m2!3d34.0072193!4d-84.5263963!9m1!1b1!16s%2Fg%2F1vd724vq','_blank')" title="Open Snappy Google Reviews">
               <div class="google-reviews-title">
@@ -14136,7 +14159,10 @@ if (typeof Chart !== 'undefined') {
               <div style="font-size:12px;color:#78560A;margin-top:8px;line-height:1.5">${gr.note}</div>
             </div>
             ` : ''; })()}
+            </div><!-- /coaching (Google Reviews — Coaching History injected below) -->
 
+            <!-- PERFORMANCE TAB (ServiceTitan + Recalls/Complaints) -->
+            <div class="tdv2-section" data-section="performance" style="display:none">
             ${st ? `
             <div class="st-profile profile-section-link" onclick="navigateToKpi('scorecards','overview')" title="Go to ST Scorecards">
               <div class="st-profile-title">
@@ -14201,7 +14227,7 @@ if (typeof Chart !== 'undefined') {
             ${(() => {
               var rc = getRecallEntries(t.short);
               var cc = getComplaintEntries(t.short);
-              if (rc.length === 0 && cc.length === 0) return '';
+              if (rc.length === 0 && cc.length === 0) return '<div style="font-size:12px;color:var(--text-muted);padding:8px 0">No recalls or complaints on record.</div>';
               var out = '<div class="rc-profile-section profile-section-link" onclick="navigateToKpi(\'dispatch\',\'\')">'; 
               out += '<div class="rc-profile-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Recalls & Complaints <span class="profile-section-arrow">&rarr;</span></div>';
               out += '<div class="rc-profile-grid">';
@@ -14224,7 +14250,10 @@ if (typeof Chart !== 'undefined') {
               out += '</div></div>';
               return out;
             })()}
+            </div><!-- /performance -->
 
+            <!-- Coaching History continues in Coaching tab -->
+            <div class="tdv2-section-append" data-section="coaching" style="display:none">
             ${(() => {
               // v196: count from the unified loader (BB + Manager calendar union),
               // so the pills and the click-through detail modal always agree.
@@ -14251,7 +14280,10 @@ if (typeof Chart !== 'undefined') {
               out += '</div>';
               return out;
             })()}
+            </div><!-- /coaching append -->
 
+            <!-- Back into OVERVIEW tab — strengths/weaknesses/achievements/growth -->
+            <div class="tdv2-section-append" data-section="overview">
             <div class="detail-section">
               <div class="detail-section-title">Self-Identified Strengths</div>
               <div>${t.strengths.map(s => `<span class="strength-tag">${s}</span>`).join('')}</div>
@@ -14276,6 +14308,7 @@ if (typeof Chart !== 'undefined') {
                 ${t.holding_back ? `<div><strong>Holding back:</strong> ${t.holding_back}</div>` : ''}
               </div>
             </div>` : ''}
+            </div><!-- /overview append -->
             </div><!-- /tdv2-body -->
           </div>
         `;
@@ -22400,6 +22433,129 @@ if (typeof Chart !== 'undefined') {
         if (tech && notes[techShort]) tech.managerNotes = notes[techShort];
       });
     })();
+
+    // ========== v218.92: NOTES LOG — timestamped append-only notes per tech ==========
+    var NOTES_LOG_KEY = 'snappy_notes_log_v1';
+
+    function _loadNotesLog() {
+      try { return JSON.parse(localStorage.getItem(NOTES_LOG_KEY)) || {}; } catch(e) { return {}; }
+    }
+    function _saveNotesLog(data) {
+      localStorage.setItem(NOTES_LOG_KEY, JSON.stringify(data));
+      try { if (typeof SyncEngine !== 'undefined' && SyncEngine.isConfigured && SyncEngine.isConfigured()) SyncEngine.write('noteslog', data); } catch(e) {}
+    }
+    function _escNote(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function _fmtNoteDate(iso) {
+      try {
+        var d = new Date(iso);
+        if (isNaN(d)) return iso;
+        var mm = String(d.getMonth()+1).padStart(2,'0');
+        var dd = String(d.getDate()).padStart(2,'0');
+        var yy = String(d.getFullYear()).slice(-2);
+        var h = d.getHours();
+        var m = String(d.getMinutes()).padStart(2,'0');
+        var ampm = h >= 12 ? 'p' : 'a';
+        h = h % 12; if (h === 0) h = 12;
+        return mm + '/' + dd + '/' + yy + ' ' + h + ':' + m + ampm;
+      } catch(e) { return iso; }
+    }
+
+    function renderNotesLog(techShort) {
+      var notes = _loadNotesLog()[techShort] || [];
+      // Sort newest first
+      notes = notes.slice().sort(function(a,b){ return (b.ts||'').localeCompare(a.ts||''); });
+      var out = '<div class="notes-log" id="notes-log-' + techShort + '">';
+      out += '<div class="notes-log-title">';
+      out += '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+      out += 'Notes Log <span class="notes-log-count">' + notes.length + '</span>';
+      out += '</div>';
+      // Add-note row
+      out += '<div class="notes-log-add">';
+      out += '<textarea class="notes-log-input" id="notes-log-ta-' + techShort + '" rows="2" placeholder="Add a note for ' + _escNote(techShort) + '… (coaching point, observation, follow-up)"></textarea>';
+      out += '<button type="button" class="notes-log-add-btn" onclick="addTechNote(\'' + techShort + '\')">Add Note</button>';
+      out += '</div>';
+      // Entries list
+      out += '<div class="notes-log-list" id="notes-log-list-' + techShort + '">';
+      if (notes.length === 0) {
+        out += '<div class="notes-log-empty">No notes yet — add one above to start the log.</div>';
+      } else {
+        notes.forEach(function(n){
+          out += '<div class="notes-log-entry" data-note-id="' + _escNote(n.id) + '">';
+          out += '<div class="notes-log-entry-meta"><span class="notes-log-date">' + _fmtNoteDate(n.ts) + '</span>';
+          out += '<button type="button" class="notes-log-delete" onclick="deleteTechNote(\'' + techShort + '\',\'' + _escNote(n.id) + '\')" title="Delete note">×</button></div>';
+          out += '<div class="notes-log-entry-body">' + _escNote(n.text).replace(/\n/g,'<br>') + '</div>';
+          out += '</div>';
+        });
+      }
+      out += '</div>';
+      out += '</div>';
+      return out;
+    }
+    window.renderNotesLog = renderNotesLog;
+
+    window.addTechNote = function(techShort) {
+      var ta = document.getElementById('notes-log-ta-' + techShort);
+      if (!ta) return;
+      var text = (ta.value || '').trim();
+      if (!text) { ta.focus(); return; }
+      var store = _loadNotesLog();
+      if (!store[techShort]) store[techShort] = [];
+      store[techShort].push({
+        id: 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+        ts: new Date().toISOString(),
+        text: text
+      });
+      _saveNotesLog(store);
+      ta.value = '';
+      // Re-render just the notes-log section in place
+      var container = document.getElementById('notes-log-' + techShort);
+      if (container) {
+        var fresh = document.createElement('div');
+        fresh.innerHTML = renderNotesLog(techShort);
+        var newEl = fresh.firstElementChild;
+        if (newEl) container.parentNode.replaceChild(newEl, container);
+      }
+    };
+
+    window.deleteTechNote = function(techShort, noteId) {
+      if (!confirm('Delete this note?')) return;
+      var store = _loadNotesLog();
+      if (!store[techShort]) return;
+      store[techShort] = store[techShort].filter(function(n){ return n.id !== noteId; });
+      _saveNotesLog(store);
+      var container = document.getElementById('notes-log-' + techShort);
+      if (container) {
+        var fresh = document.createElement('div');
+        fresh.innerHTML = renderNotesLog(techShort);
+        var newEl = fresh.firstElementChild;
+        if (newEl) container.parentNode.replaceChild(newEl, container);
+      }
+    };
+
+    // ========== v218.92: PROFILE TAB SWITCHER ==========
+    window.switchProfileTab = function(btn, tabName) {
+      try {
+        var card = btn.closest('.tech-detail-card');
+        if (!card) return;
+        var body = card.querySelector('.tdv2-body');
+        if (!body) return;
+        // Update active button state
+        card.querySelectorAll('.tdv2-tab').forEach(function(t){
+          if (t.getAttribute('data-tab') === tabName) t.classList.add('active');
+          else t.classList.remove('active');
+        });
+        // Show/hide sections via data-active-tab attribute (CSS controls visibility)
+        body.setAttribute('data-active-tab', tabName);
+        // Clear any stale inline display styles from prior versions
+        card.querySelectorAll('.tdv2-section[data-section], .tdv2-section-append[data-section]').forEach(function(sec){
+          sec.style.display = '';
+        });
+        // Smooth scroll the card into view (helpful on iPad after switching)
+        try { card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(e) {}
+      } catch(e) { console.warn('switchProfileTab failed', e); }
+    };
 
     // ========== SIDEBAR TOOLTIP POSITIONING ==========
     (function initSidebarTooltips() {
