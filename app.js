@@ -9328,23 +9328,30 @@ document.addEventListener('visibilitychange', function() {
             var endIso = weD.getFullYear() + '-' + String(weD.getMonth()+1).padStart(2,'0') + '-' + String(weD.getDate()).padStart(2,'0');
             var d3 = tglLoad();
             if (!d3 || !Array.isArray(d3.rows)) return out;
-            // v218.88: dedupe by jobNumber+customer+date to prevent doubled installs.
-            var seenInst = {}, seenLead = {};
+            // v218.90: dedupe by normalized customer + completedDate (jobNumber-agnostic)
+            // so duplicate TGL rows for the same customer/install never inflate the count.
+            // Also: leads and flips are the same event — a sold install IS a generated lead.
+            // We track unique deals; leadsCount equals instCount for sold installs.
+            var seenDeal = {};
             d3.rows.forEach(function(r){
               if (!r || r.leadGeneratedBy !== short) return;
               var dg = (r.dateGenerated || '').slice(0,10);
               var cd = (r.completedDate || '').slice(0,10);
               var jt = parseFloat(r.jobTotal) || 0;
-              var instKey = (r.jobNumber || '') + '|' + cd + '|' + (r.customer || '');
-              var leadKey = (r.jobNumber || '') + '|' + dg + '|' + (r.customer || '');
-              if (dg >= startIso && dg <= endIso && !seenLead[leadKey]) {
-                out.leadsCount += 1; seenLead[leadKey] = true;
-              }
-              if (cd >= startIso && cd <= endIso && jt > 0 && !seenInst[instKey]) {
+              var custKey = (r.customer || '').trim().toLowerCase();
+              // Use completedDate if available + sold, else dateGenerated. One key per deal.
+              var anchorDate = (cd && jt > 0) ? cd : dg;
+              if (!anchorDate || anchorDate < startIso || anchorDate > endIso) return;
+              var dealKey = custKey + '|' + anchorDate;
+              if (seenDeal[dealKey]) return;
+              seenDeal[dealKey] = true;
+              // Every unique deal counts as 1 lead.
+              out.leadsCount += 1;
+              // If sold (jobTotal > 0 with completedDate in-week), also counts as 1 install.
+              if (cd >= startIso && cd <= endIso && jt > 0) {
                 out.instCount += 1;
                 out.instRev += jt;
                 if (jt >= 10000) out.highTickets += 1;
-                seenInst[instKey] = true;
               }
             });
           } catch(e) {}
@@ -9356,11 +9363,13 @@ document.addEventListener('visibilitychange', function() {
             service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0, total: 0
           };
           base.installCount = Math.max(base.installCount || 0, tgl.instCount);
-          base.installRev   = Math.max(base.installRev   || 0, tgl.instRev);
+          base.installRev   = Math.max(base.installRev   || 0, tgl.installRev || tgl.instRev);
+          // v218.90: leads = flips. They're the same event. Don't double-count in LEAD lane.
+          // We set flipCount=0 so LEAD lane only scores leadsCount * 1.5 (cap 9).
+          // INST lane separately scores installCount + installRev. This avoids the
+          // double-credit problem the user flagged.
           base.leadsCount   = Math.max(base.leadsCount   || 0, tgl.leadsCount);
-          // v218.89: flipCount = sold installs from leads (same as instCount when sourced from TGL).
-          // _wlbPoints LEAD lane gives +5 pts per flip up to cap 8, plus +3 if flip-rate ≥ 40%.
-          base.flipCount    = Math.max(base.flipCount    || 0, tgl.instCount);
+          base.flipCount    = 0;
           base.highTickets  = Math.max(base.highTickets  || 0, tgl.highTickets);
           base.total = (base.service || 0) + (base.installRev || 0);
           return base;
@@ -9498,13 +9507,12 @@ document.addEventListener('visibilitychange', function() {
                   '<span class="wlb-pt-val">' + p.instPts + ' pts</span>' +
                 '</span>'
               );
-              // v218.89: LEAD pill — leads generated + flips (sold installs from those leads)
+              // v218.90: LEAD pill — leads generated (a sold install IS the same lead;
+              // INST lane already credits the sale, LEAD lane only credits lead activity).
               var leadsN = e.leadsCount || 0;
-              var flipsN = e.flipCount || 0;
-              if (leadsN > 0 || flipsN > 0) {
+              if (leadsN > 0) {
                 var leadRaw = leadsN + (leadsN === 1 ? ' lead' : ' leads');
-                if (flipsN > 0) leadRaw += ' · ' + flipsN + ' flip' + (flipsN === 1 ? '' : 's');
-                var leadTitle = 'Leads set (1.5 pts ea, cap 9) + flips/sold installs (5 pts ea, cap 8) + 40%+ flip-rate kicker (+3)';
+                var leadTitle = 'Leads generated this week (1.5 pts each, cap 9). Sold installs are credited separately in INST.';
                 pills.push(
                   '<span class="wlb-pt-pill lead" title="' + leadTitle + '">' +
                     '<span class="wlb-pt-label">LEAD</span>' +
@@ -9743,27 +9751,28 @@ document.addEventListener('visibilitychange', function() {
         // Leads Set = any TGL row this tech generated in-week (regardless of sold status).
         var dailyAgg = {};
         days.forEach(function(dy){ dailyAgg[dy.iso] = { installs: 0, instRev: 0, leads: 0 }; });
-        // v218.88: dedupe TGL rows by jobNumber (fallback: customer+completedDate) so the
-        // same install is never counted twice even if multiple seed paths created rows.
-        var seenInst = {}, seenLead = {};
+        // v218.90: dedupe by normalized customer + anchor date. Leads and installs are
+        // the same event (a sold install IS a generated lead); we just bucket on whichever
+        // date is most accurate — completedDate for sold, dateGenerated for open.
+        var seenDeal = {};
         tglRows.forEach(function(r){
           if (!r) return;
           if (r.leadGeneratedBy !== techShort) return; // only credit this tech's leads
           var dg = (r.dateGenerated || '').slice(0,10);
           var cd = (r.completedDate || '').slice(0,10);
           var jobTot = parseFloat(r.jobTotal) || 0;
-          var instKey = (r.jobNumber || '') + '|' + cd + '|' + (r.customer || '');
-          var leadKey = (r.jobNumber || '') + '|' + dg + '|' + (r.customer || '');
-          // Lead bucket: counted on day generated (dedupe)
-          if (dailyAgg[dg] && !seenLead[leadKey]) {
-            dailyAgg[dg].leads += 1;
-            seenLead[leadKey] = true;
-          }
-          // Generated install bucket: counted on day completed (if sold, dedupe)
-          if (dailyAgg[cd] && jobTot > 0 && !seenInst[instKey]) {
-            dailyAgg[cd].installs += 1;
-            dailyAgg[cd].instRev += jobTot;
-            seenInst[instKey] = true;
+          var custKey = (r.customer || '').trim().toLowerCase();
+          var anchorDate = (cd && jobTot > 0) ? cd : dg;
+          if (!anchorDate || !dailyAgg[anchorDate]) return;
+          var dealKey = custKey + '|' + anchorDate;
+          if (seenDeal[dealKey]) return;
+          seenDeal[dealKey] = true;
+          // Every unique deal counts as 1 lead.
+          dailyAgg[anchorDate].leads += 1;
+          // If sold, also count as 1 install.
+          if (cd && jobTot > 0) {
+            dailyAgg[anchorDate].installs += 1;
+            dailyAgg[anchorDate].instRev += jobTot;
           }
         });
 
