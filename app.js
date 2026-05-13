@@ -3718,6 +3718,156 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260513IfNeeded failed', e); }
     }
 
+    // v218.94: Heal Marietta Commercial Tire dupes.
+    // The 5/12 daily seed inserted TGL row 92133266 (open) which got auto-closed
+    // when an earlier install record came through. The 5/13 TGL PDF then surfaced
+    // job 92135482 as the actual completed install ($17,820.78). A third phantom
+    // "#92135482-1" row also appeared (legacy partial parse). Net result:
+    // Brayden's My Leads showed 3 Marietta rows, MTD jumped to 7/$136,246.
+    //
+    // Truth: ONE Marietta Commercial Tire install on 5/13/26 for $17,820.78,
+    // job # 92135482, sold by Brayden, lead by Dewone, crew Thomas+Terrell.
+    //
+    // This heal:
+    //   - removes TGL rows with jobNumber 92133266 or #92135482-1 or 92135482-1
+    //   - dedupes snappy_brayden_installs by customer+date (keep newest jobNumber 92135482)
+    //   - resets braydenstats MTD to 7 / 120043.10 (was inflated to 9 / 136246)
+    function _mariettaDedupeHealV21894IfNeeded() {
+      try {
+        var FLAG = 'snappy_marietta_dedupe_heal_v21894';
+        if (localStorage.getItem(FLAG) === '1') return;
+
+        // 1) Clean TGL store
+        if (typeof tglLoad === 'function' && typeof tglSave === 'function') {
+          var dT = tglLoad();
+          if (dT && Array.isArray(dT.rows)) {
+            var before = dT.rows.length;
+            var phantomJobs = { '92133266': 1, '92135482-1': 1, '#92135482-1': 1 };
+            dT.rows = dT.rows.filter(function(r){
+              if (!r) return false;
+              var jn = String(r.jobNumber || '').trim();
+              if (phantomJobs[jn]) return false;
+              // Also drop any row whose customer is Marietta + jobNumber is blank/orphan
+              if (!jn && (r.customer || '').toLowerCase().indexOf('marietta commercial') >= 0) return false;
+              return true;
+            });
+            tglSave(dT);
+            console.log('[v218.94] TGL Marietta heal: ' + before + ' -> ' + dT.rows.length + ' rows.');
+          }
+        }
+
+        // 2) Dedupe snappy_brayden_installs (keep only the 92135482 / 5-13 entry for Marietta)
+        try {
+          var brRaw = localStorage.getItem('snappy_brayden_installs');
+          if (brRaw) {
+            var brArr = JSON.parse(brRaw);
+            if (Array.isArray(brArr)) {
+              var beforeBr = brArr.length;
+              brArr = brArr.filter(function(it){
+                if (!it) return false;
+                var cust = (it.customer || '').toLowerCase();
+                if (cust.indexOf('marietta commercial') < 0) return true;
+                // Keep only the canonical jobNumber 92135482
+                var jn = String(it.jobNumber || it.invoice || '').trim();
+                return jn === '92135482';
+              });
+              localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+              console.log('[v218.94] brayden_installs Marietta heal: ' + beforeBr + ' -> ' + brArr.length + ' rows.');
+            }
+          }
+        } catch(e) { console.warn('[v218.94] brayden_installs Marietta heal failed', e); }
+
+        // 3) Reset Brayden MTD stats to 7 / $120,043.10 (truth)
+        try {
+          if (typeof braydenLoadStats === 'function' && typeof braydenSaveStats === 'function') {
+            var stats94 = braydenLoadStats() || {};
+            stats94.mtd_revenue = '120043.10';
+            stats94.mtd_closed = '7';
+            braydenSaveStats(stats94);
+            console.log('[v218.94] braydenstats reset to 7 / $120,043.10');
+          }
+        } catch(e) { console.warn('[v218.94] braydenstats reset failed', e); }
+
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_mariettaDedupeHealV21894IfNeeded failed', e); }
+    }
+
+    // v218.94: User-driven TGL row edit + delete (My Leads / Tech File panels).
+    // Lets the manager fix mis-parsed PDF rows, remove orphan phantom rows, or
+    // adjust customer/jobNumber/lead/installer/total inline without touching code.
+    //
+    // Both helpers mutate the TGL store and trigger re-render of My Leads + the
+    // bulletin/leaderboard rollups that depend on it.
+    window.tglDeleteRow = function(jobNumber, customer, dateGenerated) {
+      try {
+        if (typeof tglLoad !== 'function') return;
+        var d = tglLoad();
+        if (!d || !Array.isArray(d.rows)) return;
+        var matchKey = (jobNumber || '') + '|' + (customer || '') + '|' + (dateGenerated || '');
+        var label = customer ? (customer + (jobNumber ? ' (#' + jobNumber + ')' : '')) : ('Job #' + (jobNumber || '?'));
+        if (!confirm('Delete this lead?\n\n' + label + '\n\nThis cannot be undone.')) return;
+        var before = d.rows.length;
+        d.rows = d.rows.filter(function(r){
+          if (!r) return false;
+          var k = (r.jobNumber || '') + '|' + (r.customer || '') + '|' + (r.dateGenerated || '');
+          return k !== matchKey;
+        });
+        tglSave(d);
+        try { localStorage.setItem(OPEN_TGL_KEY + '_localMod', String(Date.now())); } catch(e) {}
+        console.log('[v218.94] tglDeleteRow: ' + before + ' -> ' + d.rows.length);
+        try { if (typeof renderMyLeads === 'function') renderMyLeads(); } catch(e) {}
+        try { if (typeof renderProfiles === 'function') renderProfiles(); } catch(e) {}
+      } catch(e) { console.warn('tglDeleteRow failed', e); }
+    };
+
+    window.tglEditRow = function(jobNumber, customer, dateGenerated) {
+      try {
+        if (typeof tglLoad !== 'function') return;
+        var d = tglLoad();
+        if (!d || !Array.isArray(d.rows)) return;
+        var matchKey = (jobNumber || '') + '|' + (customer || '') + '|' + (dateGenerated || '');
+        var row = null, idx = -1;
+        for (var i = 0; i < d.rows.length; i++) {
+          var r = d.rows[i];
+          if (!r) continue;
+          var k = (r.jobNumber || '') + '|' + (r.customer || '') + '|' + (r.dateGenerated || '');
+          if (k === matchKey) { row = r; idx = i; break; }
+        }
+        if (!row) { alert('Could not find that lead to edit.'); return; }
+
+        var newCust = prompt('Customer:', row.customer || '');
+        if (newCust === null) return;
+        var newJob = prompt('Job #:', row.jobNumber || '');
+        if (newJob === null) return;
+        var newLead = prompt('Lead Generated By (Benji / Chris / Dewone / Daniel / Dee / Nick / Maico):', row.leadGeneratedBy || '');
+        if (newLead === null) return;
+        var newSold = prompt('Sold By (Brayden Bond / Adam Bunyard / Maico / blank):', row.soldBy || '');
+        if (newSold === null) return;
+        var newTotal = prompt('Job Total ($, blank if still open):', row.jobTotal != null ? String(row.jobTotal) : '');
+        if (newTotal === null) return;
+        var newStatus = prompt('Status (open / completed):', row.status || 'open');
+        if (newStatus === null) return;
+        var newCompleted = prompt('Completed Date (YYYY-MM-DD, blank if open):', row.completedDate || '');
+        if (newCompleted === null) return;
+
+        var parsedTotal = parseFloat((newTotal || '').replace(/[,$\s]/g,''));
+        d.rows[idx] = Object.assign({}, row, {
+          customer: newCust.trim() || row.customer,
+          jobNumber: (newJob || '').trim(),
+          leadGeneratedBy: (newLead || '').trim(),
+          soldBy: (newSold || '').trim(),
+          jobTotal: isNaN(parsedTotal) ? row.jobTotal : parsedTotal,
+          status: (newStatus || '').trim().toLowerCase() === 'completed' ? 'completed' : 'open',
+          completedDate: (newCompleted || '').trim() || row.completedDate || ''
+        });
+        tglSave(d);
+        try { localStorage.setItem(OPEN_TGL_KEY + '_localMod', String(Date.now())); } catch(e) {}
+        console.log('[v218.94] tglEditRow updated:', d.rows[idx]);
+        try { if (typeof renderMyLeads === 'function') renderMyLeads(); } catch(e) {}
+        try { if (typeof renderProfiles === 'function') renderProfiles(); } catch(e) {}
+      } catch(e) { console.warn('tglEditRow failed', e); alert('Edit failed: ' + e.message); }
+    };
+
     // v218.49: One-shot reconciler — heals local TGL store so My Leads + Sales
     // Scorecard + Payout views all match for Brayden. Targets the 5 May completed
     // installs that may be missing or have stale ranBy/assigned data on legacy
@@ -8150,15 +8300,29 @@ document.addEventListener('visibilitychange', function() {
         };
       }
 
+      // v218.94: helper to render Edit + Delete button cell. Encodes args safely for inline onclick.
+      function _actionCell(r) {
+        var jn = String(r.jobNumber || '').replace(/'/g, "\\'");
+        var cu = String(r.customer || '').replace(/'/g, "\\'");
+        var dg = String(r.dateGenerated || '').replace(/'/g, "\\'");
+        var args = "'" + jn + "','" + cu + "','" + dg + "'";
+        var btnStyle = 'background:transparent;border:1px solid #1e3a5f;color:#94a3b8;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;margin-right:4px;';
+        var delStyle = btnStyle + 'border-color:rgba(248,113,113,0.4);color:#fca5a5;';
+        return '<td style="padding:7px 10px;white-space:nowrap;text-align:right;">'
+          + '<button onclick="tglEditRow(' + args + ')" title="Edit lead" style="' + btnStyle + '">Edit</button>'
+          + '<button onclick="tglDeleteRow(' + args + ')" title="Delete lead" style="' + delStyle + '">Delete</button>'
+          + '</td>';
+      }
+
       // Open list
       html += '<div style="padding:12px 14px;border-bottom:1px solid #1e3a5f;">';
       html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Open Leads</div>';
       if (open.length) {
         html += '<div style="max-height:240px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
-        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:7px 10px;">Customer</th><th style="text-align:left;padding:7px 10px;">Job #</th><th style="text-align:left;padding:7px 10px;">Date</th><th style="text-align:left;padding:7px 10px;">Lead Ran</th><th style="text-align:left;padding:7px 10px;">Installer(s)</th></tr></thead><tbody>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:7px 10px;">Customer</th><th style="text-align:left;padding:7px 10px;">Job #</th><th style="text-align:left;padding:7px 10px;">Date</th><th style="text-align:left;padding:7px 10px;">Lead Ran</th><th style="text-align:left;padding:7px 10px;">Installer(s)</th><th style="text-align:right;padding:7px 10px;">Actions</th></tr></thead><tbody>';
         open.forEach(function(r){
           var sp = _splitRanVsInstallers(r);
-          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:7px 10px;color:#f1f5f9;">' + (r.customer||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">' + (r.jobNumber||'\u2014') + '</td><td style="padding:7px 10px;color:#94a3b8;">' + (r.dateGenerated||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp.ran||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp.installers||'\u2014') + '</td></tr>';
+          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:7px 10px;color:#f1f5f9;">' + (r.customer||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">' + (r.jobNumber||'\u2014') + '</td><td style="padding:7px 10px;color:#94a3b8;">' + (r.dateGenerated||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp.ran||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp.installers||'\u2014') + '</td>' + _actionCell(r) + '</tr>';
         });
         html += '</tbody></table></div>';
       } else {
@@ -8171,12 +8335,12 @@ document.addEventListener('visibilitychange', function() {
       html += '<div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Closed Leads (all time)</div>';
       if (done.length) {
         html += '<div style="max-height:240px;overflow-y:auto;border:1px solid #1e3a5f;border-radius:8px;background:#0b1426;">';
-        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:7px 10px;">Customer</th><th style="text-align:left;padding:7px 10px;">Job #</th><th style="text-align:left;padding:7px 10px;">Closed</th><th style="text-align:left;padding:7px 10px;">Lead Ran</th><th style="text-align:left;padding:7px 10px;">Installer(s)</th><th style="text-align:right;padding:7px 10px;">Total</th></tr></thead><tbody>';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#16243d;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;"><th style="text-align:left;padding:7px 10px;">Customer</th><th style="text-align:left;padding:7px 10px;">Job #</th><th style="text-align:left;padding:7px 10px;">Closed</th><th style="text-align:left;padding:7px 10px;">Lead Ran</th><th style="text-align:left;padding:7px 10px;">Installer(s)</th><th style="text-align:right;padding:7px 10px;">Total</th><th style="text-align:right;padding:7px 10px;">Actions</th></tr></thead><tbody>';
         done.forEach(function(r){
           var sp2 = _splitRanVsInstallers(r);
           var totVal = _renderTotalFor(r);
           var tot = (totVal > 0) ? ('$' + Math.round(totVal).toLocaleString()) : '\u2014';
-          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:7px 10px;color:#f1f5f9;">' + (r.customer||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">' + (r.jobNumber||'\u2014') + '</td><td style="padding:7px 10px;color:#94a3b8;">' + (r.completedDate||r.dateGenerated||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp2.ran||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp2.installers||'\u2014') + '</td><td style="padding:7px 10px;text-align:right;color:#10B981;font-weight:700;font-variant-numeric:tabular-nums;">' + tot + '</td></tr>';
+          html += '<tr style="border-top:1px solid #1e3a5f;"><td style="padding:7px 10px;color:#f1f5f9;">' + (r.customer||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;font-variant-numeric:tabular-nums;">' + (r.jobNumber||'\u2014') + '</td><td style="padding:7px 10px;color:#94a3b8;">' + (r.completedDate||r.dateGenerated||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp2.ran||'\u2014') + '</td><td style="padding:7px 10px;color:#cbd5e1;">' + (sp2.installers||'\u2014') + '</td><td style="padding:7px 10px;text-align:right;color:#10B981;font-weight:700;font-variant-numeric:tabular-nums;">' + tot + '</td>' + _actionCell(r) + '</tr>';
         });
         html += '</tbody></table></div>';
       } else {
@@ -22836,6 +23000,7 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260512IfNeeded(); } catch(e) {}
     try { _dailySeed20260513IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260513IfNeeded(); } catch(e) {}
+    try { _mariettaDedupeHealV21894IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
