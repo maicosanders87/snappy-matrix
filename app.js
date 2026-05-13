@@ -4106,7 +4106,7 @@ document.addEventListener('visibilitychange', function() {
         var weekData = data[weekKey] || {};
         var roster = (typeof techs !== 'undefined' && techs) ? techs : [];
         var rows = roster.map(function(t) {
-          var entry = _wlbReadEntry(weekData, t.short);
+          var entry = _wlbReadEntry(weekData, t.short, weekKey);
           if (!entry) return null;
           var pts = _wlbPoints(entry);
           return { name: t.name, short: t.short, total: pts ? pts.total : 0, entry: entry };
@@ -9902,7 +9902,7 @@ document.addEventListener('visibilitychange', function() {
 
         var rowsHTML = roster.map(function(t) {
           // Read existing entry (legacy number, v144 object, or v145 object)
-          var entry = _wlbReadEntry(weekData, t.short);
+          var entry = _wlbReadEntry(weekData, t.short, activeWeek);
           var svc      = entry ? (entry.service      || '') : '';
           var instCnt  = entry ? (entry.installCount || '') : '';
           var memSold  = entry ? (entry.memSold      || '') : '';
@@ -10850,7 +10850,7 @@ document.addEventListener('visibilitychange', function() {
         var thisWk = _wlbWeekStart();
 
         // 1) This week's total
-        var thisEntry = _wlbReadEntry(data[thisWk] || {}, tech.short);
+        var thisEntry = _wlbReadEntry(data[thisWk] || {}, tech.short, thisWk);
         var thisPts = thisEntry ? _wlbPoints(thisEntry) : null;
         var thisWeekTotal = (thisPts && typeof thisPts.total === 'number') ? thisPts.total : 0;
 
@@ -10860,7 +10860,7 @@ document.addEventListener('visibilitychange', function() {
         var bestWk = null;
         for (var i = 0; i < 4; i++) {
           var weekData = data[wk] || {};
-          var entry = _wlbReadEntry(weekData, tech.short);
+          var entry = _wlbReadEntry(weekData, tech.short, wk);
           if (entry) {
             var pts = _wlbPoints(entry);
             if (pts && typeof pts.total === 'number' && pts.total > bestPts) {
@@ -10955,7 +10955,7 @@ document.addEventListener('visibilitychange', function() {
 
         var bestBonus = 0, bestTriggers = [];
         weeks.forEach(function(weekKey) {
-          var entry = _wlbReadEntry(data[weekKey] || {}, tech.short);
+          var entry = _wlbReadEntry(data[weekKey] || {}, tech.short, weekKey);
           if (!entry) return;
           var bonus = 0, triggers = [];
           var svc = entry.service || 0;
@@ -11009,7 +11009,7 @@ document.addEventListener('visibilitychange', function() {
             var iWon = true;
             (techs || []).forEach(function(other) {
               if (other.short === tech.short) return;
-              var oe = _wlbReadEntry(weekData, other.short);
+              var oe = _wlbReadEntry(weekData, other.short, weekKey);
               if (!oe) return;
               var os = (typeof _wlbSixLaneTotal === 'function') ? _wlbSixLaneTotal(oe, other.short) : 0;
               if (os > myScore) iWon = false;
@@ -15501,7 +15501,7 @@ if (typeof Chart !== 'undefined') {
               var all = (typeof _wlbLoad === 'function') ? _wlbLoad() : {};
               var wk = (typeof _wlbActiveWeek === 'function') ? _wlbActiveWeek() : null;
               var weekData = (wk && all[wk]) ? all[wk] : {};
-              var entry = (typeof _wlbReadEntry === 'function') ? _wlbReadEntry(weekData, t.short) : null;
+              var entry = (typeof _wlbReadEntry === 'function') ? _wlbReadEntry(weekData, t.short, wk) : null;
               if (entry) {
                 nx.total_revenue = Math.round(entry.service || 0);
                 mb.total_mem_sold = entry.memSold || 0;
