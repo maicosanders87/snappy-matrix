@@ -70,7 +70,7 @@ function openCompositePacket(techShort) {
     html += '        <div class="cp-header-left">';
     html += '          <div class="cp-title">Composite Packet</div>';
     html += '          <div class="cp-name">' + (tech.name || techShort) + '</div>';
-    html += '          <div class="cp-sub">' + (tech.position || '') + ' \u00b7 ' + (tech.years||0) + ' yrs \u00b7 v218.70 Phase 2</div>';
+    html += '          <div class="cp-sub">' + (tech.position || '') + ' \u00b7 ' + (tech.years||0) + ' yrs \u00b7 ' + (window.__SNAPPY_APP_VERSION__ || 'v218.80') + '</div>';
     html += '        </div>';
     html += '        <div class="cp-header-right">';
     html += '          <div class="cp-final-tier tier-' + info.tier.toLowerCase() + '">'+ info.tier +'-TIER</div>';
@@ -114,7 +114,7 @@ function openCompositePacket(techShort) {
 
     // Tier thresholds
     html += '      <div class="cp-section">';
-    html += '        <div class="cp-section-title">Tier Thresholds (v218.70 Phase 2)</div>';
+    html += '        <div class="cp-section-title">Tier Thresholds (' + (window.__SNAPPY_APP_VERSION__ || 'v218.80') + ')</div>';
     html += '        <table class="cp-table cp-tier-table"><thead><tr><th>Tier</th><th>Range</th><th>Label</th></tr></thead><tbody>';
     html += '          <tr class="'+ (info.tier==='S'?'cp-here':'') +'"><td><span class="cp-tier-pill tier-s">S</span></td><td>95-100</td><td>Elite</td></tr>';
     html += '          <tr class="'+ (info.tier==='A'?'cp-here':'') +'"><td><span class="cp-tier-pill tier-a">A</span></td><td>85-94</td><td>Advanced</td></tr>';
@@ -139,7 +139,7 @@ function openCompositePacket(techShort) {
       html += '      </div>';
     }
 
-    html += '      <div class="cp-footer">Generated ' + new Date().toLocaleString() + ' \u00b7 Snappy Matrix v218.70 Phase 2</div>';
+    html += '      <div class="cp-footer">Generated ' + new Date().toLocaleString() + ' \u00b7 Snappy Matrix ' + (window.__SNAPPY_APP_VERSION__ || 'v218.80') + '</div>';
     html += '    </div>';  // end printable
     html += '  </div>';    // end modal
     html += '</div>';      // end overlay
