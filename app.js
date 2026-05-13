@@ -3821,77 +3821,32 @@ document.addEventListener('visibilitychange', function() {
     // v218.83: now also merges live TGL store — auto-counts leads + flips (sold installs)
     // for the given week. Leads/flips augment manual entry but never reduce it (only-help).
     function _wlbReadEntry(weekData, short, weekKey) {
+      // v218.86: REVERTED v218.83 TGL augmentation — it was destabilizing downstream
+      // renderers (rookie cards, performance charts, champion banner) on iPad when the
+      // function returned non-null entries for weeks with TGL-only data. The breakdown
+      // popup (_wlbOpenTechBreakdown) reads TGL directly, so we no longer need to merge
+      // it into _wlbReadEntry. weekKey arg kept for API compatibility but ignored.
       var v = weekData[short];
-      // v218.83: build base from manual entry (may be null if no manual data yet)
-      var base;
-      if (v == null) {
-        base = null;
-      } else if (typeof v === 'number') {
-        base = { service: v, installCount: 0, installRev: 0, memSold: 0, memOpps: 0, total: v, _legacy: true };
-      } else {
-        var svc = (typeof v.service === 'number') ? v.service : 0;
-        var instCount = (typeof v.installCount === 'number') ? v.installCount : 0;
-        var instRev   = (typeof v.installRev === 'number') ? v.installRev
-                      : ((typeof v.install === 'number') ? v.install : 0);
-        if (!instCount && instRev > 0 && typeof v.installCount === 'undefined') instCount = 1;
-        var memSold = (typeof v.memSold === 'number') ? v.memSold
-                    : ((typeof v.memberships === 'number') ? v.memberships : 0);
-        var memOpps = (typeof v.memOpps === 'number') ? v.memOpps : 0;
-        base = {
-          service: svc,
-          installCount: instCount,
-          installRev: instRev,
-          memSold: memSold,
-          memOpps: memOpps,
-          total: svc + instRev
-        };
+      if (v == null) return null;
+      if (typeof v === 'number') {
+        return { service: v, installCount: 0, installRev: 0, memSold: 0, memOpps: 0, total: v, _legacy: true };
       }
-
-      // v218.83: TGL augmentation — derive leads & flips (sold installs) for this tech this week.
-      // Lead = TGL row where leadGeneratedBy === short, dateGenerated in week.
-      // Flip = TGL row where leadGeneratedBy === short AND jobTotal > 0 AND completedDate in week.
-      // Same-week leads count once even if also a flip.
-      var leadsCount = 0, flipCount = 0, highTickets = 0;
-      try {
-        if (weekKey && typeof tglLoad === 'function') {
-          var weekStartD = new Date(weekKey + 'T00:00:00');
-          var weekEndD = new Date(weekStartD); weekEndD.setDate(weekEndD.getDate() + 6);
-          var startIso = weekKey;
-          var endIso = weekEndD.getFullYear() + '-' + String(weekEndD.getMonth()+1).padStart(2,'0') + '-' + String(weekEndD.getDate()).padStart(2,'0');
-          var d3 = tglLoad();
-          if (d3 && Array.isArray(d3.rows)) {
-            var leadJobIds = {};
-            d3.rows.forEach(function(r){
-              if (!r) return;
-              if (r.leadGeneratedBy !== short) return;
-              var dg = (r.dateGenerated || '').slice(0,10);
-              var cd = (r.completedDate || '').slice(0,10);
-              var jobTot = parseFloat(r.jobTotal) || 0;
-              // Count as a lead if generated in-week
-              if (dg >= startIso && dg <= endIso) {
-                if (!leadJobIds[r.jobNumber]) { leadsCount += 1; leadJobIds[r.jobNumber] = true; }
-              }
-              // Count as a flip (sold install) if completed in-week with $
-              if (cd >= startIso && cd <= endIso && jobTot > 0) {
-                flipCount += 1;
-                if (jobTot >= 10000) highTickets += 1;
-              }
-            });
-          }
-        }
-      } catch(e) { console.warn('_wlbReadEntry TGL merge failed', e); }
-
-      // v218.83: if no manual entry exists but TGL has lead/flip activity, surface a minimal entry.
-      if (!base && (leadsCount > 0 || flipCount > 0)) {
-        base = { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0, total: 0 };
-      }
-      if (!base) return null;
-
-      // Attach TGL-derived counters so _wlbPoints picks them up (LEAD + INST lanes).
-      base.leadsCount = Math.max(base.leadsCount || 0, leadsCount);
-      base.flipCount  = Math.max(base.flipCount  || 0, flipCount);
-      base.highTickets = Math.max(base.highTickets || 0, highTickets);
-      return base;
+      var svc = (typeof v.service === 'number') ? v.service : 0;
+      var instCount = (typeof v.installCount === 'number') ? v.installCount : 0;
+      var instRev   = (typeof v.installRev === 'number') ? v.installRev
+                    : ((typeof v.install === 'number') ? v.install : 0);
+      if (!instCount && instRev > 0 && typeof v.installCount === 'undefined') instCount = 1;
+      var memSold = (typeof v.memSold === 'number') ? v.memSold
+                  : ((typeof v.memberships === 'number') ? v.memberships : 0);
+      var memOpps = (typeof v.memOpps === 'number') ? v.memOpps : 0;
+      return {
+        service: svc,
+        installCount: instCount,
+        installRev: instRev,
+        memSold: memSold,
+        memOpps: memOpps,
+        total: svc + instRev
+      };
     }
 
     // v218.70 Phase 2: Six-Lane Weekly Leaderboard (max 110)
