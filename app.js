@@ -9413,7 +9413,7 @@ document.addEventListener('visibilitychange', function() {
               pillsHTML = '<div class="wlb-pt-pills">' + pills.join('') + '</div>';
             }
 
-            return '<div class="wlb-row tier-' + r.tier + ' rank-' + rank + '" data-tech-short="' + r.short + '" onclick="window._wlbOpenTechBreakdown && window._wlbOpenTechBreakdown(\'' + r.short + '\', \'' + activeWeek + '\')" style="cursor:pointer" title="Click for daily breakdown">' +
+            return '<div class="wlb-row tier-' + r.tier + ' rank-' + rank + '" data-tech-short="' + r.short + '" data-wlb-week="' + activeWeek + '" style="cursor:pointer" title="Click for daily breakdown">' +
               '<div class="wlb-rank">' + (medal || rank) + '</div>' +
               avatar +
               '<div class="wlb-name-block">' +
@@ -9489,6 +9489,29 @@ document.addEventListener('visibilitychange', function() {
         } catch(e) { console.warn('v216 banner failed', e); }
 
         el.innerHTML = champBannerHTML + headHTML + rowsHTML;
+
+        // v218.82: delegated row click → daily breakdown popup. Attached on el itself,
+        // so it survives re-renders that replace innerHTML. Uses target.closest('.wlb-row')
+        // so taps on inner pills/text still resolve to the row. stopPropagation prevents
+        // any parent overlay/modal weirdness.
+        try {
+          if (!el._wlbClickWired) {
+            el.addEventListener('click', function(ev){
+              try {
+                var row = ev.target && ev.target.closest ? ev.target.closest('.wlb-row') : null;
+                if (!row) return;
+                var sh = row.getAttribute('data-tech-short');
+                var wk = row.getAttribute('data-wlb-week');
+                if (!sh || !wk) return;
+                ev.stopPropagation();
+                if (typeof window._wlbOpenTechBreakdown === 'function') {
+                  window._wlbOpenTechBreakdown(sh, wk);
+                }
+              } catch(e) { console.warn('wlb row click failed', e); }
+            });
+            el._wlbClickWired = true;
+          }
+        } catch(e) {}
 
         // Wire up buttons
         var qs = function(id) { return document.getElementById(id); };
