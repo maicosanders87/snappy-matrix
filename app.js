@@ -8332,6 +8332,11 @@ document.addEventListener('visibilitychange', function() {
         html += ipRenderServiceTechsSection(selectedWeek);
       } catch(e) { console.warn('Service Techs section render failed', e); }
 
+      // v218.99: Manager Payout (Maico) — 0.5% of weekly install+service rev.
+      try {
+        html += ipRenderMaicoPayoutSection(selectedWeek);
+      } catch(e) { console.warn('Maico payout section render failed', e); }
+
       // Mon–Sat sheet
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;">';
       html += '<div style="font-size:14px;font-weight:700;margin-bottom:10px;">Mon–Sat Sheet · Week ending '+selectedWeek+'</div>';
@@ -9887,6 +9892,189 @@ document.addEventListener('visibilitychange', function() {
       return html;
     }
     window.ipRenderServiceTechsSection = ipRenderServiceTechsSection;
+
+    // v218.99: Manager Payout (Maico) — 0.5% of weekly (install + service) revenue.
+    //   - Install rev source: completed TGL rows w/ jobTotal > 0 in the week +
+    //     snappy_brayden_installs entries with completionDate in the week.
+    //     Marketed installs are included (per user spec).
+    //   - Service rev source: ipServiceTechMetrics(weekEndingSat).metrics[*].weekRev
+    //     (already used by the Service Techs payout table above).
+    //   - Idempotent: dedupes installs by jobNumber across both sources.
+    //   - Read-only display — no inputs, computed live every render.
+    function ipRenderMaicoPayoutSection(weekEndingSat) {
+      try {
+        var MGR_PAYOUT_PCT = 0.005; // 0.5%
+        var weekStart = ipWeekStartMon(weekEndingSat);
+        // Week range: Mon → Sat (inclusive)
+        var weekEnd = weekEndingSat;
+        function inWeek(iso) {
+          if (!iso) return false;
+          var d = String(iso).slice(0,10);
+          return d >= weekStart && d <= weekEnd;
+        }
+
+        // 1) Install rev for the week — dedupe by jobNumber across TGL + Brayden store
+        var installRev = 0;
+        var installCount = 0;
+        var seenJobs = {};
+        var installRows = []; // for the detail list
+        try {
+          if (typeof tglLoad === 'function') {
+            var tgl = tglLoad();
+            var rows = (tgl && Array.isArray(tgl.rows)) ? tgl.rows : [];
+            rows.forEach(function(r){
+              if (!r || r.status !== 'completed') return;
+              var cd = r.completedDate || r.dateGenerated;
+              if (!inWeek(cd)) return;
+              var amt = parseFloat(r.jobTotal) || 0;
+              if (amt <= 0) return; // ignore $0 rows
+              var jn = String(r.jobNumber || '').trim();
+              if (jn && seenJobs[jn]) return;
+              if (jn) seenJobs[jn] = true;
+              installRev += amt;
+              installCount += 1;
+              installRows.push({
+                jobNumber: jn,
+                customer: r.customer || '',
+                date: cd,
+                soldBy: r.soldBy || '',
+                marketedLead: !!r.marketedLead || (r.source === 'Marketed Lead'),
+                amount: amt
+              });
+            });
+          }
+        } catch(e) {}
+        try {
+          var brRaw = localStorage.getItem('snappy_brayden_installs');
+          if (brRaw) {
+            var brArr = JSON.parse(brRaw);
+            if (Array.isArray(brArr)) {
+              brArr.forEach(function(it){
+                if (!it) return;
+                var cd = it.completionDate || it.date;
+                if (!inWeek(cd)) return;
+                var amt = parseFloat(it.jobsTotal || it.total || 0) || 0;
+                if (amt <= 0) return;
+                var jn = String(it.jobNumber || it.invoice || '').trim();
+                if (jn && seenJobs[jn]) return;
+                if (jn) seenJobs[jn] = true;
+                installRev += amt;
+                installCount += 1;
+                installRows.push({
+                  jobNumber: jn,
+                  customer: it.customer || '',
+                  date: cd,
+                  soldBy: it.soldBy || 'Brayden Bond',
+                  marketedLead: (it.source === 'Marketed Lead'),
+                  amount: amt
+                });
+              });
+            }
+          }
+        } catch(e) {}
+        // Sort installs by date for the detail list
+        installRows.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+
+        // 2) Service rev for the week — sum across techs from same metrics table
+        var serviceRev = 0;
+        try {
+          var res = ipServiceTechMetrics(weekEndingSat);
+          if (res && res.metrics) {
+            Object.keys(res.metrics).forEach(function(short){
+              var m = res.metrics[short];
+              if (m && typeof m.weekRev === 'number') serviceRev += m.weekRev;
+            });
+          }
+        } catch(e) {}
+
+        var totalRev = installRev + serviceRev;
+        var payout = totalRev * MGR_PAYOUT_PCT;
+        var fmt$ = function(n){ return '$' + (n || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
+        function fmtD(iso) {
+          if (!iso) return '—';
+          var p = String(iso).split('-');
+          if (p.length !== 3) return iso;
+          return p[1] + '/' + p[2] + '/' + p[0].slice(2);
+        }
+        function esc(s){ return String(s||'').replace(/[&<>"']/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+        // 3) Build HTML
+        var html = '';
+        html += '<div style="background:linear-gradient(135deg,#0F1B2E,#0a1a30);border:1px solid #6366F1;border-radius:10px;padding:14px;margin-bottom:14px;box-shadow:0 0 0 1px rgba(99,102,241,0.10);">';
+        // Header
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">';
+        html += '<div>';
+        html += '<div style="font-size:14px;font-weight:700;color:#C7D2FE;">\ud83d\udc54 Manager Payout \u00b7 Maico</div>';
+        html += '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">0.5% of weekly (install + service) revenue \u00b7 marketed installs included</div>';
+        html += '</div>';
+        html += '<div style="font-size:11px;color:#64748b;text-align:right;">Week ' + weekStart + ' \u2192 ' + weekEndingSat + '</div>';
+        html += '</div>';
+
+        // Three tiles + payout tile
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px;">';
+        html += '<div style="background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;padding:12px;">';
+        html += '<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Install Rev (week)</div>';
+        html += '<div style="font-size:18px;font-weight:700;color:#3B82F6;margin-top:4px;font-variant-numeric:tabular-nums;">' + fmt$(installRev) + '</div>';
+        html += '<div style="font-size:11px;color:#64748b;margin-top:2px;">' + installCount + ' install' + (installCount !== 1 ? 's' : '') + '</div>';
+        html += '</div>';
+        html += '<div style="background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;padding:12px;">';
+        html += '<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Service Rev (week)</div>';
+        html += '<div style="font-size:18px;font-weight:700;color:#10B981;margin-top:4px;font-variant-numeric:tabular-nums;">' + fmt$(serviceRev) + '</div>';
+        html += '<div style="font-size:11px;color:#64748b;margin-top:2px;">across service techs</div>';
+        html += '</div>';
+        html += '<div style="background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;padding:12px;">';
+        html += '<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Combined Rev</div>';
+        html += '<div style="font-size:18px;font-weight:700;color:#FCD34D;margin-top:4px;font-variant-numeric:tabular-nums;">' + fmt$(totalRev) + '</div>';
+        html += '<div style="font-size:11px;color:#64748b;margin-top:2px;">install + service</div>';
+        html += '</div>';
+        html += '<div style="background:linear-gradient(135deg,rgba(99,102,241,0.18),rgba(99,102,241,0.08));border:1px solid #6366F1;border-radius:8px;padding:12px;">';
+        html += '<div style="font-size:10px;color:#A5B4FC;text-transform:uppercase;letter-spacing:0.5px;">Your Payout (0.5%)</div>';
+        html += '<div style="font-size:22px;font-weight:800;color:#E0E7FF;margin-top:4px;font-variant-numeric:tabular-nums;">' + fmt$(payout) + '</div>';
+        html += '<div style="font-size:11px;color:#A5B4FC;margin-top:2px;">' + fmt$(totalRev) + ' × 0.5%</div>';
+        html += '</div>';
+        html += '</div>';
+
+        // Detail list of contributing installs (collapsible)
+        if (installRows.length > 0) {
+          html += '<details style="margin-top:4px;">';
+          html += '<summary style="cursor:pointer;font-size:11px;color:#94a3b8;padding:6px 8px;background:#0b1426;border:1px solid #1e3a5f;border-radius:6px;display:inline-block;">View contributing installs (' + installRows.length + ')</summary>';
+          html += '<div style="margin-top:8px;overflow-x:auto;">';
+          html += '<table style="width:100%;min-width:560px;border-collapse:collapse;font-size:11px;">';
+          html += '<thead><tr style="color:#64748b;text-transform:uppercase;font-size:10px;letter-spacing:0.4px;background:#0b1426;">';
+          html += '<th style="text-align:left;padding:6px 8px;border:1px solid #1e3a5f;">Date</th>';
+          html += '<th style="text-align:left;padding:6px 8px;border:1px solid #1e3a5f;">Customer</th>';
+          html += '<th style="text-align:left;padding:6px 8px;border:1px solid #1e3a5f;">Job #</th>';
+          html += '<th style="text-align:left;padding:6px 8px;border:1px solid #1e3a5f;">Sold By</th>';
+          html += '<th style="text-align:left;padding:6px 8px;border:1px solid #1e3a5f;">Source</th>';
+          html += '<th style="text-align:right;padding:6px 8px;border:1px solid #1e3a5f;">Total</th>';
+          html += '</tr></thead><tbody>';
+          installRows.forEach(function(r){
+            var srcBadge = r.marketedLead
+              ? '<span style="background:rgba(245,158,11,0.15);color:#FCD34D;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">Marketed</span>'
+              : '<span style="background:rgba(16,185,129,0.12);color:#6EE7B7;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">Tech-gen</span>';
+            html += '<tr>';
+            html += '<td style="padding:6px 8px;border:1px solid #1e3a5f;color:#94a3b8;font-family:monospace;">' + fmtD(r.date) + '</td>';
+            html += '<td style="padding:6px 8px;border:1px solid #1e3a5f;">' + esc(r.customer) + '</td>';
+            html += '<td style="padding:6px 8px;border:1px solid #1e3a5f;color:#94a3b8;font-family:monospace;">#' + esc(r.jobNumber) + '</td>';
+            html += '<td style="padding:6px 8px;border:1px solid #1e3a5f;color:#cbd5e1;">' + esc(r.soldBy) + '</td>';
+            html += '<td style="padding:6px 8px;border:1px solid #1e3a5f;">' + srcBadge + '</td>';
+            html += '<td style="text-align:right;padding:6px 8px;border:1px solid #1e3a5f;color:#FCD34D;font-weight:600;font-variant-numeric:tabular-nums;">' + fmt$(r.amount) + '</td>';
+            html += '</tr>';
+          });
+          html += '<tr style="background:#0b1426;font-weight:700;"><td colspan="5" style="padding:6px 8px;border:1px solid #1e3a5f;color:#cbd5e1;">Total install rev for week</td>';
+          html += '<td style="text-align:right;padding:6px 8px;border:1px solid #1e3a5f;color:#FCD34D;font-variant-numeric:tabular-nums;">' + fmt$(installRev) + '</td></tr>';
+          html += '</tbody></table>';
+          html += '</div>';
+          html += '</details>';
+        }
+        html += '</div>';
+        return html;
+      } catch(e) {
+        console.warn('ipRenderMaicoPayoutSection failed', e);
+        return '';
+      }
+    }
+    window.ipRenderMaicoPayoutSection = ipRenderMaicoPayoutSection;
 
     // v218.74: PDF export for the Service Techs section.
     function ipServiceTechsExportPdf(weekEndingSat) {
