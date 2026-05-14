@@ -12250,6 +12250,11 @@ document.addEventListener('visibilitychange', function() {
           stTab.classList.add('active');
           var stSection = document.getElementById('st-' + stSub);
           if (stSection) stSection.classList.add('active');
+          // v218.96: Refresh Generated-Installs report on entry so it picks up
+          // any TGL edits/deletes/new seeds made since last view.
+          if (stSub === 'installs') {
+            try { renderInstallsReport(); } catch(e) {}
+          }
         }
       }
       // Close sidebar if open (mobile slide-in or desktop expanded)
@@ -15657,7 +15662,212 @@ if (typeof Chart !== 'undefined') {
         { label: 'Leads Generated', get: t => t.installs.leads_generated },
         { label: 'Self-Sourced', get: t => t.installs.self_sourced }
       ]);
+
+      // v218.96: Render Generated-Installs report (Matrix-style ServiceTitan view)
+      try { renderInstallsReport(); } catch(e) { console.warn('renderInstallsReport failed', e); }
     }
+
+    // v218.96: Generated-Installs report — Matrix-style view of all completed
+    // installs (MTD), pulled live from TGL store + snappy_brayden_installs.
+    // Mirrors the ServiceTitan Generated-Installs PDF layout: Job#, Customer,
+    // Generated, Lead By, Sold By, Installer(s), Total. Click "Installs" KPI
+    // on Overview to land here. Auto-rebuilds whenever new installs are seeded.
+    function renderInstallsReport() {
+      var panel = document.getElementById('installsReportPanel');
+      if (!panel) return;
+
+      // Active month for filtering (defaults to current month for live view)
+      var today = new Date();
+      var curYM = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+      var firstOfMonth = curYM + '-01';
+
+      // 1) Pull all completed install rows from TGL store
+      var rows = [];
+      var seenJobs = {};
+      try {
+        if (typeof tglLoad === 'function') {
+          var tglRows = (tglLoad() || {}).rows || [];
+          tglRows.forEach(function(r){
+            if (!r || r.status !== 'completed') return;
+            var iso = r.completedDate || r.dateGenerated || '';
+            if (!iso || iso < firstOfMonth) return;
+            var jn = String(r.jobNumber || '').trim();
+            if (jn && seenJobs[jn]) return;
+            if (jn) seenJobs[jn] = true;
+            // Map soldBy display names
+            var soldByDisp = r.soldBy || '';
+            if (soldByDisp === 'Maico') soldByDisp = 'Mark Sanders';
+            else if (soldByDisp === 'Brayden') soldByDisp = 'Brayden Bond';
+            rows.push({
+              jobNumber: jn,
+              customer: r.customer || '',
+              dateGenerated: r.dateGenerated || '',
+              completedDate: r.completedDate || r.dateGenerated || '',
+              leadGeneratedBy: r.leadGeneratedBy || '',
+              soldBy: soldByDisp,
+              installers: Array.isArray(r.assignedTechnicians)
+                ? r.assignedTechnicians.filter(function(n){
+                    return n && n !== r.soldBy && n !== 'Brayden Bond' && n !== 'Mark Sanders';
+                  })
+                : [],
+              jobTotal: parseFloat(r.jobTotal) || 0,
+              source: r.source || '',
+              _src: 'tgl'
+            });
+          });
+        }
+      } catch(e) { console.warn('TGL rows fetch failed', e); }
+
+      // 2) Merge any Brayden installs not already represented via TGL
+      try {
+        var brRaw = localStorage.getItem('snappy_brayden_installs');
+        if (brRaw) {
+          var brArr = JSON.parse(brRaw);
+          if (Array.isArray(brArr)) {
+            brArr.forEach(function(it){
+              if (!it) return;
+              var jn = String(it.jobNumber || it.invoice || '').trim();
+              if (jn && seenJobs[jn]) return;
+              var d = it.completionDate || it.date || '';
+              if (!d || d < firstOfMonth) return;
+              if (jn) seenJobs[jn] = true;
+              rows.push({
+                jobNumber: jn,
+                customer: it.customer || '',
+                dateGenerated: it.date || it.completionDate || '',
+                completedDate: it.completionDate || it.date || '',
+                leadGeneratedBy: it.leadGeneratedBy || '',
+                soldBy: it.soldBy || 'Brayden Bond',
+                installers: [],
+                jobTotal: parseFloat(it.jobsTotal || it.total || 0) || 0,
+                source: it.businessUnit || '',
+                _src: 'brayden'
+              });
+            });
+          }
+        }
+      } catch(e) {}
+
+      // 3) Sort by date generated (oldest first, like ServiceTitan PDF)
+      rows.sort(function(a,b){
+        var ad = a.dateGenerated || a.completedDate || '';
+        var bd = b.dateGenerated || b.completedDate || '';
+        if (ad !== bd) return ad.localeCompare(bd);
+        return String(a.jobNumber).localeCompare(String(b.jobNumber));
+      });
+
+      // 4) Compute totals + per-seller breakdown
+      var totalRev = 0, totalCount = 0;
+      var bySeller = {};
+      rows.forEach(function(r){
+        totalRev += r.jobTotal;
+        totalCount += 1;
+        var key = r.soldBy || '(unassigned)';
+        if (!bySeller[key]) bySeller[key] = { count: 0, rev: 0 };
+        bySeller[key].count += 1;
+        bySeller[key].rev += r.jobTotal;
+      });
+
+      // 5) Format helpers
+      function fmtUSD(n) {
+        if (!n) return '$0.00';
+        return '$' + n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      }
+      function fmtDate(iso) {
+        if (!iso) return '—';
+        var p = iso.split('-');
+        if (p.length !== 3) return iso;
+        return p[1] + '/' + p[2] + '/' + p[0].slice(2);
+      }
+      function escapeHtml(s) {
+        return String(s||'').replace(/[&<>"']/g, function(c){
+          return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+        });
+      }
+
+      // 6) Build month label
+      var monthLabel = today.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+      // 7) Build HTML
+      var html = '';
+      html += '<div class="ir-header">';
+      html += '  <div class="ir-title-row">';
+      html += '    <div>';
+      html += '      <div class="ir-title">🏠 Generated-Installs Report</div>';
+      html += '      <div class="ir-subtitle">' + escapeHtml(monthLabel) + ' · Source-of-truth view (live from TGL + Brayden installs)</div>';
+      html += '    </div>';
+      html += '    <div class="ir-summary-tiles">';
+      html += '      <div class="ir-tile">';
+      html += '        <div class="ir-tile-val">' + totalCount + '</div>';
+      html += '        <div class="ir-tile-lbl">Installs MTD</div>';
+      html += '      </div>';
+      html += '      <div class="ir-tile">';
+      html += '        <div class="ir-tile-val">' + fmtUSD(totalRev) + '</div>';
+      html += '        <div class="ir-tile-lbl">Total Revenue</div>';
+      html += '      </div>';
+      html += '      <div class="ir-tile">';
+      html += '        <div class="ir-tile-val">' + (totalCount > 0 ? fmtUSD(totalRev/totalCount) : '—') + '</div>';
+      html += '        <div class="ir-tile-lbl">Avg Ticket</div>';
+      html += '      </div>';
+      html += '    </div>';
+      html += '  </div>';
+      html += '</div>';
+
+      // Per-seller breakdown chips
+      html += '<div class="ir-sellers">';
+      Object.keys(bySeller).sort(function(a,b){return bySeller[b].rev - bySeller[a].rev;}).forEach(function(sName){
+        var s = bySeller[sName];
+        html += '<div class="ir-seller-chip">';
+        html += '<span class="ir-seller-name">' + escapeHtml(sName) + '</span>';
+        html += '<span class="ir-seller-stat">' + s.count + ' · ' + fmtUSD(s.rev) + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // Report table
+      html += '<div class="ir-table-wrap">';
+      if (rows.length === 0) {
+        html += '<div class="ir-empty">No completed installs recorded for ' + escapeHtml(monthLabel) + ' yet.</div>';
+      } else {
+        html += '<table class="ir-table">';
+        html += '<thead><tr>';
+        html += '<th>Job #</th>';
+        html += '<th>Customer</th>';
+        html += '<th>Generated</th>';
+        html += '<th>Lead By</th>';
+        html += '<th>Sold By</th>';
+        html += '<th>Installer(s)</th>';
+        html += '<th class="ir-num">Total</th>';
+        html += '</tr></thead>';
+        html += '<tbody>';
+        rows.forEach(function(r){
+          var soldClass = r.soldBy === 'Brayden Bond' ? 'ir-sold-brayden'
+                        : r.soldBy === 'Mark Sanders' ? 'ir-sold-maico'
+                        : 'ir-sold-other';
+          var leadCell = r.leadGeneratedBy ? '<span class="ir-tech-pill">' + escapeHtml(r.leadGeneratedBy) + '</span>' : '<span class="ir-dash">—</span>';
+          var soldCell = r.soldBy ? '<span class="ir-sold-pill ' + soldClass + '">' + escapeHtml(r.soldBy) + '</span>' : '<span class="ir-dash">—</span>';
+          var instCell = r.installers.length ? r.installers.map(escapeHtml).join(', ') : '<span class="ir-dash">—</span>';
+          html += '<tr>';
+          html += '<td class="ir-mono">#' + escapeHtml(r.jobNumber) + '</td>';
+          html += '<td>' + escapeHtml(r.customer) + '</td>';
+          html += '<td class="ir-mono">' + fmtDate(r.dateGenerated) + '</td>';
+          html += '<td>' + leadCell + '</td>';
+          html += '<td>' + soldCell + '</td>';
+          html += '<td class="ir-installers">' + instCell + '</td>';
+          html += '<td class="ir-num">' + fmtUSD(r.jobTotal) + '</td>';
+          html += '</tr>';
+        });
+        html += '<tr class="ir-totals">';
+        html += '<td colspan="6">Total · ' + totalCount + ' install' + (totalCount !== 1 ? 's' : '') + '</td>';
+        html += '<td class="ir-num">' + fmtUSD(totalRev) + '</td>';
+        html += '</tr>';
+        html += '</tbody></table>';
+      }
+      html += '</div>';
+
+      panel.innerHTML = html;
+    }
+    window.renderInstallsReport = renderInstallsReport;
 
     function renderSTCharts() {
       // Revenue bar chart
