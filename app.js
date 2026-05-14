@@ -3851,6 +3851,127 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260514IfNeeded failed', e); }
     }
 
+    // v218.98: Heal Amelia Soto — install completed 5/14/26.
+    //   - Sold by Brayden 5/13 (marketed lead, no tech-gen credit)
+    //   - Installed today (5/14) by Thomas Gilbert + Terrell Upshur
+    //   - Job total: $11,934.99
+    // Flow:
+    //   1) Update TGL row 91921510 from open → completed with installers + total
+    //   2) Add to snappy_brayden_installs so it surfaces in Brayden's sales scorecard
+    //   3) Bump Brayden MTD: 7 / $120,043.10 → 8 / $131,978.09
+    //   4) Update 5/14 bulletin entry text
+    //   5) Cascade install to install pay (Thomas + Terrell base pay)
+    function _ameliaSotoInstallHealV21898IfNeeded() {
+      try {
+        var FLAG = 'snappy_amelia_soto_install_v21898';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var JOB = '91921510';
+        var TOTAL = 11934.99;
+
+        // 1) Flip Amelia Soto TGL row to completed (or insert if missing)
+        try {
+          if (typeof tglLoad === 'function' && typeof tglSave === 'function') {
+            var d = tglLoad();
+            if (d && Array.isArray(d.rows)) {
+              var idx = d.rows.findIndex(function(r){ return r && r.jobNumber === JOB; });
+              var nowIso = new Date().toISOString();
+              var row = {
+                status: 'completed',
+                addedAt: idx >= 0 ? (d.rows[idx].addedAt || nowIso) : nowIso,
+                jobNumber: JOB, invoiceNumber: JOB,
+                customer: 'Amelia Soto',
+                dateGenerated: '2026-05-13',
+                completedDate: '2026-05-14',
+                completedAt: nowIso,
+                assignedTechnicians: ['Thomas Gilbert', 'Terrell Upshur', 'Brayden Bond'],
+                soldBy: 'Brayden Bond',
+                leadGeneratedBy: '',
+                source: 'Marketed Lead',
+                jobType: 'HVAC Install',
+                businessUnit: 'HVAC Install',
+                ranBy: ['Brayden Bond'],
+                marketedLead: true,
+                jobTotal: TOTAL
+              };
+              if (idx >= 0) d.rows[idx] = row;
+              else d.rows.push(row);
+              tglSave(d);
+              console.log('[v218.98] Amelia Soto TGL flipped to completed ($11,934.99 install 5/14).');
+            }
+          }
+        } catch(e) { console.warn('[v218.98] TGL flip failed', e); }
+
+        // 2) Push into snappy_brayden_installs
+        try {
+          var brRaw = localStorage.getItem('snappy_brayden_installs');
+          var brArr = [];
+          try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+          if (!Array.isArray(brArr)) brArr = [];
+          var dup = brArr.some(function(x){ return x && (x.jobNumber === JOB || x.invoice === JOB); });
+          if (!dup) {
+            brArr.push({
+              id: 'brayden_install_20260514_amelia_soto',
+              date: '2026-05-13',
+              customer: 'Amelia Soto',
+              jobNumber: JOB,
+              invoice: JOB,
+              businessUnit: 'HVAC Install',
+              soldBy: 'Brayden Bond',
+              leadGeneratedBy: '',
+              source: 'Marketed Lead',
+              jobsTotal: TOTAL,
+              completionDate: '2026-05-14'
+            });
+            localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+            console.log('[v218.98] Added Amelia Soto install ($11,934.99) to snappy_brayden_installs.');
+          }
+        } catch(e) { console.warn('[v218.98] brayden install push failed', e); }
+
+        // 3) Bump Brayden MTD stats: 7 → 8 installs, $120,043.10 → $131,978.09
+        try {
+          var stats = (typeof braydenLoadStats === 'function') ? braydenLoadStats() : {};
+          var curRev = Number(stats.mtd_revenue || 0);
+          var curClosed = Number(stats.mtd_closed || 0);
+          var targetRev = 131978.09; // 120043.10 + 11934.99
+          var targetClosed = 8;
+          if (curRev < targetRev) stats.mtd_revenue = String(targetRev);
+          if (curClosed < targetClosed) stats.mtd_closed = String(targetClosed);
+          if (typeof braydenSaveStats === 'function') braydenSaveStats(stats);
+          console.log('[v218.98] braydenstats bumped to 8 / $131,978.09');
+        } catch(e) { console.warn('[v218.98] braydenstats bump failed', e); }
+
+        // 4) Update 5/14 bulletin entry text to include install
+        try {
+          var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+          if (bb && Array.isArray(bb.matrixUpdates)) {
+            var entry = bb.matrixUpdates.find(function(u){ return u.id === 'st_update_20260514_daily'; });
+            if (entry) {
+              entry.text = 'Thursday 5/14/26 \u2014 Service team $1,921.92 tech rev across 11 jobs. Dee led with $1,169.41 (2 jobs incl Tracy Barash $1,169 PM2). Daniel $515.51 (3 jobs incl Nichole Owens $460.51 sold-work + Arvin Soltani $55 recall). Nick $237.00 (3 jobs incl Mike Chasteen $237 PM3). Dewone $0/2 jobs but logged 7 estimates. Chris 1 internal follow-up. Brayden install today: Amelia Soto $11,934.99 (Job 91921510, marketed lead, sold 5/13 \u2014 installed today by Thomas Gilbert + Terrell Upshur). Brayden May MTD now: 8 / $131,978.09. No memberships sold today. No new TGL flips today.';
+              if (typeof bbSave === 'function') bbSave(bb);
+              console.log('[v218.98] Updated 5/14 bulletin entry with install.');
+            }
+          }
+        } catch(e) { console.warn('[v218.98] bulletin update failed', e); }
+
+        // 5) Push install pay split for Thomas + Terrell (base $11,934.99)
+        try {
+          var IP_KEY = 'snappy_install_pay_v1';
+          var rawIP = localStorage.getItem(IP_KEY);
+          var ipObj = rawIP ? JSON.parse(rawIP) : { rows: [] };
+          if (!ipObj.rows) ipObj.rows = [];
+          var ipDup = ipObj.rows.some(function(r){ return r && r.jobNumber === JOB; });
+          if (!ipDup) {
+            ipObj.rows.push({ date: '2026-05-14', customer: 'Amelia Soto', jobNumber: JOB, installer: 'Thomas Gilbert', basePay: TOTAL/2 });
+            ipObj.rows.push({ date: '2026-05-14', customer: 'Amelia Soto', jobNumber: JOB, installer: 'Terrell Upshur', basePay: TOTAL/2 });
+            localStorage.setItem(IP_KEY, JSON.stringify(ipObj));
+            console.log('[v218.98] Install pay split 50/50 Thomas+Terrell for Amelia Soto.');
+          }
+        } catch(e) { console.warn('[v218.98] install pay push failed', e); }
+
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_ameliaSotoInstallHealV21898IfNeeded failed', e); }
+    }
+
     // v218.94: Heal Marietta Commercial Tire dupes.
     // The 5/12 daily seed inserted TGL row 92133266 (open) which got auto-closed
     // when an earlier install record came through. The 5/13 TGL PDF then surfaced
@@ -23396,6 +23517,7 @@ if (typeof Chart !== 'undefined') {
     try { _carolTerwilligerHealV21895IfNeeded(); } catch(e) {}
     try { _dailySeed20260514IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260514IfNeeded(); } catch(e) {}
+    try { _ameliaSotoInstallHealV21898IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
