@@ -3718,6 +3718,139 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbSeedDay20260513IfNeeded failed', e); }
     }
 
+    // v218.97: Thu 5/14/26 daily seed.
+    //   - 5/13 supplementary TGL: Amelia Soto (unattributed, sold by Brayden, $0 marketed HVAC Replacement Lead) — adds 1 row to TGL store
+    //   - 5/14 service revenue (Tech Rev PDF, 11 jobs / $1,921.92 total):
+    //       Chris  $0      (1 job: Trida Williams field follow-up)
+    //       Daniel $515.51 (3 jobs: Lester Reid $0 PM, Nichole Owens $460.51, Arvin Soltani $55 recall)
+    //       Dee    $1,169.41 (2 jobs: Muscles-N-Motion $0 PM, Tracy Barash $1,169.41 PM)
+    //       Dewone $0      (2 jobs: Paul Beatrice + Edward Banks — both PMs, 7 estimates)
+    //       Nick   $237.00 (3 jobs: Jeffrey Davila $0 PM, Mike Chasteen $237, Karen Abel $0 field follow-up)
+    //       Benji  $0      (no jobs on 5/14)
+    //   - No memberships sold today, no installs today.
+    //   - No new TGL flips today.
+    function _dailySeed20260514IfNeeded() {
+      try {
+        var FLAG = 'snappy_daily_seed_2026_05_14_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+
+        // 1) Add supplementary 5/13 TGL row: Amelia Soto (Brayden sold, marketed lead, $0)
+        if (typeof tglUpsert === 'function') {
+          tglUpsert({
+            jobNumber: '91921510', invoiceNumber: '91921510',
+            customer: 'Amelia Soto',
+            dateGenerated: '2026-05-13',
+            assignedTechnicians: ['Brayden Bond'],
+            soldBy: 'Brayden Bond',
+            leadGeneratedBy: '',
+            source: 'Marketed Lead',
+            jobType: 'HVAC Replacement Lead',
+            businessUnit: 'Sales',
+            status: 'open',
+            jobTotal: 0
+          });
+          console.log('[v218.97] Added 5/13 supplementary TGL: Amelia Soto (marketed lead, Brayden).');
+        }
+
+        // 2) Bulletin entry for 5/14
+        try {
+          var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+          if (bb) {
+            if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+            var exists14 = bb.matrixUpdates.some(function(u){ return u.id === 'st_update_20260514_daily'; });
+            if (!exists14) {
+              bb.matrixUpdates.push({
+                id: 'st_update_20260514_daily',
+                date: '2026-05-14',
+                text: 'Thursday 5/14/26 \u2014 Service team $1,921.92 tech rev across 11 jobs. Dee led with $1,169.41 (2 jobs incl Tracy Barash $1,169 PM2). Daniel $515.51 (3 jobs: Nichole Owens $460.51 sold-work return visit + Arvin Soltani $55 recall). Nick $237.00 (3 jobs incl Mike Chasteen $237 PM3). Dewone $0/2 jobs but logged 7 estimates (Paul Beatrice + Edward Banks PMs). Chris 1 internal follow-up. No new TGL flips today. No memberships sold. No installs today. Supplementary 5/13 TGL surfaced: Amelia Soto marketed lead (Brayden, $0 open).',
+                createdAt: Date.now()
+              });
+              if (typeof bbSave === 'function') bbSave(bb);
+              console.log('[v218.97] Added 5/14 daily bulletin entry.');
+            }
+          }
+        } catch(e) { console.warn('[v218.97] bulletin push failed', e); }
+
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_dailySeed20260514IfNeeded failed', e); }
+    }
+
+    // v218.97: Thu 5/14/26 WLB + MTD bump.
+    function _wlbSeedDay20260514IfNeeded() {
+      try {
+        var FLAG = 'snappy_wlb_day_seeded_2026_05_14_v1';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var WEEK = '2026-05-11'; // 5/14 is Thursday of the Mon-start week 5/11
+        var d = _wlbLoad();
+        var existing = d[WEEK] || {};
+        function add(short, svc, ic, ir, ms, mo) {
+          var prev = existing[short] || { service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0 };
+          existing[short] = {
+            service:      (prev.service || 0)      + svc,
+            installCount: (prev.installCount || 0) + ic,
+            installRev:   (prev.installRev || 0)   + ir,
+            memSold:      (prev.memSold || 0)      + ms,
+            memOpps:      (prev.memOpps || 0)      + mo
+          };
+        }
+        // 5/14 service rev — Tech Rev PDF; no memberships sold; no install rev
+        add('Chris',     0,    0, 0, 0, 0);
+        add('Daniel',  515.51, 0, 0, 0, 0);
+        add('Dee',    1169.41, 0, 0, 0, 0);
+        add('Dewone',    0,    0, 0, 0, 0);
+        add('Nick',    237.00, 0, 0, 0, 0);
+        add('Benji',     0,    0, 0, 0, 0);
+        d[WEEK] = existing;
+        _wlbSave(d);
+        try { localStorage.setItem(WEEKLY_VIEW_KEY, WEEK); } catch(e) {}
+
+        // Cascade into stData MTD (rookie cards, top/bottom tiles, leaderboard, tier progression)
+        try {
+          if (typeof stData !== 'undefined' && Array.isArray(stData)) {
+            var addMtd14 = function(name, svc, ms, mo, soldHrs, frt, spps, tgls) {
+              var st = stData.find(function(s){ return s.name === name; });
+              if (!st) return;
+              st.mtd_service_rev = (st.mtd_service_rev || 0) + svc;
+              if (!st.mtd_nexstar) st.mtd_nexstar = {};
+              st.mtd_nexstar.total_revenue = (st.mtd_nexstar.total_revenue || 0) + svc;
+              st.mtd_nexstar.spps_sold = (st.mtd_nexstar.spps_sold || 0) + (spps || 0);
+              st.mtd_nexstar.tech_gen_leads = (st.mtd_nexstar.tech_gen_leads || 0) + (tgls || 0);
+              st.mtd_nexstar.sold_hours = (st.mtd_nexstar.sold_hours || 0) + (soldHrs || 0);
+              st.mtd_nexstar.flat_rate_tasks = (st.mtd_nexstar.flat_rate_tasks || 0) + (frt || 0);
+              if (!st.mtd_memberships) st.mtd_memberships = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
+              st.mtd_memberships.total_mem_sold = (st.mtd_memberships.total_mem_sold || 0) + (ms || 0);
+              st.mtd_memberships.total_mem_opps = (st.mtd_memberships.total_mem_opps || 0) + (mo || 0);
+              if (st.mtd_memberships.total_mem_opps > 0) {
+                st.mtd_memberships.total_mem_pct = Math.round((st.mtd_memberships.total_mem_sold / st.mtd_memberships.total_mem_opps) * 100);
+              }
+              if (!st.mtd_productivity) st.mtd_productivity = {};
+              st.mtd_productivity.billable_hours = (st.mtd_productivity.billable_hours || 0) + (soldHrs || 0);
+            };
+            // (name, svc, memSold, memOpps, soldHrs, frt, spps, tgls)
+            // No TGL flips on 5/14, no memberships sold.
+            // Sold hours estimated from job count + type.
+            addMtd14('Chris',     0,    0, 0, 0.5, 1, 0, 0);   // 1 internal follow-up
+            addMtd14('Daniel',  515.51, 0, 0, 4.0, 3, 0, 0);   // 3 jobs incl sold-work
+            addMtd14('Dee',    1169.41, 0, 0, 3.5, 2, 0, 0);   // 2 jobs (1 PM, 1 PM big ticket)
+            addMtd14('Dewone',    0,    0, 0, 3.0, 2, 0, 0);   // 2 PMs, 7 est
+            addMtd14('Nick',    237.00, 0, 0, 4.0, 3, 0, 0);   // 3 jobs PM2/PM3
+            addMtd14('Benji',     0,    0, 0, 0,   0, 0, 0);   // off
+            (function(){
+              var jobsDelta = { Chris: 1, Daniel: 3, Dee: 2, Dewone: 2, Nick: 3, Benji: 0 };
+              Object.keys(jobsDelta).forEach(function(name){
+                var st = stData.find(function(s){ return s.name === name; });
+                if (st && typeof st.completedJobs === 'number') {
+                  st.completedJobs = st.completedJobs + jobsDelta[name];
+                }
+              });
+            })();
+          }
+        } catch(e) { console.warn('[v218.97] MTD bump failed', e); }
+
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_wlbSeedDay20260514IfNeeded failed', e); }
+    }
+
     // v218.94: Heal Marietta Commercial Tire dupes.
     // The 5/12 daily seed inserted TGL row 92133266 (open) which got auto-closed
     // when an earlier install record came through. The 5/13 TGL PDF then surfaced
@@ -23261,6 +23394,8 @@ if (typeof Chart !== 'undefined') {
     try { _wlbSeedDay20260513IfNeeded(); } catch(e) {}
     try { _mariettaDedupeHealV21894IfNeeded(); } catch(e) {}
     try { _carolTerwilligerHealV21895IfNeeded(); } catch(e) {}
+    try { _dailySeed20260514IfNeeded(); } catch(e) {}
+    try { _wlbSeedDay20260514IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260504IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260505IfNeeded(); } catch(e) {}
