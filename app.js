@@ -10105,7 +10105,8 @@ document.addEventListener('visibilitychange', function() {
         var instPay = ipComputeInstallPay(short, m.weekInstallRev || 0);
         var memPay = weekMemSold * MEM_PAY;
         var leadPay = (m.weekLeadsSet || 0) * LEAD_PAY;
-        var reviewPay = weekReviews * REVIEW_PAY;
+        // v219.18: Review pay calculated on MONTHLY count (monthReviews), not weekly.
+        var reviewPay = monthReviews * REVIEW_PAY;
         var mtdBonus = (typeof ipComputeMonthlyInstallBonus === 'function') ? ipComputeMonthlyInstallBonus(short, monthInstallRev) : 0;
         var totalPayout = revPay + instPay + memPay + leadPay + reviewPay + mtdBonus;
         teamRevPay += revPay; teamInstPay += instPay; teamMemPay += memPay; teamLeadPay += leadPay; teamReviewPay += reviewPay; teamMtdBonus += mtdBonus;
@@ -10667,7 +10668,8 @@ document.addEventListener('visibilitychange', function() {
         var instPay = ipComputeInstallPay(short, m.weekInstallRev || 0);
         var memPay = weekMemSold * MEM_PAY;
         var leadPay = (m.weekLeadsSet || 0) * LEAD_PAY;
-        var reviewPay = weekReviews * REVIEW_PAY;
+        // v219.18: Review pay calculated on MONTHLY count (monthReviews), not weekly.
+        var reviewPay = monthReviews * REVIEW_PAY;
         var mtdBonus = (typeof ipComputeMonthlyInstallBonus === 'function') ? ipComputeMonthlyInstallBonus(short, monthInstallRev) : 0;
         var totalPay = revPay + instPay + memPay + leadPay + reviewPay + mtdBonus;
         teamRevPay += revPay; teamInstPay += instPay; teamMemPay += memPay; teamLeadPay += leadPay; teamReviewPay += reviewPay; teamMtdBonus += mtdBonus;
@@ -11030,22 +11032,20 @@ document.addEventListener('visibilitychange', function() {
                   '<span class="wlb-pt-val">' + p.memPts + ' pts</span>' +
                 '</span>'
               );
-              // v219.17: GR\u2605 pill \u2014 weekly Google reviews (from override store) and pts (5 per review, no cap)
-              var _wkRev = 0, _mtdRev = 0;
+              // v219.18: GR\u2605 pill \u2014 WEEKLY Google reviews only (5 pts each, no cap).
+              // Monthly count is used for tech Review Pay payout in the Service Techs table, not here.
+              var _wkRev = 0;
               try {
                 var _key = r.short || '';
                 var _store = (typeof ipServiceTechOverrides === 'function') ? ipServiceTechOverrides() : null;
                 if (_store && _store.weeks && _store.weeks[activeWeek] && _store.weeks[activeWeek][_key] && typeof _store.weeks[activeWeek][_key].weekReviews === 'number') {
                   _wkRev = _store.weeks[activeWeek][_key].weekReviews;
                 }
-                if (typeof googleReviews !== 'undefined' && googleReviews[r.short]) {
-                  _mtdRev = googleReviews[r.short].count || 0;
-                }
               } catch(e) {}
               var grPts = (p.grLane != null) ? p.grLane : (_wkRev * 5);
-              var grRaw = _wkRev + ' wk \u00b7 ' + _mtdRev + ' MTD';
+              var grRaw = _wkRev + (_wkRev === 1 ? ' review' : ' reviews');
               pills.push(
-                '<span class="wlb-pt-pill gr" title="Google reviews: 5 pts per review this week, no cap. Weekly count from Service Techs override; MTD from review archive." style="background:linear-gradient(135deg,rgba(255,215,0,0.18),rgba(255,193,7,0.12));border:1px solid rgba(255,215,0,0.45);color:#ffd700;">' +
+                '<span class="wlb-pt-pill gr" title="Google reviews this week: 5 pts each, no cap. Monthly count drives Review Pay in Service Techs section." style="background:linear-gradient(135deg,rgba(255,215,0,0.18),rgba(255,193,7,0.12));border:1px solid rgba(255,215,0,0.45);color:#ffd700;">' +
                   '<span class="wlb-pt-label">GR\u2605</span>' +
                   '<span class="wlb-pt-raw">' + grRaw + '</span>' +
                   '<span class="wlb-pt-val">' + grPts + ' pts</span>' +
