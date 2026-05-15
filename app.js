@@ -11361,7 +11361,7 @@ document.addEventListener('visibilitychange', function() {
                 _wlbLaneCard('MEM', entry.memSold + '/' + entry.memOpps + (entry.memOpps ? ' \u00b7 ' + memPct + '%' : ''), pts.memLane != null ? pts.memLane : pts.memPts, 20, '#a855f7') +
                 _wlbLaneCard('LEAD', String(weekLeads), pts.leadLane != null ? pts.leadLane : 0, 20, '#06b6d4') +
                 _wlbLaneCard('INST', weekInstalls + ' \u00b7 ' + fmtMoney(weekInstRev), pts.instLane != null ? pts.instLane : pts.instPts, 20, '#f59e0b') +
-                _wlbLaneCard('GR\u2605', '\u2013', pts.grLane != null ? pts.grLane : 0, 10, '#FFD700') +
+                _wlbLaneCard('GR\u2605', String((typeof entry.grCount === 'number' ? entry.grCount : (typeof googleReviews !== 'undefined' && googleReviews[entry.short || entry.name] ? googleReviews[entry.short || entry.name].count : 0))), pts.grLane != null ? pts.grLane : 0, 10, '#FFD700') +
               '</div>' +
               '<div style="margin-top:10px;padding:10px 14px;background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;color:#cbd5e1;">' +
                 '<b>Total Weekly Pts:</b> <span style="color:#FFD700;font-weight:700;">' + pts.total + '</span> / 110' +
@@ -14287,8 +14287,20 @@ document.addEventListener('visibilitychange', function() {
           statsLine += '<strong>$' + st.overview.revenue.toLocaleString() + '</strong> rev';
           statsLine += ' \u2022 <strong>' + st.nexstar.conversion_rate + '%</strong> conv';
         }
+        // v219.16: show "X wk / Y MTD" reviews \u2014 week count comes from override store, MTD from googleReviews map.
+        var _wkRev = 0;
+        try {
+          var _todayIso = (new Date()).toISOString().slice(0,10);
+          var _wkEnd = (typeof ipWeekEndingSat === 'function') ? ipWeekEndingSat(_todayIso) : null;
+          var _wkStart = _wkEnd && (typeof ipWeekStartMonStr === 'function') ? ipWeekStartMonStr(_wkEnd) : null;
+          var _store = (typeof ipServiceTechOverrides === 'function') ? ipServiceTechOverrides() : null;
+          var _key = (t.short || '').toLowerCase();
+          if (_store && _wkStart && _store.weeks && _store.weeks[_wkStart] && _store.weeks[_wkStart][_key] && typeof _store.weeks[_wkStart][_key].weekReviews === 'number') {
+            _wkRev = _store.weeks[_wkStart][_key].weekReviews;
+          }
+        } catch(e) {}
         if (gr) {
-          statsLine += ' \u2022 <strong>' + gr.count + '</strong> reviews';
+          statsLine += ' \u2022 <strong>' + _wkRev + '</strong> wk / <strong>' + gr.count + '</strong> MTD \u2b50';
         }
 
         var badges = getAchievements(t);
