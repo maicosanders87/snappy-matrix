@@ -8265,14 +8265,13 @@ document.addEventListener('visibilitychange', function() {
       html += '</div>';
 
       // v219.00: Sub-tab strip — 4 tabs: My Payout / Installers / Service Techs / TGL Manager
-      // v219.03: + Tech View (PIN-locked, per-tech personal payout view)
+      // v219.06: Tech View moved to top-level left-nav tab (no longer a Payout sub-tab)
       html += '<div class="ip-subtabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:6px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;">';
       var subTabs = [
         { id: 'mypayout',     label: '\ud83d\udc54 My Payout',     hint: 'Your manager cut (0.5%)' },
         { id: 'installers',   label: '\ud83d\udc77 Installers',     hint: 'Thomas + Terrell + bulk entry' },
         { id: 'servicetechs', label: '\ud83d\udd27 Service Techs',  hint: 'Tech payout (3% + leads)' },
-        { id: 'tgl',          label: '\ud83c\udfaf TGL Manager',    hint: 'Sales + commission' },
-        { id: 'techview',     label: '\ud83d\udc64 Tech View',      hint: 'PIN-locked individual view' }
+        { id: 'tgl',          label: '\ud83c\udfaf TGL Manager',    hint: 'Sales + commission' }
       ];
       subTabs.forEach(function(t){
         var on = (t.id === activeTab);
@@ -8295,9 +8294,6 @@ document.addEventListener('visibilitychange', function() {
         catch(e) { console.warn('Service Techs section render failed', e); }
       } else if (activeTab === 'installers') {
         html += _ipRenderInstallersTab(weekJobs, byDate, selectedWeek, weekStart, weekCount, weekTotal, totalsByInstaller, data, todayIso);
-      } else if (activeTab === 'techview') {
-        try { html += ipRenderTechViewTab(selectedWeek); }
-        catch(e) { console.warn('Tech view tab render failed', e); }
       }
 
       // Paint into all containers
@@ -8315,10 +8311,9 @@ document.addEventListener('visibilitychange', function() {
     window.renderInstallPay = renderInstallPay;
 
     // v219.00: Switch the active Payout sub-tab.
-    // v219.03: + 'techview'
     function ipSwitchSubTab(tabId) {
       try {
-        if (['mypayout','installers','servicetechs','tgl','techview'].indexOf(tabId) === -1) return;
+        if (['mypayout','installers','servicetechs','tgl'].indexOf(tabId) === -1) return;
         localStorage.setItem('snappy_ip_active_tab_v1', tabId);
         ['installpay-content', 'installpay-content-mgr'].forEach(function(id){
           var el = document.getElementById(id);
@@ -9987,12 +9982,12 @@ document.addEventListener('visibilitychange', function() {
     }
     window.ipRenderServiceTechsSection = ipRenderServiceTechsSection;
 
-    // v219.03 → v219.05: Tech View tab — per-tech personal payout view.
-    //   - v219.05: OPEN ACCESS mode — click tab → prompted to pick which tech you are
-    //     (no PIN yet). Selection cached in sessionStorage so they don't have to pick
-    //     every render. Each tech sees ONLY their own row — no team totals, no other techs.
-    //   - Future: when PIN list is in, ipTechViewPickerOpen() will swap to a PIN prompt
-    //     instead of an open dropdown.
+    // v219.03 → v219.05 → v219.06: Tech View tab — per-tech personal payout view.
+    //   - v219.06: Promoted to standalone top-level left-nav tab (was a Payout sub-tab).
+    //     Renders into #techview-content via renderTechViewStandalone().
+    //   - v219.05: OPEN ACCESS mode — picker prompts which tech you are; no PIN yet.
+    //     Selection cached in sessionStorage. Each tech sees ONLY their own row.
+    //   - Future: PIN swap-in once roster of PINs is finalized.
     function ipRenderTechViewTab(weekEndingSat) {
       var html = '';
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:24px;margin-bottom:14px;">';
@@ -10078,12 +10073,43 @@ document.addEventListener('visibilitychange', function() {
       return h;
     }
 
-    // v219.03/v219.05: Logout clears selection so a different tech can pick.
+    // v219.03/v219.05/v219.06: Logout clears selection so a different tech can pick.
+    // Re-renders the active container (standalone tab if visible, else Payout sub-tab).
     function ipTechViewLogout() {
       try { sessionStorage.removeItem('snappy_tech_view_active'); } catch(e) {}
-      renderInstallPay();
+      try {
+        if (typeof renderTechViewStandalone === 'function' &&
+            document.getElementById('view-techview') &&
+            document.getElementById('view-techview').classList.contains('active')) {
+          renderTechViewStandalone();
+          return;
+        }
+      } catch(e) {}
+      try { renderInstallPay(); } catch(e) {}
     }
     window.ipTechViewLogout = ipTechViewLogout;
+
+    // v219.06: Standalone Tech View tab renderer — paints ipRenderTechViewTab output
+    //   into the top-level #techview-content container. Uses the current Saturday
+    //   week-ending date so techs always see the active week. Manager can still see
+    //   week-picker via the Service Techs payout sub-tab.
+    function renderTechViewStandalone() {
+      try {
+        var el = document.getElementById('techview-content');
+        if (!el) return;
+        var weekEndingSat;
+        try {
+          // Use the current real-world Saturday week-ending (techs don't pick a week).
+          weekEndingSat = ipWeekEndingSat(new Date().toISOString().slice(0,10));
+        } catch(e) {
+          weekEndingSat = new Date().toISOString().slice(0,10);
+        }
+        el.innerHTML = ipRenderTechViewTab(weekEndingSat);
+      } catch(e) {
+        console.warn('renderTechViewStandalone failed', e);
+      }
+    }
+    window.renderTechViewStandalone = renderTechViewStandalone;
 
     // v218.99: Manager Payout (Maico) — 0.5% of weekly (install + service) revenue.
     //   - Install rev source: completed TGL rows w/ jobTotal > 0 in the week +
@@ -12970,6 +12996,11 @@ document.addEventListener('visibilitychange', function() {
               renderInstallPay();
             }
           } catch(e) { console.warn('renderInstallPay on tab switch failed:', e); }
+        }
+        // v219.06: Tech View — standalone, open access (picker), per-tech only.
+        if (v === 'techview') {
+          try { if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone(); }
+          catch(e) { console.warn('renderTechViewStandalone on tab switch failed:', e); }
         }
         // v202: Re-render Manager content when entering manager tab.
         if (v === 'manager') {
