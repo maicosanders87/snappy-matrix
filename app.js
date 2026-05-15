@@ -4476,6 +4476,7 @@ document.addEventListener('visibilitychange', function() {
                   : ((typeof v.memberships === 'number') ? v.memberships : 0);
       var memOpps = (typeof v.memOpps === 'number') ? v.memOpps : 0;
       return {
+        short: short,            // v219.17: needed for grCount lookup in _wlbPoints
         service: svc,
         installCount: instCount,
         installRev: instRev,
@@ -4576,15 +4577,25 @@ document.addEventListener('visibilitychange', function() {
       var instLane = Math.min(instCountPts + instRevPts + highPts + oneCallPts, 20);
 
       // === GR★ lane (v219.13: 5 pts per review, NO CAP) ===
-      // Replaced previous tiered scoring (3pts/review + avg★ bonus + volume bonus, cap 10).
-      // Pure linear: each Google review = 5 pts, no ceiling.
-      // v219.15: pull grCount from canonical googleReviews map when entry doesn't carry it explicitly.
+      // v219.17: lane uses THIS WEEK's review count (not MTD). Read from override store keyed by
+      // weekStart (Mon ISO). Falls back to entry.grCount, then MTD googleReviews count.
       var grCount = entry.grCount;
       if (typeof grCount !== 'number') {
         try {
-          var _grKey = entry.short || entry.name || (entry.tech && (entry.tech.short || entry.tech.name));
-          if (_grKey && typeof googleReviews !== 'undefined' && googleReviews[_grKey]) {
-            grCount = googleReviews[_grKey].count || 0;
+          var _grShort = (entry.short || (entry.tech && entry.tech.short) || '');
+          // Try weekly override store first
+          if (ctx && ctx.weekStart && _grShort && typeof ipServiceTechOverrides === 'function') {
+            var _store = ipServiceTechOverrides();
+            if (_store && _store.weeks && _store.weeks[ctx.weekStart] && _store.weeks[ctx.weekStart][_grShort] && typeof _store.weeks[ctx.weekStart][_grShort].weekReviews === 'number') {
+              grCount = _store.weeks[ctx.weekStart][_grShort].weekReviews;
+            }
+          }
+          // If ctx.weekStart not provided, derive from entry's weekStart if present
+          if (typeof grCount !== 'number' && entry.weekStart && _grShort && typeof ipServiceTechOverrides === 'function') {
+            var _store2 = ipServiceTechOverrides();
+            if (_store2 && _store2.weeks && _store2.weeks[entry.weekStart] && _store2.weeks[entry.weekStart][_grShort] && typeof _store2.weeks[entry.weekStart][_grShort].weekReviews === 'number') {
+              grCount = _store2.weeks[entry.weekStart][_grShort].weekReviews;
+            }
           }
         } catch(e) {}
       }
@@ -9577,24 +9588,30 @@ document.addEventListener('visibilitychange', function() {
     window.ipServiceTechAddCustom = ipServiceTechAddCustom;
     window.ipServiceTechResetRow = ipServiceTechResetRow;
 
-    // v219.15: One-time seed of Google review counts for week of 2026-05-11.
+    // v219.17: One-time seed of Google review counts for week of 2026-05-11.
     // Source: data/reviews/snappy_reviews_attributed_2026-05-15.json (option_b_drop_ben_johnson).
-    // Idempotent \u2014 only seeds fields that haven't been manually edited yet.
-    (function _ipSeedReviewsV21915(){
+    // Idempotent \u2014 only seeds fields that haven't been manually edited yet. Uses TitleCase shorts to match roster.
+    (function _ipSeedReviewsV21917(){
       try {
-        var KEY = 'snappy_seed_reviews_v21915_done';
+        var KEY = 'snappy_seed_reviews_v21917_done';
         if (localStorage.getItem(KEY)) return;
         var ws = '2026-05-11';
         var seed = [
-          ['daniel', 5, 12],
-          ['dewone', 2,  8],
-          ['benji',  0,  4],
-          ['nick',   2,  2],
-          ['chris',  0,  0],
-          ['dee',    0,  0]
+          ['Daniel', 5, 12],
+          ['Dewone', 2,  8],
+          ['Benji',  0,  4],
+          ['Nick',   2,  2],
+          ['Chris',  0,  0],
+          ['Dee',    0,  0]
         ];
         var store = ipServiceTechOverrides();
         if (!store.weeks[ws]) store.weeks[ws] = {};
+        // Clean up old lowercase entries from v219.15 if present
+        ['daniel','dewone','benji','nick','chris','dee'].forEach(function(lc){
+          if (store.weeks[ws][lc]) {
+            try { delete store.weeks[ws][lc]; } catch(e) {}
+          }
+        });
         seed.forEach(function(r){
           var s = r[0], w = r[1], m = r[2];
           if (!store.weeks[ws][s]) store.weeks[ws][s] = {};
@@ -9603,8 +9620,8 @@ document.addEventListener('visibilitychange', function() {
         });
         ipServiceTechOverridesSave(store);
         localStorage.setItem(KEY, new Date().toISOString());
-        console.log('[snappy v219.15] Seeded Google review counts for week ' + ws);
-      } catch(e) { console.warn('Review seed v219.15 failed', e); }
+        console.log('[snappy v219.17] Seeded Google review counts (TitleCase) for week ' + ws);
+      } catch(e) { console.warn('Review seed v219.17 failed', e); }
     })();
 
     // Prompt-driven add row.
@@ -10831,10 +10848,10 @@ document.addEventListener('visibilitychange', function() {
           } catch(e) {}
           return out;
         }
-        function _mergeTgl(entry, tgl) {
+        function _mergeTgl(entry, tgl, _short) {
           if (!entry && tgl.instCount === 0 && tgl.leadsCount === 0) return null;
           var base = entry ? Object.assign({}, entry) : {
-            service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0, total: 0
+            short: _short, service: 0, installCount: 0, installRev: 0, memSold: 0, memOpps: 0, total: 0
           };
           base.installCount = Math.max(base.installCount || 0, tgl.instCount);
           base.installRev   = Math.max(base.installRev   || 0, tgl.installRev || tgl.instRev);
@@ -10851,14 +10868,15 @@ document.addEventListener('visibilitychange', function() {
 
         // Build ranking rows (v145: rank by total points)
         var rows = roster.map(function(t) {
-          var rawEntry = _wlbReadEntry(weekData, t.short);
-          var rawPrev  = _wlbReadEntry(prevData, t.short);
+          var rawEntry = _wlbReadEntry(weekData, t.short, activeWeek);
+          var rawPrev  = _wlbReadEntry(prevData, t.short, prevWeek);
           var tgl = _tglWeekSummary(t.short, activeWeek);
           var tglP = _tglWeekSummary(t.short, prevWeek);
-          var entry = _mergeTgl(rawEntry, tgl);
-          var prevEntry = _mergeTgl(rawPrev, tglP);
-          var pts = entry ? _wlbPoints(entry) : null;
-          var prevPts = prevEntry ? _wlbPoints(prevEntry) : null;
+          var entry = _mergeTgl(rawEntry, tgl, t.short);
+          var prevEntry = _mergeTgl(rawPrev, tglP, t.short);
+          // v219.17: pass weekStart so GR\u2605 lane reads weekly review override
+          var pts = entry ? _wlbPoints(entry, { weekStart: activeWeek }) : null;
+          var prevPts = prevEntry ? _wlbPoints(prevEntry, { weekStart: prevWeek }) : null;
           var tier = 'C';
           try { var info = (typeof getTechTier === 'function') ? getTechTier(t) : null; if (info && info.tier) tier = info.tier; } catch(e) {}
           // v161: live composite-bonus pill next to name
@@ -11010,6 +11028,27 @@ document.addEventListener('visibilitychange', function() {
                   '<span class="wlb-pt-raw">' + memRaw + '</span>' +
                   (p.memTier !== '\u2013' ? '<span class="wlb-pt-tier tier-' + p.memTier + '">' + p.memTier + '</span>' : '') +
                   '<span class="wlb-pt-val">' + p.memPts + ' pts</span>' +
+                '</span>'
+              );
+              // v219.17: GR\u2605 pill \u2014 weekly Google reviews (from override store) and pts (5 per review, no cap)
+              var _wkRev = 0, _mtdRev = 0;
+              try {
+                var _key = r.short || '';
+                var _store = (typeof ipServiceTechOverrides === 'function') ? ipServiceTechOverrides() : null;
+                if (_store && _store.weeks && _store.weeks[activeWeek] && _store.weeks[activeWeek][_key] && typeof _store.weeks[activeWeek][_key].weekReviews === 'number') {
+                  _wkRev = _store.weeks[activeWeek][_key].weekReviews;
+                }
+                if (typeof googleReviews !== 'undefined' && googleReviews[r.short]) {
+                  _mtdRev = googleReviews[r.short].count || 0;
+                }
+              } catch(e) {}
+              var grPts = (p.grLane != null) ? p.grLane : (_wkRev * 5);
+              var grRaw = _wkRev + ' wk \u00b7 ' + _mtdRev + ' MTD';
+              pills.push(
+                '<span class="wlb-pt-pill gr" title="Google reviews: 5 pts per review this week, no cap. Weekly count from Service Techs override; MTD from review archive." style="background:linear-gradient(135deg,rgba(255,215,0,0.18),rgba(255,193,7,0.12));border:1px solid rgba(255,215,0,0.45);color:#ffd700;">' +
+                  '<span class="wlb-pt-label">GR\u2605</span>' +
+                  '<span class="wlb-pt-raw">' + grRaw + '</span>' +
+                  '<span class="wlb-pt-val">' + grPts + ' pts</span>' +
                 '</span>'
               );
               pillsHTML = '<div class="wlb-pt-pills">' + pills.join('') + '</div>';
@@ -14294,7 +14333,7 @@ document.addEventListener('visibilitychange', function() {
           var _wkEnd = (typeof ipWeekEndingSat === 'function') ? ipWeekEndingSat(_todayIso) : null;
           var _wkStart = _wkEnd && (typeof ipWeekStartMonStr === 'function') ? ipWeekStartMonStr(_wkEnd) : null;
           var _store = (typeof ipServiceTechOverrides === 'function') ? ipServiceTechOverrides() : null;
-          var _key = (t.short || '').toLowerCase();
+          var _key = t.short || '';
           if (_store && _wkStart && _store.weeks && _store.weeks[_wkStart] && _store.weeks[_wkStart][_key] && typeof _store.weeks[_wkStart][_key].weekReviews === 'number') {
             _wkRev = _store.weeks[_wkStart][_key].weekReviews;
           }
