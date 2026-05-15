@@ -9664,29 +9664,31 @@ document.addEventListener('visibilitychange', function() {
       return out;
     }
 
-    // ===== v219.10: Per-tech tiered install pay =====
-    // Chris has a tiered install-pay structure:
-    //   - First $40,000 of weekly install rev: 5%
-    //   - Anything over $40,000:               3%
+    // ===== v219.11: Per-tech install pay (Chris milestone bonus) =====
+    // Chris install pay structure:
+    //   - Under $40,000 weekly install rev   -> flat 3% of rev (no bonus yet)
+    //   - At/above $40,000 weekly install rev -> 5% on the first $40k (milestone unlocked),
+    //                                            then 3% on anything over $40k
     // Everyone else: flat 3%.
     //
     // Examples (Chris):
-    //   $20,000  -> 5% \u00d7 20,000             = $1,000.00
-    //   $40,000  -> 5% \u00d7 40,000             = $2,000.00
+    //   $20,000  -> 3% \u00d7 20,000                    = $600.00   (under threshold)
+    //   $39,999  -> 3% \u00d7 39,999                    = $1,199.97 (under threshold)
+    //   $40,000  -> 5% \u00d7 40,000                    = $2,000.00 (threshold hit, bonus unlocked)
     //   $50,000  -> 5% \u00d7 40,000 + 3% \u00d7 10,000 = $2,300.00
     //   $75,000  -> 5% \u00d7 40,000 + 3% \u00d7 35,000 = $3,050.00
     function ipComputeInstallPay(short, weekInstallRev) {
       var rev = Number(weekInstallRev) || 0;
       if (short === 'Chris') {
         var TIER1_CAP = 40000;
-        if (rev <= TIER1_CAP) return rev * 0.05;
+        if (rev < TIER1_CAP) return rev * 0.03;
         return TIER1_CAP * 0.05 + (rev - TIER1_CAP) * 0.03;
       }
       return rev * 0.03;
     }
     // Human-readable rate label for a tech (used in tooltips / sub-labels).
     function ipInstallPayLabel(short) {
-      if (short === 'Chris') return '5% up to $40k, 3% over';
+      if (short === 'Chris') return '3% under $40k \u2192 5% on first $40k once hit, 3% over';
       return '3%';
     }
     window.ipComputeInstallPay = ipComputeInstallPay;
