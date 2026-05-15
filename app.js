@@ -8218,6 +8218,12 @@ document.addEventListener('visibilitychange', function() {
         totalsByInstaller[j.installer].total += c.total;
       });
 
+      // v219.00: Active sub-tab persistence — default 'mypayout' (manager view)
+      var IP_TAB_KEY = 'snappy_ip_active_tab_v1';
+      var activeTab = (containers[0] && containers[0].dataset.activeTab) || (localStorage.getItem(IP_TAB_KEY) || 'mypayout');
+      if (['mypayout','installers','servicetechs','tgl'].indexOf(activeTab) === -1) activeTab = 'mypayout';
+      try { localStorage.setItem(IP_TAB_KEY, activeTab); } catch(e) {}
+
       var html = '';
       // v218.22: Cloud sync strip — automatic via Apps Script (no PAT, edits work on every device).
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;padding:10px 14px;background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;">';
@@ -8235,10 +8241,7 @@ document.addEventListener('visibilitychange', function() {
       html += '</div>';
       html += '</div>';
 
-      // v218.22: Manager-side TGL section — import + MTD totals + open/closed lists
-      try {
-        html += tglRenderManagerSection();
-      } catch(e) { console.warn('TGL manager section render failed', e); }
+      // (v218.22 TGL Manager section now lives in the 'TGL Manager' sub-tab — v219.00)
 
       // Top bar: lock button + week picker + actions
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:12px 14px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;">';
@@ -8257,10 +8260,79 @@ document.addEventListener('visibilitychange', function() {
       html += '<button onclick="ipOpenRateEditor()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;">Rate cards</button>';
       html += '<button onclick="ipExportPdf(\''+selectedWeek+'\')" style="background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">📄 Payroll PDF</button>';
       html += '<button onclick="ipChangePinPrompt()" style="background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Change PIN</button>';
-      html += '<button onclick="ipLock();renderInstallPay();" style="background:transparent;color:#dc2626;border:1px solid #7c2d2d;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;">🔒 Lock</button>';
+      html += '<button onclick="ipLock();renderInstallPay();" style="background:transparent;color:#dc2626;border:1px solid #7c2d2d;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer;">\ud83d\udd12 Lock</button>';
       html += '</div>';
       html += '</div>';
 
+      // v219.00: Sub-tab strip — 4 tabs: My Payout / Installers / Service Techs / TGL Manager
+      html += '<div class="ip-subtabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:6px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;">';
+      var subTabs = [
+        { id: 'mypayout',     label: '\ud83d\udc54 My Payout',     hint: 'Your manager cut (0.5%)' },
+        { id: 'installers',   label: '\ud83d\udc77 Installers',     hint: 'Thomas + Terrell + bulk entry' },
+        { id: 'servicetechs', label: '\ud83d\udd27 Service Techs',  hint: 'Tech payout (3% + leads)' },
+        { id: 'tgl',          label: '\ud83c\udfaf TGL Manager',    hint: 'Sales + commission' }
+      ];
+      subTabs.forEach(function(t){
+        var on = (t.id === activeTab);
+        var bg = on ? 'linear-gradient(135deg,#6366F1,#4F46E5)' : 'transparent';
+        var col = on ? '#fff' : '#94a3b8';
+        var bord = on ? '#6366F1' : '#1e3a5f';
+        html += '<button onclick="ipSwitchSubTab(\'' + t.id + '\')" style="flex:1;min-width:140px;background:' + bg + ';color:' + col + ';border:1px solid ' + bord + ';padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.18s;text-align:left;" title="' + t.hint + '">' + t.label + '<div style="font-size:10px;color:' + (on ? 'rgba(255,255,255,0.78)' : '#64748b') + ';font-weight:500;margin-top:2px;letter-spacing:0.2px;">' + t.hint + '</div></button>';
+      });
+      html += '</div>';
+
+      // v219.00: Tab content panels — only render the active tab's content
+      if (activeTab === 'mypayout') {
+        try { html += ipRenderMaicoPayoutSection(selectedWeek); }
+        catch(e) { console.warn('Maico payout section render failed', e); }
+      } else if (activeTab === 'tgl') {
+        try { html += tglRenderManagerSection(); }
+        catch(e) { console.warn('TGL manager section render failed', e); }
+      } else if (activeTab === 'servicetechs') {
+        try { html += ipRenderServiceTechsSection(selectedWeek); }
+        catch(e) { console.warn('Service Techs section render failed', e); }
+      } else if (activeTab === 'installers') {
+        html += _ipRenderInstallersTab(weekJobs, byDate, selectedWeek, weekStart, weekCount, weekTotal, totalsByInstaller, data, todayIso);
+      }
+
+      // Paint into all containers
+      containers.forEach(function(c){
+        c.dataset.activeTab = activeTab;
+        c.innerHTML = html;
+      });
+
+      // v218.10: After paint, refresh cloud status badge and pull if stale
+      try { ipCloudUpdateStatusBadge(); } catch(e) {}
+      try { ipCloudPullIfStale(); } catch(e) {}
+      return;
+
+    }
+    window.renderInstallPay = renderInstallPay;
+
+    // v219.00: Switch the active Payout sub-tab.
+    function ipSwitchSubTab(tabId) {
+      try {
+        if (['mypayout','installers','servicetechs','tgl'].indexOf(tabId) === -1) return;
+        localStorage.setItem('snappy_ip_active_tab_v1', tabId);
+        ['installpay-content', 'installpay-content-mgr'].forEach(function(id){
+          var el = document.getElementById(id);
+          if (el) el.dataset.activeTab = tabId;
+        });
+        if (typeof renderInstallPay === 'function') renderInstallPay();
+        // Scroll into view for smooth tab switch
+        var anchor = document.getElementById('installpay-content') || document.getElementById('installpay-content-mgr');
+        if (anchor && anchor.scrollIntoView) {
+          try { anchor.scrollIntoView({behavior:'smooth', block:'start'}); } catch(e) {}
+        }
+      } catch(e) { console.warn('ipSwitchSubTab failed', e); }
+    }
+    window.ipSwitchSubTab = ipSwitchSubTab;
+
+    // v219.00: Installers sub-tab body — week summary tiles + Thomas/Terrell
+    // dedicated sections + Mon–Sat sheet + Bulk grid + PDF import. Extracted
+    // verbatim from the original renderInstallPay monolith.
+    function _ipRenderInstallersTab(weekJobs, byDate, selectedWeek, weekStart, weekCount, weekTotal, totalsByInstaller, data, todayIso) {
+      var html = '';
       // Week summary tiles
       html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">';
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Week ending</div><div style="font-size:18px;font-weight:700;margin-top:4px;">'+selectedWeek+'</div></div>';
@@ -8438,14 +8510,9 @@ document.addEventListener('visibilitychange', function() {
       html += '<div id="ipImportPreview" style="margin-top:12px;"></div>';
       html += '</div>';
 
-      // Paint into all containers
-      containers.forEach(function(c){ c.innerHTML = html; });
-
-      // v218.10: After paint, refresh cloud status badge and pull if stale
-      try { ipCloudUpdateStatusBadge(); } catch(e) {}
-      try { ipCloudPullIfStale(); } catch(e) {}
+      return html;
     }
-    window.renderInstallPay = renderInstallPay;
+    window._ipRenderInstallersTab = _ipRenderInstallersTab;
 
     // ===========================================================================
     // v218.22: My Leads tab — each tech picks their name and sees their TGLs.
