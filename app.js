@@ -250,7 +250,7 @@ let coachName = localStorage.getItem('snappy_coach_name') || '';
 let editorName = localStorage.getItem('snappy_editor_name') || '';
 
 function applyViewMode() {
-  document.body.classList.remove('viewer-mode', 'manager-mode', 'coach-mode', 'editor-mode');
+  document.body.classList.remove('viewer-mode', 'manager-mode', 'coach-mode', 'editor-mode', 'tech-pin-locked');
   if (isManagerMode) {
     document.body.classList.add('manager-mode');
   } else if (isEditorMode) {
@@ -260,12 +260,38 @@ function applyViewMode() {
   } else {
     document.body.classList.add('viewer-mode');
   }
+  // v219.22: Tech PIN lockdown \u2014 if a tech is PIN-locked, add the body class
+  // that hides every nav tab/sub-tab/view except their Tech View, AND force the
+  // active view to be #view-techview so they can't be left on another tab.
+  var techLocked = '';
+  try { techLocked = sessionStorage.getItem('snappy_tech_pin_locked') || ''; } catch(e) {}
+  if (!techLocked) {
+    try { techLocked = localStorage.getItem('snappy_tech_pin_locked') || ''; } catch(e) {}
+    // Restore session lock on page refresh if localStorage has it.
+    if (techLocked) {
+      try { sessionStorage.setItem('snappy_tech_pin_locked', techLocked); } catch(e) {}
+      try { sessionStorage.setItem('snappy_tech_view_active', techLocked); } catch(e) {}
+    }
+  }
+  if (techLocked) {
+    document.body.classList.add('tech-pin-locked');
+    try {
+      document.querySelectorAll('.nav-tabs:not(#st-sub-tabs):not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs) .nav-tab').forEach(function(t){ t.classList.remove('active'); });
+      document.querySelectorAll('.view-section').forEach(function(s){ s.classList.remove('active'); });
+      var tvTab = document.querySelector('.nav-tab[data-view="techview"]');
+      var tvView = document.getElementById('view-techview');
+      if (tvTab) tvTab.classList.add('active');
+      if (tvView) tvView.classList.add('active');
+      if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone();
+    } catch(e) {}
+  }
   // Update header subtitle
   var sub = document.getElementById('headerSubtitle');
   if (sub) {
     if (isManagerMode) sub.textContent = 'Tech Skills Matrix \u2014 Manager View';
     else if (isEditorMode) sub.textContent = 'Tech Skills Matrix \u2014 Editor View (' + editorName + ')';
     else if (isCoachMode) sub.textContent = 'Tech Skills Matrix \u2014 Coach View (' + coachName + ')';
+    else if (techLocked) sub.textContent = 'Tech Skills Matrix \u2014 ' + techLocked + ' View';
     else sub.textContent = 'Tech Skills Matrix \u2014 Viewer Mode';
   }
   // Update lock icon (open vs closed)
@@ -519,17 +545,17 @@ function promptManagerPIN() {
     localStorage.removeItem('snappy_coach_name');
     localStorage.removeItem('snappy_editor_mode');
     localStorage.removeItem('snappy_editor_name');
-    // Pin this session to that tech's view.
+    // Pin this session to that tech's view. v219.22: persist to localStorage too
+    // so a page refresh keeps them locked (sessionStorage alone dies on hard reload
+    // in some mobile browsers, and we need the lock to survive refresh).
     try { sessionStorage.setItem('snappy_tech_view_active', techShort); } catch(e) {}
     try { sessionStorage.setItem('snappy_tech_pin_locked', techShort); } catch(e) {}
+    try { localStorage.setItem('snappy_tech_pin_locked', techShort); } catch(e) {}
     applyViewMode();
     silentSyncOnLogin();
-    // Switch to the Tech View tab so they immediately see their card.
-    try {
-      var techTab = document.querySelector('[data-view="techview"]');
-      if (techTab) techTab.click();
-      else if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone();
-    } catch(e) {}
+    // applyViewMode already activates the Tech View tab when locked, but call
+    // renderTechViewStandalone again here in case the DOM wasn't ready.
+    try { if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone(); } catch(e) {}
   } else {
     alert('Incorrect password.');
   }
@@ -10366,6 +10392,10 @@ document.addEventListener('visibilitychange', function() {
       try { sessionStorage.removeItem('snappy_tech_view_active'); } catch(e) {}
       // v219.21: Also clear the tech PIN lock so the next session can pick or PIN in fresh.
       try { sessionStorage.removeItem('snappy_tech_pin_locked'); } catch(e) {}
+      // v219.22: Clear the persistent lock too (was set on PIN entry).
+      try { localStorage.removeItem('snappy_tech_pin_locked'); } catch(e) {}
+      // Drop the body class immediately so the nav tabs reappear before reload.
+      try { document.body.classList.remove('tech-pin-locked'); } catch(e) {}
       // v219.09: Also fully lock Tech View so a non-manager would re-prompt for PIN.
       // Manager is always unlocked via isManagerMode, so this is harmless for mgr.
       try { if (typeof tvLock === 'function') tvLock(); } catch(e) {}
@@ -13360,6 +13390,10 @@ document.addEventListener('visibilitychange', function() {
     // ========== TAB NAVIGATION ==========
     // KPI card click navigation
     window.navigateToKpi = function(tabView, stSub) {
+      // v219.22: Tech PIN lockdown \u2014 block programmatic navigation away from Tech View.
+      var _tpl = '';
+      try { _tpl = sessionStorage.getItem('snappy_tech_pin_locked') || localStorage.getItem('snappy_tech_pin_locked') || ''; } catch(e) {}
+      if (_tpl && tabView !== 'techview') return;
       // Switch main tab
       var mainTab = document.querySelector('.nav-tab[data-view="' + tabView + '"]');
       if (mainTab) {
@@ -13398,6 +13432,13 @@ document.addEventListener('visibilitychange', function() {
 
     document.querySelectorAll('.nav-tabs:not(#st-sub-tabs):not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs) .nav-tab').forEach(tab => {
       tab.addEventListener('click', () => {
+        // v219.22: Tech PIN lockdown \u2014 if session is locked, hard-reject any nav
+        // away from Tech View even if someone tries to bypass the hidden CSS.
+        var _tpl = '';
+        try { _tpl = sessionStorage.getItem('snappy_tech_pin_locked') || localStorage.getItem('snappy_tech_pin_locked') || ''; } catch(e) {}
+        if (_tpl && tab.dataset.view !== 'techview') {
+          return;
+        }
         document.querySelectorAll('.nav-tabs:not(#st-sub-tabs):not(#as-sub-tabs):not(#sk-sub-tabs):not(#mgr-sub-tabs) .nav-tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
         tab.classList.add('active');

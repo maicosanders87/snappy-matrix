@@ -3561,6 +3561,22 @@
     .viewer-mode #dispAddTagBtn { display: none; }
     .viewer-mode #dispNewTag { display: none; }
     .viewer-mode .mgr-stat-editable { pointer-events: none; cursor: default; }
+
+    /* ========== v219.22: TECH PIN LOCKDOWN ==========
+       When a tech PINs in with their personal code, the session is locked
+       to ONLY their own Tech View card. Every other tab, sub-tab, and view
+       is hidden so they cannot peek at other techs' numbers. */
+    .tech-pin-locked .nav-tab { display: none !important; }
+    .tech-pin-locked .nav-tab[data-view="techview"] { display: inline-flex !important; }
+    .tech-pin-locked #st-sub-tabs,
+    .tech-pin-locked #as-sub-tabs,
+    .tech-pin-locked #sk-sub-tabs,
+    .tech-pin-locked #mgr-sub-tabs { display: none !important; }
+    .tech-pin-locked .view-section { display: none !important; }
+    .tech-pin-locked #view-techview { display: block !important; }
+    .tech-pin-locked #view-techview.active { display: block !important; }
+    /* Block lock-icon use so they can't bring up the PIN prompt again mid-session */
+    .tech-pin-locked .access-lock-btn { pointer-events: none; opacity: 0.4; }
     .access-lock-btn {
       display: inline-flex;
       align-items: center;
