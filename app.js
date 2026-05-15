@@ -237,6 +237,12 @@ const COACH_PINS = {
 const EDITOR_PINS = {
   'OPM': 'Judah'
 };
+// v219.21: Tech self-view PINs. Keyed by PIN, value is the tech's roster short
+// (TitleCase — must match keys in ipServiceTechMetrics). Entering a tech PIN
+// puts the app in viewer mode AND locks Tech View to that tech only.
+const TECH_PINS = {
+  '5269': 'Daniel'
+};
 let isManagerMode = true; // forced for testing
 let isCoachMode = localStorage.getItem('snappy_coach_mode') === 'true';
 let isEditorMode = localStorage.getItem('snappy_editor_mode') === 'true';
@@ -499,6 +505,31 @@ function promptManagerPIN() {
     localStorage.removeItem('snappy_editor_name');
     applyViewMode();
     silentSyncOnLogin();
+  } else if (TECH_PINS[pin]) {
+    // v219.21: Tech PIN \u2014 viewer mode + Tech View locked to that tech.
+    var techShort = TECH_PINS[pin];
+    isManagerMode = false;
+    isCoachMode = false;
+    isEditorMode = false;
+    coachName = '';
+    editorName = '';
+    localStorage.removeItem('snappy_mgr_mode');
+    localStorage.removeItem('snappy_mgr_name');
+    localStorage.removeItem('snappy_coach_mode');
+    localStorage.removeItem('snappy_coach_name');
+    localStorage.removeItem('snappy_editor_mode');
+    localStorage.removeItem('snappy_editor_name');
+    // Pin this session to that tech's view.
+    try { sessionStorage.setItem('snappy_tech_view_active', techShort); } catch(e) {}
+    try { sessionStorage.setItem('snappy_tech_pin_locked', techShort); } catch(e) {}
+    applyViewMode();
+    silentSyncOnLogin();
+    // Switch to the Tech View tab so they immediately see their card.
+    try {
+      var techTab = document.querySelector('[data-view="techview"]');
+      if (techTab) techTab.click();
+      else if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone();
+    } catch(e) {}
   } else {
     alert('Incorrect password.');
   }
@@ -10192,6 +10223,10 @@ document.addEventListener('visibilitychange', function() {
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:24px;margin-bottom:14px;">';
       var activeTech = '';
       try { activeTech = sessionStorage.getItem('snappy_tech_view_active') || ''; } catch(e) {}
+      // v219.21: If a tech PIN is locking the session, force their view regardless of stored selection.
+      var pinLocked = '';
+      try { pinLocked = sessionStorage.getItem('snappy_tech_pin_locked') || ''; } catch(e) {}
+      if (pinLocked) activeTech = pinLocked;
       if (!activeTech) {
         html += ipTechViewRenderPicker();
       } else {
@@ -10275,7 +10310,12 @@ document.addEventListener('visibilitychange', function() {
       // v219.09: Two-button action row \u2014 "Back to roster" returns to picker (keeps session
       //          unlocked so mgr can hop between techs). "Log out" still available as before.
       h += '<div style="display:flex;gap:6px;">';
-      h += '<button onclick="ipTechViewBack()" style="background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">\u2190 Back to roster</button>';
+      // v219.21: Hide 'Back to roster' when session is PIN-locked to a single tech.
+      var pinLockedView = '';
+      try { pinLockedView = sessionStorage.getItem('snappy_tech_pin_locked') || ''; } catch(e) {}
+      if (!pinLockedView) {
+        h += '<button onclick="ipTechViewBack()" style="background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">\u2190 Back to roster</button>';
+      }
       h += '<button onclick="ipTechViewLogout()" style="background:transparent;color:#dc2626;border:1px solid #7c2d2d;padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;">\ud83d\udd12 Log out</button>';
       h += '</div>';
       h += '</div>';
@@ -10324,6 +10364,8 @@ document.addEventListener('visibilitychange', function() {
     // Re-renders the active container (standalone tab if visible, else Payout sub-tab).
     function ipTechViewLogout() {
       try { sessionStorage.removeItem('snappy_tech_view_active'); } catch(e) {}
+      // v219.21: Also clear the tech PIN lock so the next session can pick or PIN in fresh.
+      try { sessionStorage.removeItem('snappy_tech_pin_locked'); } catch(e) {}
       // v219.09: Also fully lock Tech View so a non-manager would re-prompt for PIN.
       // Manager is always unlocked via isManagerMode, so this is harmless for mgr.
       try { if (typeof tvLock === 'function') tvLock(); } catch(e) {}
