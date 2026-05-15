@@ -9869,13 +9869,16 @@ document.addEventListener('visibilitychange', function() {
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Week\'s Install Rev (Paired)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Week\'s Leads Set</th>';
       // v218.78: payout columns — 3% of week's service rev + $25/lead set.
+      // v219.01: + 3% of week's install rev (paired).
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;" title="3% of Week\u2019s Service Rev">Rev Pay (3%)</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;" title="3% of Week\u2019s Install Rev (Paired)">Install Pay (3%)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fbbf24;" title="$25 per lead set">Lead Pay ($25 ea)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;" title="Rev Pay + Lead Pay for the week">Total Payout</th>';
       html += '<th style="text-align:center;padding:8px;border:1px solid #1e3a5f;">Actions</th>';
       html += '</tr></thead><tbody>';
-      var teamMem = 0, teamRev = 0, teamInst = 0, teamLeads = 0, teamRevPay = 0, teamLeadPay = 0;
+      var teamMem = 0, teamRev = 0, teamInst = 0, teamLeads = 0, teamRevPay = 0, teamInstPay = 0, teamLeadPay = 0;
       var SVC_REV_PCT = 0.03;
+      var INST_REV_PCT = 0.03;
       var LEAD_PAY = 25;
       var ws = res.weekStart;
       var inputStyle = 'width:90px;padding:4px 6px;background:#0b1426;border:1px solid #1e3a5f;color:#f1f5f9;border-radius:4px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;';
@@ -9909,11 +9912,14 @@ document.addEventListener('visibilitychange', function() {
         html += '<td style="text-align:right;padding:4px;border:1px solid #1e3a5f;"><input type="number" min="0" step="0.01" value="' + (m.weekInstallRev.toFixed(2)) + '" onchange="ipServiceTechFieldEdit(\'' + ws + '\',\'' + short + '\',\'weekInstallRev\',this)" style="' + inputStyle + 'color:#3B82F6;"></td>';
         html += '<td style="text-align:right;padding:4px;border:1px solid #1e3a5f;"><input type="number" min="0" step="1" value="' + m.weekLeadsSet + '" onchange="ipServiceTechFieldEdit(\'' + ws + '\',\'' + short + '\',\'weekLeadsSet\',this)" style="' + inputStyle + 'width:70px;"></td>';
         // v218.78: computed payout cells — always derived, never edited directly.
+        // v219.01: + Install Pay = 3% of weekInstallRev (paired).
         var revPay = (m.weekRev || 0) * SVC_REV_PCT;
+        var instPay = (m.weekInstallRev || 0) * INST_REV_PCT;
         var leadPay = (m.weekLeadsSet || 0) * LEAD_PAY;
-        var totalPayout = revPay + leadPay;
-        teamRevPay += revPay; teamLeadPay += leadPay;
+        var totalPayout = revPay + instPay + leadPay;
+        teamRevPay += revPay; teamInstPay += instPay; teamLeadPay += leadPay;
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;font-variant-numeric:tabular-nums;">$' + revPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
+        html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + instPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fbbf24;font-variant-numeric:tabular-nums;">$' + leadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;font-weight:700;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.05);">$' + totalPayout.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
         html += '<td style="text-align:center;padding:4px;border:1px solid #1e3a5f;white-space:nowrap;">';
@@ -9930,7 +9936,7 @@ document.addEventListener('visibilitychange', function() {
         var weekOv = (ov.weeks && ov.weeks[ws]) || {};
         var deletedShorts = Object.keys(weekOv).filter(function(k){ return weekOv[k] && weekOv[k].__deleted; });
         if (deletedShorts.length) {
-          html += '<tr><td colspan="9" style="padding:8px;border:1px solid #1e3a5f;background:#0b1426;color:#94a3b8;font-size:11px;">';
+          html += '<tr><td colspan="10" style="padding:8px;border:1px solid #1e3a5f;background:#0b1426;color:#94a3b8;font-size:11px;">';
           html += 'Hidden this week: ';
           deletedShorts.forEach(function(short, idx){
             var label = (weekOv[short].__display) || short;
@@ -9946,8 +9952,9 @@ document.addEventListener('visibilitychange', function() {
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + (teamInst).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;font-variant-numeric:tabular-nums;">' + teamLeads + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;font-variant-numeric:tabular-nums;">$' + teamRevPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
+      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + teamInstPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fbbf24;font-variant-numeric:tabular-nums;">$' + teamLeadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
-      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.10);">$' + (teamRevPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
+      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.10);">$' + (teamRevPay + teamInstPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="padding:8px;border:1px solid #1e3a5f;"></td>';
       html += '</tr>';
       html += '</tbody></table></div>';
@@ -10154,9 +10161,10 @@ document.addEventListener('visibilitychange', function() {
       var roster = ipServiceTechRoster();
       function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
       // v218.78: include payout columns in PDF.
-      var SVC_REV_PCT = 0.03, LEAD_PAY = 25;
+      // v219.01: + Install Pay (3% of weekInstallRev paired).
+      var SVC_REV_PCT = 0.03, INST_REV_PCT = 0.03, LEAD_PAY = 25;
       var rows = '';
-      var teamMem = 0, teamRev = 0, teamInst = 0, teamLeads = 0, teamRevPay = 0, teamLeadPay = 0;
+      var teamMem = 0, teamRev = 0, teamInst = 0, teamLeads = 0, teamRevPay = 0, teamInstPay = 0, teamLeadPay = 0;
       // Include any extra metrics keys from overrides not in roster (e.g. custom shorts).
       var rosterShorts = roster.map(function(r){ return r.short; });
       Object.keys(res.metrics).forEach(function(k){ if (rosterShorts.indexOf(k) === -1) rosterShorts.push(k); });
@@ -10168,9 +10176,10 @@ document.addEventListener('visibilitychange', function() {
         teamInst += m.weekInstallRev;
         teamLeads += m.weekLeadsSet;
         var revPay = (m.weekRev || 0) * SVC_REV_PCT;
+        var instPay = (m.weekInstallRev || 0) * INST_REV_PCT;
         var leadPay = (m.weekLeadsSet || 0) * LEAD_PAY;
-        var totalPay = revPay + leadPay;
-        teamRevPay += revPay; teamLeadPay += leadPay;
+        var totalPay = revPay + instPay + leadPay;
+        teamRevPay += revPay; teamInstPay += instPay; teamLeadPay += leadPay;
         rows += '<tr>'
           + '<td style="padding:6px;border:1px solid #888;font-weight:600;">' + escapeHtml(m.display) + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + m.monthMemSold + '</td>'
@@ -10178,6 +10187,7 @@ document.addEventListener('visibilitychange', function() {
           + '<td style="text-align:right;padding:6px;border:1px solid #888;">$' + m.weekInstallRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + m.weekLeadsSet + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#047857;">$' + revPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
+          + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#1d4ed8;">$' + instPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#b45309;">$' + leadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;font-weight:700;background:#f0fdf4;">$' + totalPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
           + '</tr>';
@@ -10189,8 +10199,9 @@ document.addEventListener('visibilitychange', function() {
         + '<td style="text-align:right;padding:6px;border:1px solid #888;">$' + teamInst.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
         + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + teamLeads + '</td>'
         + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#047857;">$' + teamRevPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
+        + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#1d4ed8;">$' + teamInstPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
         + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#b45309;">$' + teamLeadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
-        + '<td style="text-align:right;padding:6px;border:1px solid #888;background:#dcfce7;">$' + (teamRevPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
+        + '<td style="text-align:right;padding:6px;border:1px solid #888;background:#dcfce7;">$' + (teamRevPay + teamInstPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
         + '</tr>';
       var doc = '<html><head><title>Service Techs \u2014 Week Ending ' + weekEndingSat + '</title>'
         + '<style>body{font-family:Arial,sans-serif;color:#000;margin:24px;}h1{font-size:18pt;margin:0;}h2{font-size:13pt;margin:8px 0;}table{width:100%;border-collapse:collapse;margin-top:12px;}td,th{border:1px solid #888;padding:6px;font-size:10pt;}th{background:#eee;text-align:left;}@media print{body{margin:12mm;}}</style>'
@@ -10205,7 +10216,7 @@ document.addEventListener('visibilitychange', function() {
               + '<div><b>Week Install Rev (Paired):</b> $' + teamInst.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>'
               + '<div><b>Week Leads Set:</b> ' + teamLeads + '</div>'
               + '<div><b>Month Memberships Sold:</b> ' + teamMem + '</div>'
-              + '<div style="margin-top:6px;border-top:1px solid #444;padding-top:4px;"><b>Team Total Payout:</b> $' + (teamRevPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>'
+              + '<div style="margin-top:6px;border-top:1px solid #444;padding-top:4px;"><b>Team Total Payout:</b> $' + (teamRevPay + teamInstPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>'
             + '</div>'
           + '</div>'
           + '<table><thead><tr>'
@@ -10215,6 +10226,7 @@ document.addEventListener('visibilitychange', function() {
             + '<th style="text-align:right;">Week\'s Install Rev (Paired)</th>'
             + '<th style="text-align:right;">Week\'s Leads Set</th>'
             + '<th style="text-align:right;">Rev Pay (3%)</th>'
+            + '<th style="text-align:right;">Install Pay (3%)</th>'
             + '<th style="text-align:right;">Lead Pay ($25 ea)</th>'
             + '<th style="text-align:right;">Total Payout</th>'
           + '</tr></thead><tbody>' + rows + '</tbody></table>'
@@ -10223,7 +10235,7 @@ document.addEventListener('visibilitychange', function() {
             + 'Week\'s Service Rev = tech-driven service revenue logged for the week. '
             + 'Week\'s Install Rev (Paired) = install $ tied to a TGL the tech generated (Brayden-installed or completed in-week). '
             + 'Week\'s Leads Set = TGL flips generated in-week by the tech. '
-            + 'Rev Pay = 3% of Week\'s Service Rev. Lead Pay = $25 \u00d7 Week\'s Leads Set. Total Payout = Rev Pay + Lead Pay.'
+            + 'Rev Pay = 3% of Week\'s Service Rev. Install Pay = 3% of Week\'s Install Rev (Paired). Lead Pay = $25 \u00d7 Week\'s Leads Set. Total Payout = Rev Pay + Install Pay + Lead Pay.'
           + '</div>'
           + '<div style="margin-top:20px;font-size:9pt;color:#666;">Generated by Snappy Matrix \u00b7 Submitted by Mark Sanders \u00b7 ' + new Date().toISOString().slice(0,10) + '</div>'
         + '</body></html>';
