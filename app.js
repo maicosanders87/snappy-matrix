@@ -10035,9 +10035,9 @@ document.addEventListener('visibilitychange', function() {
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;" title="3% of Week\u2019s Install Rev (Paired) \u2014 same for everyone">Install (3%)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#a78bfa;" title="$25 per membership sold this week">Mem ($25)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fbbf24;" title="$25 per lead set">Lead ($25)</th>';
-      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fb923c;" title="$15 per Google review this week">Review ($15)</th>';
-      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#facc15;" title="Chris only: 2% of MTD install rev over $40k. Recalculates as the month progresses.">MTD Bonus</th>';
-      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;" title="Rev + Install + Mem + Lead + Review + MTD Bonus for the week">Total</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fb923c;" title="$15 per Google review (MTD count drives payout)">Review ($15)</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#facc15;" title="Chris only: 2% of MTD install rev over $40k. Recalculates as the month progresses. Paid monthly, separate from weekly total.">MTD Bonus</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;" title="Rev + Install + Mem + Lead + Review for the week (MTD Bonus paid separately)">Total</th>';
       html += '</tr></thead><tbody>';
       // v219.14: Team totals — separate monthly + weekly accumulators.
       var teamMonthMem = 0, teamMonthInst = 0, teamMonthLeads = 0, teamMonthReviews = 0;
@@ -10107,8 +10107,10 @@ document.addEventListener('visibilitychange', function() {
         var leadPay = (m.weekLeadsSet || 0) * LEAD_PAY;
         // v219.18: Review pay calculated on MONTHLY count (monthReviews), not weekly.
         var reviewPay = monthReviews * REVIEW_PAY;
+        // v219.19: Chris MTD install bonus is paid MONTHLY, NOT rolled into weekly Total Payout.
+        // The bonus cell remains visible as a separate tracked column.
         var mtdBonus = (typeof ipComputeMonthlyInstallBonus === 'function') ? ipComputeMonthlyInstallBonus(short, monthInstallRev) : 0;
-        var totalPayout = revPay + instPay + memPay + leadPay + reviewPay + mtdBonus;
+        var totalPayout = revPay + instPay + memPay + leadPay + reviewPay;
         teamRevPay += revPay; teamInstPay += instPay; teamMemPay += memPay; teamLeadPay += leadPay; teamReviewPay += reviewPay; teamMtdBonus += mtdBonus;
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;font-variant-numeric:tabular-nums;">$' + revPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + instPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
@@ -10260,9 +10262,10 @@ document.addEventListener('visibilitychange', function() {
       var instPay = ipComputeInstallPay(techShort, m.weekInstallRev || 0);
       var memPay = weekMemSold * 25;   // v219.13: $25/membership
       var leadPay = (m.weekLeadsSet || 0) * 25;
-      var reviewPay = weekReviews * 15; // v219.13: $15/Google review
+      var reviewPay = monthReviews * 15; // v219.18: \$15/Google review (MTD count drives payout)
+      // v219.19: MTD install bonus excluded from weekly total (paid monthly, tracked separately).
       var mtdBonus = (typeof ipComputeMonthlyInstallBonus === 'function') ? ipComputeMonthlyInstallBonus(techShort, monthInstallRev) : 0;
-      var total = revPay + instPay + memPay + leadPay + reviewPay + mtdBonus;
+      var total = revPay + instPay + memPay + leadPay + reviewPay;
       var h = '';
       h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">';
       h += '<div style="font-size:16px;font-weight:700;">\ud83d\udc64 ' + m.display + ' \u00b7 Week of ' + res.weekStart + ' \u2192 ' + res.weekEnd + '</div>';
@@ -10670,8 +10673,9 @@ document.addEventListener('visibilitychange', function() {
         var leadPay = (m.weekLeadsSet || 0) * LEAD_PAY;
         // v219.18: Review pay calculated on MONTHLY count (monthReviews), not weekly.
         var reviewPay = monthReviews * REVIEW_PAY;
+        // v219.19: MTD install bonus excluded from weekly total (paid monthly, tracked separately).
         var mtdBonus = (typeof ipComputeMonthlyInstallBonus === 'function') ? ipComputeMonthlyInstallBonus(short, monthInstallRev) : 0;
-        var totalPay = revPay + instPay + memPay + leadPay + reviewPay + mtdBonus;
+        var totalPay = revPay + instPay + memPay + leadPay + reviewPay;
         teamRevPay += revPay; teamInstPay += instPay; teamMemPay += memPay; teamLeadPay += leadPay; teamReviewPay += reviewPay; teamMtdBonus += mtdBonus;
         rows += '<tr>'
           + '<td style="padding:6px;border:1px solid #888;font-weight:600;">' + escapeHtml(m.display) + '</td>'
