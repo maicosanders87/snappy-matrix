@@ -9664,6 +9664,34 @@ document.addEventListener('visibilitychange', function() {
       return out;
     }
 
+    // ===== v219.10: Per-tech tiered install pay =====
+    // Chris has a tiered install-pay structure:
+    //   - First $40,000 of weekly install rev: 5%
+    //   - Anything over $40,000:               3%
+    // Everyone else: flat 3%.
+    //
+    // Examples (Chris):
+    //   $20,000  -> 5% \u00d7 20,000             = $1,000.00
+    //   $40,000  -> 5% \u00d7 40,000             = $2,000.00
+    //   $50,000  -> 5% \u00d7 40,000 + 3% \u00d7 10,000 = $2,300.00
+    //   $75,000  -> 5% \u00d7 40,000 + 3% \u00d7 35,000 = $3,050.00
+    function ipComputeInstallPay(short, weekInstallRev) {
+      var rev = Number(weekInstallRev) || 0;
+      if (short === 'Chris') {
+        var TIER1_CAP = 40000;
+        if (rev <= TIER1_CAP) return rev * 0.05;
+        return TIER1_CAP * 0.05 + (rev - TIER1_CAP) * 0.03;
+      }
+      return rev * 0.03;
+    }
+    // Human-readable rate label for a tech (used in tooltips / sub-labels).
+    function ipInstallPayLabel(short) {
+      if (short === 'Chris') return '5% up to $40k, 3% over';
+      return '3%';
+    }
+    window.ipComputeInstallPay = ipComputeInstallPay;
+    window.ipInstallPayLabel   = ipInstallPayLabel;
+
     function ipServiceTechMetrics(weekEndingSat) {
       var weekStart = ipWeekStartMonStr(weekEndingSat);
       var weekStartIso = weekStart;
@@ -9881,7 +9909,8 @@ document.addEventListener('visibilitychange', function() {
       // v219.01: + 3% of week's install rev (paired).
       // v219.02: + $15 per membership sold this week.
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;" title="3% of Week\u2019s Service Rev">Rev Pay (3%)</th>';
-      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;" title="3% of Week\u2019s Install Rev (Paired)">Install Pay (3%)</th>';
+      // v219.10: Header label generalized; Chris has tiered 5%/3%. Tooltip explains.
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;" title="3% of Week\u2019s Install Rev (Paired). Chris: 5% on first $40k, 3% over.">Install Pay</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#a78bfa;" title="$15 per membership sold this week">Mem Pay ($15 ea)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fbbf24;" title="$25 per lead set">Lead Pay ($25 ea)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;" title="Rev Pay + Lead Pay for the week">Total Payout</th>';
@@ -9930,7 +9959,8 @@ document.addEventListener('visibilitychange', function() {
         // v219.01: + Install Pay = 3% of weekInstallRev (paired).
         // v219.02: + Mem Pay = $15 × weekMemSold.
         var revPay = (m.weekRev || 0) * SVC_REV_PCT;
-        var instPay = (m.weekInstallRev || 0) * INST_REV_PCT;
+        // v219.10: Chris-tiered install pay (5% up to $40k, 3% over). Other techs flat 3%.
+        var instPay = ipComputeInstallPay(short, m.weekInstallRev || 0);
         var memPay = weekMemSold * MEM_PAY;
         var leadPay = (m.weekLeadsSet || 0) * LEAD_PAY;
         var totalPayout = revPay + instPay + memPay + leadPay;
@@ -10058,7 +10088,8 @@ document.addEventListener('visibilitychange', function() {
       }
       var weekMemSold = (m.weekMemSold != null ? Number(m.weekMemSold) : 0) || 0;
       var revPay = (m.weekRev || 0) * 0.03;
-      var instPay = (m.weekInstallRev || 0) * 0.03;
+      // v219.10: Chris-tiered install pay (5% up to $40k, 3% over). Other techs flat 3%.
+      var instPay = ipComputeInstallPay(techShort, m.weekInstallRev || 0);
       var memPay = weekMemSold * 15;
       var leadPay = (m.weekLeadsSet || 0) * 25;
       var total = revPay + instPay + memPay + leadPay;
@@ -10074,7 +10105,8 @@ document.addEventListener('visibilitychange', function() {
       h += '</div>';
       h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">';
       h += ipTechViewTile('Rev Pay (3%)', '$' + revPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#10B981', '$' + Math.round(m.weekRev).toLocaleString() + ' service rev');
-      h += ipTechViewTile('Install Pay (3%)', '$' + instPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#3B82F6', '$' + m.weekInstallRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' install rev');
+      // v219.10: Tile label reflects the tech's rate structure (Chris: tiered).
+      h += ipTechViewTile('Install Pay (' + ipInstallPayLabel(techShort) + ')', '$' + instPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#3B82F6', '$' + m.weekInstallRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' install rev');
       h += ipTechViewTile('Mem Pay ($15 ea)', '$' + memPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#a78bfa', weekMemSold + ' memberships sold');
       h += ipTechViewTile('Lead Pay ($25 ea)', '$' + leadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#fbbf24', m.weekLeadsSet + ' leads set');
       h += '</div>';
@@ -10437,7 +10469,8 @@ document.addEventListener('visibilitychange', function() {
         teamInst += m.weekInstallRev;
         teamLeads += m.weekLeadsSet;
         var revPay = (m.weekRev || 0) * SVC_REV_PCT;
-        var instPay = (m.weekInstallRev || 0) * INST_REV_PCT;
+        // v219.10: Chris-tiered install pay (5% up to $40k, 3% over). Other techs flat 3%.
+        var instPay = ipComputeInstallPay(short, m.weekInstallRev || 0);
         var memPay = weekMemSold * MEM_PAY;
         var leadPay = (m.weekLeadsSet || 0) * LEAD_PAY;
         var totalPay = revPay + instPay + memPay + leadPay;
