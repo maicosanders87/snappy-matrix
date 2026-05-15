@@ -4578,7 +4578,17 @@ document.addEventListener('visibilitychange', function() {
       // === GR★ lane (v219.13: 5 pts per review, NO CAP) ===
       // Replaced previous tiered scoring (3pts/review + avg★ bonus + volume bonus, cap 10).
       // Pure linear: each Google review = 5 pts, no ceiling.
-      var grCount = entry.grCount || 0;
+      // v219.15: pull grCount from canonical googleReviews map when entry doesn't carry it explicitly.
+      var grCount = entry.grCount;
+      if (typeof grCount !== 'number') {
+        try {
+          var _grKey = entry.short || entry.name || (entry.tech && (entry.tech.short || entry.tech.name));
+          if (_grKey && typeof googleReviews !== 'undefined' && googleReviews[_grKey]) {
+            grCount = googleReviews[_grKey].count || 0;
+          }
+        } catch(e) {}
+      }
+      grCount = grCount || 0;
       var grAvg = entry.grAvg || 0;  // average stars this week (kept for display only)
       var grLane = grCount * 5;
 
@@ -9567,6 +9577,36 @@ document.addEventListener('visibilitychange', function() {
     window.ipServiceTechAddCustom = ipServiceTechAddCustom;
     window.ipServiceTechResetRow = ipServiceTechResetRow;
 
+    // v219.15: One-time seed of Google review counts for week of 2026-05-11.
+    // Source: data/reviews/snappy_reviews_attributed_2026-05-15.json (option_b_drop_ben_johnson).
+    // Idempotent \u2014 only seeds fields that haven't been manually edited yet.
+    (function _ipSeedReviewsV21915(){
+      try {
+        var KEY = 'snappy_seed_reviews_v21915_done';
+        if (localStorage.getItem(KEY)) return;
+        var ws = '2026-05-11';
+        var seed = [
+          ['daniel', 5, 12],
+          ['dewone', 2,  8],
+          ['benji',  0,  4],
+          ['nick',   2,  2],
+          ['chris',  0,  0],
+          ['dee',    0,  0]
+        ];
+        var store = ipServiceTechOverrides();
+        if (!store.weeks[ws]) store.weeks[ws] = {};
+        seed.forEach(function(r){
+          var s = r[0], w = r[1], m = r[2];
+          if (!store.weeks[ws][s]) store.weeks[ws][s] = {};
+          if (typeof store.weeks[ws][s].weekReviews  !== 'number') store.weeks[ws][s].weekReviews  = w;
+          if (typeof store.weeks[ws][s].monthReviews !== 'number') store.weeks[ws][s].monthReviews = m;
+        });
+        ipServiceTechOverridesSave(store);
+        localStorage.setItem(KEY, new Date().toISOString());
+        console.log('[snappy v219.15] Seeded Google review counts for week ' + ws);
+      } catch(e) { console.warn('Review seed v219.15 failed', e); }
+    })();
+
     // Prompt-driven add row.
     function ipServiceTechAddPrompt(weekEndingSat) {
       var weekStart = ipWeekStartMonStr(weekEndingSat);
@@ -14184,7 +14224,7 @@ document.addEventListener('visibilitychange', function() {
         { icon: '\ud83d\udd04', value: recallsValue, label: 'Recalls', sub: recallSub, nav: 'dispatch', stSub: null },
         { icon: '\u26a0\ufe0f', value: complaintsValue, label: 'Complaints', sub: complaintSub, nav: 'dispatch', stSub: null },
         { icon: '\ud83d\udcb0', value: '$' + totalRevenue.toLocaleString(), label: 'Service Revenue', sub: svcSub, nav: 'scorecards', stSub: 'overview' },
-        { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'Storm 2026 STD', nav: 'profiles', stSub: null },
+        { icon: '\u2b50', value: totalReviews, label: 'Google Reviews', sub: 'May MTD', nav: 'profiles', stSub: null },
         { icon: '\ud83c\udfe0', value: '$' + totalMtdInstallRev.toLocaleString(), label: 'Install Revenue', sub: monthSub, nav: 'scorecards', stSub: 'installs' },
         { icon: '\ud83d\udee0\ufe0f', value: totalMtdInstalls, label: 'Installs', sub: isCurrentMonth ? 'Month-to-date completed' : monthLabel + ' completed', nav: 'scorecards', stSub: 'installs' }
       ];
@@ -15344,15 +15384,15 @@ if (typeof Chart !== 'undefined') {
         fourStar: 0,
         threeStar: 0,
         highlight: '',
-        note: "No mentions yet in Storm 2026 STD (4/1\u20135/5). Dee\'s warranty + cross-department role keeps him off most customer-facing service calls, which limits review opportunities. Push reviews on every direct customer touchpoint."
+        note: "v219.15 \u2014 No May MTD mentions yet. Warranty + cross-department role still limits direct customer-facing review opportunities. Push the ask on every solo customer touch."
       },
       "Daniel": {
-        count: 13,
+        count: 12,
         fiveStar: 12,
         fourStar: 0,
-        threeStar: 1,
-        highlight: '"Daniel G. came out, diagnosed a fan issue and fixed it right away. Fantastic service!" \u2014 Ben F',
-        note: "13 reviews in Storm 2026 STD \u2014 12 five-star, 1 three-star. HVAC work including fan repairs, furnace service, AC maintenance, refrigerant line leak. Themes: friendly, knowledgeable, thorough, professional. The single 3-star noted the visit fixed the outside fan but felt the capacitor swap was simple work."
+        threeStar: 0,
+        highlight: '"Daniel was a very professional technician. He explained Snappy\'s service plan thoroughly." \u2014 mike stanislawski',
+        note: "v219.15 \u2014 12 reviews in May MTD (5 this week of 5/11). HVAC service across fan repairs, tune-ups, refrigerant leaks, plus pulled-in James Bryant credit. Themes: professional, thorough, clear explanations. Highest review velocity on the team this month."
       },
       "Chris": {
         count: 0,
@@ -15360,31 +15400,31 @@ if (typeof Chart !== 'undefined') {
         fourStar: 0,
         threeStar: 0,
         highlight: '',
-        note: "No mentions in Storm 2026 STD (4/1\u20135/5). His most recent review (Penny Tapia) sits just before the season window in early March. Quiet style + few customer prompts is the pattern \u2014 worth coaching the ask."
+        note: "v219.15 \u2014 No mentions in May MTD. Pattern continues: quiet style + few customer prompts. Coaching focus: deliberate ask after every install + service touch."
       },
       "Benji": {
-        count: 1,
-        fiveStar: 1,
+        count: 4,
+        fiveStar: 4,
         fourStar: 0,
         threeStar: 0,
-        highlight: '"Thank you so much to Ben T. for coming out to tuneup my AC unit. He broke things down for me so I understood everything." \u2014 Ren F',
-        note: "1 confirmed HVAC review in Storm 2026 STD (Ren F, 4/21, 5\u2013star, AC tune-up). Multiple \"Ben Johnson\" electrical mentions correctly excluded. High service volume \u2192 low review yield: needs a deliberate ask after each call."
+        highlight: '"Ben was great \u2014 quick, clean, and explained everything." \u2014 Brittany D',
+        note: "v219.15 \u2014 4 reviews in May MTD (0 this week of 5/11). Plain-\"Ben\" mentions credited; the two \"Ben Johnson\" electrical-panel reviews correctly excluded (different tech). High service volume \u2192 still room to grow review yield via deliberate ask."
       },
       "Dewone": {
-        count: 25,
-        fiveStar: 25,
+        count: 8,
+        fiveStar: 8,
         fourStar: 0,
         threeStar: 0,
-        highlight: '"Dewone provided excellent, friendly and comprehensive service. He explained exactly what was needed and the different service options available. Highly recommend Snappy!" \u2014 Karin',
-        note: "25 reviews in Storm 2026 STD \u2014 perfect 25/25 five-star run. Most-reviewed tech of the season despite Sat-only schedule. AC tune-ups, annual HVAC inspections, service calls. Themes: professional, punctual, clear explanations, attention to detail, customers request him by name."
+        highlight: '"Dewone provided excellent, friendly and comprehensive service. He explained exactly what was needed and the different service options available." \u2014 Karin',
+        note: "v219.15 \u2014 8 reviews in May MTD (2 this week of 5/11). Perfect 5-star run continues. \"Demone\" / \"Demome\" misspellings counted. Customers request him by name despite Sat-only schedule."
       },
       "Nick": {
-        count: 0,
-        fiveStar: 0,
+        count: 2,
+        fiveStar: 2,
         fourStar: 0,
         threeStar: 0,
-        highlight: '',
-        note: "No mentions in Storm 2026 STD (4/1\u20135/5). Onboarding tech \u2014 first review will land once he\'s running solo calls."
+        highlight: '"Dewone & Nick did a great job on service." \u2014 J DiamondNDaRough W',
+        note: "v219.15 \u2014 2 reviews in May MTD, both this week of 5/11 (ride-along credits with Dewone + with Daniel/Sandra Barber). First reviews landed \u2014 confidence is building."
       }
     };
 
