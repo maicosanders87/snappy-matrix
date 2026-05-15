@@ -10026,14 +10026,25 @@ document.addEventListener('visibilitychange', function() {
         h += '<button onclick="ipTechViewSelectTech(\'' + safeShort + '\')" style="background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border:none;padding:14px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:transform 0.12s;" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'translateY(0)\'">' + r.display + '</button>';
       });
       h += '</div>';
-      h += '<div style="font-size:10px;color:#64748b;text-align:center;margin-top:14px;border-top:1px solid #1e3a5f;padding-top:10px;">After selection, use the \u2018Log out\u2019 button to switch users.</div>';
+      h += '<div style="font-size:10px;color:#64748b;text-align:center;margin-top:14px;border-top:1px solid #1e3a5f;padding-top:10px;">After selection, tap \u2190 <b>Back to roster</b> to view a different tech, or <b>Log out</b> to fully exit.</div>';
       h += '</div>';
       return h;
     }
 
-    // v219.05: Select handler — store selection in sessionStorage and re-render.
+    // v219.05/v219.09: Select handler — store selection in sessionStorage and re-render.
+    // v219.09: Re-render the standalone Tech View tab if it's the active view,
+    //          otherwise fall back to the Payout panel. Fixes "clicking a tech does
+    //          nothing" when launched from the top-level Tech View tab.
     function ipTechViewSelectTech(techShort) {
       try { sessionStorage.setItem('snappy_tech_view_active', techShort); } catch(e) {}
+      try {
+        var tvView = document.getElementById('view-techview');
+        if (tvView && tvView.classList.contains('active') &&
+            typeof renderTechViewStandalone === 'function') {
+          renderTechViewStandalone();
+          return;
+        }
+      } catch(e) {}
       try { renderInstallPay(); } catch(e) {}
     }
     window.ipTechViewSelectTech = ipTechViewSelectTech;
@@ -10052,9 +10063,14 @@ document.addEventListener('visibilitychange', function() {
       var leadPay = (m.weekLeadsSet || 0) * 25;
       var total = revPay + instPay + memPay + leadPay;
       var h = '';
-      h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">';
       h += '<div style="font-size:16px;font-weight:700;">\ud83d\udc64 ' + m.display + ' \u00b7 Week of ' + res.weekStart + ' \u2192 ' + res.weekEnd + '</div>';
+      // v219.09: Two-button action row \u2014 "Back to roster" returns to picker (keeps session
+      //          unlocked so mgr can hop between techs). "Log out" still available as before.
+      h += '<div style="display:flex;gap:6px;">';
+      h += '<button onclick="ipTechViewBack()" style="background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">\u2190 Back to roster</button>';
       h += '<button onclick="ipTechViewLogout()" style="background:transparent;color:#dc2626;border:1px solid #7c2d2d;padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;">\ud83d\udd12 Log out</button>';
+      h += '</div>';
       h += '</div>';
       h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">';
       h += ipTechViewTile('Rev Pay (3%)', '$' + revPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#10B981', '$' + Math.round(m.weekRev).toLocaleString() + ' service rev');
@@ -10082,6 +10098,9 @@ document.addEventListener('visibilitychange', function() {
     // Re-renders the active container (standalone tab if visible, else Payout sub-tab).
     function ipTechViewLogout() {
       try { sessionStorage.removeItem('snappy_tech_view_active'); } catch(e) {}
+      // v219.09: Also fully lock Tech View so a non-manager would re-prompt for PIN.
+      // Manager is always unlocked via isManagerMode, so this is harmless for mgr.
+      try { if (typeof tvLock === 'function') tvLock(); } catch(e) {}
       try {
         if (typeof renderTechViewStandalone === 'function' &&
             document.getElementById('view-techview') &&
@@ -10093,6 +10112,22 @@ document.addEventListener('visibilitychange', function() {
       try { renderInstallPay(); } catch(e) {}
     }
     window.ipTechViewLogout = ipTechViewLogout;
+
+    // v219.09: Back to roster \u2014 clears tech selection but keeps unlock state intact,
+    // so manager can quickly hop between techs without re-entering a PIN.
+    function ipTechViewBack() {
+      try { sessionStorage.removeItem('snappy_tech_view_active'); } catch(e) {}
+      try {
+        if (typeof renderTechViewStandalone === 'function' &&
+            document.getElementById('view-techview') &&
+            document.getElementById('view-techview').classList.contains('active')) {
+          renderTechViewStandalone();
+          return;
+        }
+      } catch(e) {}
+      try { renderInstallPay(); } catch(e) {}
+    }
+    window.ipTechViewBack = ipTechViewBack;
 
     // v219.06: Standalone Tech View tab renderer — paints ipRenderTechViewTab output
     //   into the top-level #techview-content container. Uses the current Saturday
