@@ -4505,7 +4505,8 @@ document.addEventListener('visibilitychange', function() {
       var mo  = entry.memOpps || 0;
 
       // === REV lane (max 20) ===
-      var revBase = Math.min((svc / 500), 12);   // $500/pt cap 12
+      // v219.07: $1,000 of service revenue = 5 points (linear; lane still capped at 20)
+      var revBase = Math.min((svc / 1000) * 5, 20);
       var daily1k = entry.daily1kCount;
       if (typeof daily1k !== 'number') {
         // infer from svc volume (matches behavior bonus heuristic)
@@ -4565,7 +4566,8 @@ document.addEventListener('visibilitychange', function() {
       var leadLane = Math.min(leadPts + flipPts + flipRateKick, 20);
 
       // === INST lane (max 20) ===
-      var instCountPts = Math.min(ic * 6, 12);
+      // v219.07: each install = 5 points (linear; lane still capped at 20)
+      var instCountPts = Math.min(ic * 5, 20);
       var instRevPts = Math.min((ir / 5000), 6);
       var highTickets = entry.highTickets || 0; // installs $10K+
       var highPts = Math.min(highTickets * 2, 6);
@@ -4584,12 +4586,15 @@ document.addEventListener('visibilitychange', function() {
       var sixLaneTotal = Math.round((revLane + svcLane + memLane + leadLane + instLane + grLane) * 10) / 10;
 
       // === LEGACY 3-lane fields (kept for back-compat with old chip + history) ===
-      var revPts = Math.round((svc / 1000) * 10) / 10;
-      var instPts = 0, instTier = '\u2013';
-      if (ic >= 4)      { instPts = 10; instTier = 'S'; }
-      else if (ic >= 2) { instPts = 7;  instTier = 'A'; }
-      else if (ic >= 1) { instPts = 4;  instTier = 'B'; }
-      else              { instPts = 0;  instTier = '0'; }
+      // v219.07: legacy SVC pill also reflects $1k = 5 pts so the displayed lane pill stays consistent
+      var revPts = Math.round(((svc / 1000) * 5) * 10) / 10;
+      // v219.07: legacy INST pill also reflects 5 pts per install (tier label kept for back-compat)
+      var instPts = ic * 5;
+      var instTier = '\u2013';
+      if (ic >= 4)      { instTier = 'S'; }
+      else if (ic >= 2) { instTier = 'A'; }
+      else if (ic >= 1) { instTier = 'B'; }
+      else              { instTier = '0'; }
       var memPts = 0, memTier = '\u2013';
       if (mo > 0) {
         if (memPct >= 70)      { memPts = 10; memTier = 'S'; }
@@ -10602,7 +10607,7 @@ document.addEventListener('visibilitychange', function() {
               var pills = [];
               // SVC pill: $x · y pts
               pills.push(
-                '<span class="wlb-pt-pill svc" title="Service revenue: 1 pt per $1k">' +
+                '<span class="wlb-pt-pill svc" title="Service revenue: 5 pts per $1k">' +
                   '<span class="wlb-pt-label">SVC</span>' +
                   '<span class="wlb-pt-raw">' + _wlbFmtMoney(e.service) + '</span>' +
                   '<span class="wlb-pt-val">' + p.revPts + ' pts</span>' +
@@ -10611,7 +10616,7 @@ document.addEventListener('visibilitychange', function() {
               // INST pill: count · tier · pts
               var instRaw = e.installCount + (e.installCount === 1 ? ' install' : ' installs');
               pills.push(
-                '<span class="wlb-pt-pill inst" title="Installs sold: 4+ S, 2-3 A, 1 B">' +
+                '<span class="wlb-pt-pill inst" title="Installs sold: 5 pts each">' +
                   '<span class="wlb-pt-label">INST</span>' +
                   '<span class="wlb-pt-raw">' + instRaw + '</span>' +
                   '<span class="wlb-pt-tier tier-' + p.instTier + '">' + p.instTier + '</span>' +
@@ -11064,7 +11069,7 @@ document.addEventListener('visibilitychange', function() {
           var memOpps  = entry ? (entry.memOpps      || '') : '';
           return '<div class="wlb-edit-row v145">' +
             '<label>' + t.name + '</label>' +
-            '<div class="wlb-edit-input-wrap money" title="Service revenue (1 pt per $1k)">' +
+            '<div class="wlb-edit-input-wrap money" title="Service revenue (5 pts per $1k)">' +
               '<span class="wlb-edit-mini-label">SVC $</span>' +
               '<span class="wlb-edit-prefix">$</span>' +
               '<input type="number" inputmode="decimal" step="0.01" min="0" data-short="' + t.short + '" data-field="service" value="' + svc + '" placeholder="0">' +
