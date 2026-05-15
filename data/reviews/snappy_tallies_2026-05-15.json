@@ -1,0 +1,19 @@
+{
+  "weekStart": "2026-05-11",
+  "weekEnd": "2026-05-16",
+  "mtdStart": "2026-05-01",
+  "anchor": "2026-05-15",
+  "decision": "option_b_drop_ben_johnson",
+  "tallies": {
+    "daniel":  { "week": 5, "month": 12 },
+    "dewone":  { "week": 2, "month": 8 },
+    "benji":   { "week": 0, "month": 4 },
+    "nick":    { "week": 2, "month": 2 },
+    "chris":   { "week": 0, "month": 0 },
+    "dee":     { "week": 0, "month": 0 }
+  },
+  "dropped_ben_johnson": [
+    "Becky Klingensmith (1w, electrical panel)",
+    "Wesley Rainier-Coe (2w, smoke detectors)"
+  ]
+}

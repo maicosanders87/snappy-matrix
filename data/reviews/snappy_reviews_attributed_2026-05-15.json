@@ -1,0 +1,485 @@
+{
+  "pulled_at": "2026-05-15T18:34:00Z",
+  "anchor_date": "2026-05-15",
+  "week_start": "2026-05-11",
+  "mtd_start": "2026-05-01",
+  "attribution_decision": "option_b_drop_ben_johnson",
+  "tally": {
+    "daniel": {
+      "week": 5,
+      "month": 12
+    },
+    "dewone": {
+      "week": 2,
+      "month": 8
+    },
+    "benji": {
+      "week": 0,
+      "month": 4
+    },
+    "nick": {
+      "week": 2,
+      "month": 2
+    },
+    "chris": {
+      "week": 0,
+      "month": 0
+    },
+    "dee": {
+      "week": 0,
+      "month": 0
+    }
+  },
+  "reviews": [
+    {
+      "reviewer": "James Bryant",
+      "date_rel": "54 minutes ago",
+      "approx_date": "2026-05-15",
+      "stars": 5,
+      "text": "",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "J DiamondNDaRough W",
+      "date_rel": "3 hours ago",
+      "approx_date": "2026-05-15",
+      "stars": 5,
+      "text": "Dewone & Nick did a great job on service.",
+      "techs": [
+        "dewone",
+        "nick"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Nichole Bazemore",
+      "date_rel": "edited a day ago",
+      "approx_date": "2026-05-14",
+      "stars": 5,
+      "text": "Daniel was great. Very thorough.",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "mike stanislawski",
+      "date_rel": "a day ago",
+      "approx_date": "2026-05-14",
+      "stars": 5,
+      "text": "Daniel was a very professional technician. He explained Snappy's service plan and all my options.",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Jenn Lewis",
+      "date_rel": "2 days ago",
+      "approx_date": "2026-05-13",
+      "stars": 5,
+      "text": "Daniel was very proficient with my HVAC tune up",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Ashton Hollingsworth",
+      "date_rel": "edited 3 days ago",
+      "approx_date": "2026-05-12",
+      "stars": 5,
+      "text": "Patrick did great! Edit: Dewone is great too!!",
+      "techs": [
+        "dewone"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Yo Pa",
+      "date_rel": "3 days ago",
+      "approx_date": "2026-05-12",
+      "stars": 5,
+      "text": "technician Josh to complete the services",
+      "techs": [],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Sandra Barber",
+      "date_rel": "edited 4 days ago",
+      "approx_date": "2026-05-11",
+      "stars": 5,
+      "text": "Nick and Daniel my technicians, were great. They thoroughly checked my AC",
+      "techs": [
+        "daniel",
+        "nick"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Keith Butler",
+      "date_rel": "6 days ago",
+      "approx_date": "2026-05-09",
+      "stars": 5,
+      "text": "Had a routine maintenance visit from Demone from Snappy today.",
+      "techs": [
+        "dewone"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Lenore Hall",
+      "date_rel": "edited 6 days ago",
+      "approx_date": "2026-05-09",
+      "stars": 5,
+      "text": "Technician Demome was professional & pleasant.",
+      "techs": [
+        "dewone"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Brittany Dabel",
+      "date_rel": "6 days ago",
+      "approx_date": "2026-05-09",
+      "stars": 5,
+      "text": "Ben was an exceptional technician.",
+      "techs": [
+        "benji"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Denyce Cartier",
+      "date_rel": "edited a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Brayden Bond gave me the quote for my HVAC system",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Benjamin Puckett",
+      "date_rel": "a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Daniel was great, fast, knowledgeable, and a real pleasure.",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "MaryAnn Gryczan",
+      "date_rel": "a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Dewone was great. Informative, polite and very clean.",
+      "techs": [
+        "dewone"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Jason Graves",
+      "date_rel": "a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Excellent work and very friendly!",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Nick Perino",
+      "date_rel": "a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Daniel G was really helpful and efficient.",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Steve Nicholson",
+      "date_rel": "edited a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Daniel G was very informative.",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Patrick Hall",
+      "date_rel": "a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Great service from Daniel G!",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Becky Klingensmith",
+      "date_rel": "edited a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Ben Johnson was able to come help two days in a row",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Graveyard Mentality",
+      "date_rel": "a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Ben was excellent. Super professional",
+      "techs": [
+        "benji"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Team And one street team",
+      "date_rel": "a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Great and friendly service",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Monica Furr",
+      "date_rel": "a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Bogan Ross",
+      "date_rel": "a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Great quality work done when replacing my breaker panel!",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Ben Frank",
+      "date_rel": "edited a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Daniel G. Came out, diagnosed a fan issue and fixed it right away.",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Karin",
+      "date_rel": "a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Dewone provided excellent, friendly and comprehensive service.",
+      "techs": [
+        "dewone"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Dick Christensen",
+      "date_rel": "edited a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "They identified and fixed the problem for a very reasonable price.",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Jim Blackburn",
+      "date_rel": "a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "Great service, knowledgeable technician, reasonable prices.",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Robert Patterson",
+      "date_rel": "edited a week ago",
+      "approx_date": "2026-05-08",
+      "stars": 5,
+      "text": "I just had Patrick help with HVAC maintenance.",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Wesley Rainier-Coe",
+      "date_rel": "2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "Ben Johnson was very personable and professional",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Mark Terry",
+      "date_rel": "2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "Smoke detector replacement. Ben did a fine job.",
+      "techs": [
+        "benji"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Victor Gonzalez",
+      "date_rel": "edited 2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "Daniel was super friendly. He kept me informed as he worked",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Anir Pradhan",
+      "date_rel": "2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "Ben installed our car charger in the garage",
+      "techs": [
+        "benji"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Amanda McCants",
+      "date_rel": "2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "Dewone did a great job on our AC service.",
+      "techs": [
+        "dewone"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "William Boyd",
+      "date_rel": "edited 2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "Excellent service Daniel did an excellent job.",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Queenesta Neville-Belle",
+      "date_rel": "2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "Dewone was here today for my AC unit service",
+      "techs": [
+        "dewone"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "B B",
+      "date_rel": "2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "Service agent was very thorough and knowledgeable about our A/C unit.",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Janet Marthers",
+      "date_rel": "2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "Brayden did an excellent job for us today. Snappy has a great team of electricians.",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Maureen Finnegan-Scoggin",
+      "date_rel": "edited 2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "Service with snappy is always pleasant.",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Susanne Hodgson",
+      "date_rel": "edited 2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "I am very pleased with this HVAC company",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Tom Umstead",
+      "date_rel": "2 weeks ago",
+      "approx_date": "2026-05-01",
+      "stars": 5,
+      "text": "",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    }
+  ]
+}
