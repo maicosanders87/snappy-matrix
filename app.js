@@ -8265,12 +8265,14 @@ document.addEventListener('visibilitychange', function() {
       html += '</div>';
 
       // v219.00: Sub-tab strip — 4 tabs: My Payout / Installers / Service Techs / TGL Manager
+      // v219.03: + Tech View (PIN-locked, per-tech personal payout view)
       html += '<div class="ip-subtabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:6px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;">';
       var subTabs = [
         { id: 'mypayout',     label: '\ud83d\udc54 My Payout',     hint: 'Your manager cut (0.5%)' },
         { id: 'installers',   label: '\ud83d\udc77 Installers',     hint: 'Thomas + Terrell + bulk entry' },
         { id: 'servicetechs', label: '\ud83d\udd27 Service Techs',  hint: 'Tech payout (3% + leads)' },
-        { id: 'tgl',          label: '\ud83c\udfaf TGL Manager',    hint: 'Sales + commission' }
+        { id: 'tgl',          label: '\ud83c\udfaf TGL Manager',    hint: 'Sales + commission' },
+        { id: 'techview',     label: '\ud83d\udc64 Tech View',      hint: 'PIN-locked individual view' }
       ];
       subTabs.forEach(function(t){
         var on = (t.id === activeTab);
@@ -8293,6 +8295,9 @@ document.addEventListener('visibilitychange', function() {
         catch(e) { console.warn('Service Techs section render failed', e); }
       } else if (activeTab === 'installers') {
         html += _ipRenderInstallersTab(weekJobs, byDate, selectedWeek, weekStart, weekCount, weekTotal, totalsByInstaller, data, todayIso);
+      } else if (activeTab === 'techview') {
+        try { html += ipRenderTechViewTab(selectedWeek); }
+        catch(e) { console.warn('Tech view tab render failed', e); }
       }
 
       // Paint into all containers
@@ -8310,9 +8315,10 @@ document.addEventListener('visibilitychange', function() {
     window.renderInstallPay = renderInstallPay;
 
     // v219.00: Switch the active Payout sub-tab.
+    // v219.03: + 'techview'
     function ipSwitchSubTab(tabId) {
       try {
-        if (['mypayout','installers','servicetechs','tgl'].indexOf(tabId) === -1) return;
+        if (['mypayout','installers','servicetechs','tgl','techview'].indexOf(tabId) === -1) return;
         localStorage.setItem('snappy_ip_active_tab_v1', tabId);
         ['installpay-content', 'installpay-content-mgr'].forEach(function(id){
           var el = document.getElementById(id);
@@ -9980,6 +9986,113 @@ document.addEventListener('visibilitychange', function() {
       return html;
     }
     window.ipRenderServiceTechsSection = ipRenderServiceTechsSection;
+
+    // v219.03: Tech View tab — PIN-locked, per-tech personal payout view.
+    //   - Master-locked for now (TECH_VIEW_ENABLED = false) until PINs are issued.
+    //   - Per-tech PINs will be stored at localStorage key 'snappy_tech_pins_v1' as
+    //     { [techShort]: { hash: '<sha256 hex>', display: '<name>' } }.
+    //   - Session unlock cached at sessionStorage key 'snappy_tech_view_active' = techShort.
+    //   - When unlocked, the tab shows ONLY that tech's row from the Service Techs payout
+    //     table (same numbers, same formula) — no team totals, no other techs visible.
+    function ipRenderTechViewTab(weekEndingSat) {
+      var TECH_VIEW_ENABLED = false; // flip to true once PIN list is in
+      var html = '';
+      html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:24px;margin-bottom:14px;">';
+      if (!TECH_VIEW_ENABLED) {
+        html += '<div style="text-align:center;padding:40px 20px;">';
+        html += '<div style="font-size:48px;margin-bottom:12px;">\ud83d\udd12</div>';
+        html += '<div style="font-size:18px;font-weight:700;color:#f1f5f9;margin-bottom:8px;">Tech View \u2014 Locked</div>';
+        html += '<div style="font-size:13px;color:#94a3b8;max-width:480px;margin:0 auto;line-height:1.5;">';
+        html += 'Per-technician PIN access is coming. Each tech will use their own PIN to view ONLY their own weekly payout numbers \u2014 no team totals and no other techs\u2019 lines.';
+        html += '</div>';
+        html += '<div style="font-size:11px;color:#64748b;margin-top:16px;">Will unlock once the PIN list is finalized.</div>';
+        html += '</div>';
+      } else {
+        // Future: render PIN entry + per-tech filtered Service Techs row.
+        var activeTech = '';
+        try { activeTech = sessionStorage.getItem('snappy_tech_view_active') || ''; } catch(e) {}
+        if (!activeTech) {
+          html += ipTechViewRenderPinEntry();
+        } else {
+          html += ipTechViewRenderForTech(activeTech, weekEndingSat);
+        }
+      }
+      html += '</div>';
+      return html;
+    }
+    window.ipRenderTechViewTab = ipRenderTechViewTab;
+
+    // v219.03: PIN entry shell (placeholder \u2014 wired once PINs are issued).
+    function ipTechViewRenderPinEntry() {
+      var h = '';
+      h += '<div style="max-width:360px;margin:0 auto;padding:24px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;">';
+      h += '<div style="font-size:14px;font-weight:700;text-align:center;margin-bottom:12px;">Enter your PIN</div>';
+      h += '<input id="techViewPinInput" type="password" inputmode="numeric" maxlength="6" placeholder="\u2022\u2022\u2022\u2022" style="width:100%;padding:10px;background:#0F1B2E;border:1px solid #1e3a5f;color:#f1f5f9;border-radius:6px;font-size:18px;text-align:center;letter-spacing:6px;" />';
+      h += '<button onclick="ipTechViewSubmitPin()" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border:none;padding:10px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Unlock</button>';
+      h += '<div id="techViewPinErr" style="display:none;color:#dc2626;font-size:12px;text-align:center;margin-top:8px;"></div>';
+      h += '</div>';
+      return h;
+    }
+
+    // v219.03: Render personal payout view for a single tech (filtered Service Techs row).
+    function ipTechViewRenderForTech(techShort, weekEndingSat) {
+      var res = ipServiceTechMetrics(weekEndingSat);
+      var m = res.metrics[techShort];
+      if (!m) {
+        return '<div style="padding:20px;text-align:center;color:#94a3b8;">No payout data for this tech this week.</div>';
+      }
+      var weekMemSold = (m.weekMemSold != null ? Number(m.weekMemSold) : 0) || 0;
+      var revPay = (m.weekRev || 0) * 0.03;
+      var instPay = (m.weekInstallRev || 0) * 0.03;
+      var memPay = weekMemSold * 15;
+      var leadPay = (m.weekLeadsSet || 0) * 25;
+      var total = revPay + instPay + memPay + leadPay;
+      var h = '';
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+      h += '<div style="font-size:16px;font-weight:700;">\ud83d\udc64 ' + m.display + ' \u00b7 Week of ' + res.weekStart + ' \u2192 ' + res.weekEnd + '</div>';
+      h += '<button onclick="ipTechViewLogout()" style="background:transparent;color:#dc2626;border:1px solid #7c2d2d;padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;">\ud83d\udd12 Log out</button>';
+      h += '</div>';
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">';
+      h += ipTechViewTile('Rev Pay (3%)', '$' + revPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#10B981', '$' + Math.round(m.weekRev).toLocaleString() + ' service rev');
+      h += ipTechViewTile('Install Pay (3%)', '$' + instPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#3B82F6', '$' + m.weekInstallRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' install rev');
+      h += ipTechViewTile('Mem Pay ($15 ea)', '$' + memPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#a78bfa', weekMemSold + ' memberships sold');
+      h += ipTechViewTile('Lead Pay ($25 ea)', '$' + leadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#fbbf24', m.weekLeadsSet + ' leads set');
+      h += '</div>';
+      h += '<div style="background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(99,102,241,0.10));border:1px solid #10B981;border-radius:10px;padding:18px;text-align:center;">';
+      h += '<div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Your Total Payout This Week</div>';
+      h += '<div style="font-size:32px;font-weight:800;color:#f1f5f9;font-variant-numeric:tabular-nums;">$' + total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>';
+      h += '</div>';
+      return h;
+    }
+
+    function ipTechViewTile(label, value, color, sub) {
+      var h = '<div style="background:#0b1426;border:1px solid #1e3a5f;border-left:3px solid ' + color + ';border-radius:8px;padding:12px;">';
+      h += '<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">' + label + '</div>';
+      h += '<div style="font-size:20px;font-weight:700;color:' + color + ';font-variant-numeric:tabular-nums;margin-top:4px;">' + value + '</div>';
+      h += '<div style="font-size:10px;color:#94a3b8;margin-top:2px;">' + sub + '</div>';
+      h += '</div>';
+      return h;
+    }
+
+    // v219.03: PIN submit/logout stubs (PIN store + verify wired when list is in).
+    function ipTechViewSubmitPin() {
+      var inp = document.getElementById('techViewPinInput');
+      var err = document.getElementById('techViewPinErr');
+      if (!inp) return;
+      var pin = (inp.value || '').trim();
+      if (!pin) return;
+      // Placeholder: no PINs configured yet.
+      if (err) {
+        err.style.display = 'block';
+        err.textContent = 'Tech View is locked until PINs are issued.';
+      }
+    }
+    function ipTechViewLogout() {
+      try { sessionStorage.removeItem('snappy_tech_view_active'); } catch(e) {}
+      renderInstallPay();
+    }
+    window.ipTechViewSubmitPin = ipTechViewSubmitPin;
+    window.ipTechViewLogout = ipTechViewLogout;
 
     // v218.99: Manager Payout (Maico) — 0.5% of weekly (install + service) revenue.
     //   - Install rev source: completed TGL rows w/ jobTotal > 0 in the week +
