@@ -9987,52 +9987,56 @@ document.addEventListener('visibilitychange', function() {
     }
     window.ipRenderServiceTechsSection = ipRenderServiceTechsSection;
 
-    // v219.03: Tech View tab — PIN-locked, per-tech personal payout view.
-    //   - Master-locked for now (TECH_VIEW_ENABLED = false) until PINs are issued.
-    //   - Per-tech PINs will be stored at localStorage key 'snappy_tech_pins_v1' as
-    //     { [techShort]: { hash: '<sha256 hex>', display: '<name>' } }.
-    //   - Session unlock cached at sessionStorage key 'snappy_tech_view_active' = techShort.
-    //   - When unlocked, the tab shows ONLY that tech's row from the Service Techs payout
-    //     table (same numbers, same formula) — no team totals, no other techs visible.
+    // v219.03 → v219.05: Tech View tab — per-tech personal payout view.
+    //   - v219.05: OPEN ACCESS mode — click tab → prompted to pick which tech you are
+    //     (no PIN yet). Selection cached in sessionStorage so they don't have to pick
+    //     every render. Each tech sees ONLY their own row — no team totals, no other techs.
+    //   - Future: when PIN list is in, ipTechViewPickerOpen() will swap to a PIN prompt
+    //     instead of an open dropdown.
     function ipRenderTechViewTab(weekEndingSat) {
-      var TECH_VIEW_ENABLED = false; // flip to true once PIN list is in
       var html = '';
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:24px;margin-bottom:14px;">';
-      if (!TECH_VIEW_ENABLED) {
-        html += '<div style="text-align:center;padding:40px 20px;">';
-        html += '<div style="font-size:48px;margin-bottom:12px;">\ud83d\udd12</div>';
-        html += '<div style="font-size:18px;font-weight:700;color:#f1f5f9;margin-bottom:8px;">Tech View \u2014 Locked</div>';
-        html += '<div style="font-size:13px;color:#94a3b8;max-width:480px;margin:0 auto;line-height:1.5;">';
-        html += 'Per-technician PIN access is coming. Each tech will use their own PIN to view ONLY their own weekly payout numbers \u2014 no team totals and no other techs\u2019 lines.';
-        html += '</div>';
-        html += '<div style="font-size:11px;color:#64748b;margin-top:16px;">Will unlock once the PIN list is finalized.</div>';
-        html += '</div>';
+      var activeTech = '';
+      try { activeTech = sessionStorage.getItem('snappy_tech_view_active') || ''; } catch(e) {}
+      if (!activeTech) {
+        html += ipTechViewRenderPicker();
       } else {
-        // Future: render PIN entry + per-tech filtered Service Techs row.
-        var activeTech = '';
-        try { activeTech = sessionStorage.getItem('snappy_tech_view_active') || ''; } catch(e) {}
-        if (!activeTech) {
-          html += ipTechViewRenderPinEntry();
-        } else {
-          html += ipTechViewRenderForTech(activeTech, weekEndingSat);
-        }
+        html += ipTechViewRenderForTech(activeTech, weekEndingSat);
       }
       html += '</div>';
       return html;
     }
     window.ipRenderTechViewTab = ipRenderTechViewTab;
 
-    // v219.03: PIN entry shell (placeholder \u2014 wired once PINs are issued).
-    function ipTechViewRenderPinEntry() {
+    // v219.05: Picker prompt — open access until PINs are issued. Each tech taps their
+    // own button → selection cached for this browser session → only their numbers shown.
+    function ipTechViewRenderPicker() {
+      var roster = [];
+      try { roster = ipServiceTechRoster(); } catch(e) {}
       var h = '';
-      h += '<div style="max-width:360px;margin:0 auto;padding:24px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;">';
-      h += '<div style="font-size:14px;font-weight:700;text-align:center;margin-bottom:12px;">Enter your PIN</div>';
-      h += '<input id="techViewPinInput" type="password" inputmode="numeric" maxlength="6" placeholder="\u2022\u2022\u2022\u2022" style="width:100%;padding:10px;background:#0F1B2E;border:1px solid #1e3a5f;color:#f1f5f9;border-radius:6px;font-size:18px;text-align:center;letter-spacing:6px;" />';
-      h += '<button onclick="ipTechViewSubmitPin()" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border:none;padding:10px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Unlock</button>';
-      h += '<div id="techViewPinErr" style="display:none;color:#dc2626;font-size:12px;text-align:center;margin-top:8px;"></div>';
+      h += '<div style="max-width:520px;margin:0 auto;padding:24px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;">';
+      h += '<div style="text-align:center;margin-bottom:18px;">';
+      h += '<div style="font-size:32px;margin-bottom:6px;">\ud83d\udc64</div>';
+      h += '<div style="font-size:16px;font-weight:700;color:#f1f5f9;">Tech View</div>';
+      h += '<div style="font-size:12px;color:#94a3b8;margin-top:4px;">Select your name to view ONLY your own numbers. PIN protection coming soon.</div>';
+      h += '</div>';
+      h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">';
+      roster.forEach(function(r){
+        var safeShort = String(r.short).replace(/\\/g,'\\\\').replace(/\u0027/g,"\\\u0027");
+        h += '<button onclick="ipTechViewSelectTech(\'' + safeShort + '\')" style="background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border:none;padding:14px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:transform 0.12s;" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'translateY(0)\'">' + r.display + '</button>';
+      });
+      h += '</div>';
+      h += '<div style="font-size:10px;color:#64748b;text-align:center;margin-top:14px;border-top:1px solid #1e3a5f;padding-top:10px;">After selection, use the \u2018Log out\u2019 button to switch users.</div>';
       h += '</div>';
       return h;
     }
+
+    // v219.05: Select handler — store selection in sessionStorage and re-render.
+    function ipTechViewSelectTech(techShort) {
+      try { sessionStorage.setItem('snappy_tech_view_active', techShort); } catch(e) {}
+      try { renderInstallPay(); } catch(e) {}
+    }
+    window.ipTechViewSelectTech = ipTechViewSelectTech;
 
     // v219.03: Render personal payout view for a single tech (filtered Service Techs row).
     function ipTechViewRenderForTech(techShort, weekEndingSat) {
@@ -10074,24 +10078,11 @@ document.addEventListener('visibilitychange', function() {
       return h;
     }
 
-    // v219.03: PIN submit/logout stubs (PIN store + verify wired when list is in).
-    function ipTechViewSubmitPin() {
-      var inp = document.getElementById('techViewPinInput');
-      var err = document.getElementById('techViewPinErr');
-      if (!inp) return;
-      var pin = (inp.value || '').trim();
-      if (!pin) return;
-      // Placeholder: no PINs configured yet.
-      if (err) {
-        err.style.display = 'block';
-        err.textContent = 'Tech View is locked until PINs are issued.';
-      }
-    }
+    // v219.03/v219.05: Logout clears selection so a different tech can pick.
     function ipTechViewLogout() {
       try { sessionStorage.removeItem('snappy_tech_view_active'); } catch(e) {}
       renderInstallPay();
     }
-    window.ipTechViewSubmitPin = ipTechViewSubmitPin;
     window.ipTechViewLogout = ipTechViewLogout;
 
     // v218.99: Manager Payout (Maico) — 0.5% of weekly (install + service) revenue.
