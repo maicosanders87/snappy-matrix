@@ -10035,9 +10035,9 @@ document.addEventListener('visibilitychange', function() {
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;" title="3% of Week\u2019s Install Rev (Paired) \u2014 same for everyone">Install (3%)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#a78bfa;" title="$25 per membership sold this week">Mem ($25)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fbbf24;" title="$25 per lead set">Lead ($25)</th>';
-      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fb923c;" title="$15 per Google review (MTD count drives payout)">Review ($15)</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fb923c;" title="$15 per Google review (MTD count). Paid monthly, separate from weekly total.">Review ($15)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#facc15;" title="Chris only: 2% of MTD install rev over $40k. Recalculates as the month progresses. Paid monthly, separate from weekly total.">MTD Bonus</th>';
-      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;" title="Rev + Install + Mem + Lead + Review for the week (MTD Bonus paid separately)">Total</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;" title="Rev + Install + Mem + Lead for the week (Review + MTD Bonus paid monthly, separately)">Total</th>';
       html += '</tr></thead><tbody>';
       // v219.14: Team totals — separate monthly + weekly accumulators.
       var teamMonthMem = 0, teamMonthInst = 0, teamMonthLeads = 0, teamMonthReviews = 0;
@@ -10108,9 +10108,10 @@ document.addEventListener('visibilitychange', function() {
         // v219.18: Review pay calculated on MONTHLY count (monthReviews), not weekly.
         var reviewPay = monthReviews * REVIEW_PAY;
         // v219.19: Chris MTD install bonus is paid MONTHLY, NOT rolled into weekly Total Payout.
-        // The bonus cell remains visible as a separate tracked column.
+        // v219.20: Google Review pay is ALSO paid MONTHLY, NOT rolled into weekly Total Payout.
+        // Both cells remain visible as separately tracked columns.
         var mtdBonus = (typeof ipComputeMonthlyInstallBonus === 'function') ? ipComputeMonthlyInstallBonus(short, monthInstallRev) : 0;
-        var totalPayout = revPay + instPay + memPay + leadPay + reviewPay;
+        var totalPayout = revPay + instPay + memPay + leadPay;
         teamRevPay += revPay; teamInstPay += instPay; teamMemPay += memPay; teamLeadPay += leadPay; teamReviewPay += reviewPay; teamMtdBonus += mtdBonus;
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;font-variant-numeric:tabular-nums;">$' + revPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + instPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
@@ -10166,7 +10167,8 @@ document.addEventListener('visibilitychange', function() {
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fbbf24;font-variant-numeric:tabular-nums;">$' + teamLeadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fb923c;font-variant-numeric:tabular-nums;">$' + teamReviewPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#facc15;font-variant-numeric:tabular-nums;">$' + teamMtdBonus.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
-      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.10);">$' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay + teamReviewPay + teamMtdBonus).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
+      // v219.20: Team weekly Total excludes Review + MTD Bonus (both paid monthly, tracked separately).
+      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.10);">$' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="padding:8px;border:1px solid #1e3a5f;"></td>';
       html += '</tr>';
       html += '</tbody></table></div>';
@@ -10264,8 +10266,9 @@ document.addEventListener('visibilitychange', function() {
       var leadPay = (m.weekLeadsSet || 0) * 25;
       var reviewPay = monthReviews * 15; // v219.18: \$15/Google review (MTD count drives payout)
       // v219.19: MTD install bonus excluded from weekly total (paid monthly, tracked separately).
+      // v219.20: Review pay ALSO excluded from weekly total (paid monthly, tracked separately).
       var mtdBonus = (typeof ipComputeMonthlyInstallBonus === 'function') ? ipComputeMonthlyInstallBonus(techShort, monthInstallRev) : 0;
-      var total = revPay + instPay + memPay + leadPay + reviewPay;
+      var total = revPay + instPay + memPay + leadPay;
       var h = '';
       h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">';
       h += '<div style="font-size:16px;font-weight:700;">\ud83d\udc64 ' + m.display + ' \u00b7 Week of ' + res.weekStart + ' \u2192 ' + res.weekEnd + '</div>';
@@ -10674,8 +10677,9 @@ document.addEventListener('visibilitychange', function() {
         // v219.18: Review pay calculated on MONTHLY count (monthReviews), not weekly.
         var reviewPay = monthReviews * REVIEW_PAY;
         // v219.19: MTD install bonus excluded from weekly total (paid monthly, tracked separately).
+        // v219.20: Review pay ALSO excluded from weekly total (paid monthly, tracked separately).
         var mtdBonus = (typeof ipComputeMonthlyInstallBonus === 'function') ? ipComputeMonthlyInstallBonus(short, monthInstallRev) : 0;
-        var totalPay = revPay + instPay + memPay + leadPay + reviewPay;
+        var totalPay = revPay + instPay + memPay + leadPay;
         teamRevPay += revPay; teamInstPay += instPay; teamMemPay += memPay; teamLeadPay += leadPay; teamReviewPay += reviewPay; teamMtdBonus += mtdBonus;
         rows += '<tr>'
           + '<td style="padding:6px;border:1px solid #888;font-weight:600;">' + escapeHtml(m.display) + '</td>'
@@ -10719,7 +10723,7 @@ document.addEventListener('visibilitychange', function() {
         + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#b45309;">$' + teamLeadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
         + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#c2410c;">$' + teamReviewPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
         + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#a16207;">$' + teamMtdBonus.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
-        + '<td style="text-align:right;padding:6px;border:1px solid #888;background:#dcfce7;">$' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay + teamReviewPay + teamMtdBonus).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
+        + '<td style="text-align:right;padding:6px;border:1px solid #888;background:#dcfce7;">$' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
         + '</tr>';
       var doc = '<html><head><title>Service Techs \u2014 Week Ending ' + weekEndingSat + '</title>'
         + '<style>body{font-family:Arial,sans-serif;color:#000;margin:24px;}h1{font-size:18pt;margin:0;}h2{font-size:13pt;margin:8px 0;}table{width:100%;border-collapse:collapse;margin-top:12px;}td,th{border:1px solid #888;padding:6px;font-size:10pt;}th{background:#eee;text-align:left;}@media print{body{margin:12mm;}}</style>'
@@ -10736,7 +10740,7 @@ document.addEventListener('visibilitychange', function() {
               + '<div><b>Week Leads Set:</b> ' + teamLeads + '</div>'
               + '<div><b>Week Google Reviews:</b> ' + teamReviews + '</div>'
               + '<div><b>MTD Memberships:</b> ' + teamMonthMem + ' \u00b7 <b>MTD Installs:</b> ' + teamMonthInst + ' \u00b7 <b>MTD Reviews:</b> ' + teamMonthReviews + '</div>'
-              + '<div style="margin-top:6px;border-top:1px solid #444;padding-top:4px;"><b>Team Total Payout:</b> $' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay + teamReviewPay + teamMtdBonus).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>'
+              + '<div style="margin-top:6px;border-top:1px solid #444;padding-top:4px;"><b>Team Weekly Total:</b> $' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' <span style="opacity:0.7;font-size:11px;">(Review + MTD Bonus paid monthly: $' + (teamReviewPay + teamMtdBonus).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + ')</span></div>'
             + '</div>'
           + '</div>'
           + '<table><thead>'
