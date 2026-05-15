@@ -4575,13 +4575,12 @@ document.addEventListener('visibilitychange', function() {
       var oneCallPts = Math.min(oneCall * 2, 4);
       var instLane = Math.min(instCountPts + instRevPts + highPts + oneCallPts, 20);
 
-      // === GR★ lane (max 10) ===
+      // === GR★ lane (v219.13: 5 pts per review, NO CAP) ===
+      // Replaced previous tiered scoring (3pts/review + avg★ bonus + volume bonus, cap 10).
+      // Pure linear: each Google review = 5 pts, no ceiling.
       var grCount = entry.grCount || 0;
-      var grAvg = entry.grAvg || 0;  // average stars this week
-      var grPts = Math.min(grCount * 3, 6);
-      if (grAvg >= 4.5 && grCount >= 1) grPts += 2;
-      if (grCount >= 3) grPts += 2;
-      var grLane = Math.min(grPts, 10);
+      var grAvg = entry.grAvg || 0;  // average stars this week (kept for display only)
+      var grLane = grCount * 5;
 
       var sixLaneTotal = Math.round((revLane + svcLane + memLane + leadLane + instLane + grLane) * 10) / 10;
 
@@ -9519,7 +9518,7 @@ document.addEventListener('visibilitychange', function() {
       if (!d.weeks[weekStart]) d.weeks[weekStart] = {};
       if (!d.weeks[weekStart][techShort]) d.weeks[weekStart][techShort] = {};
       // Coerce numeric for the 4 metric fields; leave strings alone otherwise.
-      if (['monthMemSold','weekMemSold','weekRev','weekInstallRev','weekLeadsSet'].indexOf(field) !== -1) {
+      if (['monthMemSold','weekMemSold','weekRev','weekInstallRev','weekLeadsSet','weekReviews'].indexOf(field) !== -1) {
         var n = parseFloat(value);
         if (isNaN(n)) { delete d.weeks[weekStart][techShort][field]; }
         else { d.weeks[weekStart][techShort][field] = n; }
@@ -9639,7 +9638,8 @@ document.addEventListener('visibilitychange', function() {
           weekRev:       (typeof o.weekRev       === 'number') ? o.weekRev       : c.weekRev,
           weekInstallRev:(typeof o.weekInstallRev=== 'number') ? o.weekInstallRev: c.weekInstallRev,
           weekLeadsSet:  (typeof o.weekLeadsSet  === 'number') ? o.weekLeadsSet  : c.weekLeadsSet,
-          edited: !!(typeof o.monthMemSold === 'number' || typeof o.weekMemSold === 'number' || typeof o.weekRev === 'number' || typeof o.weekInstallRev === 'number' || typeof o.weekLeadsSet === 'number'),
+          weekReviews:   (typeof o.weekReviews   === 'number') ? o.weekReviews   : (c.weekReviews || 0),
+          edited: !!(typeof o.monthMemSold === 'number' || typeof o.weekMemSold === 'number' || typeof o.weekRev === 'number' || typeof o.weekInstallRev === 'number' || typeof o.weekLeadsSet === 'number' || typeof o.weekReviews === 'number'),
           custom: !!o.__custom
         };
         out[short] = merged;
@@ -9657,6 +9657,7 @@ document.addEventListener('visibilitychange', function() {
           weekRev:       (typeof o.weekRev       === 'number') ? o.weekRev       : 0,
           weekInstallRev:(typeof o.weekInstallRev=== 'number') ? o.weekInstallRev: 0,
           weekLeadsSet:  (typeof o.weekLeadsSet  === 'number') ? o.weekLeadsSet  : 0,
+          weekReviews:   (typeof o.weekReviews   === 'number') ? o.weekReviews   : 0,
           edited: false,
           custom: true
         };
@@ -9702,7 +9703,7 @@ document.addEventListener('visibilitychange', function() {
       var roster = ipServiceTechRoster();
       var metrics = {};
       roster.forEach(function(r){
-        metrics[r.short] = { display: r.display, monthMemSold: 0, weekMemSold: 0, weekRev: 0, weekInstallRev: 0, weekLeadsSet: 0 };
+        metrics[r.short] = { display: r.display, monthMemSold: 0, weekMemSold: 0, weekRev: 0, weekInstallRev: 0, weekLeadsSet: 0, weekReviews: 0 };
       });
 
       // 1) Month memberships sold — from stData[].mtd_memberships (calendar-month MTD).
@@ -9907,22 +9908,26 @@ document.addEventListener('visibilitychange', function() {
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Week\'s Service Rev</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Week\'s Install Rev (Paired)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;">Week\'s Leads Set</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fb923c;" title="Google reviews earned this week">Week\'s Reviews</th>';
       // v218.78: payout columns — 3% of week's service rev + $25/lead set.
       // v219.01: + 3% of week's install rev (paired).
-      // v219.02: + $15 per membership sold this week.
+      // v219.02: + $25 per membership sold this week (v219.13 raised from $15).
+      // v219.13: + $15 per Google review.
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;" title="3% of Week\u2019s Service Rev">Rev Pay (3%)</th>';
       // v219.10: Header label generalized; Chris has tiered 5%/3%. Tooltip explains.
-      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;" title="3% of Week\u2019s Install Rev (Paired). Chris: 5% on first $40k, 3% over.">Install Pay</th>';
-      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#a78bfa;" title="$15 per membership sold this week">Mem Pay ($15 ea)</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;" title="3% of Week\u2019s Install Rev (Paired). Chris: 3% under $40k, 5% on first $40k once hit, 3% over.">Install Pay</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#a78bfa;" title="$25 per membership sold this week">Mem Pay ($25 ea)</th>';
       html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fbbf24;" title="$25 per lead set">Lead Pay ($25 ea)</th>';
-      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;" title="Rev Pay + Lead Pay for the week">Total Payout</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fb923c;" title="$15 per Google review this week">Review Pay ($15 ea)</th>';
+      html += '<th style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;" title="Rev + Install + Mem + Lead + Review pay for the week">Total Payout</th>';
       html += '<th style="text-align:center;padding:8px;border:1px solid #1e3a5f;">Actions</th>';
       html += '</tr></thead><tbody>';
-      var teamMem = 0, teamWeekMem = 0, teamRev = 0, teamInst = 0, teamLeads = 0, teamRevPay = 0, teamInstPay = 0, teamMemPay = 0, teamLeadPay = 0;
+      var teamMem = 0, teamWeekMem = 0, teamRev = 0, teamInst = 0, teamLeads = 0, teamReviews = 0, teamRevPay = 0, teamInstPay = 0, teamMemPay = 0, teamLeadPay = 0, teamReviewPay = 0;
       var SVC_REV_PCT = 0.03;
       var INST_REV_PCT = 0.03;
-      var MEM_PAY = 15;
+      var MEM_PAY = 25;   // v219.13: $25/membership (was $15)
       var LEAD_PAY = 25;
+      var REVIEW_PAY = 15; // v219.13: $15/Google review (new)
       var ws = res.weekStart;
       var inputStyle = 'width:90px;padding:4px 6px;background:#0b1426;border:1px solid #1e3a5f;color:#f1f5f9;border-radius:4px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;';
       var btnStyle = 'background:transparent;color:#94a3b8;border:1px solid #1e3a5f;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;margin-left:4px;';
@@ -9957,20 +9962,27 @@ document.addEventListener('visibilitychange', function() {
         html += '<td style="text-align:right;padding:4px;border:1px solid #1e3a5f;"><input type="number" min="0" step="1" value="' + (Math.round(m.weekRev)) + '" onchange="ipServiceTechFieldEdit(\'' + ws + '\',\'' + short + '\',\'weekRev\',this)" style="' + inputStyle + 'color:#10B981;"></td>';
         html += '<td style="text-align:right;padding:4px;border:1px solid #1e3a5f;"><input type="number" min="0" step="0.01" value="' + (m.weekInstallRev.toFixed(2)) + '" onchange="ipServiceTechFieldEdit(\'' + ws + '\',\'' + short + '\',\'weekInstallRev\',this)" style="' + inputStyle + 'color:#3B82F6;"></td>';
         html += '<td style="text-align:right;padding:4px;border:1px solid #1e3a5f;"><input type="number" min="0" step="1" value="' + m.weekLeadsSet + '" onchange="ipServiceTechFieldEdit(\'' + ws + '\',\'' + short + '\',\'weekLeadsSet\',this)" style="' + inputStyle + 'width:70px;"></td>';
+        // v219.13: Week's Google reviews (editable, $15 each).
+        var weekReviews = (m.weekReviews != null ? Number(m.weekReviews) : 0) || 0;
+        teamReviews += weekReviews;
+        html += '<td style="text-align:right;padding:4px;border:1px solid #1e3a5f;"><input type="number" min="0" step="1" value="' + weekReviews + '" onchange="ipServiceTechFieldEdit(\'' + ws + '\',\'' + short + '\',\'weekReviews\',this)" style="' + inputStyle + 'color:#fb923c;width:70px;"></td>';
         // v218.78: computed payout cells — always derived, never edited directly.
         // v219.01: + Install Pay = 3% of weekInstallRev (paired).
-        // v219.02: + Mem Pay = $15 × weekMemSold.
+        // v219.02: + Mem Pay = $25 × weekMemSold (v219.13: was $15).
+        // v219.13: + Review Pay = $15 × weekReviews.
         var revPay = (m.weekRev || 0) * SVC_REV_PCT;
-        // v219.10: Chris-tiered install pay (5% up to $40k, 3% over). Other techs flat 3%.
+        // v219.12: Chris install pay milestone bonus (3% under $40k, 5% on first $40k once hit then 3% over).
         var instPay = ipComputeInstallPay(short, m.weekInstallRev || 0);
         var memPay = weekMemSold * MEM_PAY;
         var leadPay = (m.weekLeadsSet || 0) * LEAD_PAY;
-        var totalPayout = revPay + instPay + memPay + leadPay;
-        teamRevPay += revPay; teamInstPay += instPay; teamMemPay += memPay; teamLeadPay += leadPay;
+        var reviewPay = weekReviews * REVIEW_PAY;
+        var totalPayout = revPay + instPay + memPay + leadPay + reviewPay;
+        teamRevPay += revPay; teamInstPay += instPay; teamMemPay += memPay; teamLeadPay += leadPay; teamReviewPay += reviewPay;
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;font-variant-numeric:tabular-nums;">$' + revPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + instPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#a78bfa;font-variant-numeric:tabular-nums;">$' + memPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fbbf24;font-variant-numeric:tabular-nums;">$' + leadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
+        html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fb923c;font-variant-numeric:tabular-nums;">$' + reviewPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
         html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;font-weight:700;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.05);">$' + totalPayout.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
         html += '<td style="text-align:center;padding:4px;border:1px solid #1e3a5f;white-space:nowrap;">';
         if (m.edited || m.custom) {
@@ -10002,11 +10014,13 @@ document.addEventListener('visibilitychange', function() {
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;font-variant-numeric:tabular-nums;">$' + (Math.round(teamRev)).toLocaleString() + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + (teamInst).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;font-variant-numeric:tabular-nums;">' + teamLeads + '</td>';
+      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fb923c;font-variant-numeric:tabular-nums;">' + teamReviews + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#10B981;font-variant-numeric:tabular-nums;">$' + teamRevPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#3B82F6;font-variant-numeric:tabular-nums;">$' + teamInstPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#a78bfa;font-variant-numeric:tabular-nums;">$' + teamMemPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fbbf24;font-variant-numeric:tabular-nums;">$' + teamLeadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
-      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.10);">$' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
+      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#fb923c;font-variant-numeric:tabular-nums;">$' + teamReviewPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
+      html += '<td style="text-align:right;padding:8px;border:1px solid #1e3a5f;color:#f1f5f9;font-variant-numeric:tabular-nums;background:rgba(16,185,129,0.10);">$' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay + teamReviewPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>';
       html += '<td style="padding:8px;border:1px solid #1e3a5f;"></td>';
       html += '</tr>';
       html += '</tbody></table></div>';
@@ -10089,12 +10103,14 @@ document.addEventListener('visibilitychange', function() {
         return '<div style="padding:20px;text-align:center;color:#94a3b8;">No payout data for this tech this week.</div>';
       }
       var weekMemSold = (m.weekMemSold != null ? Number(m.weekMemSold) : 0) || 0;
+      var weekReviews = (m.weekReviews != null ? Number(m.weekReviews) : 0) || 0;
       var revPay = (m.weekRev || 0) * 0.03;
-      // v219.10: Chris-tiered install pay (5% up to $40k, 3% over). Other techs flat 3%.
+      // v219.12: Chris install pay milestone bonus (3% under $40k, 5% on first $40k once hit then 3% over).
       var instPay = ipComputeInstallPay(techShort, m.weekInstallRev || 0);
-      var memPay = weekMemSold * 15;
+      var memPay = weekMemSold * 25;   // v219.13: $25/membership
       var leadPay = (m.weekLeadsSet || 0) * 25;
-      var total = revPay + instPay + memPay + leadPay;
+      var reviewPay = weekReviews * 15; // v219.13: $15/Google review
+      var total = revPay + instPay + memPay + leadPay + reviewPay;
       var h = '';
       h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">';
       h += '<div style="font-size:16px;font-weight:700;">\ud83d\udc64 ' + m.display + ' \u00b7 Week of ' + res.weekStart + ' \u2192 ' + res.weekEnd + '</div>';
@@ -10109,8 +10125,9 @@ document.addEventListener('visibilitychange', function() {
       h += ipTechViewTile('Rev Pay (3%)', '$' + revPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#10B981', '$' + Math.round(m.weekRev).toLocaleString() + ' service rev');
       // v219.10: Tile label reflects the tech's rate structure (Chris: tiered).
       h += ipTechViewTile('Install Pay (' + ipInstallPayLabel(techShort) + ')', '$' + instPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#3B82F6', '$' + m.weekInstallRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' install rev');
-      h += ipTechViewTile('Mem Pay ($15 ea)', '$' + memPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#a78bfa', weekMemSold + ' memberships sold');
+      h += ipTechViewTile('Mem Pay ($25 ea)', '$' + memPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#a78bfa', weekMemSold + ' memberships sold');
       h += ipTechViewTile('Lead Pay ($25 ea)', '$' + leadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#fbbf24', m.weekLeadsSet + ' leads set');
+      h += ipTechViewTile('Review Pay ($15 ea)', '$' + reviewPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#fb923c', weekReviews + ' Google review' + (weekReviews === 1 ? '' : 's'));
       h += '</div>';
       h += '<div style="background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(99,102,241,0.10));border:1px solid #10B981;border-radius:10px;padding:18px;text-align:center;">';
       h += '<div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Your Total Payout This Week</div>';
@@ -10454,10 +10471,11 @@ document.addEventListener('visibilitychange', function() {
       function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
       // v218.78: include payout columns in PDF.
       // v219.01: + Install Pay (3% of weekInstallRev paired).
-      // v219.02: + Mem Pay ($15 per membership sold this week).
-      var SVC_REV_PCT = 0.03, INST_REV_PCT = 0.03, MEM_PAY = 15, LEAD_PAY = 25;
+      // v219.02: + Mem Pay ($25 per membership sold this week, raised from $15 in v219.13).
+      // v219.13: + Review Pay ($15 per Google review). Week's Reviews column added.
+      var SVC_REV_PCT = 0.03, INST_REV_PCT = 0.03, MEM_PAY = 25, LEAD_PAY = 25, REVIEW_PAY = 15;
       var rows = '';
-      var teamMem = 0, teamWeekMem = 0, teamRev = 0, teamInst = 0, teamLeads = 0, teamRevPay = 0, teamInstPay = 0, teamMemPay = 0, teamLeadPay = 0;
+      var teamMem = 0, teamWeekMem = 0, teamRev = 0, teamInst = 0, teamLeads = 0, teamReviews = 0, teamRevPay = 0, teamInstPay = 0, teamMemPay = 0, teamLeadPay = 0, teamReviewPay = 0;
       // Include any extra metrics keys from overrides not in roster (e.g. custom shorts).
       var rosterShorts = roster.map(function(r){ return r.short; });
       Object.keys(res.metrics).forEach(function(k){ if (rosterShorts.indexOf(k) === -1) rosterShorts.push(k); });
@@ -10466,17 +10484,20 @@ document.addEventListener('visibilitychange', function() {
         if (!m) return;
         teamMem += m.monthMemSold;
         var weekMemSold = (m.weekMemSold != null ? Number(m.weekMemSold) : 0) || 0;
+        var weekReviews = (m.weekReviews != null ? Number(m.weekReviews) : 0) || 0;
         teamWeekMem += weekMemSold;
         teamRev += m.weekRev;
         teamInst += m.weekInstallRev;
         teamLeads += m.weekLeadsSet;
+        teamReviews += weekReviews;
         var revPay = (m.weekRev || 0) * SVC_REV_PCT;
-        // v219.10: Chris-tiered install pay (5% up to $40k, 3% over). Other techs flat 3%.
+        // v219.12: Chris install pay milestone bonus (3% under $40k, 5% on first $40k once hit then 3% over).
         var instPay = ipComputeInstallPay(short, m.weekInstallRev || 0);
         var memPay = weekMemSold * MEM_PAY;
         var leadPay = (m.weekLeadsSet || 0) * LEAD_PAY;
-        var totalPay = revPay + instPay + memPay + leadPay;
-        teamRevPay += revPay; teamInstPay += instPay; teamMemPay += memPay; teamLeadPay += leadPay;
+        var reviewPay = weekReviews * REVIEW_PAY;
+        var totalPay = revPay + instPay + memPay + leadPay + reviewPay;
+        teamRevPay += revPay; teamInstPay += instPay; teamMemPay += memPay; teamLeadPay += leadPay; teamReviewPay += reviewPay;
         rows += '<tr>'
           + '<td style="padding:6px;border:1px solid #888;font-weight:600;">' + escapeHtml(m.display) + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + m.monthMemSold + '</td>'
@@ -10484,10 +10505,12 @@ document.addEventListener('visibilitychange', function() {
           + '<td style="text-align:right;padding:6px;border:1px solid #888;">$' + Math.round(m.weekRev).toLocaleString() + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;">$' + m.weekInstallRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + m.weekLeadsSet + '</td>'
+          + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + weekReviews + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#047857;">$' + revPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#1d4ed8;">$' + instPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#7c3aed;">$' + memPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#b45309;">$' + leadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
+          + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#c2410c;">$' + reviewPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
           + '<td style="text-align:right;padding:6px;border:1px solid #888;font-weight:700;background:#f0fdf4;">$' + totalPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
           + '</tr>';
       });
@@ -10498,11 +10521,13 @@ document.addEventListener('visibilitychange', function() {
         + '<td style="text-align:right;padding:6px;border:1px solid #888;">$' + Math.round(teamRev).toLocaleString() + '</td>'
         + '<td style="text-align:right;padding:6px;border:1px solid #888;">$' + teamInst.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
         + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + teamLeads + '</td>'
+        + '<td style="text-align:right;padding:6px;border:1px solid #888;">' + teamReviews + '</td>'
         + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#047857;">$' + teamRevPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
         + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#1d4ed8;">$' + teamInstPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
         + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#7c3aed;">$' + teamMemPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
         + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#b45309;">$' + teamLeadPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
-        + '<td style="text-align:right;padding:6px;border:1px solid #888;background:#dcfce7;">$' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
+        + '<td style="text-align:right;padding:6px;border:1px solid #888;color:#c2410c;">$' + teamReviewPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
+        + '<td style="text-align:right;padding:6px;border:1px solid #888;background:#dcfce7;">$' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay + teamReviewPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</td>'
         + '</tr>';
       var doc = '<html><head><title>Service Techs \u2014 Week Ending ' + weekEndingSat + '</title>'
         + '<style>body{font-family:Arial,sans-serif;color:#000;margin:24px;}h1{font-size:18pt;margin:0;}h2{font-size:13pt;margin:8px 0;}table{width:100%;border-collapse:collapse;margin-top:12px;}td,th{border:1px solid #888;padding:6px;font-size:10pt;}th{background:#eee;text-align:left;}@media print{body{margin:12mm;}}</style>'
@@ -10516,8 +10541,9 @@ document.addEventListener('visibilitychange', function() {
               + '<div><b>Week Service Rev:</b> $' + Math.round(teamRev).toLocaleString() + '</div>'
               + '<div><b>Week Install Rev (Paired):</b> $' + teamInst.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>'
               + '<div><b>Week Leads Set:</b> ' + teamLeads + '</div>'
+              + '<div><b>Week Google Reviews:</b> ' + teamReviews + '</div>'
               + '<div><b>Month Memberships Sold:</b> ' + teamMem + '</div>'
-              + '<div style="margin-top:6px;border-top:1px solid #444;padding-top:4px;"><b>Team Total Payout:</b> $' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>'
+              + '<div style="margin-top:6px;border-top:1px solid #444;padding-top:4px;"><b>Team Total Payout:</b> $' + (teamRevPay + teamInstPay + teamMemPay + teamLeadPay + teamReviewPay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>'
             + '</div>'
           + '</div>'
           + '<table><thead><tr>'
@@ -10527,10 +10553,12 @@ document.addEventListener('visibilitychange', function() {
             + '<th style="text-align:right;">Week\'s Service Rev</th>'
             + '<th style="text-align:right;">Week\'s Install Rev (Paired)</th>'
             + '<th style="text-align:right;">Week\'s Leads Set</th>'
+            + '<th style="text-align:right;">Week\'s Reviews</th>'
             + '<th style="text-align:right;">Rev Pay (3%)</th>'
             + '<th style="text-align:right;">Install Pay (3%)</th>'
-            + '<th style="text-align:right;">Mem Pay ($15 ea)</th>'
+            + '<th style="text-align:right;">Mem Pay ($25 ea)</th>'
             + '<th style="text-align:right;">Lead Pay ($25 ea)</th>'
+            + '<th style="text-align:right;">Review Pay ($15 ea)</th>'
             + '<th style="text-align:right;">Total Payout</th>'
           + '</tr></thead><tbody>' + rows + '</tbody></table>'
           + '<div style="margin-top:18px;font-size:9pt;color:#666;">'
@@ -10538,7 +10566,8 @@ document.addEventListener('visibilitychange', function() {
             + 'Week\'s Service Rev = tech-driven service revenue logged for the week. '
             + 'Week\'s Install Rev (Paired) = install $ tied to a TGL the tech generated (Brayden-installed or completed in-week). '
             + 'Week\'s Leads Set = TGL flips generated in-week by the tech. '
-            + 'Rev Pay = 3% of Week\'s Service Rev. Install Pay = 3% of Week\'s Install Rev (Paired). Mem Pay = $15 \u00d7 Week\'s Memberships Sold. Lead Pay = $25 \u00d7 Week\'s Leads Set. Total Payout = Rev Pay + Install Pay + Mem Pay + Lead Pay.'
+            + 'Week\'s Reviews = Google reviews earned by the tech this week. '
+            + 'Rev Pay = 3% of Week\'s Service Rev. Install Pay = 3% of Week\'s Install Rev (Paired) (Chris: 3% under $40k, 5% on first $40k once hit, 3% over). Mem Pay = $25 \u00d7 Week\'s Memberships Sold. Lead Pay = $25 \u00d7 Week\'s Leads Set. Review Pay = $15 \u00d7 Week\'s Reviews. Total Payout = Rev Pay + Install Pay + Mem Pay + Lead Pay + Review Pay.'
           + '</div>'
           + '<div style="margin-top:20px;font-size:9pt;color:#666;">Generated by Snappy Matrix \u00b7 Submitted by Mark Sanders \u00b7 ' + new Date().toISOString().slice(0,10) + '</div>'
         + '</body></html>';

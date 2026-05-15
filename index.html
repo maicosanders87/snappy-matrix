@@ -22,13 +22,13 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20260515v219.12-1778864265">
+  <link rel="stylesheet" href="styles.css?v=20260515v219.13-1778865175">
 
   <!-- v218.27: Auto cache-buster — force reload if version changed since last visit. -->
   <script>
     (function(){
       try {
-        var APP_VERSION = 'v219.12';
+        var APP_VERSION = 'v219.13';
         var KEY = 'snappy_app_version';
         var stored = localStorage.getItem(KEY);
         // v218.84: iPad blank-screen fix. The previous force-reload chain (caches.delete →
@@ -99,7 +99,7 @@
   </div>
 
   <!-- Version Badge (top-left, always visible) -->
-  <div id="appVersionBadge" class="app-version-badge" title="App version">v219.12</div>
+  <div id="appVersionBadge" class="app-version-badge" title="App version">v219.13</div>
 
   <!-- Background Grid Effect -->
   <div class="bg-grid-effect"></div>
@@ -141,7 +141,7 @@
       </div>
       <div class="header-right">
         <span class="badge">6 Technicians</span>
-        <span class="badge badge-date">Updated 5/15/2026 &middot; v219.12</span>
+        <span class="badge badge-date">Updated 5/15/2026 &middot; v219.13</span>
         <button class="share-matrix-btn" onclick="shareMatrix()" title="Share Matrix"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Share</button>
         <button id="syncNowBtn" class="sync-now-btn mgr-only" onclick="manualSync()" title="Sync Now">&#x1f504;</button>
         <span id="syncStatusIndicator" class="sync-indicator sync-idle mgr-only" onclick="openSyncSetup()" title="Cloud Sync Settings">☁ Cloud</span>
@@ -276,11 +276,11 @@
             <span class="pts-summary-icon">🧮</span>
             <span class="pts-summary-title">How Points Work</span>
           </span>
-          <span class="pts-summary-hint">SVC + INST + MEM = Total<span class="pts-summary-chev">▾</span></span>
+          <span class="pts-summary-hint">SVC + INST + MEM + GR★ = Total<span class="pts-summary-chev">▾</span></span>
         </summary>
         <div class="pts-body">
           <div class="pts-intro">
-            Each tech earns points across <b>three streams</b> every week. Add them together for the weekly total. The leader on the board is whoever stacks the most points across all three.
+            Each tech earns points across <b>four streams</b> every week. Add them together for the weekly total. The leader on the board is whoever stacks the most points across all four.
           </div>
           <div class="pts-grid">
             <!-- SERVICE -->
@@ -329,20 +329,37 @@
               </div>
               <div class="pts-note">No opportunities = no points (no penalty).</div>
             </div>
+
+            <!-- GOOGLE REVIEWS (v219.13) -->
+            <div class="pts-card" style="border-color:#fb923c;background:linear-gradient(180deg,rgba(251,146,60,0.10),rgba(251,146,60,0.04));">
+              <div class="pts-card-head">
+                <span class="pts-card-label" style="background:#fb923c;color:#0b1426;">GR★</span>
+                <span class="pts-card-name">Google Reviews</span>
+              </div>
+              <div class="pts-formula">5 pts per Google review</div>
+              <div class="pts-examples">
+                <div class="pts-ex"><span class="pts-ex-raw">1 review</span><span class="pts-ex-arrow">→</span><span class="pts-ex-pts">5 pts</span></div>
+                <div class="pts-ex"><span class="pts-ex-raw">3 reviews</span><span class="pts-ex-arrow">→</span><span class="pts-ex-pts">15 pts</span></div>
+                <div class="pts-ex"><span class="pts-ex-raw">5 reviews</span><span class="pts-ex-arrow">→</span><span class="pts-ex-pts">25 pts</span></div>
+              </div>
+              <div class="pts-note">Linear, <b>no cap</b> — every review counts, every week.</div>
+            </div>
           </div>
 
           <!-- Worked example -->
           <div class="pts-example-box">
             <div class="pts-example-head">Worked Example</div>
-            <div class="pts-example-line">A tech books <b>$3,000</b> in service, sells <b>2 installs</b>, and converts <b>4 of 6</b> membership opps (67%).</div>
+            <div class="pts-example-line">A tech books <b>$3,000</b> in service, sells <b>2 installs</b>, converts <b>4 of 6</b> membership opps (67%), and earns <b>2 Google reviews</b>.</div>
             <div class="pts-example-math">
               <span class="pts-pill svc">SVC 15.0</span>
               <span class="pts-plus">+</span>
               <span class="pts-pill inst">INST 10 <span class="pts-pill-tier tier-A">A</span></span>
               <span class="pts-plus">+</span>
               <span class="pts-pill mem">MEM 7 <span class="pts-pill-tier tier-A">A</span></span>
+              <span class="pts-plus">+</span>
+              <span class="pts-pill" style="background:#fb923c;color:#0b1426;">GR★ 10</span>
               <span class="pts-equals">=</span>
-              <span class="pts-pill total">32.0 pts</span>
+              <span class="pts-pill total">42.0 pts</span>
             </div>
           </div>
 
@@ -1576,8 +1593,8 @@ AND 30% of advancement "votes" come from skills progress
   </script>
   <script src="pdf_data.js?v=20260419v56"></script>
   <script src="score_pdfs.js?v=20260507v218.24"></script>
-  <script src="onon_packets.js?v=20260515v219.12-1778864265"></script>
-  <script src="app.js?v=20260515v219.12-1778864265"></script>
+  <script src="onon_packets.js?v=20260515v219.13-1778865175"></script>
+  <script src="app.js?v=20260515v219.13-1778865175"></script>
 
   <!-- v193: Intro splash controller -->
   <script>
