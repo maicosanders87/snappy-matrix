@@ -10116,6 +10116,80 @@ document.addEventListener('visibilitychange', function() {
     }
     window.renderTechViewStandalone = renderTechViewStandalone;
 
+    // ===== v219.07: Tech View PIN gate =====
+    // Manager (isManagerMode) auto-unlocks. Everyone else must enter a PIN.
+    // Until per-tech PINs are issued, only manager PINs (MGR_PIN / MGR_PINS) work.
+    // Session unlock — clears on browser close.
+    var TV_UNLOCK_KEY = 'snappy_tv_unlocked_v1';
+    function tvIsUnlocked() {
+      try {
+        if (typeof isManagerMode !== 'undefined' && isManagerMode) return true;
+        return sessionStorage.getItem(TV_UNLOCK_KEY) === '1';
+      } catch(e) { return false; }
+    }
+    function tvUnlock() { try { sessionStorage.setItem(TV_UNLOCK_KEY, '1'); } catch(e) {} }
+    function tvLock()   { try { sessionStorage.removeItem(TV_UNLOCK_KEY); } catch(e) {} }
+    function tvCheckPin(pin) {
+      // Accept any manager PIN. (Per-tech PINs reserved for a future map: snappy_tech_pins_v1.)
+      if (typeof MGR_PIN  !== 'undefined' && pin === MGR_PIN) return true;
+      if (typeof MGR_PINS !== 'undefined' && MGR_PINS && MGR_PINS[pin]) return true;
+      return false;
+    }
+    function tvPromptPin() {
+      // If already unlocked (mgr), just open the tab.
+      if (tvIsUnlocked()) {
+        var t = document.querySelector('.nav-tab[data-view="techview"]');
+        if (t) t.click();
+        return;
+      }
+      var existing = document.getElementById('tvPinModal');
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      var modal = document.createElement('div');
+      modal.id = 'tvPinModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML =
+        '<div style="background:#0F1B2E;color:#f1f5f9;width:100%;max-width:380px;border:1px solid #1e3a5f;border-radius:14px;padding:24px;text-align:center;box-shadow:0 24px 48px rgba(0,0,0,0.6);">' +
+          '<div style="font-size:38px;margin-bottom:8px;">\ud83d\udd12</div>' +
+          '<div style="font-size:18px;font-weight:700;margin-bottom:4px;">Tech View \u2014 Private</div>' +
+          '<div style="font-size:12px;color:#94a3b8;margin-bottom:16px;">Enter PIN to unlock</div>' +
+          '<input id="tvPinInput" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="\u2022\u2022\u2022\u2022" style="width:100%;padding:12px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:18px;letter-spacing:6px;text-align:center;font-variant-numeric:tabular-nums;">' +
+          '<div id="tvPinErr" style="color:#dc2626;font-size:12px;margin-top:8px;min-height:14px;"></div>' +
+          '<div style="display:flex;gap:8px;margin-top:14px;">' +
+            '<button onclick="tvClosePinModal()" style="flex:1;background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:10px;border-radius:8px;font-size:13px;cursor:pointer;">Cancel</button>' +
+            '<button onclick="tvSubmitPin()" style="flex:2;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Unlock</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      setTimeout(function(){
+        var i = document.getElementById('tvPinInput');
+        if (i) { i.focus(); i.addEventListener('keydown', function(e){ if (e.key === 'Enter') tvSubmitPin(); }); }
+      }, 50);
+    }
+    function tvClosePinModal() {
+      var m = document.getElementById('tvPinModal');
+      if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+    function tvSubmitPin() {
+      var inp = document.getElementById('tvPinInput');
+      var err = document.getElementById('tvPinErr');
+      if (!inp) return;
+      if (tvCheckPin(inp.value)) {
+        tvClosePinModal();
+        tvUnlock();
+        var tab = document.querySelector('.nav-tab[data-view="techview"]');
+        if (tab) tab.click();
+      } else {
+        if (err) err.textContent = 'Incorrect PIN';
+        inp.value = '';
+        inp.focus();
+      }
+    }
+    window.tvIsUnlocked    = tvIsUnlocked;
+    window.tvPromptPin     = tvPromptPin;
+    window.tvClosePinModal = tvClosePinModal;
+    window.tvSubmitPin     = tvSubmitPin;
+    window.tvLock          = tvLock;
+
     // v218.99: Manager Payout (Maico) — 0.5% of weekly (install + service) revenue.
     //   - Install rev source: completed TGL rows w/ jobTotal > 0 in the week +
     //     snappy_brayden_installs entries with completionDate in the week.
@@ -13002,10 +13076,15 @@ document.addEventListener('visibilitychange', function() {
             }
           } catch(e) { console.warn('renderInstallPay on tab switch failed:', e); }
         }
-        // v219.06: Tech View — standalone, open access (picker), per-tech only.
+        // v219.07: Tech View — PIN-gated. Manager auto-unlocks; everyone else hits prompt.
         if (v === 'techview') {
-          try { if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone(); }
-          catch(e) { console.warn('renderTechViewStandalone on tab switch failed:', e); }
+          try {
+            if (typeof tvIsUnlocked === 'function' && !tvIsUnlocked()) {
+              if (typeof tvPromptPin === 'function') tvPromptPin();
+            } else if (typeof renderTechViewStandalone === 'function') {
+              renderTechViewStandalone();
+            }
+          } catch(e) { console.warn('renderTechViewStandalone on tab switch failed:', e); }
         }
         // v202: Re-render Manager content when entering manager tab.
         if (v === 'manager') {
