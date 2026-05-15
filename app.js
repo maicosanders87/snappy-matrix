@@ -10283,7 +10283,7 @@ document.addEventListener('visibilitychange', function() {
       h += '<div style="text-align:center;margin-bottom:18px;">';
       h += '<div style="font-size:32px;margin-bottom:6px;">\ud83d\udc64</div>';
       h += '<div style="font-size:16px;font-weight:700;color:#f1f5f9;">Tech View</div>';
-      h += '<div style="font-size:12px;color:#94a3b8;margin-top:4px;">Select your name to view ONLY your own numbers. PIN protection coming soon.</div>';
+      h += '<div style="font-size:12px;color:#94a3b8;margin-top:4px;">Tap your name and enter your PIN to view your own payout. Numbers stay hidden until the correct PIN is entered.</div>';
       h += '</div>';
       h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">';
       roster.forEach(function(r){
@@ -10300,7 +10300,29 @@ document.addEventListener('visibilitychange', function() {
     // v219.09: Re-render the standalone Tech View tab if it's the active view,
     //          otherwise fall back to the Payout panel. Fixes "clicking a tech does
     //          nothing" when launched from the top-level Tech View tab.
+    // v219.24: Each tech must enter their own PIN. Manager bypasses. Otherwise
+    //          a PIN modal appears \u2014 numbers stay hidden until the PIN matches
+    //          that exact tech's slot in TECH_PINS.
     function ipTechViewSelectTech(techShort) {
+      // Manager always allowed (no PIN needed).
+      if (typeof isManagerMode !== 'undefined' && isManagerMode) {
+        _ipTechViewActivate(techShort);
+        return;
+      }
+      // Already PIN-locked to this exact tech? Just open their card.
+      var locked = '';
+      try { locked = sessionStorage.getItem('snappy_tech_pin_locked') || ''; } catch(e) {}
+      if (locked === techShort) {
+        _ipTechViewActivate(techShort);
+        return;
+      }
+      // Otherwise prompt for that tech's PIN.
+      _ipTechShowPerTechPinModal(techShort);
+    }
+    window.ipTechViewSelectTech = ipTechViewSelectTech;
+
+    // v219.24: Internal helper \u2014 activate the picked tech's card and render.
+    function _ipTechViewActivate(techShort) {
       try { sessionStorage.setItem('snappy_tech_view_active', techShort); } catch(e) {}
       try {
         var tvView = document.getElementById('view-techview');
@@ -10312,7 +10334,72 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) {}
       try { renderInstallPay(); } catch(e) {}
     }
-    window.ipTechViewSelectTech = ipTechViewSelectTech;
+
+    // v219.24: Per-tech PIN modal. Only the PIN registered to this exact tech
+    // unlocks. Wrong PIN (even another tech's valid PIN) is rejected so techs
+    // can't peek at each other's cards.
+    function _ipTechShowPerTechPinModal(techShort) {
+      var existing = document.getElementById('perTechPinModal');
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      var roster = [];
+      try { roster = ipServiceTechRoster(); } catch(e) {}
+      var display = techShort;
+      for (var i = 0; i < roster.length; i++) {
+        if (roster[i].short === techShort) { display = roster[i].display; break; }
+      }
+      var modal = document.createElement('div');
+      modal.id = 'perTechPinModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10010;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML =
+        '<div style="background:#0F1B2E;color:#f1f5f9;width:100%;max-width:380px;border:1px solid #1e3a5f;border-radius:14px;padding:24px;text-align:center;box-shadow:0 24px 48px rgba(0,0,0,0.6);">' +
+          '<div style="font-size:38px;margin-bottom:8px;">\ud83d\udd12</div>' +
+          '<div style="font-size:18px;font-weight:700;margin-bottom:4px;">' + escapeHtml(display) + '\u2019s Payout</div>' +
+          '<div style="font-size:12px;color:#94a3b8;margin-bottom:16px;">Enter your PIN to view your numbers</div>' +
+          '<input id="perTechPinInput" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="\u2022\u2022\u2022\u2022" style="width:100%;padding:12px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:8px;font-size:18px;letter-spacing:6px;text-align:center;font-variant-numeric:tabular-nums;">' +
+          '<div id="perTechPinErr" style="color:#dc2626;font-size:12px;margin-top:8px;min-height:14px;"></div>' +
+          '<div style="display:flex;gap:8px;margin-top:14px;">' +
+            '<button onclick="_ipTechClosePinModal()" style="flex:1;background:transparent;color:#94a3b8;border:1px solid #1e3a5f;padding:10px;border-radius:8px;font-size:13px;cursor:pointer;">Cancel</button>' +
+            '<button onclick="_ipTechSubmitPin(\'' + techShort.replace(/\\/g,'\\\\').replace(/\u0027/g,"\\\u0027") + '\')" style="flex:2;background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Unlock</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      setTimeout(function(){
+        var inp = document.getElementById('perTechPinInput');
+        if (inp) {
+          inp.focus();
+          inp.addEventListener('keydown', function(e){
+            if (e.key === 'Enter') _ipTechSubmitPin(techShort);
+            if (e.key === 'Escape') _ipTechClosePinModal();
+          });
+        }
+      }, 50);
+    }
+    window._ipTechShowPerTechPinModal = _ipTechShowPerTechPinModal;
+
+    function _ipTechClosePinModal() {
+      var m = document.getElementById('perTechPinModal');
+      if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+    window._ipTechClosePinModal = _ipTechClosePinModal;
+
+    function _ipTechSubmitPin(techShort) {
+      var inp = document.getElementById('perTechPinInput');
+      var err = document.getElementById('perTechPinErr');
+      if (!inp) return;
+      var pin = (inp.value || '').trim();
+      // Strict match: PIN must be registered to THIS tech in TECH_PINS.
+      if (typeof TECH_PINS !== 'undefined' && TECH_PINS[pin] === techShort) {
+        try { sessionStorage.setItem('snappy_tech_pin_locked', techShort); } catch(e) {}
+        _ipTechClosePinModal();
+        if (typeof applyViewMode === 'function') applyViewMode();
+        else _ipTechViewActivate(techShort);
+      } else {
+        if (err) err.textContent = 'Incorrect PIN for this tech';
+        inp.value = '';
+        inp.focus();
+      }
+    }
+    window._ipTechSubmitPin = _ipTechSubmitPin;
 
     // v219.03: Render personal payout view for a single tech (filtered Service Techs row).
     function ipTechViewRenderForTech(techShort, weekEndingSat) {
