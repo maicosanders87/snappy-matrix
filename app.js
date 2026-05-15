@@ -243,11 +243,30 @@ const EDITOR_PINS = {
 const TECH_PINS = {
   '5269': 'Daniel'
 };
-let isManagerMode = true; // forced for testing
-let isCoachMode = localStorage.getItem('snappy_coach_mode') === 'true';
-let isEditorMode = localStorage.getItem('snappy_editor_mode') === 'true';
-let coachName = localStorage.getItem('snappy_coach_name') || '';
-let editorName = localStorage.getItem('snappy_editor_name') || '';
+// v219.23: ALWAYS BOOT LOCKED. Every page load starts in Viewer mode regardless
+// of any previously stored manager/coach/editor/tech-PIN session. The user MUST
+// re-enter a PIN to unlock. This protects against an unattended device leaving
+// manager access exposed, and prevents a tech's PIN-lock from persisting past
+// the moment they close the tab.
+let isManagerMode = false;
+let isCoachMode = false;
+let isEditorMode = false;
+let coachName = '';
+let editorName = '';
+// Aggressively purge every persisted access flag at boot so refreshes can't
+// inherit elevated privileges. Tech PIN lock is cleared too (sessionStorage
+// dies with the tab anyway, but localStorage was sticky — wipe it).
+try {
+  localStorage.removeItem('snappy_mgr_mode');
+  localStorage.removeItem('snappy_mgr_name');
+  localStorage.removeItem('snappy_coach_mode');
+  localStorage.removeItem('snappy_coach_name');
+  localStorage.removeItem('snappy_editor_mode');
+  localStorage.removeItem('snappy_editor_name');
+  localStorage.removeItem('snappy_tech_pin_locked');
+  sessionStorage.removeItem('snappy_tech_pin_locked');
+  sessionStorage.removeItem('snappy_tech_view_active');
+} catch(e) {}
 
 function applyViewMode() {
   document.body.classList.remove('viewer-mode', 'manager-mode', 'coach-mode', 'editor-mode', 'tech-pin-locked');
@@ -260,19 +279,12 @@ function applyViewMode() {
   } else {
     document.body.classList.add('viewer-mode');
   }
-  // v219.22: Tech PIN lockdown \u2014 if a tech is PIN-locked, add the body class
-  // that hides every nav tab/sub-tab/view except their Tech View, AND force the
-  // active view to be #view-techview so they can't be left on another tab.
+  // v219.22 / v219.23: Tech PIN lockdown \u2014 if a tech is PIN-locked in the
+  // current session, add the body class that hides every nav tab/sub-tab/view
+  // except their Tech View. Lock lives in sessionStorage only (cleared on boot)
+  // so refresh forces a fresh PIN entry.
   var techLocked = '';
   try { techLocked = sessionStorage.getItem('snappy_tech_pin_locked') || ''; } catch(e) {}
-  if (!techLocked) {
-    try { techLocked = localStorage.getItem('snappy_tech_pin_locked') || ''; } catch(e) {}
-    // Restore session lock on page refresh if localStorage has it.
-    if (techLocked) {
-      try { sessionStorage.setItem('snappy_tech_pin_locked', techLocked); } catch(e) {}
-      try { sessionStorage.setItem('snappy_tech_view_active', techLocked); } catch(e) {}
-    }
-  }
   if (techLocked) {
     document.body.classList.add('tech-pin-locked');
     try {
@@ -545,12 +557,10 @@ function promptManagerPIN() {
     localStorage.removeItem('snappy_coach_name');
     localStorage.removeItem('snappy_editor_mode');
     localStorage.removeItem('snappy_editor_name');
-    // Pin this session to that tech's view. v219.22: persist to localStorage too
-    // so a page refresh keeps them locked (sessionStorage alone dies on hard reload
-    // in some mobile browsers, and we need the lock to survive refresh).
+    // Pin this session to that tech's view. v219.23: sessionStorage ONLY \u2014
+    // refresh wipes the lock so they re-PIN, which is the desired security model.
     try { sessionStorage.setItem('snappy_tech_view_active', techShort); } catch(e) {}
     try { sessionStorage.setItem('snappy_tech_pin_locked', techShort); } catch(e) {}
-    try { localStorage.setItem('snappy_tech_pin_locked', techShort); } catch(e) {}
     applyViewMode();
     silentSyncOnLogin();
     // applyViewMode already activates the Tech View tab when locked, but call
