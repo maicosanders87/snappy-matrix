@@ -9658,47 +9658,129 @@ document.addEventListener('visibilitychange', function() {
     // v219.17: One-time seed of Google review counts for week of 2026-05-11.
     // Source: data/reviews/snappy_reviews_attributed_2026-05-15.json (option_b_drop_ben_johnson).
     // Idempotent \u2014 only seeds fields that haven't been manually edited yet. Uses TitleCase shorts to match roster.
-    // v219.25: One-time daily ADD for Fri 5/15/26. Increments both weekly (week of
-    // 5/11) AND MTD fields by today's pull. Gated by a one-time localStorage key
-    // so a refresh cannot double-count. Sales-team marketed leads (Adam Bunyard 1)
-    // are NOT a tech credit \u2014 tech tells[] never get sales credit per locked rule.
-    (function _ipSeedDaily20260515(){
+    // ===== v219.26: REUSABLE DAILY-ADD HELPER =====
+    // Single API that every daily slice flows through. Updates BOTH data paths:
+    //   1. Service Tech override store  (weekly + MTD fields \u2192 payout table, Tech View)
+    //   2. Weekly Leaderboard store     (snappy_weekly_data \u2192 leaderboard, profiles, KPIs)
+    // Idempotency: gated by `daily.date` so the same calendar day cannot be added
+    // twice from a single browser. To replay a date, clear `snappy_daily_<date>_done`.
+    //
+    // daily.entries[] schema:
+    //   { short, rev, memSold, memOpps, leads, installs, installRev }
+    //
+    // Every future daily pull should call:
+    //   ipApplyDailyAdd({ date: 'YYYY-MM-DD', weekStart: 'YYYY-MM-DD', entries: [...] });
+    function ipApplyDailyAdd(daily) {
       try {
-        var KEY = 'snappy_seed_daily_2026_05_15_done';
-        if (localStorage.getItem(KEY)) return;
-        var ws = '2026-05-11';
-        // [short, dayRev, dayMemSold, dayMemOpps, dayLeads, dayInstalls, dayInstallRev]
-        var daily = [
-          ['Chris',   551.10, 1, 1, 0, 0, 0],
-          ['Daniel', 1491.40, 2, 3, 0, 0, 0],
-          ['Dee',       0.00, 0, 1, 0, 0, 0],
-          ['Dewone',  534.00, 0, 1, 0, 0, 0],
-          ['Nick',      0.00, 0, 0, 0, 0, 0],
-          ['Benji',     0.00, 0, 0, 0, 0, 0]
-        ];
+        if (!daily || !daily.date || !daily.weekStart || !Array.isArray(daily.entries)) {
+          console.warn('ipApplyDailyAdd: malformed input', daily);
+          return false;
+        }
+        var GATE_KEY = 'snappy_daily_' + daily.date + '_done';
+        if (localStorage.getItem(GATE_KEY)) {
+          console.log('[snappy daily] ' + daily.date + ' already applied \u2014 skipping');
+          return false;
+        }
+        var ws = daily.weekStart;
+
+        // v219.26 MIGRATION: v219.25 wrote today\u0027s numbers to the override
+        // store only. If a user is on v219.25 already, the override store is done
+        // but the leaderboard is missing. Detect the v219.25 gate and SKIP Path 1
+        // on that one day so we don\u0027t double-count the override store, while
+        // still writing Path 2 (leaderboard) for the first time.
+        var legacyOverrideGate = (daily.date === '2026-05-15') &&
+          localStorage.getItem('snappy_seed_daily_2026_05_15_done');
+
+        // --- Path 1: Service Tech override store (payout table, Tech View) ---
+        if (!legacyOverrideGate) {
         var store = ipServiceTechOverrides();
         if (!store.weeks[ws]) store.weeks[ws] = {};
-        daily.forEach(function(r){
-          var s = r[0], rev = r[1], mem = r[2], memOpps = r[3], leads = r[4], inst = r[5], instRev = r[6];
+        daily.entries.forEach(function(r){
+          var s = r.short;
           if (!store.weeks[ws][s]) store.weeks[ws][s] = {};
           var t = store.weeks[ws][s];
-          // Weekly accumulators \u2014 ADD today\u0027s slice.
+          var rev    = +r.rev        || 0;
+          var mem    = +r.memSold    || 0;
+          var leads  = +r.leads      || 0;
+          var inst   = +r.installs   || 0;
+          var iRev   = +r.installRev || 0;
+          // Weekly accumulators.
           t.weekRev        = (typeof t.weekRev        === 'number' ? t.weekRev        : 0) + rev;
           t.weekMemSold    = (typeof t.weekMemSold    === 'number' ? t.weekMemSold    : 0) + mem;
           t.weekLeadsSet   = (typeof t.weekLeadsSet   === 'number' ? t.weekLeadsSet   : 0) + leads;
           t.weekInstalls   = (typeof t.weekInstalls   === 'number' ? t.weekInstalls   : 0) + inst;
-          t.weekInstallRev = (typeof t.weekInstallRev === 'number' ? t.weekInstallRev : 0) + instRev;
-          // MTD accumulators \u2014 ADD today\u0027s slice. Reviews MTD untouched (already seeded).
+          t.weekInstallRev = (typeof t.weekInstallRev === 'number' ? t.weekInstallRev : 0) + iRev;
+          // MTD accumulators \u2014 reviews MTD intentionally NOT touched (seeded separately).
           t.monthMemSold    = (typeof t.monthMemSold    === 'number' ? t.monthMemSold    : 0) + mem;
           t.monthLeadsSet   = (typeof t.monthLeadsSet   === 'number' ? t.monthLeadsSet   : 0) + leads;
           t.monthInstalls   = (typeof t.monthInstalls   === 'number' ? t.monthInstalls   : 0) + inst;
-          t.monthInstallRev = (typeof t.monthInstallRev === 'number' ? t.monthInstallRev : 0) + instRev;
+          t.monthInstallRev = (typeof t.monthInstallRev === 'number' ? t.monthInstallRev : 0) + iRev;
         });
         ipServiceTechOverridesSave(store);
-        localStorage.setItem(KEY, new Date().toISOString());
-        console.log('[snappy v219.25] Added daily 5/15 numbers to week 2026-05-11 + MTD');
-      } catch(e) { console.warn('Daily seed 5/15 failed', e); }
-    })();
+        } else {
+          console.log('[snappy daily] ' + daily.date + ' override store already applied via v219.25 \u2014 only writing leaderboard');
+        }
+
+        // --- Path 2: Weekly Leaderboard store (leaderboard, profiles, KPI tiles) ---
+        try {
+          var WLB_KEY_LOCAL = 'snappy_weekly_data';
+          var wlb = {};
+          try { wlb = JSON.parse(localStorage.getItem(WLB_KEY_LOCAL) || '{}') || {}; } catch(e) {}
+          if (!wlb[ws]) wlb[ws] = {};
+          daily.entries.forEach(function(r){
+            var s = r.short;
+            if (!wlb[ws][s] || typeof wlb[ws][s] !== 'object') wlb[ws][s] = {};
+            var e = wlb[ws][s];
+            var rev    = +r.rev        || 0;
+            var mem    = +r.memSold    || 0;
+            var mOpps  = +r.memOpps    || 0;
+            var leads  = +r.leads      || 0;
+            var inst   = +r.installs   || 0;
+            var iRev   = +r.installRev || 0;
+            e.service      = (typeof e.service      === 'number' ? e.service      : 0) + rev;
+            e.memSold      = (typeof e.memSold      === 'number' ? e.memSold      : 0) + mem;
+            e.memOpps      = (typeof e.memOpps      === 'number' ? e.memOpps      : 0) + mOpps;
+            e.installCount = (typeof e.installCount === 'number' ? e.installCount : 0) + inst;
+            e.installRev   = (typeof e.installRev   === 'number' ? e.installRev   : 0) + iRev;
+            e.leadsCount   = (typeof e.leadsCount   === 'number' ? e.leadsCount   : 0) + leads;
+            e.total = (e.service || 0) + (e.installRev || 0);
+          });
+          localStorage.setItem(WLB_KEY_LOCAL, JSON.stringify(wlb));
+        } catch(e) { console.warn('ipApplyDailyAdd: WLB write failed', e); }
+
+        // Mark the date applied so refreshes never double-count.
+        localStorage.setItem(GATE_KEY, new Date().toISOString());
+        console.log('[snappy daily] Applied ' + daily.date + ' \u2014 ' + daily.entries.length + ' tech rows (week ' + ws + ')');
+
+        // Re-render every surface that displays these numbers.
+        try { if (typeof renderInstallPay === 'function') renderInstallPay(); } catch(e) {}
+        try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
+        try { if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone(); } catch(e) {}
+        try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+        return true;
+      } catch(e) {
+        console.warn('ipApplyDailyAdd failed', e);
+        return false;
+      }
+    }
+    window.ipApplyDailyAdd = ipApplyDailyAdd;
+
+    // ===== Daily slice: Fri 5/15/26 =====
+    // Sources: Tech-rev (HVAC Maintenance + Service), Memberships (+ HVAC Install),
+    //          TGL-sales-and-commission report. Adam Bunyard's 1 marketed lead is
+    //          sales-team \u2014 NOT a tech credit per locked rule.
+    ipApplyDailyAdd({
+      date: '2026-05-15',
+      weekStart: '2026-05-11',
+      entries: [
+        { short: 'Chris',  rev:  551.10, memSold: 1, memOpps: 1, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Daniel', rev: 1491.40, memSold: 2, memOpps: 3, leads: 0, installs: 0, installRev: 0 }, // incl James Bryant $25
+        { short: 'Dee',    rev:    0.00, memSold: 0, memOpps: 1, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Dewone', rev:  534.00, memSold: 0, memOpps: 1, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Nick',   rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Benji',  rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 }
+      ]
+    });
 
     (function _ipSeedReviewsV21917(){
       try {
