@@ -9782,6 +9782,44 @@ document.addEventListener('visibilitychange', function() {
       ]
     });
 
+    // v219.27: Backfill override store (Service Tech Pay table) from the weekly
+    // leaderboard for week of 5/11. Mon 5/11, Tue 5/12, Wed 5/13, and Thu 5/14
+    // were seeded directly into the leaderboard store back in v218.65 / v218.73 /
+    // v218.93 / v218.97 \u2014 they never made it into the override store, so the
+    // payout table only shows today's add (v219.25). This one-shot overwrites the
+    // override store's weekly accumulators to mirror the leaderboard (the source
+    // of truth that has been verified all week). Today (Fri 5/15) is already in
+    // the leaderboard via v219.26 Path 2, so this captures the full week total.
+    (function _ipBackfillOverrideFromLeaderboardV21927(){
+      try {
+        var KEY = 'snappy_backfill_override_from_wlb_2026_05_11_v21927_done';
+        if (localStorage.getItem(KEY)) return;
+        var ws = '2026-05-11';
+        var wlb = {};
+        try { wlb = JSON.parse(localStorage.getItem('snappy_weekly_data') || '{}') || {}; } catch(e) {}
+        var week = wlb[ws] || {};
+        var store = ipServiceTechOverrides();
+        if (!store.weeks[ws]) store.weeks[ws] = {};
+        Object.keys(week).forEach(function(short){
+          var e = week[short] || {};
+          if (!store.weeks[ws][short]) store.weeks[ws][short] = {};
+          var t = store.weeks[ws][short];
+          // Mirror leaderboard \u2192 override weekly fields. Don't touch reviews
+          // (seeded separately) or MTD fields (handled by ipApplyDailyAdd path 1).
+          t.weekRev        = +e.service      || 0;
+          t.weekMemSold    = +e.memSold      || 0;
+          t.weekLeadsSet   = +e.leadsCount   || 0;
+          t.weekInstalls   = +e.installCount || 0;
+          t.weekInstallRev = +e.installRev   || 0;
+        });
+        ipServiceTechOverridesSave(store);
+        localStorage.setItem(KEY, new Date().toISOString());
+        console.log('[snappy v219.27] Backfilled override store weekly fields from leaderboard for week ' + ws);
+        try { if (typeof renderInstallPay === 'function') renderInstallPay(); } catch(e) {}
+        try { if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone(); } catch(e) {}
+      } catch(e) { console.warn('v219.27 override backfill failed', e); }
+    })();
+
     (function _ipSeedReviewsV21917(){
       try {
         var KEY = 'snappy_seed_reviews_v21917_done';
