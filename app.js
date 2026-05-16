@@ -9710,11 +9710,11 @@ document.addEventListener('visibilitychange', function() {
           t.weekLeadsSet   = (typeof t.weekLeadsSet   === 'number' ? t.weekLeadsSet   : 0) + leads;
           t.weekInstalls   = (typeof t.weekInstalls   === 'number' ? t.weekInstalls   : 0) + inst;
           t.weekInstallRev = (typeof t.weekInstallRev === 'number' ? t.weekInstallRev : 0) + iRev;
-          // MTD accumulators \u2014 reviews MTD intentionally NOT touched (seeded separately).
-          t.monthMemSold    = (typeof t.monthMemSold    === 'number' ? t.monthMemSold    : 0) + mem;
-          t.monthLeadsSet   = (typeof t.monthLeadsSet   === 'number' ? t.monthLeadsSet   : 0) + leads;
-          t.monthInstalls   = (typeof t.monthInstalls   === 'number' ? t.monthInstalls   : 0) + inst;
-          t.monthInstallRev = (typeof t.monthInstallRev === 'number' ? t.monthInstallRev : 0) + iRev;
+          // v219.29: do NOT write MTD fields to the override store. MTD is computed
+          // canonically from stData.mtd_memberships (mems), snappy_brayden_installs
+          // (installs / install rev), and tglLoad (leads). Writing per-day adds here
+          // started overrides at 0 instead of full MTD baseline, making Tech View's
+          // MTD strip show only today's incremental instead of the running total.
         });
         ipServiceTechOverridesSave(store);
         } else {
@@ -9828,6 +9828,34 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('v219.28 override backfill failed', e); }
     }
     window._ipBackfillOverrideFromLeaderboardV21927 = _ipBackfillOverrideFromLeaderboardV21927;
+
+    // v219.29: One-shot heal \u2014 strip MTD fields that v219.25/v219.26 wrote into
+    // the override store. These were daily increments mistakenly stored as MTD
+    // overrides, blocking Tech View's MTD strip from showing stData-derived totals.
+    // monthReviews stays (it's the canonical source via _ipSeedReviewsV21917).
+    function _ipHealMtdOverridesV21929(){
+      try {
+        var KEY = 'snappy_heal_mtd_overrides_v21929_done';
+        if (localStorage.getItem(KEY)) return;
+        var ws = '2026-05-11';
+        var store = ipServiceTechOverrides();
+        if (!store.weeks[ws]) {
+          localStorage.setItem(KEY, new Date().toISOString());
+          return;
+        }
+        var fields = ['monthMemSold','monthInstalls','monthInstallRev','monthLeadsSet'];
+        Object.keys(store.weeks[ws]).forEach(function(short){
+          var t = store.weeks[ws][short] || {};
+          fields.forEach(function(f){ if (f in t) delete t[f]; });
+        });
+        ipServiceTechOverridesSave(store);
+        localStorage.setItem(KEY, new Date().toISOString());
+        console.log('[snappy v219.29] Healed MTD overrides for week ' + ws);
+        try { if (typeof renderInstallPay === 'function') renderInstallPay(); } catch(e) {}
+        try { if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone(); } catch(e) {}
+      } catch(e) { console.warn('v219.29 MTD heal failed', e); }
+    }
+    window._ipHealMtdOverridesV21929 = _ipHealMtdOverridesV21929;
 
     (function _ipSeedReviewsV21917(){
       try {
@@ -10053,10 +10081,36 @@ document.addEventListener('visibilitychange', function() {
         }
       } catch(e) { console.warn('ipServiceTechMetrics week rev failed', e); }
 
+      // v219.29: leadGeneratedBy normalizer. Older seeds wrote display names like
+      // 'Chris Monahan' or 'Daniel Gazaway' while the metrics map is keyed by short
+      // ('Chris', 'Daniel'). Build a display->short index from the roster so both
+      // forms resolve to the right bucket. Without this, ~$30k of Chris's install
+      // rev (Kathryn Kadous 5/4) and any future display-name rows are dropped.
+      var _leadNorm = {};
+      try {
+        roster.forEach(function(r){
+          if (r && r.short) _leadNorm[r.short] = r.short;
+          if (r && r.display) _leadNorm[r.display] = r.short;
+          // Also tolerate first-word match (e.g. 'Chris Monahan' → 'Chris').
+          if (r && r.display) {
+            var first = String(r.display).split(/\s+/)[0];
+            if (first && !_leadNorm[first]) _leadNorm[first] = r.short;
+          }
+        });
+      } catch(e) {}
+      function _resolveLead(v){
+        if (!v) return null;
+        if (_leadNorm[v]) return _leadNorm[v];
+        // Last-ditch first-word match.
+        var first = String(v).split(/\s+/)[0];
+        return _leadNorm[first] || null;
+      }
+
       // 3) Week's install revenue + count paired to TGL leads — sum snappy_brayden_installs in week,
       //    bucketed by leadGeneratedBy. Also include any tglLoad rows with jobTotal>0
       //    where status='completed' and completedDate within week.
       //    v219.14: also computes MONTH install rev + count for the same data sources.
+      //    v219.29: normalize display-name leads to short.
       try {
         var raw = localStorage.getItem('snappy_brayden_installs');
         var arr = [];
@@ -10066,7 +10120,7 @@ document.addEventListener('visibilitychange', function() {
             if (!item) return;
             var date = item.date || item.completionDate;
             if (!date) return;
-            var lead = item.leadGeneratedBy;
+            var lead = _resolveLead(item.leadGeneratedBy);
             if (!lead || !metrics[lead]) return;
             var amt = parseFloat(item.jobsTotal || item.jobTotal || 0) || 0;
             if (date >= weekStartIso && date <= weekEndIso) {
@@ -10103,7 +10157,7 @@ document.addEventListener('visibilitychange', function() {
               if (r.status !== 'completed') return;
               var dt = r.completedDate || r.dateGenerated;
               if (!dt) return;
-              var lead = r.leadGeneratedBy;
+              var lead = _resolveLead(r.leadGeneratedBy);
               if (!lead || !metrics[lead]) return;
               var amt = parseFloat(r.jobTotal || 0) || 0;
               var dup = _isDup(r);
@@ -10121,6 +10175,7 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('ipServiceTechMetrics tgl install rev failed', e); }
 
       // 4) Week's + Month's leads set — count tglLoad rows generated in-period by each service tech.
+      //    v219.29: normalize display-name leads to short.
       try {
         if (typeof tglLoad === 'function') {
           var d2 = tglLoad();
@@ -10129,7 +10184,7 @@ document.addEventListener('visibilitychange', function() {
               if (!r) return;
               var dt = r.dateGenerated;
               if (!dt) return;
-              var lead = r.leadGeneratedBy;
+              var lead = _resolveLead(r.leadGeneratedBy);
               if (!lead || !metrics[lead]) return;
               if (dt >= weekStartIso && dt <= weekEndIso) metrics[lead].weekLeadsSet += 1;
               if (dt >= monthStart && dt <= monthEndIso) metrics[lead].monthLeadsSet += 1;
@@ -24722,6 +24777,8 @@ if (typeof Chart !== 'undefined') {
     try { _dailySeed20260514IfNeeded(); } catch(e) {}
     try { _wlbSeedDay20260514IfNeeded(); } catch(e) {}
     try { _ameliaSotoInstallHealV21898IfNeeded(); } catch(e) {}
+    // v219.29: Strip bad MTD overrides written by v219.25/v219.26 first.
+    try { _ipHealMtdOverridesV21929(); } catch(e) {}
     // v219.28: Mirror leaderboard → override store AFTER all daily WLB seeds ran.
     try { _ipBackfillOverrideFromLeaderboardV21927(); } catch(e) {}
     try { _wlbSeedDay20260502IfNeeded(); } catch(e) {}
