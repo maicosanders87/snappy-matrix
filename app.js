@@ -9658,6 +9658,48 @@ document.addEventListener('visibilitychange', function() {
     // v219.17: One-time seed of Google review counts for week of 2026-05-11.
     // Source: data/reviews/snappy_reviews_attributed_2026-05-15.json (option_b_drop_ben_johnson).
     // Idempotent \u2014 only seeds fields that haven't been manually edited yet. Uses TitleCase shorts to match roster.
+    // v219.25: One-time daily ADD for Fri 5/15/26. Increments both weekly (week of
+    // 5/11) AND MTD fields by today's pull. Gated by a one-time localStorage key
+    // so a refresh cannot double-count. Sales-team marketed leads (Adam Bunyard 1)
+    // are NOT a tech credit \u2014 tech tells[] never get sales credit per locked rule.
+    (function _ipSeedDaily20260515(){
+      try {
+        var KEY = 'snappy_seed_daily_2026_05_15_done';
+        if (localStorage.getItem(KEY)) return;
+        var ws = '2026-05-11';
+        // [short, dayRev, dayMemSold, dayMemOpps, dayLeads, dayInstalls, dayInstallRev]
+        var daily = [
+          ['Chris',   551.10, 1, 1, 0, 0, 0],
+          ['Daniel', 1491.40, 2, 3, 0, 0, 0],
+          ['Dee',       0.00, 0, 1, 0, 0, 0],
+          ['Dewone',  534.00, 0, 1, 0, 0, 0],
+          ['Nick',      0.00, 0, 0, 0, 0, 0],
+          ['Benji',     0.00, 0, 0, 0, 0, 0]
+        ];
+        var store = ipServiceTechOverrides();
+        if (!store.weeks[ws]) store.weeks[ws] = {};
+        daily.forEach(function(r){
+          var s = r[0], rev = r[1], mem = r[2], memOpps = r[3], leads = r[4], inst = r[5], instRev = r[6];
+          if (!store.weeks[ws][s]) store.weeks[ws][s] = {};
+          var t = store.weeks[ws][s];
+          // Weekly accumulators \u2014 ADD today\u0027s slice.
+          t.weekRev        = (typeof t.weekRev        === 'number' ? t.weekRev        : 0) + rev;
+          t.weekMemSold    = (typeof t.weekMemSold    === 'number' ? t.weekMemSold    : 0) + mem;
+          t.weekLeadsSet   = (typeof t.weekLeadsSet   === 'number' ? t.weekLeadsSet   : 0) + leads;
+          t.weekInstalls   = (typeof t.weekInstalls   === 'number' ? t.weekInstalls   : 0) + inst;
+          t.weekInstallRev = (typeof t.weekInstallRev === 'number' ? t.weekInstallRev : 0) + instRev;
+          // MTD accumulators \u2014 ADD today\u0027s slice. Reviews MTD untouched (already seeded).
+          t.monthMemSold    = (typeof t.monthMemSold    === 'number' ? t.monthMemSold    : 0) + mem;
+          t.monthLeadsSet   = (typeof t.monthLeadsSet   === 'number' ? t.monthLeadsSet   : 0) + leads;
+          t.monthInstalls   = (typeof t.monthInstalls   === 'number' ? t.monthInstalls   : 0) + inst;
+          t.monthInstallRev = (typeof t.monthInstallRev === 'number' ? t.monthInstallRev : 0) + instRev;
+        });
+        ipServiceTechOverridesSave(store);
+        localStorage.setItem(KEY, new Date().toISOString());
+        console.log('[snappy v219.25] Added daily 5/15 numbers to week 2026-05-11 + MTD');
+      } catch(e) { console.warn('Daily seed 5/15 failed', e); }
+    })();
+
     (function _ipSeedReviewsV21917(){
       try {
         var KEY = 'snappy_seed_reviews_v21917_done';

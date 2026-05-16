@@ -1,0 +1,33 @@
+{
+  "date": "2026-05-15",
+  "weekStart": "2026-05-11",
+  "source_pdfs": [
+    "Tech-rev_Dated-05_15_26-05_15_26.pdf",
+    "Memberships_Dated-05_15_26-05_15_26.pdf",
+    "TGL-sales-and-commission-report_Dated-05_15_26-05_15_26.pdf"
+  ],
+  "filters": {
+    "tech_rev_business_units": ["HVAC Maintenance", "HVAC Service"],
+    "memberships_business_units": ["HVAC Maintenance", "HVAC Service", "HVAC Install"]
+  },
+  "techs": {
+    "Chris":  { "rev": 551.10,  "jobs": 4, "memOpps": 1, "memSold": 1, "leadsSet": 0, "installs": 0, "installRev": 0 },
+    "Daniel": { "rev": 1491.40, "jobs": 4, "memOpps": 3, "memSold": 2, "leadsSet": 0, "installs": 0, "installRev": 0,
+                "note": "Includes James Bryant $25 (credited to Daniel per attribution rule)" },
+    "Dee":    { "rev": 0.00,    "jobs": 4, "memOpps": 1, "memSold": 0, "leadsSet": 0, "installs": 0, "installRev": 0 },
+    "Dewone": { "rev": 534.00,  "jobs": 3, "memOpps": 1, "memSold": 0, "leadsSet": 0, "installs": 0, "installRev": 0 },
+    "Nick":   { "rev": 0.00,    "jobs": 1, "memOpps": 0, "memSold": 0, "leadsSet": 0, "installs": 0, "installRev": 0 },
+    "Benji":  { "rev": 0.00,    "jobs": 0, "memOpps": 0, "memSold": 0, "leadsSet": 0, "installs": 0, "installRev": 0 }
+  },
+  "sales_team_leads_set": {
+    "Adam_Bunyard": { "marketed_leads": 1, "revenue": 0.00 }
+  },
+  "totals": {
+    "day_rev": 2576.50,
+    "day_jobs": 16,
+    "day_mem_opps": 6,
+    "day_mem_sold": 3,
+    "day_installs": 0
+  },
+  "notes": "Pulled from ServiceTitan reports. Awaiting Mon 5/11 \u2192 Thu 5/14 pull to complete week-of-5/11 weekly totals before matrix update."
+}
