@@ -9705,11 +9705,12 @@ document.addEventListener('visibilitychange', function() {
           var inst   = +r.installs   || 0;
           var iRev   = +r.installRev || 0;
           // Weekly accumulators.
+          // v219.30: do NOT write weekInstalls / weekInstallRev to override either \u2014
+          // those come canonically from snappy_brayden_installs. Daily helper only
+          // handles service rev, mems, and leads at the override layer.
           t.weekRev        = (typeof t.weekRev        === 'number' ? t.weekRev        : 0) + rev;
           t.weekMemSold    = (typeof t.weekMemSold    === 'number' ? t.weekMemSold    : 0) + mem;
           t.weekLeadsSet   = (typeof t.weekLeadsSet   === 'number' ? t.weekLeadsSet   : 0) + leads;
-          t.weekInstalls   = (typeof t.weekInstalls   === 'number' ? t.weekInstalls   : 0) + inst;
-          t.weekInstallRev = (typeof t.weekInstallRev === 'number' ? t.weekInstallRev : 0) + iRev;
           // v219.29: do NOT write MTD fields to the override store. MTD is computed
           // canonically from stData.mtd_memberships (mems), snappy_brayden_installs
           // (installs / install rev), and tglLoad (leads). Writing per-day adds here
@@ -9814,11 +9815,14 @@ document.addEventListener('visibilitychange', function() {
           var t = store.weeks[ws][short];
           // Mirror leaderboard \u2192 override weekly fields. Don't touch reviews
           // (seeded separately) or MTD fields (handled by ipApplyDailyAdd path 1).
+          // v219.30: DO NOT mirror weekInstalls / weekInstallRev \u2014 those are
+          // computed canonically from snappy_brayden_installs (Chris's Dianne
+          // Ferguson \$11,938.71 install lives there, not in the leaderboard).
+          // Mirroring 0 from leaderboard was zeroing out the computed install rev
+          // via the override layer and dropping install pay from the total.
           t.weekRev        = +e.service      || 0;
           t.weekMemSold    = +e.memSold      || 0;
           t.weekLeadsSet   = +e.leadsCount   || 0;
-          t.weekInstalls   = +e.installCount || 0;
-          t.weekInstallRev = +e.installRev   || 0;
         });
         ipServiceTechOverridesSave(store);
         localStorage.setItem(KEY, new Date().toISOString());
@@ -9829,13 +9833,15 @@ document.addEventListener('visibilitychange', function() {
     }
     window._ipBackfillOverrideFromLeaderboardV21927 = _ipBackfillOverrideFromLeaderboardV21927;
 
-    // v219.29: One-shot heal \u2014 strip MTD fields that v219.25/v219.26 wrote into
-    // the override store. These were daily increments mistakenly stored as MTD
-    // overrides, blocking Tech View's MTD strip from showing stData-derived totals.
+    // v219.29/v219.30: One-shot heal \u2014 strip MTD + install fields that
+    // v219.25/v219.26/v219.27/v219.28 wrote into the override store. These were
+    // daily increments mistakenly stored as MTD overrides + zeroed install fields
+    // mirrored from the leaderboard, both blocking the canonical computed values
+    // (stData, brayden_installs, tglLoad) from showing through.
     // monthReviews stays (it's the canonical source via _ipSeedReviewsV21917).
     function _ipHealMtdOverridesV21929(){
       try {
-        var KEY = 'snappy_heal_mtd_overrides_v21929_done';
+        var KEY = 'snappy_heal_mtd_overrides_v21930_done';
         if (localStorage.getItem(KEY)) return;
         var ws = '2026-05-11';
         var store = ipServiceTechOverrides();
@@ -9843,7 +9849,10 @@ document.addEventListener('visibilitychange', function() {
           localStorage.setItem(KEY, new Date().toISOString());
           return;
         }
-        var fields = ['monthMemSold','monthInstalls','monthInstallRev','monthLeadsSet'];
+        // v219.30: also strip weekInstalls / weekInstallRev. Install rev belongs
+        // to brayden_installs (canonical) \u2014 leaderboard had 0 for Chris because
+        // his Dianne Ferguson install isn't recorded there.
+        var fields = ['monthMemSold','monthInstalls','monthInstallRev','monthLeadsSet','weekInstalls','weekInstallRev'];
         Object.keys(store.weeks[ws]).forEach(function(short){
           var t = store.weeks[ws][short] || {};
           fields.forEach(function(f){ if (f in t) delete t[f]; });
