@@ -9783,6 +9783,27 @@ document.addEventListener('visibilitychange', function() {
       ]
     });
 
+    // ----- v219.31 daily: Mon 5/18/26 (first day of new week 2026-05-18 → 5/23) -----
+    // Team day: $5,548.30 svc rev / 22 jobs / 8 mem opps / 3 mem sold (37.5% conv).
+    // Sources: Tech-rev (HVAC Maintenance + Service), Memberships (+ HVAC Install),
+    //          TGL-sales-and-commission report.
+    // TGL drops: Joshua Thibbdeaux 92085742 (Marketed Lead — sales-team credit only,
+    //            not tech tile). Keith Terry 92295911 (Plumbing Service — not HVAC TGL).
+    // Tech flips today: Benji → Travis Thompson (#92303870), Chris → Mark Wakefield
+    //                   (#92297612) — each gets 1 lead set.
+    ipApplyDailyAdd({
+      date: '2026-05-18',
+      weekStart: '2026-05-18',
+      entries: [
+        { short: 'Benji',  rev: 1067.23, memSold: 1, memOpps: 3, leads: 1, installs: 0, installRev: 0 },
+        { short: 'Chris',  rev:  600.60, memSold: 1, memOpps: 1, leads: 1, installs: 0, installRev: 0 },
+        { short: 'Daniel', rev: 2472.25, memSold: 1, memOpps: 3, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Dee',    rev: 1408.22, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Dewone', rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Nick',   rev:    0.00, memSold: 0, memOpps: 1, leads: 0, installs: 0, installRev: 0 }
+      ]
+    });
+
     // v219.27 / v219.28: Backfill override store (Service Tech Pay table) from the
     // weekly leaderboard for week of 5/11. Mon 5/11, Tue 5/12, Wed 5/13, and Thu
     // 5/14 were seeded directly into the leaderboard store back in v218.65 /
