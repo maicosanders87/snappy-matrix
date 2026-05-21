@@ -16565,7 +16565,7 @@ if (typeof Chart !== 'undefined') {
         nexstar: { total_revenue: 14385, avg_sale: 1598, conversion_rate: 87, spps_sold: 9, tech_gen_leads: 16, sold_hours: 68.65, tech_sold_hr_eff: 0, flat_rate_tasks: 1.75 },
         overview: { revenue: 14385, total_job_avg: 153, opp_job_avg: 351, opp_conversion: 87, opps: 71, converted_jobs: 56 },
         leads: { opps: 71, leads_set: 16, conv_rate: 23, avg_sale: 1598 },
-        memberships: { total_mem_sold: 9, total_mem_opps: 12, total_mem_pct: 75 },
+        memberships: { total_mem_sold: 9, total_mem_opps: 12, total_mem_pct: 75 }, // v219.39: season-to-date through 5/21 (unchanged)
         productivity: { rev_hr: 210, billable_hours: 68.65, sold_hrs_on_job_pct: 49, tasks_per_opp: 1.75, options_per_opp: 2.81, recalls: 0 },
         sales: { total_sales: 31760, avg_sale_s: 565, close_rate: 89, sales_opps: 68, options_per_opp_s: 2.81 },
         installs: { count: 4, total_revenue: 58862.48, avg_sale: 14716, leads_generated: 16, self_sourced: 0 }
@@ -16604,7 +16604,7 @@ if (typeof Chart !== 'undefined') {
         nexstar: { total_revenue: 13306, avg_sale: 4435, conversion_rate: 87, spps_sold: 3, tech_gen_leads: 6, sold_hours: 84.7, tech_sold_hr_eff: 0.28, flat_rate_tasks: 2.44 },
         overview: { revenue: 13306, total_job_avg: 108, opp_job_avg: 260, opp_conversion: 87, opps: 66, converted_jobs: 37 },
         leads: { opps: 66, leads_set: 6, conv_rate: 9, avg_sale: 4435 },
-        memberships: { total_mem_sold: 3, total_mem_opps: 14, total_mem_pct: 21 },
+        memberships: { total_mem_sold: 4, total_mem_opps: 14, total_mem_pct: 29 }, // v219.39: season-to-date through 5/21 (was 3/14)
         productivity: { rev_hr: 157, billable_hours: 84.7, sold_hrs_on_job_pct: 50, tasks_per_opp: 2.44, options_per_opp: 1.15, recalls: 1 },
         sales: { total_sales: 38776, avg_sale_s: 1362, close_rate: 86, sales_opps: 62, options_per_opp_s: 1.15 },
         installs: { count: 3, total_revenue: 35847.38, avg_sale: 11949, leads_generated: 6, self_sourced: 0 }
@@ -16642,7 +16642,7 @@ if (typeof Chart !== 'undefined') {
         nexstar: { total_revenue: 18070, avg_sale: 9035, conversion_rate: 91, spps_sold: 2, tech_gen_leads: 0, sold_hours: 73.5, tech_sold_hr_eff: 0, flat_rate_tasks: 2.44 },
         overview: { revenue: 18070, total_job_avg: 121, opp_job_avg: 355, opp_conversion: 91, opps: 53, converted_jobs: 34 },
         leads: { opps: 53, leads_set: 0, conv_rate: 0, avg_sale: 9035 },
-        memberships: { total_mem_sold: 3, total_mem_opps: 9, total_mem_pct: 33 },
+        memberships: { total_mem_sold: 6, total_mem_opps: 9, total_mem_pct: 67 }, // v219.39: season-to-date through 5/21 (was 3/9)
         productivity: { rev_hr: 246, billable_hours: 73.5, sold_hrs_on_job_pct: 27, tasks_per_opp: 2.44, options_per_opp: 0.56, recalls: 2 },
         sales: { total_sales: 8761, avg_sale_s: 876, close_rate: 90, sales_opps: 41, options_per_opp_s: 0.56 },
         installs: { count: 0, total_revenue: 0, avg_sale: 0, leads_generated: 0, self_sourced: 0 }
@@ -16682,7 +16682,7 @@ if (typeof Chart !== 'undefined') {
         nexstar: { total_revenue: 13404, avg_sale: 1915, conversion_rate: 84, spps_sold: 7, tech_gen_leads: 13, sold_hours: 72.25, tech_sold_hr_eff: 0, flat_rate_tasks: 2.36 },
         overview: { revenue: 13404, total_job_avg: 86, opp_job_avg: 203, opp_conversion: 84, opps: 73, converted_jobs: 40 },
         leads: { opps: 73, leads_set: 13, conv_rate: 18, avg_sale: 1915 },
-        memberships: { total_mem_sold: 8, total_mem_opps: 16, total_mem_pct: 50 },
+        memberships: { total_mem_sold: 12, total_mem_opps: 16, total_mem_pct: 75 }, // v219.39: season-to-date through 5/21 (was 8/16)
         productivity: { rev_hr: 186, billable_hours: 72.25, sold_hrs_on_job_pct: 42, tasks_per_opp: 2.36, options_per_opp: 1.9, recalls: 1 },
         sales: { total_sales: 38480, avg_sale_s: 924, close_rate: 82, sales_opps: 78, options_per_opp_s: 1.9 },
         installs: { count: 4, total_revenue: 90451.54, avg_sale: 22613, leads_generated: 13, self_sourced: 0 }
@@ -16722,7 +16722,7 @@ if (typeof Chart !== 'undefined') {
         nexstar: { total_revenue: 5871, avg_sale: 587, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 2, sold_hours: 39.55, tech_sold_hr_eff: 0, flat_rate_tasks: 4.25 },
         overview: { revenue: 5871, total_job_avg: 57, opp_job_avg: 475, opp_conversion: 100, opps: 13, converted_jobs: 11 },
         leads: { opps: 13, leads_set: 2, conv_rate: 15, avg_sale: 587 },
-        memberships: { total_mem_sold: 1, total_mem_opps: 1, total_mem_pct: 100 },
+        memberships: { total_mem_sold: 1, total_mem_opps: 1, total_mem_pct: 100 }, // v219.39: season-to-date through 5/21 (unchanged)
         productivity: { rev_hr: 148, billable_hours: 39.55, sold_hrs_on_job_pct: 32, tasks_per_opp: 4.25, options_per_opp: 0.75, recalls: 1 },
         sales: { total_sales: 1233, avg_sale_s: 411, close_rate: 100, sales_opps: 8, options_per_opp_s: 0.75 },
         installs: { count: 0, total_revenue: 0, avg_sale: 0, leads_generated: 0, self_sourced: 0 }
@@ -16756,7 +16756,7 @@ if (typeof Chart !== 'undefined') {
         nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 },
         overview: { revenue: 0, total_job_avg: 0, opp_job_avg: 0, opp_conversion: 0, opps: 0, converted_jobs: 0 },
         leads: { opps: 0, leads_set: 0, conv_rate: 0, avg_sale: 0 },
-        memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        memberships: { total_mem_sold: 2, total_mem_opps: 2, total_mem_pct: 100 }, // v219.39: season-to-date through 5/21 (was 0/0) — Nick onboarding, sold 2 memberships
         productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
         sales: { total_sales: 0, avg_sale_s: 0, close_rate: 0, sales_opps: 0, options_per_opp_s: 0 },
         installs: { count: 0, total_revenue: 0, avg_sale: 0, leads_generated: 0, self_sourced: 0 }
