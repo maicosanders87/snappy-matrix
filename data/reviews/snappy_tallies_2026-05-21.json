@@ -1,0 +1,50 @@
+{
+  "weekStart": "2026-05-18",
+  "weekEnd": "2026-05-23",
+  "mtdStart": "2026-05-01",
+  "anchor": "2026-05-21",
+  "decision": "option_b_drop_ben_johnson",
+  "derivation": "Built additively from snappy_tallies_2026-05-15.json (prior MTD) plus new reviews <=4 days ago (those newer than the 5/15 archive). Week tally is THIS WEEK only \u2014 week resets Mon 5/18.",
+  "prior_mtd_5_15": {
+    "daniel": 12,
+    "dewone": 8,
+    "benji": 4,
+    "nick": 2,
+    "chris": 0,
+    "dee": 0
+  },
+  "new_mtd_since_5_15": {
+    "daniel": 4,
+    "dewone": 0,
+    "benji": 0,
+    "nick": 4,
+    "chris": 0,
+    "dee": 0
+  },
+  "tallies": {
+    "daniel": {
+      "week": 4,
+      "month": 16
+    },
+    "nick": {
+      "week": 4,
+      "month": 6
+    },
+    "dewone": {
+      "week": 0,
+      "month": 8
+    },
+    "benji": {
+      "week": 0,
+      "month": 4
+    },
+    "chris": {
+      "week": 0,
+      "month": 0
+    },
+    "dee": {
+      "week": 0,
+      "month": 0
+    }
+  }
+}

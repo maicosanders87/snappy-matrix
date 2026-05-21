@@ -10077,6 +10077,47 @@ document.addEventListener('visibilitychange', function() {
     }
     window._ipHealMtdOverridesV21929 = _ipHealMtdOverridesV21929;
 
+    // v219.35: Seed Google review counts for week 2026-05-18 (anchor Thu 5/21 12:25 ET).
+    // New reviews pulled from public profile this morning:
+    //   Daniel +4 (Kenneth Simms, Bevelyn Harper, Evan McCliment, Brogan Jayne)
+    //   Nick   +4 (Joe Deeds, L M, Michael Chasteen, Seth Resnick)
+    //   Dewone +0, Benji +0, Chris +0, Dee +0
+    // MTD built additively on top of 5/15 snapshot (Daniel 12, Nick 2, Dewone 8, Benji 4).
+    // Attribution rule: same as 5/15 — 'James Bryant' → daniel; 'Ben Johnson' dropped;
+    // 'Demone'/'Demome' → dewone; reviewer-name false positives credit text only.
+    (function _ipSeedReviewsV21935(){
+      try {
+        var KEY = 'snappy_seed_reviews_v21935_done';
+        if (localStorage.getItem(KEY)) return;
+        var ws = '2026-05-18';
+        var seed = [
+          ['Daniel', 4, 16],
+          ['Nick',   4,  6],
+          ['Dewone', 0,  8],
+          ['Benji',  0,  4],
+          ['Chris',  0,  0],
+          ['Dee',    0,  0]
+        ];
+        var store = ipServiceTechOverrides();
+        if (!store.weeks[ws]) store.weeks[ws] = {};
+        seed.forEach(function(r){
+          var s = r[0], w = r[1], m = r[2];
+          if (!store.weeks[ws][s]) store.weeks[ws][s] = {};
+          // Always overwrite for this anchor pull (newer data wins).
+          store.weeks[ws][s].weekReviews  = w;
+          store.weeks[ws][s].monthReviews = m;
+        });
+        ipServiceTechOverridesSave(store);
+        localStorage.setItem(KEY, new Date().toISOString());
+        console.log('[snappy v219.35] Seeded Google reviews for week 2026-05-18: ' +
+          'Daniel 4/16, Nick 4/6, Dewone 0/8, Benji 0/4, Chris 0/0, Dee 0/0');
+        try { if (typeof renderInstallPay === 'function') renderInstallPay(); } catch(e) {}
+        try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
+        try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+        try { if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone(); } catch(e) {}
+      } catch(e) { console.warn('Review seed v219.35 failed', e); }
+    })();
+
     (function _ipSeedReviewsV21917(){
       try {
         var KEY = 'snappy_seed_reviews_v21917_done';

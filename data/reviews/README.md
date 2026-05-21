@@ -21,7 +21,18 @@ Snapshots of Google reviews pulled from Snappy Services' public business profile
 - "Demone"/"Demome" misspellings → dewone
 - Reviewer-name false positives (Ben Frank, Benjamin Puckett, Nick Perino): credit text, not name
 
-## Current snapshot: 2026-05-15
+## Current snapshot: 2026-05-21 (anchor Thu 5/21, week 5/18–5/23)
+Decision: option_b_drop_ben_johnson
+- Daniel: Week 4 / MTD 16  (+4 since 5/15 — Kenneth Simms, Bevelyn Harper, Evan McCliment, Brogan Jayne)
+- Nick:   Week 4 / MTD 6   (+4 since 5/15 — Joe Deeds, L M, Michael Chasteen, Seth Resnick)
+- Dewone: Week 0 / MTD 8
+- Benji:  Week 0 / MTD 4
+- Chris:  Week 0 / MTD 0
+- Dee:    Week 0 / MTD 0
+
+Applied to matrix via _ipSeedReviewsV21935() in app.js (week 2026-05-18 override).
+
+## Prior snapshot: 2026-05-15
 Decision: option_b_drop_ben_johnson
 - Daniel: Week 5 / MTD 12
 - Dewone: Week 2 / MTD 8

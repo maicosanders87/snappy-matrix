@@ -1,0 +1,261 @@
+{
+  "pulled_at": "2026-05-21T13:15:00Z",
+  "anchor_date": "2026-05-21",
+  "week_start": "2026-05-18",
+  "week_end": "2026-05-23",
+  "mtd_start": "2026-05-01",
+  "attribution_decision": "option_b_drop_ben_johnson",
+  "tally": {
+    "daniel": {
+      "week": 4,
+      "month": 6
+    },
+    "dewone": {
+      "week": 0,
+      "month": 2
+    },
+    "benji": {
+      "week": 0,
+      "month": 0
+    },
+    "nick": {
+      "week": 4,
+      "month": 5
+    },
+    "chris": {
+      "week": 0,
+      "month": 0
+    },
+    "dee": {
+      "week": 0,
+      "month": 0
+    }
+  },
+  "reviews": [
+    {
+      "reviewer": "Kenneth Simms",
+      "date_rel": "3 hours ago",
+      "days_ago_est": 0,
+      "stars": 5,
+      "text": "My service technician Daniel G was very professional and very knowledgeable. Snappy was able to fit me in for a last minute emergency appointment. I would recommend there services again.",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Lizabeth Cano",
+      "date_rel": "19 hours ago",
+      "days_ago_est": 0,
+      "stars": 5,
+      "text": "The service was really nice and quick! We had them come to our house and fix the problem within 30 minutes and everything went great. Brayden was exceptionally quick and nice!",
+      "techs": [],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Lisa Bell",
+      "date_rel": "20 hours ago",
+      "days_ago_est": 0,
+      "stars": 5,
+      "text": "Very pleased with the service and plumber that responded to my home.",
+      "techs": [],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Adam Perry",
+      "date_rel": "23 hours ago",
+      "days_ago_est": 0,
+      "stars": 5,
+      "text": "",
+      "techs": [],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Bevelyn Harper",
+      "date_rel": "Edited 23 hours ago",
+      "days_ago_est": 0,
+      "stars": 5,
+      "text": "I hate sounding like a recording but Daniel G was on time, extremely professional & personalble. I hope he is my tech for the next service. He also explains what he is doing & why.",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Joe Deeds",
+      "date_rel": "Edited a day ago",
+      "days_ago_est": 1,
+      "stars": 5,
+      "text": "Nick inspected both my AC units. He found them to be in good working order with minor recommendations for upgrade. He has a friendly courteous attitude. I am pleased to be a Snappy Services customer.",
+      "techs": [
+        "nick"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Penny Pearson",
+      "date_rel": "2 days ago",
+      "days_ago_est": 2,
+      "stars": 5,
+      "text": "Great service.",
+      "techs": [],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "L M",
+      "date_rel": "2 days ago",
+      "days_ago_est": 2,
+      "stars": 5,
+      "text": "Nick was on time kind and explained all that I needed to know about my hvac.",
+      "techs": [
+        "nick"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Oliver Lee",
+      "date_rel": "2 days ago",
+      "days_ago_est": 2,
+      "stars": 5,
+      "text": "",
+      "techs": [],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Evan McCliment",
+      "date_rel": "2 days ago",
+      "days_ago_est": 2,
+      "stars": 5,
+      "text": "Daniel was fantastic. Figured out the problem and handled it quickly and efficiently. Will call Snappy in the future for any future repairs or maintenance",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Brogan Jayne",
+      "date_rel": "Edited 2 days ago",
+      "days_ago_est": 2,
+      "stars": 5,
+      "text": "Daniel Gazaway was an amazing tech with very strong communication skills and got my AC back up and running same day",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Michael Chasteen",
+      "date_rel": "Edited 2 days ago",
+      "days_ago_est": 2,
+      "stars": 5,
+      "text": "I was very pleased with the work Nick did at our house. First of all, he was on time, which is greatly appreciated! He took care of the requested repairs and then made recommendations for us in the future that will help us save money. Very professional technician!",
+      "techs": [
+        "nick"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Seth Resnick",
+      "date_rel": "Edited 3 days ago",
+      "days_ago_est": 3,
+      "stars": 5,
+      "text": "Nick always does a fantastic job. We love working with snappy. Excellent job",
+      "techs": [
+        "nick"
+      ],
+      "in_week": true,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Amelia Soto",
+      "date_rel": "Edited 4 days ago",
+      "days_ago_est": 4,
+      "stars": 5,
+      "text": "These guys did a phenomenal job. Love doing business with them.",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Keith Terry",
+      "date_rel": "Edited 5 days ago",
+      "days_ago_est": 5,
+      "stars": 5,
+      "text": "Dewone did Very professional, efficient work. Would recommend for service highly. fairly priced",
+      "techs": [
+        "dewone"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Charles Harper",
+      "date_rel": "5 days ago",
+      "days_ago_est": 5,
+      "stars": 5,
+      "text": "Daniel G was great",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Gail Mooney",
+      "date_rel": "5 days ago",
+      "days_ago_est": 5,
+      "stars": 5,
+      "text": "I called because my kitchen lights would not work. I needed service today because I'm going out of town for family issues. They came today and fixes the issue.",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "Steven Smith Jr",
+      "date_rel": "5 days ago",
+      "days_ago_est": 5,
+      "stars": 5,
+      "text": "I had the pleasure of calling in for business reasons and got to speak with Lilly.",
+      "techs": [],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "James Bryant",
+      "date_rel": "5 days ago",
+      "days_ago_est": 5,
+      "stars": 5,
+      "text": "",
+      "techs": [
+        "daniel"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    },
+    {
+      "reviewer": "J \"DiamondNDaRough\" W",
+      "date_rel": "6 days ago",
+      "days_ago_est": 6,
+      "stars": 5,
+      "text": "Dewone & Nick did a great job on service.",
+      "techs": [
+        "dewone",
+        "nick"
+      ],
+      "in_week": false,
+      "in_mtd": true
+    }
+  ]
+}
