@@ -18102,6 +18102,7 @@ if (typeof Chart !== 'undefined') {
               <div id="${cardId}-std" class="rookie-st-view" data-view="std">
                 ${buildStGrid(sn, sp, sm, ss, 'STD', isW, st)}
               </div>
+            </div><!-- /rookie-st-section (ServiceTitan) v219.36: close was missing, causing tech cards to nest -->
             <div class="rookie-st-section">
               <div class="rookie-st-header">Install Performance</div>
               <div class="rookie-st-grid">
