@@ -9941,6 +9941,59 @@ document.addEventListener('visibilitychange', function() {
     }
     _dailySeed20260520InstallsIfNeeded();
 
+    // v219.34: One-shot migration to fix the v219.32 leaderboard state.
+    // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
+    // the source to installs:1 / installRev:11991.42 but the daily gate key
+    // 'snappy_daily_2026-05-20_done' was already set, so ipApplyDailyAdd skipped
+    // the re-apply on returning devices. This migration directly patches the
+    // snappy_weekly_data store for Daniel on week 2026-05-18.
+    function _migrate_v21934_DanielCarterInstall() {
+      try {
+        var FLAG = 'snappy_migrate_v21934_daniel_carter_done';
+        if (localStorage.getItem(FLAG) === '1') return;
+
+        var WLB_KEY = 'snappy_weekly_data';
+        var WS = '2026-05-18';
+        var raw = localStorage.getItem(WLB_KEY);
+        if (!raw) {
+          // No leaderboard data yet — ipApplyDailyAdd will seed it fresh with the
+          // correct v219.33 values. Nothing to migrate.
+          localStorage.setItem(FLAG, '1');
+          return;
+        }
+        var wlb = {};
+        try { wlb = JSON.parse(raw) || {}; } catch(e) { wlb = {}; }
+        if (!wlb[WS]) wlb[WS] = {};
+        if (!wlb[WS]['Daniel'] || typeof wlb[WS]['Daniel'] !== 'object') wlb[WS]['Daniel'] = {};
+        var d = wlb[WS]['Daniel'];
+        var prevCount = +d.installCount || 0;
+        var prevRev   = +d.installRev   || 0;
+
+        // Idempotent: only bump if Daniel doesn't already have the Carter install.
+        // We detect by checking if installRev is at the pre-Carter value (<11k).
+        if (prevRev < 11991) {
+          d.installCount = prevCount + 1;
+          d.installRev   = prevRev + 11991.42;
+          d.total = (+d.service || 0) + (+d.installRev || 0);
+          localStorage.setItem(WLB_KEY, JSON.stringify(wlb));
+          console.log('[v219.34] Patched Daniel install on leaderboard: ' +
+            prevCount + ' → ' + d.installCount + ' / $' +
+            prevRev.toFixed(2) + ' → $' + d.installRev.toFixed(2) + ' (Karen Carter).');
+        } else {
+          console.log('[v219.34] Daniel already has Carter install — no migration needed.');
+        }
+
+        localStorage.setItem(FLAG, '1');
+
+        // Re-render leaderboard surfaces.
+        try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
+        try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+        try { if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone(); } catch(e) {}
+        try { if (typeof renderInstallPay === 'function') renderInstallPay(); } catch(e) {}
+      } catch(e) { console.warn('_migrate_v21934_DanielCarterInstall failed', e); }
+    }
+    _migrate_v21934_DanielCarterInstall();
+
     // v219.27 / v219.28: Backfill override store (Service Tech Pay table) from the
     // weekly leaderboard for week of 5/11. Mon 5/11, Tue 5/12, Wed 5/13, and Thu
     // 5/14 were seeded directly into the leaderboard store back in v218.65 /
