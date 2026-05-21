@@ -1,0 +1,66 @@
+{
+  "date": "2026-05-20",
+  "weekStart": "2026-05-18",
+  "slice": "Tue+Wed combined (5/19 + 5/20)",
+  "source_pdfs": [
+    "IMG_0273.jpeg — Nexstar dashboard This Week (svc rev / conv / SPP / leads / sold hrs)",
+    "IMG_0274.jpeg — Memberships This Week",
+    "TGL-sales-and-commission-report_Dated-05_18_26-05_22_26.pdf",
+    "Generated-Installs_Dated-05_18_26-05_22_26.pdf"
+  ],
+  "note": "Deltas computed as week-cumulative minus Mon 5/18 daily that was already seeded in v219.31.",
+  "team_totals_delta": {
+    "service_rev": 4166.92,
+    "mem_opps": 6,
+    "mem_sold": 3,
+    "leads_set": 3,
+    "installs": 2,
+    "install_rev": 17650.14
+  },
+  "techs": [
+    { "short": "Benji",  "displayPdf": "Ben Tinahui",    "rev":  573.77, "memSold": 0, "memOpps": 1, "leads": 1, "leadsNotes": "Travis Thompson flip 92303870 confirmed in TGL",                  "installs": 0, "installRev":     0 },
+    { "short": "Chris",  "displayPdf": "Chris Monahan",  "rev":  619.40, "memSold": 1, "memOpps": 1, "leads": 0, "leadsNotes": "Mark Wakefield flip already credited on Mon 5/18",                "installs": 1, "installRev": 5658.72 },
+    { "short": "Daniel", "displayPdf": "Daniel Gazaway", "rev":  778.75, "memSold": 0, "memOpps": 1, "leads": 2, "leadsNotes": "Karen Carter x2 — service + install lead-gen (install sold by Adam Bunyard, not Daniel)", "installs": 0, "installRev":     0 },
+    { "short": "Dee",    "displayPdf": "Dee Williams",   "rev":    0.00, "memSold": 0, "memOpps": 0, "leads": 0,                                                                                  "installs": 0, "installRev":     0 },
+    { "short": "Dewone", "displayPdf": "Dewone Martin",  "rev":    0.00, "memSold": 0, "memOpps": 0, "leads": 0, "leadsNotes": "Plumbing flip Keith Terry dropped — not HVAC TGL",                  "installs": 0, "installRev":     0 },
+    { "short": "Nick",   "displayPdf": "Nick Goehler",   "rev": 2195.00, "memSold": 2, "memOpps": 3, "leads": 0, "leadsNotes": "Rejoined service this week",                                       "installs": 0, "installRev":     0 }
+  ],
+  "installs_detail": [
+    {
+      "job": "92294818",
+      "customer": "Mark Wakefield",
+      "date": "2026-05-19",
+      "soldBy": "Chris Monahan",
+      "leadGeneratedBy": "Chris Monahan",
+      "jobsTotal": 5658.72,
+      "attribution": "Self-sourced tech install — full credit to Chris on leaderboard. No Brayden pay."
+    },
+    {
+      "job": "92496747",
+      "customer": "Karen Carter",
+      "date": "2026-05-20",
+      "soldBy": "Adam Bunyard",
+      "leadGeneratedBy": "Daniel Gazaway",
+      "jobsTotal": 11991.42,
+      "attribution": "Sold by Adam Bunyard (per Mark, overrides ServiceTitan Sold-By=Daniel). Daniel gets lead credit only (2 leads in TGL). Install rev goes to Brayden's MTD."
+    }
+  ],
+  "tgl_dropped": [
+    { "job": "92164712", "customer": "Robert Glenn",          "reason": "Marketed Lead — sales-team credit only" },
+    { "job": "92484353", "customer": "Taylor Myers",          "reason": "Marketed Lead — sales-team credit only" },
+    { "job": "92501404", "customer": "Susan & Robert Wilson", "reason": "Marketed Lead — sales-team credit only" }
+  ],
+  "brayden_mtd_after": {
+    "installs": 9,
+    "revenue": 143969.51,
+    "delta": "+1 install / +$11,991.42 (Karen Carter)"
+  },
+  "week_cumulative_check_5_18_to_5_20": {
+    "Daniel":  { "rev": 3251.00, "memSold": 1, "memOpps": 4, "leads": 2 },
+    "Nick":    { "rev": 2195.00, "memSold": 2, "memOpps": 4, "leads": 0 },
+    "Benji":   { "rev": 1641.00, "memSold": 1, "memOpps": 4, "leads": 2 },
+    "Dee":     { "rev": 1408.22, "memSold": 0, "memOpps": 0, "leads": 0 },
+    "Chris":   { "rev": 1220.00, "memSold": 2, "memOpps": 2, "leads": 1 },
+    "Dewone":  { "rev":    0.00, "memSold": 0, "memOpps": 0, "leads": 0 }
+  }
+}

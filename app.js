@@ -9804,6 +9804,143 @@ document.addEventListener('visibilitychange', function() {
       ]
     });
 
+    // ----- v219.32 daily: Tue+Wed combined 5/19–20/26 (week 2026-05-18) -----
+    // Reports pulled Thu 5/21 AM — cover completion dates 5/19 + 5/20 only.
+    // This single ipApplyDailyAdd carries the 2-day delta (week-cumulative minus Mon 5/18).
+    // Dated to 5/20 (last completion day in the report) so the gate key is unique.
+    //
+    // Tue+Wed team: $4,166.92 svc rev / 3 mem sold / 6 mem opps / 3 leads / 1 install $5,658.72.
+    // Sources: Nexstar dashboard (week-cumulative), Memberships tab, TGL-sales-and-commission,
+    //          Generated-Installs (both PDFs dated 05/18–05/22).
+    //
+    // Per-tech notes (Tue+Wed delta):
+    //   Benji   $573.77  / 0 mem / 1 opp / 1 lead set (Travis Thompson #92303870 confirmed in TGL)
+    //   Chris   $619.40  / 1 mem / 1 opp / 0 leads  / SOLD Mark Wakefield install $5,658.72 (#92294818)
+    //   Daniel  $778.75  / 0 mem / 1 opp / 2 leads (Karen Carter x2 — svc lead + install lead-gen)
+    //   Dee     $0.00    / 0/0 / 0 leads (rounding noise zeroed; week stays at Mon $1,408.22)
+    //   Dewone  $0.00    / 0/0 / 0 leads (no HVAC TGL credit — Keith Terry was plumbing flip, dropped)
+    //   Nick    $2,195.00 / 2 mem / 3 opps / 0 leads (Nick rejoined service this week)
+    //
+    // TGL drops this slice:
+    //   - 92164712 Robert Glenn / 92484353 Taylor Myers / 92501404 Susan & Robert Wilson —
+    //     Marketed Leads sold by Adam Bunyard (sales-team credit only, not tech tile).
+    //
+    // Install attribution (per Mark, overrides ServiceTitan):
+    //   - Chris → Mark Wakefield $5,658.72 (#92294818) — self-sourced, full tech credit.
+    //   - Karen Carter $11,991.42 (#92496747) — SOLD BY Adam Bunyard, LEAD-GEN by Daniel.
+    //     Daniel gets the lead credit only (already in leads:2). Install goes to Adam/Brayden
+    //     team via _dailySeed20260520InstallsIfNeeded below (NOT in the daily entries).
+    ipApplyDailyAdd({
+      date: '2026-05-20',
+      weekStart: '2026-05-18',
+      entries: [
+        { short: 'Benji',  rev:  573.77, memSold: 0, memOpps: 1, leads: 1, installs: 0, installRev:    0 },
+        { short: 'Chris',  rev:  619.40, memSold: 1, memOpps: 1, leads: 0, installs: 1, installRev: 5658.72 },
+        { short: 'Daniel', rev:  778.75, memSold: 0, memOpps: 1, leads: 2, installs: 0, installRev:    0 },
+        { short: 'Dee',    rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev:    0 },
+        { short: 'Dewone', rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev:    0 },
+        { short: 'Nick',   rev: 2195.00, memSold: 2, memOpps: 3, leads: 0, installs: 0, installRev:    0 }
+      ]
+    });
+
+    // v219.32: Push the two installs completed 5/19–5/20 into snappy_brayden_installs
+    // so the company-MTD Installs tile counts them and the sales-mgr/Brayden scorecard
+    // sees Karen Carter. Chris's Wakefield install is self-sourced (soldBy=Chris, no
+    // Brayden pay). Karen Carter install is soldBy=Adam Bunyard / leadGen=Daniel.
+    function _dailySeed20260520InstallsIfNeeded() {
+      try {
+        var FLAG = 'snappy_installs_seeded_20260520_v21932';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var raw = localStorage.getItem('snappy_brayden_installs');
+        var arr = [];
+        try { arr = raw ? JSON.parse(raw) : []; } catch(e) { arr = []; }
+        if (!Array.isArray(arr)) arr = [];
+
+        // 1) Chris → Mark Wakefield, SOLD self-sourced $5,658.72 on 5/19/26
+        var dupWake = arr.some(function(x){ return x && (x.jobNumber === '92294818' || x.invoice === '92294818'); });
+        if (!dupWake) {
+          arr.push({
+            id: 'brayden_daily_20260519_wakefield',
+            date: '2026-05-19',
+            customer: 'Mark Wakefield',
+            jobNumber: '92294818',
+            invoice: '92294818',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Chris',
+            leadGeneratedBy: 'Chris',
+            jobsTotal: 5658.72,
+            completionDate: '2026-05-19',
+            note: 'Self-sourced tech install — Chris generated lead + sold. No Brayden pay.'
+          });
+          console.log('[v219.32] Added Mark Wakefield install ($5,658.72) — self-sourced by Chris.');
+        }
+
+        // 2) Adam Bunyard → Karen Carter $11,991.42 on 5/20/26, lead-gen by Daniel
+        var dupCarter = arr.some(function(x){ return x && (x.jobNumber === '92496747' || x.invoice === '92496747'); });
+        if (!dupCarter) {
+          arr.push({
+            id: 'brayden_daily_20260520_carter',
+            date: '2026-05-20',
+            customer: 'Karen Carter',
+            jobNumber: '92496747',
+            invoice: '92496747',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard',
+            leadGeneratedBy: 'Daniel',
+            jobsTotal: 11991.42,
+            completionDate: '2026-05-20',
+            note: 'Sold by Adam Bunyard — Daniel gets lead credit only (in daily leads:2).'
+          });
+          console.log('[v219.32] Added Karen Carter install ($11,991.42) — sold by Adam Bunyard.');
+        }
+
+        localStorage.setItem('snappy_brayden_installs', JSON.stringify(arr));
+
+        // Bump Brayden's MTD tile. Only the Karen Carter install counts toward Brayden's
+        // sales pay (Wakefield was self-sourced by Chris). Prior MTD: 8 / $131,978.09.
+        // After Carter: 9 / $143,969.51.
+        try {
+          if (typeof braydenLoadStats === 'function' && typeof braydenSaveStats === 'function') {
+            var bstats = braydenLoadStats() || {};
+            var curRev = Number(bstats.mtd_revenue || 0);
+            var curClosed = Number(bstats.mtd_closed || 0);
+            var targetRev = 143969.51;
+            var targetClosed = 9;
+            if (curRev < targetRev) bstats.mtd_revenue = String(targetRev);
+            if (curClosed < targetClosed) bstats.mtd_closed = String(targetClosed);
+            braydenSaveStats(bstats);
+            console.log('[v219.32] braydenstats bumped to 9 / $143,969.51 (Karen Carter added).');
+          }
+        } catch(e) { console.warn('[v219.32] braydenstats bump failed', e); }
+
+        // Bulletin board entry for the Tue+Wed slice.
+        try {
+          var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+          if (bb) {
+            if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+            var existsBB = bb.matrixUpdates.some(function(u){ return u.id === 'st_update_20260520_tue_wed'; });
+            if (!existsBB) {
+              bb.matrixUpdates.push({
+                id: 'st_update_20260520_tue_wed',
+                date: '2026-05-20',
+                text: 'Tue+Wed 5/19–5/20 — $4,166.92 svc rev / 3 mems / 3 leads set / 2 installs sold ($17,650.14). Daniel led svc ($779) and set 2 TGL leads (Karen Carter). Chris sold his Mark Wakefield flip same-week as a self-sourced install ($5,658.72). Adam Bunyard sold Karen Carter $11,991.42 (Daniel\u2019s lead). Nick rejoined service — $2,195 / 2 mems. Brayden May install MTD now: 9 / $143,969.51.',
+                createdAt: Date.now()
+              });
+              if (typeof bbSave === 'function') bbSave(bb);
+              console.log('[v219.32] Added 5/19–5/20 daily bulletin entry.');
+            }
+          }
+        } catch(e) { console.warn('[v219.32] bulletin push failed', e); }
+
+        localStorage.setItem(FLAG, '1');
+
+        // Re-render surfaces that key off install state.
+        try { if (typeof renderInstallPay === 'function') renderInstallPay(); } catch(e) {}
+        try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+      } catch(e) { console.warn('_dailySeed20260520InstallsIfNeeded failed', e); }
+    }
+    _dailySeed20260520InstallsIfNeeded();
+
     // v219.27 / v219.28: Backfill override store (Service Tech Pay table) from the
     // weekly leaderboard for week of 5/11. Mon 5/11, Tue 5/12, Wed 5/13, and Thu
     // 5/14 were seeded directly into the leaderboard store back in v218.65 /
