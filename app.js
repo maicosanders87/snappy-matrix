@@ -9816,7 +9816,7 @@ document.addEventListener('visibilitychange', function() {
     // Per-tech notes (Tue+Wed delta):
     //   Benji   $573.77  / 0 mem / 1 opp / 1 lead set (Travis Thompson #92303870 confirmed in TGL)
     //   Chris   $619.40  / 1 mem / 1 opp / 0 leads  / SOLD Mark Wakefield install $5,658.72 (#92294818)
-    //   Daniel  $778.75  / 0 mem / 1 opp / 2 leads (Karen Carter x2 — svc lead + install lead-gen)
+    //   Daniel  $778.75  / 0 mem / 1 opp / 2 leads + 1 install $11,991.42 (Karen Carter — he set the lead AND gets the leaderboard install credit; Adam Bunyard still owns the sales pay)
     //   Dee     $0.00    / 0/0 / 0 leads (rounding noise zeroed; week stays at Mon $1,408.22)
     //   Dewone  $0.00    / 0/0 / 0 leads (no HVAC TGL credit — Keith Terry was plumbing flip, dropped)
     //   Nick    $2,195.00 / 2 mem / 3 opps / 0 leads (Nick rejoined service this week)
@@ -9827,16 +9827,16 @@ document.addEventListener('visibilitychange', function() {
     //
     // Install attribution (per Mark, overrides ServiceTitan):
     //   - Chris → Mark Wakefield $5,658.72 (#92294818) — self-sourced, full tech credit.
-    //   - Karen Carter $11,991.42 (#92496747) — SOLD BY Adam Bunyard, LEAD-GEN by Daniel.
-    //     Daniel gets the lead credit only (already in leads:2). Install goes to Adam/Brayden
-    //     team via _dailySeed20260520InstallsIfNeeded below (NOT in the daily entries).
+    //   - Karen Carter $11,991.42 (#92496747) — LEADERBOARD credit to Daniel
+    //     (installs:1 / installRev:11991.42 in the daily entries below). SALES PAY still
+    //     goes to Adam Bunyard via snappy_brayden_installs (soldBy=Adam, leadGen=Daniel).
     ipApplyDailyAdd({
       date: '2026-05-20',
       weekStart: '2026-05-18',
       entries: [
         { short: 'Benji',  rev:  573.77, memSold: 0, memOpps: 1, leads: 1, installs: 0, installRev:    0 },
         { short: 'Chris',  rev:  619.40, memSold: 1, memOpps: 1, leads: 0, installs: 1, installRev: 5658.72 },
-        { short: 'Daniel', rev:  778.75, memSold: 0, memOpps: 1, leads: 2, installs: 0, installRev:    0 },
+        { short: 'Daniel', rev:  778.75, memSold: 0, memOpps: 1, leads: 2, installs: 1, installRev: 11991.42 },
         { short: 'Dee',    rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev:    0 },
         { short: 'Dewone', rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev:    0 },
         { short: 'Nick',   rev: 2195.00, memSold: 2, memOpps: 3, leads: 0, installs: 0, installRev:    0 }
@@ -9849,7 +9849,7 @@ document.addEventListener('visibilitychange', function() {
     // Brayden pay). Karen Carter install is soldBy=Adam Bunyard / leadGen=Daniel.
     function _dailySeed20260520InstallsIfNeeded() {
       try {
-        var FLAG = 'snappy_installs_seeded_20260520_v21932';
+        var FLAG = 'snappy_installs_seeded_20260520_v21933';
         if (localStorage.getItem(FLAG) === '1') return;
         var raw = localStorage.getItem('snappy_brayden_installs');
         var arr = [];
@@ -9923,7 +9923,7 @@ document.addEventListener('visibilitychange', function() {
               bb.matrixUpdates.push({
                 id: 'st_update_20260520_tue_wed',
                 date: '2026-05-20',
-                text: 'Tue+Wed 5/19–5/20 — $4,166.92 svc rev / 3 mems / 3 leads set / 2 installs sold ($17,650.14). Daniel led svc ($779) and set 2 TGL leads (Karen Carter). Chris sold his Mark Wakefield flip same-week as a self-sourced install ($5,658.72). Adam Bunyard sold Karen Carter $11,991.42 (Daniel\u2019s lead). Nick rejoined service — $2,195 / 2 mems. Brayden May install MTD now: 9 / $143,969.51.',
+                text: 'Tue+Wed 5/19–5/20 — $4,166.92 svc rev / 3 mems / 3 leads set / 2 installs sold ($17,650.14). Daniel led svc ($779), set 2 TGL leads, AND gets leaderboard install credit for Karen Carter $11,991.42 (Adam Bunyard owns sales pay). Chris sold his Mark Wakefield flip same-week as a self-sourced install $5,658.72. Nick rejoined service — $2,195 / 2 mems. Brayden May install MTD now: 9 / $143,969.51.',
                 createdAt: Date.now()
               });
               if (typeof bbSave === 'function') bbSave(bb);
