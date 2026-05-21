@@ -18102,7 +18102,7 @@ if (typeof Chart !== 'undefined') {
               <div id="${cardId}-std" class="rookie-st-view" data-view="std">
                 ${buildStGrid(sn, sp, sm, ss, 'STD', isW, st)}
               </div>
-            </div><!-- /rookie-st-section (ServiceTitan) v219.36: close was missing, causing tech cards to nest -->
+            </div><!-- /rookie-st-section (ServiceTitan) v219.36: close was missing, causing tech cards to nest. v219.37: front trimmed to tight scorecard, perf detail moved to back. -->
             <div class="rookie-st-section">
               <div class="rookie-st-header">Install Performance</div>
               <div class="rookie-st-grid">
@@ -18243,6 +18243,76 @@ if (typeof Chart !== 'undefined') {
               </div>
             </div>
 
+            <div class="rookie-back-divider"></div>
+
+            <div>
+              <div class="rookie-back-section-title">Performance Detail</div>
+
+              <div class="rookie-dispatch-tags rookie-perf-bonus${tierInfo.performanceBonus > 0 ? ' has-bonus' : ''}">
+                <div class="rookie-dispatch-header">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                  Performance Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.performanceBonus >= 12 ? '#FFD700' : tierInfo.performanceBonus >= 9 ? '#FBBF24' : tierInfo.performanceBonus >= 6 ? '#4ADE80' : tierInfo.performanceBonus >= 3.5 ? '#60A5FA' : tierInfo.performanceBonus > 0 ? '#A855F7' : '#64748B'}">+${tierInfo.performanceBonus.toFixed(2)} pts</span>
+                </div>
+                <div class="rookie-dispatch-pills">
+                  ${tierInfo.performanceHasData
+                    ? `<span class="rookie-dispatch-pill${tierInfo.performanceBonus >= 6 ? ' is-premium' : ''}">${tierInfo.performanceLabel}</span><span class="rookie-dispatch-pill">${tierInfo.performanceBasisPts.toFixed(1)} pts ${tierInfo.performanceBasis === 'thisWeek' ? 'this wk' : 'recent best'}</span>`
+                    : `<span class="rookie-dispatch-pill" style="color:#64748B;border-color:#334155;background:rgba(100,116,139,0.08)">No leaderboard data yet</span>`
+                  }
+                </div>
+              </div>
+
+              ${(tierInfo.championBonus > 0 || (tierInfo.championEntries && tierInfo.championEntries.length)) ? `
+              <div class="rookie-dispatch-tags rookie-champ-bonus has-bonus" style="border:1px solid #C9A227;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(201,162,39,0.04));">
+                <div class="rookie-dispatch-header">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 4-4-8-4 8z"/></svg>
+                  Champion Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.championBonus >= 5 ? '#FFD700' : tierInfo.championBonus >= 3 ? '#FBBF24' : tierInfo.championBonus >= 1 ? '#60A5FA' : '#A855F7'}">+${tierInfo.championBonus.toFixed(2)} pts</span>
+                </div>
+                <div class="rookie-dispatch-pills">
+                  ${(tierInfo.championEntries || []).map(function(b) {
+                    var faded = b.faded ? ' opacity:0.65;' : '';
+                    return '<span class="rookie-dispatch-pill" style="' + faded + '">' + (b.label || b.type) + ' +' + (b.pts || 0).toFixed(2) + '</span>';
+                  }).join('')}
+                </div>
+              </div>` : ''}
+
+              ${techDispTags.length ? `
+              <div class="rookie-dispatch-tags">
+                <div class="rookie-dispatch-header">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                  Dispatch Tags <span class="rookie-dispatch-bonus">+${tierInfo.dispatchBonus.toFixed(2)} pts</span>
+                </div>
+                <div class="rookie-dispatch-pills">
+                  ${techDispTags.map(tag => {
+                    const isPrem = DISP_PREMIUM_TAGS.includes(tag);
+                    return `<span class="rookie-dispatch-pill${isPrem ? ' is-premium' : ''}">${isPrem ? '\u2B50 ' : ''}${tag}</span>`;
+                  }).join('')}
+                </div>
+              </div>` : ''}
+
+              <div class="rookie-dispatch-tags">
+                <div class="rookie-dispatch-header">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Efficiency Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.efficiencyBonus >= 1.5 ? '#4ADE80' : tierInfo.efficiencyBonus >= 0.5 ? '#60A5FA' : '#EF4444'}">+${tierInfo.efficiencyBonus.toFixed(2)} pts</span>
+                </div>
+                <div class="rookie-dispatch-pills">
+                  <span class="rookie-dispatch-pill${tierInfo.efficiencyBonus >= 1.5 ? ' is-premium' : ''}">${tierInfo.efficiencyPct}% On-Job</span>
+                  <span class="rookie-dispatch-pill">${tierInfo.efficiencyLabel}</span>
+                </div>
+              </div>
+
+              ${stRows}
+
+              ${(() => {
+                const techRecent = getRecentSkillUnlocks(5, t.short);
+                if (!techRecent.length) return '';
+                const chips = techRecent.map(e => {
+                  const c = (skillsData.categories[e.cat] && skillsData.categories[e.cat].color) || '#64748b';
+                  const tip = e.skillName + ' \u2014 ' + fmtSkillLogTime(e.ts);
+                  return `<span class="rookie-recent-skill-item" style="border-color:${c};color:${c}" title="${tip.replace(/"/g, '&quot;')}">${e.skillId}<span class="rookie-recent-skill-time">${fmtSkillLogTime(e.ts)}</span></span>`;
+                }).join('');
+                return `<div class="rookie-recent-skills"><div class="rookie-recent-skills-label">Recent Skills</div><div class="rookie-recent-skills-list">${chips}</div></div>`;
+              })()}
+            </div>
             ${seasonBadgesHTML}
 
             <div class="rookie-back-flip-hint">Tap to flip back</div>
@@ -18256,6 +18326,76 @@ if (typeof Chart !== 'undefined') {
             <div class="rookie-back-target">
               <div class="rookie-back-target-tier" style="color:#fbbf24">S-TIER</div>
               <div class="rookie-back-target-label">Elite — Top Performer</div>
+            </div>
+            <div class="rookie-back-divider"></div>
+
+            <div>
+              <div class="rookie-back-section-title">Performance Detail</div>
+
+              <div class="rookie-dispatch-tags rookie-perf-bonus${tierInfo.performanceBonus > 0 ? ' has-bonus' : ''}">
+                <div class="rookie-dispatch-header">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                  Performance Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.performanceBonus >= 12 ? '#FFD700' : tierInfo.performanceBonus >= 9 ? '#FBBF24' : tierInfo.performanceBonus >= 6 ? '#4ADE80' : tierInfo.performanceBonus >= 3.5 ? '#60A5FA' : tierInfo.performanceBonus > 0 ? '#A855F7' : '#64748B'}">+${tierInfo.performanceBonus.toFixed(2)} pts</span>
+                </div>
+                <div class="rookie-dispatch-pills">
+                  ${tierInfo.performanceHasData
+                    ? `<span class="rookie-dispatch-pill${tierInfo.performanceBonus >= 6 ? ' is-premium' : ''}">${tierInfo.performanceLabel}</span><span class="rookie-dispatch-pill">${tierInfo.performanceBasisPts.toFixed(1)} pts ${tierInfo.performanceBasis === 'thisWeek' ? 'this wk' : 'recent best'}</span>`
+                    : `<span class="rookie-dispatch-pill" style="color:#64748B;border-color:#334155;background:rgba(100,116,139,0.08)">No leaderboard data yet</span>`
+                  }
+                </div>
+              </div>
+
+              ${(tierInfo.championBonus > 0 || (tierInfo.championEntries && tierInfo.championEntries.length)) ? `
+              <div class="rookie-dispatch-tags rookie-champ-bonus has-bonus" style="border:1px solid #C9A227;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(201,162,39,0.04));">
+                <div class="rookie-dispatch-header">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 4-4-8-4 8z"/></svg>
+                  Champion Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.championBonus >= 5 ? '#FFD700' : tierInfo.championBonus >= 3 ? '#FBBF24' : tierInfo.championBonus >= 1 ? '#60A5FA' : '#A855F7'}">+${tierInfo.championBonus.toFixed(2)} pts</span>
+                </div>
+                <div class="rookie-dispatch-pills">
+                  ${(tierInfo.championEntries || []).map(function(b) {
+                    var faded = b.faded ? ' opacity:0.65;' : '';
+                    return '<span class="rookie-dispatch-pill" style="' + faded + '">' + (b.label || b.type) + ' +' + (b.pts || 0).toFixed(2) + '</span>';
+                  }).join('')}
+                </div>
+              </div>` : ''}
+
+              ${techDispTags.length ? `
+              <div class="rookie-dispatch-tags">
+                <div class="rookie-dispatch-header">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                  Dispatch Tags <span class="rookie-dispatch-bonus">+${tierInfo.dispatchBonus.toFixed(2)} pts</span>
+                </div>
+                <div class="rookie-dispatch-pills">
+                  ${techDispTags.map(tag => {
+                    const isPrem = DISP_PREMIUM_TAGS.includes(tag);
+                    return `<span class="rookie-dispatch-pill${isPrem ? ' is-premium' : ''}">${isPrem ? '\u2B50 ' : ''}${tag}</span>`;
+                  }).join('')}
+                </div>
+              </div>` : ''}
+
+              <div class="rookie-dispatch-tags">
+                <div class="rookie-dispatch-header">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Efficiency Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.efficiencyBonus >= 1.5 ? '#4ADE80' : tierInfo.efficiencyBonus >= 0.5 ? '#60A5FA' : '#EF4444'}">+${tierInfo.efficiencyBonus.toFixed(2)} pts</span>
+                </div>
+                <div class="rookie-dispatch-pills">
+                  <span class="rookie-dispatch-pill${tierInfo.efficiencyBonus >= 1.5 ? ' is-premium' : ''}">${tierInfo.efficiencyPct}% On-Job</span>
+                  <span class="rookie-dispatch-pill">${tierInfo.efficiencyLabel}</span>
+                </div>
+              </div>
+
+              ${stRows}
+
+              ${(() => {
+                const techRecent = getRecentSkillUnlocks(5, t.short);
+                if (!techRecent.length) return '';
+                const chips = techRecent.map(e => {
+                  const c = (skillsData.categories[e.cat] && skillsData.categories[e.cat].color) || '#64748b';
+                  const tip = e.skillName + ' \u2014 ' + fmtSkillLogTime(e.ts);
+                  return `<span class="rookie-recent-skill-item" style="border-color:${c};color:${c}" title="${tip.replace(/"/g, '&quot;')}">${e.skillId}<span class="rookie-recent-skill-time">${fmtSkillLogTime(e.ts)}</span></span>`;
+                }).join('');
+                return `<div class="rookie-recent-skills"><div class="rookie-recent-skills-label">Recent Skills</div><div class="rookie-recent-skills-list">${chips}</div></div>`;
+              })()}
             </div>
             ${seasonBadgesHTML}
             <div class="rookie-back-flip-hint">Tap to flip back</div>
@@ -18330,70 +18470,6 @@ if (typeof Chart !== 'undefined') {
                       <div class="rookie-composite-score" style="color:${t.color}">${tierInfo.composite}</div>
                     </div>
 
-                    <div class="rookie-dispatch-tags rookie-perf-bonus${tierInfo.performanceBonus > 0 ? ' has-bonus' : ''}">
-                      <div class="rookie-dispatch-header">
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-                        Performance Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.performanceBonus >= 12 ? '#FFD700' : tierInfo.performanceBonus >= 9 ? '#FBBF24' : tierInfo.performanceBonus >= 6 ? '#4ADE80' : tierInfo.performanceBonus >= 3.5 ? '#60A5FA' : tierInfo.performanceBonus > 0 ? '#A855F7' : '#64748B'}">+${tierInfo.performanceBonus.toFixed(2)} pts</span>
-                      </div>
-                      <div class="rookie-dispatch-pills">
-                        ${tierInfo.performanceHasData
-                          ? `<span class="rookie-dispatch-pill${tierInfo.performanceBonus >= 6 ? ' is-premium' : ''}">${tierInfo.performanceLabel}</span><span class="rookie-dispatch-pill">${tierInfo.performanceBasisPts.toFixed(1)} pts ${tierInfo.performanceBasis === 'thisWeek' ? 'this wk' : 'recent best'}</span>`
-                          : `<span class="rookie-dispatch-pill" style="color:#64748B;border-color:#334155;background:rgba(100,116,139,0.08)">No leaderboard data yet</span>`
-                        }
-                      </div>
-                    </div>
-
-                    ${(tierInfo.championBonus > 0 || (tierInfo.championEntries && tierInfo.championEntries.length)) ? `
-                    <div class="rookie-dispatch-tags rookie-champ-bonus has-bonus" style="border:1px solid #C9A227;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(201,162,39,0.04));">
-                      <div class="rookie-dispatch-header">
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 4-4-8-4 8z"/></svg>
-                        Champion Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.championBonus >= 5 ? '#FFD700' : tierInfo.championBonus >= 3 ? '#FBBF24' : tierInfo.championBonus >= 1 ? '#60A5FA' : '#A855F7'}">+${tierInfo.championBonus.toFixed(2)} pts</span>
-                      </div>
-                      <div class="rookie-dispatch-pills">
-                        ${(tierInfo.championEntries || []).map(function(b) {
-                          var faded = b.faded ? ' opacity:0.65;' : '';
-                          return '<span class="rookie-dispatch-pill" style="' + faded + '">' + (b.label || b.type) + ' +' + (b.pts || 0).toFixed(2) + '</span>';
-                        }).join('')}
-                      </div>
-                    </div>` : ''}
-
-                    ${techDispTags.length ? `
-                    <div class="rookie-dispatch-tags">
-                      <div class="rookie-dispatch-header">
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                        Dispatch Tags <span class="rookie-dispatch-bonus">+${tierInfo.dispatchBonus.toFixed(2)} pts</span>
-                      </div>
-                      <div class="rookie-dispatch-pills">
-                        ${techDispTags.map(tag => {
-                          const isPrem = DISP_PREMIUM_TAGS.includes(tag);
-                          return `<span class="rookie-dispatch-pill${isPrem ? ' is-premium' : ''}">${isPrem ? '\u2B50 ' : ''}${tag}</span>`;
-                        }).join('')}
-                      </div>
-                    </div>` : ''}
-
-                    <div class="rookie-dispatch-tags">
-                      <div class="rookie-dispatch-header">
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        Efficiency Bonus <span class="rookie-dispatch-bonus" style="color:${tierInfo.efficiencyBonus >= 1.5 ? '#4ADE80' : tierInfo.efficiencyBonus >= 0.5 ? '#60A5FA' : '#EF4444'}">+${tierInfo.efficiencyBonus.toFixed(2)} pts</span>
-                      </div>
-                      <div class="rookie-dispatch-pills">
-                        <span class="rookie-dispatch-pill${tierInfo.efficiencyBonus >= 1.5 ? ' is-premium' : ''}">${tierInfo.efficiencyPct}% On-Job</span>
-                        <span class="rookie-dispatch-pill">${tierInfo.efficiencyLabel}</span>
-                      </div>
-                    </div>
-
-                    ${stRows}
-
-                    ${(() => {
-                      const techRecent = getRecentSkillUnlocks(5, t.short);
-                      if (!techRecent.length) return '';
-                      const chips = techRecent.map(e => {
-                        const c = (skillsData.categories[e.cat] && skillsData.categories[e.cat].color) || '#64748b';
-                        const tip = e.skillName + ' \u2014 ' + fmtSkillLogTime(e.ts);
-                        return `<span class="rookie-recent-skill-item" style="border-color:${c};color:${c}" title="${tip.replace(/"/g, '&quot;')}">${e.skillId}<span class="rookie-recent-skill-time">${fmtSkillLogTime(e.ts)}</span></span>`;
-                      }).join('');
-                      return `<div class="rookie-recent-skills"><div class="rookie-recent-skills-label">Recent Skills</div><div class="rookie-recent-skills-list">${chips}</div></div>`;
-                    })()}
 
                     ${apt && apt.certs.length ? `<div class="rookie-certs">${apt.certs.map(c => `<span class="rookie-cert">${c}</span>`).join('')}</div>` : ''}
                   </div>
