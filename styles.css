@@ -911,6 +911,33 @@
     .rookie-flip-front {
       position: relative;
       z-index: 1;
+      /* v219.38: standardize all rookie card fronts to 420px */
+      height: 420px;
+    }
+    .rookie-flip-front > .rookie-card {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .rookie-flip-front .rookie-info {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    /* Mark/Brayden hardcoded (no-flip) cards: also lock to 420px */
+    .rookie-flip-container.no-flip > .rookie-card {
+      height: 420px;
+      display: flex;
+      flex-direction: column;
+    }
+    .rookie-flip-container.no-flip > .rookie-card .rookie-info {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
     }
     .rookie-flip-back {
       position: absolute;
