@@ -1473,6 +1473,49 @@ document.addEventListener('visibilitychange', function() {
           age: 21,
           city: "Canton, GA"
         }
+      },
+      // v219.41: Jason Avaloy onboarded 5/26/2026 — 7th service tech, baseline B-Tier per Mark (10 yrs HVAC + 95% aptitude)
+      {
+        name: "Jason Avaloy",
+        short: "Jason",
+        initials: "JA",
+        color: "#3A8A6B",
+        years: 10,
+        position: "HVAC Service Technician",
+        date: "5/26/2026",
+        scores: {
+          // Self-eval submitted 5/26/26 (signed) — 10 years HVAC experience, Service focus
+          electrical: { low_voltage: 4, high_voltage: 4, schematics: 4, open_circuit: 4 },
+          heating: { furnace_sequence: 5, components: 5, heat_exchanger: 4, gas_flue: 4 },
+          cooling: { superheat_subcool: 5, refrigerant_charge: 5, refrigerant_cycle: 5, vacuum_reclaim: 5 },
+          airflow: { static_pressure: 4, airflow_troubleshoot: 3, duct_awareness: 4, iaq: 4 },
+          install: { blower_fan: 5, evap_coil: 5, tstat_zoning: 5, compressor: 4 },
+          customer: { communication: 5, explaining: 5, solutions: 5, closing: 5 },
+          advanced: { communicating_sys: 3, dual_fuel: 4, zone_board: 4, iaq_dehumid: 4 },
+          truck: { organization: 5, cleanliness: 5, locate_tools: 5 },
+          uniform: { full_uniform: 5, clean_appearance: 5, grooming: 5 },
+          professionalism: { professional_present: 5, clean_work: 5, respect_home: 5, no_odors: 5 }
+        },
+        strengths: ["Professionalism", "Easy to get along with", "Communication"],
+        weaknesses: ["Understanding balanced airflow", "Troubleshooting communicating systems", "Limited install experience"],
+        growth: "Improve customer satisfaction",
+        training: "Airflow training; willing to learn new HVAC areas",
+        holding_back: "Little knowledge of install on system",
+        managerNotes: "Hired 5/26/2026, referred by Dewone Martin + Chris Monahan. 10 years HVAC field experience, EPA Universal (ESCO Cert# 8099825-46914), Lincoln College of Technology grad (HVAC), Nexstar Service System trained. Aptitude test 5/26: 38/40 (95%) across Sections A–D — top of roster (A:10/10 Electrical, B:10/10 Airflow, C:9/10 Refrigerant, D:9/10 Zoning/Low-Voltage). Self-eval avg 4.5/5 — strongest in Cooling/Refrigerant + Customer/Sales + Truck/Uniform/Professionalism (all 5.0), weakest in Airflow + Advanced (both 3.75). Most confident: No Cool / No Heat / Inspection calls. Least confident: Odor / Airflow issues. Available start 6/19/26 or sooner. Baseline at B-Tier per Mark given experience + aptitude.",
+        managerTags: [
+          { label: "New Hire", type: "watch" },
+          { label: "Experienced (10yr)", type: "strength" },
+          { label: "EPA Universal + Nexstar", type: "strength" },
+          { label: "Aptitude 95%", type: "trust" },
+          { label: "Customer/Sales 5/5", type: "strength" }
+        ],
+        contact: {
+          phone: "678-862-8342",
+          email: "jasonavaloy02@gmail.com",
+          address: "4808 Chasebrook Dr, Powder Springs, GA 30127",
+          age: 43,
+          city: "Powder Springs, GA"
+        }
       }
     ];
 
@@ -1561,6 +1604,7 @@ document.addEventListener('visibilitychange', function() {
       "Dee": "dee_avatar.jpg",
       "Daniel": "daniel_avatar.png",
       "Nick": "nick_avatar.png?v=20260428v170",
+      "Jason": "jason_avatar.png?v=20260526v21941",
       "Maico": "maico_avatar.png?v=20260427v168",
       "Brayden": "brayden_avatar.png?v=20260427v168"
     };
@@ -1664,6 +1708,20 @@ document.addEventListener('visibilitychange', function() {
         maxScore: 50,
         certs: [],
         interpretation: "Service Technician level overall (70%). Strong fundamentals on Sections A (Electrical) and B (Heating) at 80%. Section C (Cooling/Refrigeration) is the primary growth area at 50% \u2014 recommend targeted training on superheat/subcool, refrigerant cycle, and vacuum/reclaim before independent cooling-heavy field assignments. Section D (Airflow) and Bonus E (Advanced) both solid at 70%, showing good baseline knowledge for a developing tech."
+      },
+      // v219.41: Jason Avaloy aptitude test 5/26/26 — Sections A–D only (no Bonus E attempted), 38/40 raw = 95%
+      "Jason": {
+        date: "05/26/2026",
+        sections: [
+          { label: "Section A", score: 10, total: 10 },
+          { label: "Section B", score: 10, total: 10 },
+          { label: "Section C", score: 9, total: 10 },
+          { label: "Section D", score: 9, total: 10 }
+        ],
+        totalScore: 38,
+        maxScore: 40,
+        certs: ["EPA Universal (ESCO #8099825-46914)", "Nexstar Service System", "Lincoln College of Technology — HVAC"],
+        interpretation: "Top-of-roster aptitude at 95% (38/40 across Sections A–D — did not attempt Bonus E). Perfect scores on Section A (Electrical) and Section B (Airflow). Section C (Refrigerant) at 90% — missed the scroll-compressor failed-check-valve question (answer: rapid equalization at shutdown). Section D (Zoning/Low Voltage) at 90% — missed the no-load 18V on 24V transformer reading question (answer: failing transformer). With 10 years HVAC experience + EPA Universal + Nexstar training, baseline at B-Tier per manager. Strongest signal: deep electrical and refrigerant fundamentals; light development gap on advanced controls and balanced-airflow troubleshooting (matches self-eval)."
       }
     };
 
@@ -1676,7 +1734,8 @@ document.addEventListener('visibilitychange', function() {
       "Chris": 10,
       "Benji": 10,
       "Dewone": 7,
-      "Nick": 5
+      "Nick": 5,
+      "Jason": 8 // v219.41: B-Tier baseline per Mark (10 yrs experience + 95% aptitude)
     };
     // Apply persisted overrides (set by the Profiles pop-up) before tier calcs run
     try {
@@ -5467,7 +5526,7 @@ document.addEventListener('visibilitychange', function() {
       if (!rec) { alert('Entry not found.'); return; }
       var existing = document.getElementById('sales-edit-modal');
       if (existing) existing.remove();
-      var leadOpts = ['', 'Dewone', 'Chris Monahan', 'Ben Tinahui', 'Daniel Gazaway', 'Dee Williams', 'Nick Goehler', 'Marketing'];
+      var leadOpts = ['', 'Dewone', 'Chris Monahan', 'Ben Tinahui', 'Daniel Gazaway', 'Dee Williams', 'Nick Goehler', 'Jason Avaloy', 'Marketing']; // v219.41: + Jason
       var typeOpts = ['HVAC Install', 'AC Only', 'Furnace Only', 'Heat Pump', 'Mini-Split', 'Package Unit', 'IAQ / Add-on'];
       function esc(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
       var leadHTML = leadOpts.map(function(o) {
@@ -5616,6 +5675,7 @@ document.addEventListener('visibilitychange', function() {
           'Daniel': 'Daniel Gazaway',
           'Dee': 'Dee Williams',
           'Nick': 'Nick Goehler',
+          'Jason': 'Jason Avaloy', // v219.41
           'Marketing': 'Marketing'
         };
         var leadFull = leadMap[p.leadGeneratedBy] || p.leadGeneratedBy || '';
@@ -5671,7 +5731,7 @@ document.addEventListener('visibilitychange', function() {
             '<label>Tonnage<input id="sa-tonnage" type="text" placeholder="3 ton" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
             '<label>Model #<input id="sa-model" type="text" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
             '<label>Jobs Total ($)<input id="sa-total" type="number" step="0.01" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"></label>' +
-            '<label>Lead Generated By<select id="sa-leadby" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"><option value="">— Self / Direct —</option><option>Dewone</option><option>Chris Monahan</option><option>Ben Tinahui</option><option>Daniel Gazaway</option><option>Dee Williams</option><option>Nick Goehler</option><option>Marketing</option></select></label>' +
+            '<label>Lead Generated By<select id="sa-leadby" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;"><option value="">— Self / Direct —</option><option>Dewone</option><option>Chris Monahan</option><option>Ben Tinahui</option><option>Daniel Gazaway</option><option>Dee Williams</option><option>Nick Goehler</option><option>Jason Avaloy</option><option>Marketing</option></select></label>' +
             '<label style="grid-column:span 2;">Notes (optional)<textarea id="sa-notes" rows="2" style="width:100%;padding:8px;background:#0F172A;border:1px solid #334155;border-radius:6px;color:#E2E8F0;margin-top:4px;font-family:inherit;"></textarea></label>' +
           '</div>' +
           '<div style="padding:14px 22px;border-top:1px solid #334155;display:flex;gap:10px;justify-content:flex-end;">' +
@@ -6229,6 +6289,9 @@ document.addEventListener('visibilitychange', function() {
         'martin':   'Dewone',
         'monahan':  'Chris',
         'goehler':  'Nick',
+        'jason avaloy':    'Jason',
+        'jason':           'Jason',
+        'avaloy':          'Jason',
         // Sales / mgr — these can also generate leads, so map them too
         'brayden':  'Brayden Bond',
         'bond':     'Brayden Bond',
@@ -6932,7 +6995,7 @@ document.addEventListener('visibilitychange', function() {
         // ServiceTitan often repeats the name on each row. Look for a known short.
         var rowLeadBy = '';
         var afterText = afterJobText;
-        ['Chris','Dewone','Benji','Daniel','Dee','Nick','Mark','Maico','Brayden','Adam'].forEach(function(nm){
+        ['Chris','Dewone','Benji','Daniel','Dee','Nick','Jason','Mark','Maico','Brayden','Adam'].forEach(function(nm){
           if (rowLeadBy) return;
           var re = new RegExp('\\b' + nm + '\\b','i');
           if (re.test(afterText)) rowLeadBy = tglNormalizeTechName(nm);
@@ -7288,7 +7351,7 @@ document.addEventListener('visibilitychange', function() {
         if (sb) { asg[0] = sb; row.assignedTechnicians = asg.filter(Boolean); }
         else { row.assignedTechnicians = asg.slice(1).filter(Boolean); }
         // Auto-flag tech-sells (per user rule: ignore tech sells entirely)
-        var techSellList = ['Benji','Chris','Dewone','Dee','Daniel','Nick'];
+        var techSellList = ['Benji','Chris','Dewone','Dee','Daniel','Nick','Jason'];
         if (sb && techSellList.indexOf(sb) >= 0) row.__techSell = true;
         else delete row.__techSell;
       } else if (field === 'installedBy') {
@@ -7547,15 +7610,15 @@ document.addEventListener('visibilitychange', function() {
     // Lead-eligible techs: Benji, Chris, Dewone, Dee, Daniel, Nick.
     // Installers: Thomas Gilbert, Terrell Upshur (+ techs who run their own installs).
     function tglRosterLeadBy() {
-      return ['Benji','Chris','Dewone','Dee','Daniel','Nick','Brayden Bond','Adam Bunyard','Maico','Marketed'];
+      return ['Benji','Chris','Dewone','Dee','Daniel','Nick','Jason','Brayden Bond','Adam Bunyard','Maico','Marketed'];
     }
     function tglRosterSoldBy() {
       // Includes techs (so user can correctly mark a tech-sell), but tech entries
       // get auto-flagged __techSell:true so they don't credit the seller.
-      return ['Maico','Brayden Bond','Adam Bunyard','Benji','Chris','Dewone','Dee','Daniel','Nick'];
+      return ['Maico','Brayden Bond','Adam Bunyard','Benji','Chris','Dewone','Dee','Daniel','Nick','Jason'];
     }
     function tglRosterInstallers() {
-      return ['Thomas Gilbert','Terrell Upshur','Benji','Chris','Dewone','Dee','Daniel','Nick'];
+      return ['Thomas Gilbert','Terrell Upshur','Benji','Chris','Dewone','Dee','Daniel','Nick','Jason'];
     }
     window.tglRosterLeadBy = tglRosterLeadBy;
     window.tglRosterSoldBy = tglRosterSoldBy;
@@ -8638,7 +8701,7 @@ document.addEventListener('visibilitychange', function() {
     // List of names eligible to appear on the picker. Includes the 6 techs +
     // sales/mgr roles that can also generate leads.
     function myLeadsPickerNames() {
-      var base = ['Chris','Dewone','Benji','Daniel','Dee','Nick','Brayden Bond','Adam Bunyard','Maico'];
+      var base = ['Chris','Dewone','Benji','Daniel','Dee','Nick','Jason','Brayden Bond','Adam Bunyard','Maico'];
       // Also include any names already present in TGL data (in case ST shows a new generator)
       try {
         var d = tglLoad();
@@ -9176,7 +9239,7 @@ document.addEventListener('visibilitychange', function() {
       // v218.83: Lead By / Sold By options.
       // Lead By = service techs only (they generate leads on calls).
       // Sold By = sales team (Brayden, Adam) + manager (Maico) + service techs (for self-sells).
-      var SVC_TECH_SHORTS = ['Chris','Dewone','Benji','Daniel','Dee','Nick'];
+      var SVC_TECH_SHORTS = ['Chris','Dewone','Benji','Daniel','Dee','Nick','Jason'];
       var SALES_NAMES = ['Brayden Bond','Adam Bunyard','Maico'];
       var preLead = (existing && existing.leadGeneratedBy) || '';
       var preSold = (existing && existing.soldBy) || '';
@@ -9578,7 +9641,8 @@ document.addEventListener('visibilitychange', function() {
         { short: 'Benji',  display: 'Ben Tinahui'    },
         { short: 'Daniel', display: 'Daniel Gazaway' },
         { short: 'Dee',    display: 'Dee Williams'   },
-        { short: 'Nick',   display: 'Nick Goehler'   }
+        { short: 'Nick',   display: 'Nick Goehler'   },
+        { short: 'Jason',  display: 'Jason Avaloy'   } // v219.41
       ];
       // v218.75: include any manually-added custom rows from the override store.
       try {
@@ -12290,12 +12354,13 @@ document.addEventListener('visibilitychange', function() {
         'chris monahan': 'Chris',
         'dewone martin': 'Dewone',
         'dee williams': 'Dee',
-        'nick': 'Nick'
+        'nick': 'Nick',
+        'jason': 'Jason'
       };
       if (map[n]) return map[n];
       // First word fallback
       var first = n.split(/\s+/)[0];
-      var firstMap = { daniel:'Daniel', ben:'Benji', benji:'Benji', chris:'Chris', dewone:'Dewone', dee:'Dee', nick:'Nick' };
+      var firstMap = { daniel:'Daniel', ben:'Benji', benji:'Benji', chris:'Chris', dewone:'Dewone', dee:'Dee', nick:'Nick', jason:'Jason' };
       return firstMap[first] || null;
     }
 
@@ -13799,7 +13864,8 @@ document.addEventListener('visibilitychange', function() {
         "Benji":  ["A2","A3","A5","A7","A9","A10","A11","B1","B2","B4","B5","B6","B7","B8","B9","C1","C5","D1","D2","D3","D5","E2","E4","F1","F2","F3","F4","G2","G3","H1"],
         "Daniel": ["A1","A2","A3","A4","A5","A7","A8","A10","A11","B1","B2","B3","B5","B6","B7","B8","B9","C4","D2","E1","E2","E3","E4","F1","F2","F3","F4","F5","G1"],
         "Dee":    ["A1","A2","A3","A5","A7","A10","A11","B1","B5","B7","B8","B9","D2","E1","E2","E3","E4","F1"],
-        "Nick":   []
+        "Nick":   [],
+        "Jason":  ["A1","A2","A3","A6","A7","A11","B1","B2","B3","B5","B9","C1","C4","C5","C6","C7","D1","D2","D3","D4","D5","F1","F3","F5"] // v219.41: B-Tier baseline — strong electrical/refrigerant/customer-sales/professionalism, EPA Universal + Nexstar + Lincoln Tech
       },
       levels: {
         "C-1":    { min: 5,  max: 7,  composite: "< 60" },
@@ -13830,7 +13896,8 @@ document.addEventListener('visibilitychange', function() {
         "Benji":  { next: ["C1","C2","D1","D5"], action: "Enroll NexTech Academy Level 3" },
         "Daniel": { next: ["C1","C6","E1","F1 verify","H1-H5"], action: "Nexstar Service System training; EPA cert" },
         "Dee":    { next: ["F1","B1","D1","H1","H2"], action: "EPA enrollment week 1; ride-along within 30 days" },
-        "Nick":   { next: ["A6","A11","A3","A7","H1"], action: "Initial onboarding ride-alongs; complete EPA verification; NSS Greet/Explore foundations" }
+        "Nick":   { next: ["A6","A11","A3","A7","H1"], action: "Initial onboarding ride-alongs; complete EPA verification; NSS Greet/Explore foundations" },
+        "Jason":  { next: ["A4","A8","B4","B6","E1"], action: "v219.41: Onboarding ride-alongs first 2 weeks; airflow/balanced-airflow training (self-eval gap); communicating-systems hands-on; install familiarization (limited install experience); validate Nexstar Service System integration" }
       }
     };
 
@@ -16773,6 +16840,41 @@ if (typeof Chart !== 'undefined') {
         productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
         sales: { total_sales: 0, avg_sale_s: 0, close_rate: 0, sales_opps: 0, options_per_opp_s: 0 },
         installs: { count: 0, total_revenue: 0, avg_sale: 0, leads_generated: 0, self_sourced: 0 }
+      },
+      // v219.41: Jason Avaloy onboarded 5/26/26 — B-Tier baseline, no production yet (zero stats until first day in field)
+      {
+        name: "Jason",
+        displayName: "Jason Avaloy",
+        color: "#3A8A6B",
+        isNewHire: true,
+        startDate: "2026-06-19",
+        mtd_service_rev: 0,
+        mtd_installs: 0,
+        mtd_install_rev: 0,
+        mtd_install_self_sourced: 0,
+        mtd_on_job_pct: 0,
+        mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 },
+        mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_sales: { close_rate: 0 },
+        monthly_archive: {
+          '2026-05': {
+            label: 'May 2026',
+            note: 'Hired 5/26/26 — onboarding only, available start 6/19/26',
+            mtd_service_rev: 0, mtd_installs: 0, mtd_install_rev: 0, mtd_install_self_sourced: 0, mtd_on_job_pct: 0,
+            mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 },
+            mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+            mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+            mtd_sales: { close_rate: 0 }
+          }
+        },
+        nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 },
+        overview: { revenue: 0, total_job_avg: 0, opp_job_avg: 0, opp_conversion: 0, opps: 0, converted_jobs: 0 },
+        leads: { opps: 0, leads_set: 0, conv_rate: 0, avg_sale: 0 },
+        memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
+        sales: { total_sales: 0, avg_sale_s: 0, close_rate: 0, sales_opps: 0, options_per_opp_s: 0 },
+        installs: { count: 0, total_revenue: 0, avg_sale: 0, leads_generated: 0, self_sourced: 0 }
       }
     ];
 
@@ -16961,7 +17063,7 @@ if (typeof Chart !== 'undefined') {
       document.getElementById('skCategoryCards').innerHTML = catHtml;
 
       // ---- By Technician ----
-      const techColors = { 'Chris': '#2D6A6A', 'Dewone': '#C47F17', 'Benji': '#5B4A8A', 'Daniel': '#3A7A4A', 'Dee': '#8B3A3A', 'Nick': '#3A6BA5' };
+      const techColors = { 'Chris': '#2D6A6A', 'Dewone': '#C47F17', 'Benji': '#5B4A8A', 'Daniel': '#3A7A4A', 'Dee': '#8B3A3A', 'Nick': '#3A6BA5', 'Jason': '#3A8A6B' };
       let techHtml = '';
       techs.forEach(tech => {
         const assigned = skillsData.assignments[tech];
@@ -18746,7 +18848,8 @@ if (typeof Chart !== 'undefined') {
       'Benji': '#5B4A8A',
       'Daniel': '#3A7A4A',
       'Dee': '#8B3A3A',
-      'Nick': '#3A6BA5'
+      'Nick': '#3A6BA5',
+      'Jason': '#3A8A6B'
     };
     const MGR_HOUSEKEEPING_ITEMS = [
       { key: 'dispatch', label: 'Dispatch — late starts, missed calls, routing' },
@@ -19455,7 +19558,8 @@ if (typeof Chart !== 'undefined') {
         'benji': 'Benji', 'ben': 'Benji', 'ben tinahui': 'Benji', 'tinahui': 'Benji',
         'daniel': 'Daniel', 'dan': 'Daniel',
         'dee': 'Dee',
-        'nick': 'Nick'
+        'nick': 'Nick',
+        'jason': 'Jason'
       };
       if (aliases[s]) return aliases[s];
       // Try matching against stData by short or display name
@@ -23468,7 +23572,7 @@ if (typeof Chart !== 'undefined') {
 
       var techMap = {
         'Chris': 'Chris', 'Dewone': 'Dewone', 'Benji': 'Benji',
-        'Daniel': 'Daniel', 'Dee': 'Dee', 'Nick': 'Nick'
+        'Daniel': 'Daniel', 'Dee': 'Dee', 'Nick': 'Nick', 'Jason': 'Jason'
       };
       var changed = false;
       for (var pdfKey in techMap) {
@@ -23709,7 +23813,7 @@ if (typeof Chart !== 'undefined') {
     }
 
     function tfRender() {
-      const techNames = ['Chris', 'Dewone', 'Benji', 'Daniel', 'Dee', 'Nick'];
+      const techNames = ['Chris', 'Dewone', 'Benji', 'Daniel', 'Dee', 'Nick', 'Jason'];
       // Sidebar
       const sb = document.getElementById('tfSidebar');
       sb.innerHTML = techNames.map(t => {
@@ -24356,7 +24460,8 @@ if (typeof Chart !== 'undefined') {
           'Benji':  ['Ride Along Trainer', 'Diagnostics', 'Maintenance'],
           'Daniel': ['Diagnostics', 'Install / Changeout', 'Maintenance', 'Sales Capable'],
           'Dee':    ['Warranty Tech', 'Diagnostics', 'Install / Changeout', 'Maintenance'],
-          'Nick':   ['Maintenance']
+          'Nick':   ['Maintenance'],
+          'Jason':  ['Diagnostics', 'Maintenance', 'Sales Capable'] // v219.41: B-Tier baseline — strong electrical + customer/sales
         },
         _migV1: true, _migV2: true, _migV3: true
       };
@@ -24430,7 +24535,7 @@ if (typeof Chart !== 'undefined') {
       const dispTierColors = { S: 'linear-gradient(135deg,#ff6ec4,#7873f5,#4adede)', A: '#7C3AED', B: '#3B82F6', C: '#94A3B8' };
 
       // Render tech cards
-      const techOrder = ['Chris','Dewone','Benji','Daniel','Dee','Nick'];
+      const techOrder = ['Chris','Dewone','Benji','Daniel','Dee','Nick','Jason'];
       let cardsHtml = '<div class="disp-grid">';
       techOrder.forEach(tech => {
         const t = techs.find(x => x.short === tech);
@@ -24643,7 +24748,7 @@ if (typeof Chart !== 'undefined') {
       const container = document.getElementById(containerId);
       if (!container) return;
       const data = loadLogData(storageKey);
-      const techOrder = ['Chris','Dewone','Benji','Daniel','Dee','Nick'];
+      const techOrder = ['Chris','Dewone','Benji','Daniel','Dee','Nick','Jason'];
       const avatarMap = { Chris: 'chris_avatar.png', Dewone: 'dewone_avatar.jpg', Benji: 'benji_avatar.png', Daniel: 'daniel_avatar.png', Dee: 'dee_avatar.jpg', Nick: 'nick_avatar.png?v=20260428v170' };
       const dispTierColors = { S: 'linear-gradient(135deg,#ff6ec4,#7873f5,#4adede)', A: '#7C3AED', B: '#3B82F6', C: '#94A3B8' };
       const typeColors = logType === 'recall'
@@ -27148,7 +27253,7 @@ function openEmbeddedPDF(filename) {
   'use strict';
 
   // ---- Constants ----
-  var V200_TECH_ORDER = ['Chris', 'Dewone', 'Benji', 'Daniel', 'Dee', 'Nick'];
+  var V200_TECH_ORDER = ['Chris', 'Dewone', 'Benji', 'Daniel', 'Dee', 'Nick', 'Jason'];
   var KEY_ACTIONS    = 'snappy_v200_action_plans_v1';     // { tech: [items] }
   var KEY_TRAINING   = 'snappy_v200_training_v1';         // { tech: [items] }
   var KEY_RC_NOTES   = 'snappy_v200_recall_root_cause_v1';// { tech: { recallId: { cause, notes } } }
