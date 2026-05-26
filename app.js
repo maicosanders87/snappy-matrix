@@ -4601,6 +4601,11 @@ document.addEventListener('visibilitychange', function() {
       var memSold = (typeof v.memSold === 'number') ? v.memSold
                   : ((typeof v.memberships === 'number') ? v.memberships : 0);
       var memOpps = (typeof v.memOpps === 'number') ? v.memOpps : 0;
+      // v219.45: propagate leadsCount so the LEAD pill renders on the leaderboard.
+      // Without this, _wlbPoints falls back to leadsCount=0 and the LEAD lane is
+      // silently dropped from every row.
+      var leadsCount = (typeof v.leadsCount === 'number') ? v.leadsCount
+                     : ((typeof v.weekLeadsSet === 'number') ? v.weekLeadsSet : 0);
       return {
         short: short,            // v219.17: needed for grCount lookup in _wlbPoints
         service: svc,
@@ -4608,6 +4613,7 @@ document.addEventListener('visibilitychange', function() {
         installRev: instRev,
         memSold: memSold,
         memOpps: memOpps,
+        leadsCount: leadsCount,  // v219.45: LEAD lane input
         total: svc + instRev
       };
     }
