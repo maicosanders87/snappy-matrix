@@ -4669,19 +4669,11 @@ document.addEventListener('visibilitychange', function() {
       else if (convPct >= 50) convPts = 2;
       var svcLane = Math.min(avgPts + jobPts + convPts, 20);
 
-      // === MEM lane (max 20) ===
-      var memCountPts = Math.min(ms * 2, 8);
-      var memPct = null, memAttachPts = 0;
-      if (mo > 0) {
-        memPct = (ms / mo) * 100;
-        if (memPct >= 70) memAttachPts = 6;
-        else if (memPct >= 50) memAttachPts = 4;
-        else if (memPct >= 30) memAttachPts = 2;
-      }
-      var spp = entry.sppCount || 0;
-      var sppPts = Math.min(spp * 0.4, 4);
-      var memKicker = (memPct !== null && memPct >= 70) ? 2 : 0;
-      var memLane = Math.min(memCountPts + memAttachPts + sppPts + memKicker, 20);
+      // === MEM lane (v219.44: 5 pts per membership sold, NO CAP — mirrors GR★ rule) ===
+      var memPct = null;
+      if (mo > 0) memPct = (ms / mo) * 100;
+      var memLane = ms * 5;
+      // memPct retained for display (attach % shown on pill) but no longer affects scoring.
 
       // === LEAD lane (max 20) ===
       var leads = entry.leadsCount || 0;
@@ -4741,13 +4733,16 @@ document.addEventListener('visibilitychange', function() {
       else if (ic >= 2) { instTier = 'A'; }
       else if (ic >= 1) { instTier = 'B'; }
       else              { instTier = '0'; }
-      var memPts = 0, memTier = '\u2013';
+      // v219.44: legacy memPts now mirrors lane (5 pts per membership, no cap). memTier kept
+      // as an attach-rate badge for display, but no longer drives scoring.
+      var memPts = ms * 5;
+      var memTier = '\u2013';
       if (mo > 0) {
-        if (memPct >= 70)      { memPts = 10; memTier = 'S'; }
-        else if (memPct >= 50) { memPts = 7;  memTier = 'A'; }
-        else if (memPct >= 30) { memPts = 4;  memTier = 'B'; }
-        else if (memPct >= 1)  { memPts = 1;  memTier = 'C'; }
-        else                   { memPts = 0;  memTier = '0'; }
+        if (memPct >= 70)      memTier = 'S';
+        else if (memPct >= 50) memTier = 'A';
+        else if (memPct >= 30) memTier = 'B';
+        else if (memPct >= 1)  memTier = 'C';
+        else                   memTier = '0';
       }
       // v218.70 Phase 2: total is now SIX-LANE total (replaces legacy 3-lane total).
       // Legacy 3-lane sum still emitted as legacyTotal for backward-compat consumers.
@@ -11972,14 +11967,14 @@ document.addEventListener('visibilitychange', function() {
                   '</span>'
                 );
               }
-              // MEM pill: sold/opps · % · tier · pts
+              // MEM pill (v219.44): 5 pts per membership sold, no cap. Attach % shown as a badge.
               var memRaw, memTitle;
               if (e.memOpps > 0) {
                 memRaw = e.memSold + '/' + e.memOpps + ' \u00b7 ' + Math.round(p.memPct) + '%';
-                memTitle = 'Membership conversion: 70%+ S, 50-69% A, 30-49% B, 1-29% C';
+                memTitle = 'Memberships sold: 5 pts each (no cap). Attach % badge: 70%+ S, 50-69% A, 30-49% B, 1-29% C';
               } else {
-                memRaw = 'no opps';
-                memTitle = 'No membership opportunities offered';
+                memRaw = (e.memSold || 0) + ' sold';
+                memTitle = 'Memberships sold: 5 pts each (no cap). No opportunities recorded.';
               }
               pills.push(
                 '<span class="wlb-pt-pill mem" title="' + memTitle + '">' +
