@@ -10374,6 +10374,43 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('Review seed v219.35 failed', e); }
     })();
 
+    // v219.43 — Full week 5/18-5/23 review recheck (anchor Tue 5/26 11:25 ET).
+    // Re-pulled Snappy GBP top 30 reviews and attributed Fri 5/22 + Sat 5/23 + late-landing
+    // reviews missed by 5/21 anchor. Adds: Daniel +6 (Kibre Wolde, jill smith, Douglas Ander,
+    // Romeo Baccay, Charles Harper, James Bryant rule), Nick +1 (J DiamondNDaRough W co-credit),
+    // Dewone +2 (Keith Terry, J DiamondNDaRough W co-credit). Overwrites v219.35 seed.
+    (function _ipSeedReviewsV21943(){
+      try {
+        var KEY = 'snappy_seed_reviews_v21943_done';
+        if (localStorage.getItem(KEY)) return;
+        var ws = '2026-05-18';
+        var seed = [
+          ['Daniel', 10, 22],
+          ['Nick',    5,  7],
+          ['Dewone',  2, 10],
+          ['Benji',   0,  4],
+          ['Chris',   0,  0],
+          ['Dee',     0,  0]
+        ];
+        var store = ipServiceTechOverrides();
+        if (!store.weeks[ws]) store.weeks[ws] = {};
+        seed.forEach(function(r){
+          var s = r[0], w = r[1], m = r[2];
+          if (!store.weeks[ws][s]) store.weeks[ws][s] = {};
+          store.weeks[ws][s].weekReviews  = w;
+          store.weeks[ws][s].monthReviews = m;
+        });
+        ipServiceTechOverridesSave(store);
+        localStorage.setItem(KEY, new Date().toISOString());
+        console.log('[snappy v219.43] Recheck Google reviews for week 2026-05-18: ' +
+          'Daniel 10/22, Nick 5/7, Dewone 2/10, Benji 0/4, Chris 0/0, Dee 0/0');
+        try { if (typeof renderInstallPay === 'function') renderInstallPay(); } catch(e) {}
+        try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
+        try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+        try { if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone(); } catch(e) {}
+      } catch(e) { console.warn('Review seed v219.43 failed', e); }
+    })();
+
     (function _ipSeedReviewsV21917(){
       try {
         var KEY = 'snappy_seed_reviews_v21917_done';
