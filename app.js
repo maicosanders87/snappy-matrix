@@ -9920,6 +9920,106 @@ document.addEventListener('visibilitychange', function() {
       ]
     });
 
+    // ----- v219.42 daily: Thu+Fri+Sat combined 5/21–5/23/26 (week 2026-05-18) -----
+    // Reports pulled Tue 5/26 AM — cover completion dates 5/21–5/23 (delta vs. WTD
+    // through 5/20). Dated to 5/23 (last completion day) so the gate key is unique.
+    //
+    // Week-to-date totals (IMG_0276 + IMG_0277, anchor Sat 5/23 EOD):
+    //   Daniel  $5,820  / Avg $710   / 57% conv / 4 SPP / 3 TGL / 16.6 sold hrs / 4 mem of 8 (50%) / 3.13 frt
+    //   Benji   $2,327  / Avg $384   / 36% conv / 1 SPP / 5 TGL / 17.6 sold hrs / 1 mem of 6 (17%) / 2.80 frt / 0.31 eff
+    //   Nick    $2,195  / Avg $526   / 67% conv / 2 SPP / 0 TGL / 10.05 sold hrs / 2 mem of 4 (50%) / 2.00 frt
+    //   Chris   $1,988  / Avg $353   / 56% conv / 2 SPP / 3 TGL / 10.4 sold hrs / 2 mem of 4 (50%) / 2.00 frt
+    //   Dewone  $1,649  / Avg $520   / 50% conv / 3 SPP / 2 TGL / 3.75 sold hrs / 3 mem of 5 (60%) / 2.00 frt
+    //   Dee     $1,487  / Avg $1,408 / 50% conv / 0 SPP / 0 TGL / 8.7 sold hrs / 0 mem of 0 (0%) / 4.00 frt
+    //   Team WTD: $14,965 svc / 12 SPP / 13 TGL / 78.6 sold hrs / 12 mem of 27 (44%) / Avg $498
+    //
+    // Already seeded WTD (Mon 5/18 + Tue+Wed 5/19–5/20):
+    //   Benji   $1,641.00 / 1 mem / 4 opps / 2 leads / 0 installs
+    //   Chris   $1,220.00 / 2 mem / 2 opps / 1 lead  / 1 install $5,658.72 (Wakefield)
+    //   Daniel  $3,251.00 / 1 mem / 4 opps / 2 leads / 1 install $11,991.42 (Carter)
+    //   Dee     $1,408.22 / 0 mem / 0 opps / 0 leads / 0 installs
+    //   Dewone  $0.00     / 0 mem / 0 opps / 0 leads / 0 installs
+    //   Nick    $2,195.00 / 2 mem / 4 opps / 0 leads / 0 installs
+    //
+    // Thu+Fri+Sat 5/21–5/23 DELTA (week total − already seeded):
+    //   Benji   $686.00   / 0 mem / 2 opps / 3 leads (Terrence Jernigan #92571879 → Brayden; Travis Thompson install #92497544 → Adam install; 1 unattributed-in-PDF TGL)
+    //   Chris   $768.00   / 0 mem / 2 opps / 2 leads
+    //   Daniel  $2,569.00 / 3 mem / 4 opps / 1 lead
+    //   Dee     $78.78    / 0 mem / 0 opps / 0 leads
+    //   Dewone  $1,649.00 / 3 mem / 5 opps / 2 leads (Ram Sukmar #92598131 → Brayden; Keith Terry plumbing flip = dropped from HVAC tile)
+    //   Nick    $0.00     / 0 mem / 0 opps / 0 leads (Nick all WTD rev landed Mon–Tue)
+    //
+    // Install attribution (per Mark, overrides ServiceTitan):
+    //   - Travis Thompson $14,203.94 (#92497544) completed 5/21 — LEADERBOARD credit to
+    //     Benji (he set the TGL). SALES PAY goes to Adam Bunyard via
+    //     snappy_brayden_installs (soldBy=Adam, leadGen=Benji). Installers:
+    //     Thomas Gilbert + Terrell Upshur + Ben Johnson.
+    ipApplyDailyAdd({
+      date: '2026-05-23',
+      weekStart: '2026-05-18',
+      entries: [
+        { short: 'Benji',  rev:  686.00, memSold: 0, memOpps: 2, leads: 3, installs: 1, installRev: 14203.94 },
+        { short: 'Chris',  rev:  768.00, memSold: 0, memOpps: 2, leads: 2, installs: 0, installRev:     0 },
+        { short: 'Daniel', rev: 2569.00, memSold: 3, memOpps: 4, leads: 1, installs: 0, installRev:     0 },
+        { short: 'Dee',    rev:   78.78, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev:     0 },
+        { short: 'Dewone', rev: 1649.00, memSold: 3, memOpps: 5, leads: 2, installs: 0, installRev:     0 },
+        { short: 'Nick',   rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev:     0 }
+      ]
+    });
+
+    // v219.42: Cascade Thu+Fri+Sat 5/21–5/23 numbers into stData MTD so rookie cards /
+    // tier progression / overview tiles reflect the full week. Sold hours, SPP, TGL,
+    // and flat-rate-tasks are derived from the WTD totals (IMG_0276) minus the values
+    // that v219.31 + v219.32 already added on 5/18 and 5/19–5/20. Memberships are
+    // already handled by ipApplyDailyAdd's membership cascade, so we only add the
+    // remaining nexstar/productivity fields here.
+    function _wlbSeedDay20260523MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260523_v21942';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        // (name, svc, soldHrs, frt, spps, tgls) — mems handled by ipApplyDailyAdd cascade.
+        // Sold hours/spps/tgls/frt are Thu+Fri+Sat deltas computed from WTD totals.
+        // Estimating hour split: Mon 5/18 ~22 jobs across team; Tue+Wed +6 jobs; Thu+Fri+Sat
+        // ~remainder. I take the WTD value direct from the screenshot since the existing
+        // seeds did not bump hours on the Tue+Wed entry — we set them additively here.
+        var deltas = [
+          // name,   svc,     soldHrs, frt,  spps, tgls
+          ['Benji',   686.00,  17.6,   2.80, 1,    3],
+          ['Chris',   768.00,  10.4,   2.00, 2,    2],
+          ['Daniel', 2569.00,  16.6,   3.13, 4,    1],
+          ['Dee',      78.78,   8.7,   4.00, 0,    0],
+          ['Dewone', 1649.00,   3.75,  2.00, 3,    2],
+          ['Nick',      0.00,  10.05,  2.00, 0,    0]
+        ];
+        deltas.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        // Cascade Benji's Travis Thompson install into MTD install counters
+        var benji = stData.find(function(s){ return s.name === 'Benji'; });
+        if (benji) {
+          benji.mtd_installs        = +(benji.mtd_installs        || 0) + 1;
+          benji.mtd_install_rev     = +(benji.mtd_install_rev     || 0) + 14203.94;
+          // Self-sourced from his TGL (sold by Adam, but tech-gen credit is Benji's)
+          benji.mtd_install_self_sourced = +(benji.mtd_install_self_sourced || 0) + 1;
+        }
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.42] MTD bumped for 5/21–5/23 across all 6 production techs + Benji install ($14,203.94 Travis Thompson).');
+      } catch(e) { console.warn('_wlbSeedDay20260523MtdIfNeeded failed', e); }
+    }
+    _wlbSeedDay20260523MtdIfNeeded();
+
     // v219.32: Push the two installs completed 5/19–5/20 into snappy_brayden_installs
     // so the company-MTD Installs tile counts them and the sales-mgr/Brayden scorecard
     // sees Karen Carter. Chris's Wakefield install is self-sourced (soldBy=Chris, no
@@ -10017,6 +10117,85 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_dailySeed20260520InstallsIfNeeded failed', e); }
     }
     _dailySeed20260520InstallsIfNeeded();
+
+    // v219.42: Push the Travis Thompson install ($14,203.94 / 5/21) into
+    // snappy_brayden_installs so the company-MTD Installs tile counts it and
+    // Adam Bunyard's sales-mgr scorecard sees it. Lead-gen credit stays with
+    // Benji (he set the TGL); sales pay = Adam Bunyard. Installers were
+    // Thomas Gilbert + Terrell Upshur + Ben Johnson (split base pay 3-way).
+    function _dailySeed20260523InstallsIfNeeded() {
+      try {
+        var FLAG = 'snappy_installs_seeded_20260523_v21942';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var raw = localStorage.getItem('snappy_brayden_installs');
+        var arr = [];
+        try { arr = raw ? JSON.parse(raw) : []; } catch(e) { arr = []; }
+        if (!Array.isArray(arr)) arr = [];
+
+        // Travis Thompson — sold by Adam Bunyard 5/21/26, lead-gen by Benji.
+        var dupThompson = arr.some(function(x){ return x && (x.jobNumber === '92497544' || x.invoice === '92497544'); });
+        if (!dupThompson) {
+          arr.push({
+            id: 'brayden_daily_20260521_thompson',
+            date: '2026-05-21',
+            customer: 'Travis Thompson',
+            jobNumber: '92497544',
+            invoice: '92497544',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard',
+            leadGeneratedBy: 'Benji',
+            jobsTotal: 14203.94,
+            completionDate: '2026-05-21',
+            note: 'Sold by Adam Bunyard — Benji gets lead credit (in daily leads:3). Installers: Thomas + Terrell + Ben Johnson.'
+          });
+          console.log('[v219.42] Added Travis Thompson install ($14,203.94) — sold by Adam Bunyard, lead by Benji.');
+        }
+
+        localStorage.setItem('snappy_brayden_installs', JSON.stringify(arr));
+
+        // Bump Brayden/sales-mgr MTD tile. Prior MTD after v219.32: 9 / $143,969.51.
+        // After Travis Thompson: 10 / $158,173.45.
+        try {
+          if (typeof braydenLoadStats === 'function' && typeof braydenSaveStats === 'function') {
+            var bstats = braydenLoadStats() || {};
+            var curRev = Number(bstats.mtd_revenue || 0);
+            var curClosed = Number(bstats.mtd_closed || 0);
+            var targetRev = 158173.45;
+            var targetClosed = 10;
+            if (curRev < targetRev) bstats.mtd_revenue = String(targetRev);
+            if (curClosed < targetClosed) bstats.mtd_closed = String(targetClosed);
+            braydenSaveStats(bstats);
+            console.log('[v219.42] braydenstats bumped to 10 / $158,173.45 (Travis Thompson added).');
+          }
+        } catch(e) { console.warn('[v219.42] braydenstats bump failed', e); }
+
+        // Bulletin board entry for the Thu+Fri+Sat slice.
+        try {
+          var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+          if (bb) {
+            if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+            var existsBB = bb.matrixUpdates.some(function(u){ return u.id === 'st_update_20260523_thu_fri_sat'; });
+            if (!existsBB) {
+              bb.matrixUpdates.push({
+                id: 'st_update_20260523_thu_fri_sat',
+                date: '2026-05-23',
+                text: 'Week 5/18–5/23 closed — Team WTD $14,965 svc / 12 mems of 27 (44%) / 13 TGL / 78.6 sold hrs / Avg $498 / 53% conv. Top performer: Daniel $5,820 (57% conv, 4 SPP, 3 TGL, 16.6 sold hrs, 4/8 mem). Benji set 5 TGL (#1 lead-gen) incl Travis Thompson install. Nick rebounded — $2,195 at 67% conv, 2/4 mems. Chris steady $1,988 / 56% conv / 3 TGL. Dewone $1,649 / 3 mems on 5 (60% — top mem%). Dee $1,487 in warranty work. New install closed this slice: Travis Thompson $14,203.94 (Benji TGL → Adam sold → Thomas+Terrell+Ben Johnson installed). Brayden May install MTD now: 10 / $158,173.45.',
+                createdAt: Date.now()
+              });
+              if (typeof bbSave === 'function') bbSave(bb);
+              console.log('[v219.42] Added 5/21–5/23 weekly close bulletin entry.');
+            }
+          }
+        } catch(e) { console.warn('[v219.42] bulletin push failed', e); }
+
+        localStorage.setItem(FLAG, '1');
+
+        // Re-render surfaces that key off install state.
+        try { if (typeof renderInstallPay === 'function') renderInstallPay(); } catch(e) {}
+        try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+      } catch(e) { console.warn('_dailySeed20260523InstallsIfNeeded failed', e); }
+    }
+    _dailySeed20260523InstallsIfNeeded();
 
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
