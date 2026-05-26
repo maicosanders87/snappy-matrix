@@ -7857,6 +7857,7 @@ document.addEventListener('visibilitychange', function() {
         'Full Install (4–5 Ton)': 550,
         'Cooling Only': 300,
         'Furnace Only': 250,
+        'Zone System Only': 0, // v219.40: no base — pay = Zone Motors × Per Zone Motor + add-ons
         'Flu Pipe Modifications': 100,
         'Per Plenum': 60,
         'Per Duct Run': 50,
@@ -7867,6 +7868,7 @@ document.addEventListener('visibilitychange', function() {
         'Full Install (4–5 Ton)': 750,
         'Cooling Only': 400,
         'Furnace Only': 300,
+        'Zone System Only': 0, // v219.40: no base — pay = Zone Motors × Per Zone Motor + add-ons
         'Flu Pipe Modifications': 100,
         'Per Plenum': 60,
         'Per Duct Run': 50,
@@ -7877,13 +7879,14 @@ document.addEventListener('visibilitychange', function() {
         'Full Install (4–5 Ton)': 550,
         'Cooling Only': 300,
         'Furnace Only': 250,
+        'Zone System Only': 0, // v219.40: no base — pay = Zone Motors × Per Zone Motor + add-ons
         'Flu Pipe Modifications': 100,
         'Per Plenum': 60,
         'Per Duct Run': 50,
         'Per Zone Motor': 30
       }
     };
-    const INSTALL_PAY_JOB_TYPES = ['Full Install (1.5–3.5 Ton)','Full Install (4–5 Ton)','Cooling Only','Furnace Only'];
+    const INSTALL_PAY_JOB_TYPES = ['Full Install (1.5–3.5 Ton)','Full Install (4–5 Ton)','Cooling Only','Furnace Only','Zone System Only'];
 
     function ipLoadData() {
       try {
@@ -7892,6 +7895,15 @@ document.addEventListener('visibilitychange', function() {
         var d = JSON.parse(raw);
         if (!d.rates) d.rates = JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES));
         if (!d.jobs) d.jobs = [];
+        // v219.40: Seed 'Zone System Only' (base 0) on any existing rate card that pre-dates it
+        try {
+          Object.keys(d.rates).forEach(function(name){
+            var card = d.rates[name];
+            if (card && typeof card === 'object' && !('Zone System Only' in card)) {
+              card['Zone System Only'] = 0;
+            }
+          });
+        } catch(e) {}
         return d;
       } catch(e) { return { jobs: [], rates: JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES)) }; }
     }
@@ -8823,7 +8835,7 @@ document.addEventListener('visibilitychange', function() {
 
     // ---- v218.5: Bulk Grid helpers ----
     function ipBulkRowHtml(job, computed, data, defaultDate) {
-      var jobTypes = ['Full Install (1.5\u20133.5 Ton)','Full Install (4\u20135 Ton)','Cooling Only','Furnace Only'];
+      var jobTypes = ['Full Install (1.5\u20133.5 Ton)','Full Install (4\u20135 Ton)','Cooling Only','Furnace Only','Zone System Only']; // v219.40: added Zone System Only
       var installers = Object.keys(data.rates || {});
       if (!installers.length) installers = ['Terrell Upshur','Thomas Gilbert','Dee','Daniel','Other SVC Tech'];
       var rid = job ? job.id : ('new_' + Math.random().toString(36).slice(2,8));
@@ -8935,7 +8947,7 @@ document.addEventListener('visibilitychange', function() {
     // Per-installer rids are prefixed with 'inst_<slug>__' so they don't collide
     // with the bulk grid (which renders the same job below in the same DOM).
     function ipInstallerRowHtml(job, computed, data, lockedInstaller, defaultDate) {
-      var jobTypes = ['Full Install (1.5\u20133.5 Ton)','Full Install (4\u20135 Ton)','Cooling Only','Furnace Only'];
+      var jobTypes = ['Full Install (1.5\u20133.5 Ton)','Full Install (4\u20135 Ton)','Cooling Only','Furnace Only','Zone System Only']; // v219.40: added Zone System Only
       var slug = lockedInstaller.replace(/[^A-Za-z0-9]/g,'').toLowerCase();
       var rid = 'inst_' + slug + '__' + (job ? job.id : ('new_' + Math.random().toString(36).slice(2,8)));
       var d = job ? (job.date||'') : (defaultDate||'');
@@ -9442,6 +9454,7 @@ document.addEventListener('visibilitychange', function() {
         'Full Install (4–5 Ton)': 550,
         'Cooling Only': 300,
         'Furnace Only': 250,
+        'Zone System Only': 0, // v219.40: no base — pay = Zone Motors × Per Zone Motor + add-ons
         'Flu Pipe Modifications': 100,
         'Per Plenum': 60,
         'Per Duct Run': 50,
