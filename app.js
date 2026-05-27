@@ -10495,6 +10495,43 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('Review seed v219.43 failed', e); }
     })();
 
+    // v219.47 — WTD Google review check (anchor Wed 5/27 ~10:00 ET, week start 5/25).
+    // Pulled Snappy GBP top 20 reviews sorted Newest. WTD window = Mon 5/25, Tue 5/26, Wed 5/27.
+    // Found 2 reviews in window: David Rever (today, no tech named — unattributed) and
+    // Minnie Patel (Edited a day ago, credits Benji). Net: Benji +1 for week 5/25.
+    // MTD bumps from v219.43 baselines: Benji 4 -> 5. Others unchanged.
+    (function _ipSeedReviewsV21947(){
+      try {
+        var KEY = 'snappy_seed_reviews_v21947_done';
+        if (localStorage.getItem(KEY)) return;
+        var ws = '2026-05-25';
+        var seed = [
+          ['Benji',   1,  5],
+          ['Daniel',  0, 22],
+          ['Nick',    0,  7],
+          ['Dewone',  0, 10],
+          ['Chris',   0,  0],
+          ['Dee',     0,  0]
+        ];
+        var store = ipServiceTechOverrides();
+        if (!store.weeks[ws]) store.weeks[ws] = {};
+        seed.forEach(function(r){
+          var s = r[0], w = r[1], m = r[2];
+          if (!store.weeks[ws][s]) store.weeks[ws][s] = {};
+          store.weeks[ws][s].weekReviews  = w;
+          store.weeks[ws][s].monthReviews = m;
+        });
+        ipServiceTechOverridesSave(store);
+        localStorage.setItem(KEY, new Date().toISOString());
+        console.log('[snappy v219.47] WTD Google reviews week 2026-05-25: ' +
+          'Benji 1/5 (Minnie Patel). David Rever (today) unattributed.');
+        try { if (typeof renderInstallPay === 'function') renderInstallPay(); } catch(e) {}
+        try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
+        try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+        try { if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone(); } catch(e) {}
+      } catch(e) { console.warn('Review seed v219.47 failed', e); }
+    })();
+
     (function _ipSeedReviewsV21917(){
       try {
         var KEY = 'snappy_seed_reviews_v21917_done';
