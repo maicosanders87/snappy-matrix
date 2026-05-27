@@ -10198,6 +10198,89 @@ document.addEventListener('visibilitychange', function() {
     }
     _dailySeed20260523InstallsIfNeeded();
 
+    // ===== Daily slice: Tue 5/26/26 (week 2026-05-25) =====
+    // v219.46: First day of week 2026-05-25. Memorial Day Mon 5/25 was a holiday \u2014
+    // no revenue posted. Tue is Day 1 of the week's books.
+    // Sources: Tech-rev view (IMG_0279), Memberships tab (IMG_0280), Lead Generation
+    // tab (IMG_0281). 5 techs ran calls (Chris, Dee, Dewone, Benji, Daniel). Nick + Jason
+    // were off / no calls \u2014 explicitly seeded at 0 so they appear with empty rows.
+    ipApplyDailyAdd({
+      date: '2026-05-26',
+      weekStart: '2026-05-25',
+      entries: [
+        { short: 'Chris',  rev: 1526.00, memSold: 1, memOpps: 1, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Dee',    rev:  835.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Dewone', rev:  781.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Benji',  rev:  291.00, memSold: 2, memOpps: 2, leads: 2, installs: 0, installRev: 0 },
+        { short: 'Daniel', rev:   89.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Nick',   rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Jason',  rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 }
+      ]
+    });
+
+    // v219.46: Cascade Tue 5/26 daily into stData MTD so rookie cards / tier progression /
+    // overview tiles reflect the new day. Sold hours, SPP, TGL count, flat-rate tasks come
+    // from IMG_0279 (Productivity columns). Memberships are handled by ipApplyDailyAdd's
+    // membership cascade, so we only bump the nexstar/productivity fields here.
+    function _wlbSeedDay20260526MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260526_v21946';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        // (name, svc, soldHrs, frt, spps, tgls) \u2014 mems handled by ipApplyDailyAdd cascade.
+        // Memorial Day Mon 5/25 = $0 (no entry). All values below are Tue 5/26 only.
+        var deltas = [
+          // name,   svc,     soldHrs, frt,  spps, tgls
+          ['Chris',  1526.00,  2.80,   2.50, 1,    0],
+          ['Dee',     835.00,  1.90,   1.50, 0,    0],
+          ['Dewone',  781.00,  4.80,   1.67, 0,    0],
+          ['Benji',   291.00,  1.50,   3.00, 2,    2],
+          ['Daniel',   89.00,  2.25,   0.00, 0,    0]
+          // Nick + Jason \u2014 no calls Tue, no MTD delta.
+        ];
+        deltas.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.46] Tue 5/26 MTD bumped (5 techs, $3,522 svc, 3 SPPs, 13.25 sold hrs, 3 mems). Memorial Day 5/25 = $0 holiday.');
+      } catch(e) { console.warn('_wlbSeedDay20260526MtdIfNeeded failed', e); }
+    }
+    _wlbSeedDay20260526MtdIfNeeded();
+
+    // v219.46: Bulletin board entry for Tue 5/26 (Memorial Day holiday Mon 5/25).
+    (function _bbDaily20260526IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_daily_20260526_v21946';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var existsBB = bb.matrixUpdates.some(function(u){ return u.id === 'st_update_20260526_tue'; });
+        if (!existsBB) {
+          bb.matrixUpdates.push({
+            id: 'st_update_20260526_tue',
+            date: '2026-05-26',
+            text: 'Tue 5/26 (week 5/25) — $3,522 svc rev / 3 mems sold (3/3 = 100% attach) / 3 SPPs / 2 leads set / 13.25 sold hrs. Memorial Day Mon 5/25 = $0 holiday. Chris led the day ($1,526 / 100% conv / 1 mem). Benji 2 mems + 2 leads + 2 SPPs on $291 svc. Nick + Jason off.',
+            createdAt: Date.now()
+          });
+          if (typeof bbSave === 'function') bbSave(bb);
+          console.log('[v219.46] Added Tue 5/26 daily bulletin entry.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbDaily20260526IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
