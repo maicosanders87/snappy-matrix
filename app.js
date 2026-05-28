@@ -2983,12 +2983,9 @@ document.addEventListener('visibilitychange', function() {
               st.mtd_nexstar.tech_gen_leads = (st.mtd_nexstar.tech_gen_leads || 0) + (tgls || 0);
               st.mtd_nexstar.sold_hours = (st.mtd_nexstar.sold_hours || 0) + (soldHrs || 0);
               st.mtd_nexstar.flat_rate_tasks = (st.mtd_nexstar.flat_rate_tasks || 0) + (frt || 0);
+              // v219.54: membership mutations disabled — Nexstar MTD baselines now encode truth thru 5/27 (IMG_0286).
+              // Re-enabling would double-count on fresh browsers. Other MTD fields keep cascading.
               if (!st.mtd_memberships) st.mtd_memberships = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
-              st.mtd_memberships.total_mem_sold = (st.mtd_memberships.total_mem_sold || 0) + (ms || 0);
-              st.mtd_memberships.total_mem_opps = (st.mtd_memberships.total_mem_opps || 0) + (mo || 0);
-              if (st.mtd_memberships.total_mem_opps > 0) {
-                st.mtd_memberships.total_mem_pct = Math.round((st.mtd_memberships.total_mem_sold / st.mtd_memberships.total_mem_opps) * 100);
-              }
               if (!st.mtd_productivity) st.mtd_productivity = {};
               st.mtd_productivity.billable_hours = (st.mtd_productivity.billable_hours || 0) + (soldHrs || 0);
               if (!st.mtd_sales) st.mtd_sales = {};
@@ -3090,12 +3087,9 @@ document.addEventListener('visibilitychange', function() {
               st.mtd_nexstar.tech_gen_leads = (st.mtd_nexstar.tech_gen_leads || 0) + (tgls || 0);
               st.mtd_nexstar.sold_hours = (st.mtd_nexstar.sold_hours || 0) + (soldHrs || 0);
               st.mtd_nexstar.flat_rate_tasks = (st.mtd_nexstar.flat_rate_tasks || 0) + (frt || 0);
+              // v219.54: membership mutations disabled — Nexstar MTD baselines now encode truth thru 5/27 (IMG_0286).
+              // Re-enabling would double-count on fresh browsers. Other MTD fields keep cascading.
               if (!st.mtd_memberships) st.mtd_memberships = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
-              st.mtd_memberships.total_mem_sold = (st.mtd_memberships.total_mem_sold || 0) + (ms || 0);
-              st.mtd_memberships.total_mem_opps = (st.mtd_memberships.total_mem_opps || 0) + (mo || 0);
-              if (st.mtd_memberships.total_mem_opps > 0) {
-                st.mtd_memberships.total_mem_pct = Math.round((st.mtd_memberships.total_mem_sold / st.mtd_memberships.total_mem_opps) * 100);
-              }
               if (!st.mtd_productivity) st.mtd_productivity = {};
               st.mtd_productivity.billable_hours = (st.mtd_productivity.billable_hours || 0) + (soldHrs || 0);
             };
@@ -3200,12 +3194,8 @@ document.addEventListener('visibilitychange', function() {
         bumps.forEach(function(b) {
           var st = stData.find(function(s){ return s.name === b.name; });
           if (!st) return;
+          // v219.54: membership heal mutations disabled — baselines now encode Nexstar truth (IMG_0286).
           if (!st.mtd_memberships) st.mtd_memberships = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
-          st.mtd_memberships.total_mem_sold = (st.mtd_memberships.total_mem_sold || 0) + b.s;
-          st.mtd_memberships.total_mem_opps = (st.mtd_memberships.total_mem_opps || 0) + b.o;
-          if (st.mtd_memberships.total_mem_opps > 0) {
-            st.mtd_memberships.total_mem_pct = Math.round((st.mtd_memberships.total_mem_sold / st.mtd_memberships.total_mem_opps) * 100);
-          }
         });
         localStorage.setItem(FLAG, '1');
       } catch(e) { console.warn('_mtdMembershipsHealV21854IfNeeded failed', e); }
@@ -3811,12 +3801,9 @@ document.addEventListener('visibilitychange', function() {
               st.mtd_nexstar.tech_gen_leads = (st.mtd_nexstar.tech_gen_leads || 0) + (tgls || 0);
               st.mtd_nexstar.sold_hours = (st.mtd_nexstar.sold_hours || 0) + (soldHrs || 0);
               st.mtd_nexstar.flat_rate_tasks = (st.mtd_nexstar.flat_rate_tasks || 0) + (frt || 0);
+              // v219.54: membership mutations disabled — Nexstar MTD baselines now encode truth thru 5/27 (IMG_0286).
+              // Re-enabling would double-count on fresh browsers. Other MTD fields keep cascading.
               if (!st.mtd_memberships) st.mtd_memberships = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
-              st.mtd_memberships.total_mem_sold = (st.mtd_memberships.total_mem_sold || 0) + (ms || 0);
-              st.mtd_memberships.total_mem_opps = (st.mtd_memberships.total_mem_opps || 0) + (mo || 0);
-              if (st.mtd_memberships.total_mem_opps > 0) {
-                st.mtd_memberships.total_mem_pct = Math.round((st.mtd_memberships.total_mem_sold / st.mtd_memberships.total_mem_opps) * 100);
-              }
               if (!st.mtd_productivity) st.mtd_productivity = {};
               st.mtd_productivity.billable_hours = (st.mtd_productivity.billable_hours || 0) + (soldHrs || 0);
             };
@@ -3943,12 +3930,9 @@ document.addEventListener('visibilitychange', function() {
               st.mtd_nexstar.tech_gen_leads = (st.mtd_nexstar.tech_gen_leads || 0) + (tgls || 0);
               st.mtd_nexstar.sold_hours = (st.mtd_nexstar.sold_hours || 0) + (soldHrs || 0);
               st.mtd_nexstar.flat_rate_tasks = (st.mtd_nexstar.flat_rate_tasks || 0) + (frt || 0);
+              // v219.54: membership mutations disabled — Nexstar MTD baselines now encode truth thru 5/27 (IMG_0286).
+              // Re-enabling would double-count on fresh browsers. Other MTD fields keep cascading.
               if (!st.mtd_memberships) st.mtd_memberships = { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 };
-              st.mtd_memberships.total_mem_sold = (st.mtd_memberships.total_mem_sold || 0) + (ms || 0);
-              st.mtd_memberships.total_mem_opps = (st.mtd_memberships.total_mem_opps || 0) + (mo || 0);
-              if (st.mtd_memberships.total_mem_opps > 0) {
-                st.mtd_memberships.total_mem_pct = Math.round((st.mtd_memberships.total_mem_sold / st.mtd_memberships.total_mem_opps) * 100);
-              }
               if (!st.mtd_productivity) st.mtd_productivity = {};
               st.mtd_productivity.billable_hours = (st.mtd_productivity.billable_hours || 0) + (soldHrs || 0);
             };
@@ -17204,7 +17188,7 @@ if (typeof Chart !== 'undefined') {
         mtd_nexstar: { total_revenue: 3697, avg_sale: 403, conversion_rate: 90, spps_sold: 4, tech_gen_leads: 4, sold_hours: 19.2, tech_sold_hr_eff: 0, flat_rate_tasks: 1.78 },
         mtd_productivity: { rev_hr: 193, billable_hours: 19.2, sold_hrs_on_job_pct: 0, tasks_per_opp: 1.78, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 4, total_mem_opps: 5, total_mem_pct: 80 },
+        mtd_memberships: { total_mem_sold: 7, total_mem_opps: 12, total_mem_pct: 58 }, // v219.54: Dewone Nexstar truth thru 5/27 (IMG_0286)
         mtd_sales: { close_rate: 90 },
         monthly_archive: {
           '2026-04': {
@@ -17243,7 +17227,7 @@ if (typeof Chart !== 'undefined') {
         mtd_nexstar: { total_revenue: 4686, avg_sale: 1041, conversion_rate: 100, spps_sold: 1, tech_gen_leads: 4, sold_hours: 26.35, tech_sold_hr_eff: 0.38, flat_rate_tasks: 3 },
         mtd_productivity: { rev_hr: 178, billable_hours: 26.35, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 1, total_mem_opps: 5, total_mem_pct: 20 },
+        mtd_memberships: { total_mem_sold: 4, total_mem_opps: 16, total_mem_pct: 25 }, // v219.54: Benji Nexstar truth thru 5/27 (IMG_0286)
         mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
@@ -17281,7 +17265,7 @@ if (typeof Chart !== 'undefined') {
         mtd_nexstar: { total_revenue: 8299, avg_sale: 691, conversion_rate: 100, spps_sold: 2, tech_gen_leads: 1, sold_hours: 27.35, tech_sold_hr_eff: 0, flat_rate_tasks: 3.08 },
         mtd_productivity: { rev_hr: 303, billable_hours: 27.35, sold_hrs_on_job_pct: 0, tasks_per_opp: 3.08, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 2, total_mem_opps: 4, total_mem_pct: 50 },
+        mtd_memberships: { total_mem_sold: 8, total_mem_opps: 16, total_mem_pct: 50 }, // v219.54: Daniel Nexstar truth thru 5/27 (IMG_0286)
         mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
@@ -17320,7 +17304,7 @@ if (typeof Chart !== 'undefined') {
         mtd_nexstar: { total_revenue: 5480, avg_sale: 913, conversion_rate: 100, spps_sold: 3, tech_gen_leads: 3, sold_hours: 17.35, tech_sold_hr_eff: 0, flat_rate_tasks: 3 },
         mtd_productivity: { rev_hr: 316, billable_hours: 17.35, sold_hrs_on_job_pct: 0, tasks_per_opp: 3, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 3, total_mem_opps: 5, total_mem_pct: 60 },
+        mtd_memberships: { total_mem_sold: 9, total_mem_opps: 13, total_mem_pct: 69 }, // v219.54: Chris Nexstar truth thru 5/27 (IMG_0286)
         mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
@@ -17359,7 +17343,7 @@ if (typeof Chart !== 'undefined') {
         mtd_nexstar: { total_revenue: 1953, avg_sale: 469, conversion_rate: 100, spps_sold: 0, tech_gen_leads: 1, sold_hours: 12.7, tech_sold_hr_eff: 0, flat_rate_tasks: 1.75 },
         mtd_productivity: { rev_hr: 154, billable_hours: 12.7, sold_hrs_on_job_pct: 0, tasks_per_opp: 1.75, options_per_opp: 0, recalls: 0 },
         mtd_recalls: { completed_jobs: 0, warranty_jobs: 0, recalls_caused: 0, tech_recall_pct: 0, recall_jobs: 0 },
-        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 1, total_mem_pct: 0 }, // v219.54: Dee Nexstar truth thru 5/27 (IMG_0286)
         mtd_sales: { close_rate: 100 },
         monthly_archive: {
           '2026-04': {
@@ -17400,7 +17384,7 @@ if (typeof Chart !== 'undefined') {
         mtd_on_job_pct: 0,
         mtd_nexstar: { total_revenue: 0, avg_sale: 0, conversion_rate: 0, spps_sold: 0, tech_gen_leads: 0, sold_hours: 0, tech_sold_hr_eff: 0, flat_rate_tasks: 0 },
         mtd_productivity: { rev_hr: 0, billable_hours: 0, sold_hrs_on_job_pct: 0, tasks_per_opp: 0, options_per_opp: 0, recalls: 0 },
-        mtd_memberships: { total_mem_sold: 0, total_mem_opps: 0, total_mem_pct: 0 },
+        mtd_memberships: { total_mem_sold: 2, total_mem_opps: 4, total_mem_pct: 50 }, // v219.54: Nick Nexstar truth thru 5/27 (IMG_0286)
         mtd_sales: { close_rate: 0 },
         monthly_archive: {
           '2026-04': {
