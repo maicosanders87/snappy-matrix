@@ -10613,6 +10613,74 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('Review seed v219.47 failed', e); }
     })();
 
+    // v219.50 — Wed 5/27 Google reviews check (anchor Thu 5/28 ~10:55 ET, week start 5/25).
+    // Two new attributable reviews since v219.47:
+    //   1. Sara Moon (Local Guide, 15h ago, 5★) — names Ben Tinahui = Benji.
+    //   2. Vivian Brown (Edited 21h ago, 5★) — RE-ATTRIBUTED from Daniel G to Dewone Martin.
+    //      Per Mark's call: credit Dewone +1 week/+1 month AND decrement Daniel -1 month.
+    // David Rever (a day ago, 5★, no tech named) — same review already noted in v219.47 anchor,
+    //   stays unattributed (he was Adam's call per TGL report).
+    // Net deltas for week 5/25: Benji week 1→2 / month 5→6; Dewone week 0→1 / month 10→11;
+    //   Daniel month 22→21 (re-attribution from Vivian).
+    // Daniel week 5/25 weekReviews remains 0 — her edit was on 5/27, but the original review's
+    //   week-credit (3 months ago) was already counted in earlier monthly baselines that have
+    //   rolled off. Decrementing only month is the cleanest single adjustment.
+    (function _ipSeedReviewsV21950(){
+      try {
+        var KEY = 'snappy_seed_reviews_v21950_done';
+        if (localStorage.getItem(KEY)) return;
+        var ws = '2026-05-25';
+        var seed = [
+          ['Benji',   2,  6],
+          ['Dewone',  1, 11],
+          ['Daniel',  0, 21],  // -1 from Vivian re-attribution
+          ['Nick',    0,  7],
+          ['Chris',   0,  0],
+          ['Dee',     0,  0]
+        ];
+        var store = ipServiceTechOverrides();
+        if (!store.weeks[ws]) store.weeks[ws] = {};
+        seed.forEach(function(r){
+          var s = r[0], w = r[1], m = r[2];
+          if (!store.weeks[ws][s]) store.weeks[ws][s] = {};
+          store.weeks[ws][s].weekReviews  = w;
+          store.weeks[ws][s].monthReviews = m;
+        });
+        ipServiceTechOverridesSave(store);
+        localStorage.setItem(KEY, new Date().toISOString());
+        console.log('[snappy v219.50] Wed 5/27 reviews: ' +
+          'Benji +1 (Sara Moon, Local Guide, 5★). ' +
+          'Dewone +1 (Vivian Brown edit, 5★, re-attributed from Daniel). ' +
+          'Daniel -1 month (Vivian re-attribution).');
+        try { if (typeof renderInstallPay === 'function') renderInstallPay(); } catch(e) {}
+        try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
+        try { if (typeof renderMatrix === 'function') renderMatrix(); } catch(e) {}
+        try { if (typeof renderTechViewStandalone === 'function') renderTechViewStandalone(); } catch(e) {}
+      } catch(e) { console.warn('Review seed v219.50 failed', e); }
+    })();
+
+    // v219.50: Bulletin board entry for Wed 5/27 reviews.
+    (function _bbReviews20260527IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_reviews_20260527_v21950';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var exists = bb.matrixUpdates.some(function(u){ return u.id === 'reviews_update_20260527'; });
+        if (!exists) {
+          bb.matrixUpdates.push({
+            id: 'reviews_update_20260527',
+            date: '2026-05-27',
+            text: 'Wed 5/27 Google reviews: +2 attributable for week 5/25. Benji +1 (Sara Moon, Local Guide, 5★). Dewone +1 (Vivian Brown 5★ — edited her old Daniel review and re-attributed to Dewone, so Daniel −1 month). David Rever 5★ unattributed (no tech named).',
+            createdAt: Date.now()
+          });
+          if (typeof bbSave === 'function') bbSave(bb);
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbReviews20260527IfNeeded failed', e); }
+    })();
+
     (function _ipSeedReviewsV21917(){
       try {
         var KEY = 'snappy_seed_reviews_v21917_done';
