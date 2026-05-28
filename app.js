@@ -19319,6 +19319,48 @@ if (typeof Chart !== 'undefined') {
         tags: ['Sales','Estimates','Flip Credit','IAQ','Tech','Van Card','Wed 5/13'],
         weekOf: '2026-05-10',
         builtin: true
+      },
+      // v219.48 — DISC Personality Training (Self + Sales). Three-piece set:
+      // facilitator deck (8pg leader script), tech workbook (8pg self-assessment +
+      // role-play), and 4x6 truck wallet card (double-sided field cheat).
+      {
+        id: 'disc_training_facilitator',
+        title: 'DISC Training — Facilitator Deck',
+        category: 'Sales · DISC',
+        categoryKey: 'sales',
+        categoryColor: '#facc15',
+        description: '8-page leader playbook. 75-min run of show, block-by-block scripts, drill answer key (4 customer scenarios), pushback handling, Spranger Values bonus block, Marston 4-P frame + adoption curve, and matrix integration plan (DISC_SELF / DISC_READ_ACCURACY / DISC_FLEX_SCORE columns).',
+        pdf: 'disc_training_facilitator.pdf',
+        duration: '75min',
+        tags: ['DISC','Sales','Personality','Facilitator','Instructor'],
+        weekOf: '2026-05-24',
+        builtin: true
+      },
+      {
+        id: 'disc_training_workbook',
+        title: 'DISC Training — Tech Workbook',
+        category: 'Sales · DISC',
+        categoryKey: 'sales',
+        categoryColor: '#facc15',
+        description: '8-page tech edition. 16-question forced-choice self-assessment (D/I/S/C tally), 30-sec decision tree + full identification matrix, adapt-the-pitch scripts per style, $15k system replacement role-play scorecard (2 rounds: Driver + Stable), and a 5-row customer field log with style checkboxes.',
+        pdf: 'disc_training_workbook.pdf',
+        duration: '60min',
+        tags: ['DISC','Sales','Personality','Tech','Workbook','Self-Assessment'],
+        weekOf: '2026-05-24',
+        builtin: true
+      },
+      {
+        id: 'disc_training_wallet_card',
+        title: 'DISC — Truck Wallet Card (4x6)',
+        category: 'Sales · DISC',
+        categoryKey: 'sales',
+        categoryColor: '#facc15',
+        description: '4x6 double-sided field cheat. Front: 30-sec decision tree + 4-color quadrant grid (pace x focus -> D/I/S/C with wants/body/emotion). Back: one close line per style with style mantra. Print, laminate, keep in the truck.',
+        pdf: 'disc_training_wallet_card.pdf',
+        duration: 'Print',
+        tags: ['DISC','Sales','Personality','Van Card','Wallet','Field Cheat'],
+        weekOf: '2026-05-24',
+        builtin: true
       }
     ];
 
