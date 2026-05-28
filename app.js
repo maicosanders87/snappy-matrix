@@ -10281,6 +10281,87 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbDaily20260526IfNeeded failed', e); }
     })();
 
+    // ===== Daily slice: Wed 5/27/26 (week 2026-05-25) =====
+    // v219.49: Day 2 of week 2026-05-25. Sources: Tech-rev Nexstar (IMG_0283),
+    // Memberships tab (IMG_0284), TGL sales & commission report (TGL-...-05_27_26.pdf).
+    // Big install ($10,814 Wilson, sold by Adam, marketed lead, installed by Terrell)
+    // is a sales-side / Adam-owned number — NOT credited to any of the 7 techs.
+    // Benji generated 2 leads (David Rever + Gail Wigley), both run by Adam,
+    // both closed at $0 but counted as TGLs per standard matrix rules.
+    ipApplyDailyAdd({
+      date: '2026-05-27',
+      weekStart: '2026-05-25',
+      entries: [
+        { short: 'Benji',  rev: 1120.00, memSold: 0, memOpps: 0, leads: 2, installs: 0, installRev: 0 },
+        { short: 'Dewone', rev:  561.00, memSold: 0, memOpps: 1, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Chris',  rev:  180.00, memSold: 1, memOpps: 1, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Dee',    rev:   79.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Daniel', rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Nick',   rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Jason',  rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 }
+      ]
+    });
+
+    // v219.49: Cascade Wed 5/27 daily into stData MTD so rookie cards / tier progression /
+    // overview tiles reflect the new day. Sold hours, SPP, TGL, FRT come from IMG_0283.
+    function _wlbSeedDay20260527MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260527_v21949';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        // (name, svc, soldHrs, frt, spps, tgls) \u2014 mems handled by ipApplyDailyAdd cascade.
+        var deltas = [
+          // name,   svc,     soldHrs, frt,  spps, tgls
+          ['Benji',  1120.00,  5.20,   1.67, 0,    2],
+          ['Dewone',  561.00,  3.70,   3.00, 0,    0],
+          ['Chris',   180.00,  0.00,   1.00, 1,    0],
+          ['Dee',      79.00,  1.10,   0.00, 0,    0],
+          ['Daniel',    0.00,  2.00,   0.00, 0,    0]
+          // Nick + Jason \u2014 no calls Wed, no MTD delta.
+        ];
+        deltas.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.49] Wed 5/27 MTD bumped (5 techs, $1,940 svc, 1 SPP, 12.0 sold hrs, 1 mem, 2 TGLs). Wilson install $10,814 = Adam/sales-side, not in tech MTD.');
+      } catch(e) { console.warn('_wlbSeedDay20260527MtdIfNeeded failed', e); }
+    }
+    _wlbSeedDay20260527MtdIfNeeded();
+
+    // v219.49: Bulletin board entry for Wed 5/27.
+    (function _bbDaily20260527IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_daily_20260527_v21949';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var existsBB = bb.matrixUpdates.some(function(u){ return u.id === 'st_update_20260527_wed'; });
+        if (!existsBB) {
+          bb.matrixUpdates.push({
+            id: 'st_update_20260527_wed',
+            date: '2026-05-27',
+            text: 'Wed 5/27 (week 5/25) — $1,940 svc rev / 1 mem sold (1/2 = 50% attach) / 1 SPP / 2 TGLs / 12.0 sold hrs. Benji led the day ($1,120 / 100% conv / 2 leads generated for Adam). Chris had the only mem sale (1/1 = 100%). Daniel ran 2 hrs / $0. Nick + Jason off. NOTE: $10,814 Wilson install = sold by Adam (marketed lead), not in tech matrix.',
+            createdAt: Date.now()
+          });
+          if (typeof bbSave === 'function') bbSave(bb);
+          console.log('[v219.49] Added Wed 5/27 daily bulletin entry.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbDaily20260527IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
