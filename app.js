@@ -16757,6 +16757,12 @@ if (typeof Chart !== 'undefined') {
     // v218.6: Google Reviews data — STORM 2026 SEASON-TO-DATE (April 1, 2026 – May 5, 2026)
     // Refreshed via direct collection from Google Maps reviews on 5/5/26.
     // Scope changed from "Last 90 days" → "Storm 2026 STD" to align with rookie cards STD toggle.
+    // v219.53: Baseline counts refreshed through Wed 5/27 (anchor for week 2026-05-25).
+    // Source: ipServiceTechOverrides() store, key weeks['2026-05-25'][short].monthReviews
+    // after all v219.35 + v219.43 + v219.47 + v219.50 review seed blocks have applied.
+    // Per-tech net deltas vs v219.15: Daniel +9, Nick +5, Dewone +3, Benji +2, Chris/Dee +0.
+    // Composite scoring + badge logic (lines 14005, 14162, 14184) reads count from here so
+    // bumping the baselines flows through to those consumers too.
     const googleReviews = {
       "Dee": {
         count: 0,
@@ -16764,15 +16770,15 @@ if (typeof Chart !== 'undefined') {
         fourStar: 0,
         threeStar: 0,
         highlight: '',
-        note: "v219.15 \u2014 No May MTD mentions yet. Warranty + cross-department role still limits direct customer-facing review opportunities. Push the ask on every solo customer touch."
+        note: "v219.53 \u2014 Still no May MTD mentions through Wed 5/27. Warranty + cross-department role limits direct customer-facing review opportunities. Push the ask on every solo customer touch."
       },
       "Daniel": {
-        count: 12,
-        fiveStar: 12,
+        count: 21,
+        fiveStar: 21,
         fourStar: 0,
         threeStar: 0,
         highlight: '"Daniel was a very professional technician. He explained Snappy\'s service plan thoroughly." \u2014 mike stanislawski',
-        note: "v219.15 \u2014 12 reviews in May MTD (5 this week of 5/11). HVAC service across fan repairs, tune-ups, refrigerant leaks, plus pulled-in James Bryant credit. Themes: professional, thorough, clear explanations. Highest review velocity on the team this month."
+        note: "v219.53 \u2014 21 reviews in May MTD through 5/27 (10 from 5/18 week, Vivian Brown re-attributed to Dewone on 5/27). Highest review velocity on the team. Themes: professional, thorough, clear explanations."
       },
       "Chris": {
         count: 0,
@@ -16780,31 +16786,31 @@ if (typeof Chart !== 'undefined') {
         fourStar: 0,
         threeStar: 0,
         highlight: '',
-        note: "v219.15 \u2014 No mentions in May MTD. Pattern continues: quiet style + few customer prompts. Coaching focus: deliberate ask after every install + service touch."
+        note: "v219.53 \u2014 Still no May MTD mentions through Wed 5/27. Pattern continues: quiet style + few customer prompts. Coaching focus: deliberate ask after every install + service touch."
       },
       "Benji": {
-        count: 4,
-        fiveStar: 4,
+        count: 6,
+        fiveStar: 6,
         fourStar: 0,
         threeStar: 0,
         highlight: '"Ben was great \u2014 quick, clean, and explained everything." \u2014 Brittany D',
-        note: "v219.15 \u2014 4 reviews in May MTD (0 this week of 5/11). Plain-\"Ben\" mentions credited; the two \"Ben Johnson\" electrical-panel reviews correctly excluded (different tech). High service volume \u2192 still room to grow review yield via deliberate ask."
+        note: "v219.53 \u2014 6 reviews in May MTD through 5/27 (+2 in week 5/25: Minnie Patel 5/26, Sara Moon 5/27). High service volume \u2192 still room to grow review yield via deliberate ask."
       },
       "Dewone": {
-        count: 8,
-        fiveStar: 8,
+        count: 11,
+        fiveStar: 11,
         fourStar: 0,
         threeStar: 0,
         highlight: '"Dewone provided excellent, friendly and comprehensive service. He explained exactly what was needed and the different service options available." \u2014 Karin',
-        note: "v219.15 \u2014 8 reviews in May MTD (2 this week of 5/11). Perfect 5-star run continues. \"Demone\" / \"Demome\" misspellings counted. Customers request him by name despite Sat-only schedule."
+        note: "v219.53 \u2014 11 reviews in May MTD through 5/27 (+1 from Vivian Brown re-attribution on 5/27). Perfect 5-star run continues. Customers request him by name despite Sat-only schedule."
       },
       "Nick": {
-        count: 2,
-        fiveStar: 2,
+        count: 7,
+        fiveStar: 7,
         fourStar: 0,
         threeStar: 0,
         highlight: '"Dewone & Nick did a great job on service." \u2014 J DiamondNDaRough W',
-        note: "v219.15 \u2014 2 reviews in May MTD, both this week of 5/11 (ride-along credits with Dewone + with Daniel/Sandra Barber). First reviews landed \u2014 confidence is building."
+        note: "v219.53 \u2014 7 reviews in May MTD through 5/27 (+5 vs initial baseline from 5/18 week recheck). Review velocity climbing fast on ride-along credits."
       }
     };
 
@@ -19142,11 +19148,40 @@ if (typeof Chart !== 'undefined') {
                         <div class="rookie-stat-label">Aptitude</div>
                       </div>
                       <div class="rookie-stat">
-                        <div class="rookie-stat-value">${gr ? gr.count : '—'}</div>
+                        <div class="rookie-stat-value">${(function(){
+                          // v219.53: Pull LIVE monthReviews from override store (week 2026-05-25 anchor)
+                          // instead of the static googleReviews baseline. Falls back to baseline if
+                          // override missing, then to em-dash. Keeps rookie cards current with the
+                          // same source the leaderboard + Service Techs table use.
+                          try {
+                            if (typeof ipServiceTechOverrides === 'function') {
+                              var _ovStore = ipServiceTechOverrides();
+                              var _weeks = (_ovStore && _ovStore.weeks) || {};
+                              var _wks = Object.keys(_weeks).sort();
+                              for (var _i = _wks.length - 1; _i >= 0; _i--) {
+                                var _ws = _wks[_i];
+                                var _row = _weeks[_ws] && _weeks[_ws][t.short];
+                                if (_row && typeof _row.monthReviews === 'number') {
+                                  return _row.monthReviews;
+                                }
+                              }
+                            }
+                          } catch(e) {}
+                          return gr ? gr.count : '\u2014';
+                        })()}</div>
                         <div class="rookie-stat-label">Reviews</div>
                       </div>
                       <div class="rookie-stat">
-                        <div class="rookie-stat-value">${st ? st.memberships.total_mem_sold : '—'}</div>
+                        <div class="rookie-stat-value">${(function(){
+                          // v219.53: Pull LIVE mem-sold from mtd_memberships (updated by daily
+                          // cascades) instead of the static baseline. Fall back to baseline if
+                          // mtd_memberships missing.
+                          if (!st) return '\u2014';
+                          if (st.mtd_memberships && typeof st.mtd_memberships.total_mem_sold === 'number') {
+                            return st.mtd_memberships.total_mem_sold;
+                          }
+                          return st.memberships ? st.memberships.total_mem_sold : '\u2014';
+                        })()}</div>
                         <div class="rookie-stat-label">Mem Sold</div>
                       </div>
                     </div>
