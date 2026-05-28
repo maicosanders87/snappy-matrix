@@ -13043,6 +13043,19 @@ body.rookie-modal-open { overflow: hidden; }
 .wlb-pt-pill.lead { border-color: rgba(251,191,36,0.30); }
 .wlb-pt-pill.lead .wlb-pt-label { background: rgba(251,191,36,0.18); color: #fbbf24; }
 
+/* v219.51: STAT pill — muted gray for display-only counters (CALLS + HRS).
+   No pts value, no tier badge. Visually de-emphasized vs the scoring pills above. */
+.wlb-pt-pill.stat {
+  border-color: rgba(148,163,184,0.22);
+  background: rgba(148,163,184,0.06);
+  opacity: 0.85;
+}
+.wlb-pt-pill.stat .wlb-pt-label {
+  background: rgba(148,163,184,0.16);
+  color: #94a3b8;
+}
+.wlb-pt-pill.stat .wlb-pt-raw { color: #cbd5e1; font-weight: 600; }
+
 /* Big points total in rev block */
 .wlb-rev.wlb-pts-total {
   color: #fbbf24;

@@ -4606,6 +4606,11 @@ document.addEventListener('visibilitychange', function() {
       // silently dropped from every row.
       var leadsCount = (typeof v.leadsCount === 'number') ? v.leadsCount
                      : ((typeof v.weekLeadsSet === 'number') ? v.weekLeadsSet : 0);
+      // v219.51: surface display-only weekly counters (NOT scored).
+      // weekSoldHrs = sum of daily sold hours; weekCalls = sum of daily call counts.
+      // Both are display-only on the leaderboard — _wlbPoints never reads them.
+      var weekSoldHrs = (typeof v.weekSoldHrs === 'number') ? v.weekSoldHrs : 0;
+      var weekCalls   = (typeof v.weekCalls   === 'number') ? v.weekCalls   : 0;
       return {
         short: short,            // v219.17: needed for grCount lookup in _wlbPoints
         service: svc,
@@ -4614,6 +4619,8 @@ document.addEventListener('visibilitychange', function() {
         memSold: memSold,
         memOpps: memOpps,
         leadsCount: leadsCount,  // v219.45: LEAD lane input
+        weekSoldHrs: weekSoldHrs, // v219.51: display-only
+        weekCalls: weekCalls,     // v219.51: display-only
         total: svc + instRev
       };
     }
@@ -9822,6 +9829,14 @@ document.addEventListener('visibilitychange', function() {
             e.installCount = (typeof e.installCount === 'number' ? e.installCount : 0) + inst;
             e.installRev   = (typeof e.installRev   === 'number' ? e.installRev   : 0) + iRev;
             e.leadsCount   = (typeof e.leadsCount   === 'number' ? e.leadsCount   : 0) + leads;
+            // v219.51: display-only weekly counters. Daily entries may pass `soldHrs`
+            // and `calls`; both accumulate into weekly totals but never feed scoring.
+            var soldHrs = +r.soldHrs || 0;
+            var calls   = +r.calls   || 0;
+            e.weekSoldHrs = (typeof e.weekSoldHrs === 'number' ? e.weekSoldHrs : 0) + soldHrs;
+            e.weekCalls   = (typeof e.weekCalls   === 'number' ? e.weekCalls   : 0) + calls;
+            // Round hours to 1dp to avoid float drift across daily adds
+            e.weekSoldHrs = Math.round(e.weekSoldHrs * 10) / 10;
             e.total = (e.service || 0) + (e.installRev || 0);
           });
           localStorage.setItem(WLB_KEY_LOCAL, JSON.stringify(wlb));
@@ -10360,6 +10375,52 @@ document.addEventListener('visibilitychange', function() {
         }
         localStorage.setItem(FLAG, '1');
       } catch(e) { console.warn('_bbDaily20260527IfNeeded failed', e); }
+    })();
+
+    // v219.51: Backfill weekly sold-hours + call counts into WLB store for week 2026-05-25.
+    // The CALLS + HRS display pills were added in v219.51 but ipApplyDailyAdd for Tue 5/26 +
+    // Wed 5/27 ran in earlier versions that didn\u0027t accumulate weekSoldHrs/weekCalls.
+    // This patch writes the known totals once so the leaderboard shows current data without
+    // requiring users to re-seed. Going forward, daily seeds pass soldHrs + calls inline.
+    // Source: Tue 5/26 IMG_0279 + Wed 5/27 IMG_0283 (Nexstar Productivity columns).
+    (function _wlbBackfillWeek20260525CallsHrs(){
+      try {
+        var FLAG = 'snappy_wlb_backfill_callshrs_20260525_v21951';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var WLB_KEY_LOCAL = 'snappy_weekly_data';
+        var wlb = {};
+        try { wlb = JSON.parse(localStorage.getItem(WLB_KEY_LOCAL) || '{}') || {}; } catch(e) {}
+        var ws = '2026-05-25';
+        if (!wlb[ws]) wlb[ws] = {};
+        // (short, hrsTue, callsTue, hrsWed, callsWed)
+        // Calls = jobs-completed count from Nexstar tech-rev report (one row per completed job).
+        var totals = [
+          // short,   hrs,   calls
+          ['Chris',   2.80 + 0.00,  3],  // Tue 1 call ($1,526 / 100% conv / 1 mem), Wed 2 calls ($180 / 1 mem / 1 SPP)
+          ['Dee',     1.90 + 1.10,  2],  // Tue 1 call ($835), Wed 1 call ($79)
+          ['Dewone',  4.80 + 3.70,  4],  // Tue 2 calls ($781), Wed 2 calls ($561 / 1 mem opp)
+          ['Benji',   1.50 + 5.20,  4],  // Tue 1 call ($291 / 2 mems / 2 leads / 2 SPPs), Wed 3 calls ($1,120 / 2 leads)
+          ['Daniel',  2.25 + 2.00,  2]   // Tue 1 call ($89), Wed 1 call ($0)
+          // Nick + Jason \u2014 off both days.
+        ];
+        totals.forEach(function(row){
+          var s = row[0], hrs = row[1], calls = row[2];
+          if (!wlb[ws][s] || typeof wlb[ws][s] !== 'object') wlb[ws][s] = {};
+          var e = wlb[ws][s];
+          // Only write if not already present (idempotent against future daily-add updates).
+          if (typeof e.weekSoldHrs !== 'number' || e.weekSoldHrs < hrs) {
+            e.weekSoldHrs = Math.round(hrs * 10) / 10;
+          }
+          if (typeof e.weekCalls !== 'number' || e.weekCalls < calls) {
+            e.weekCalls = calls;
+          }
+        });
+        localStorage.setItem(WLB_KEY_LOCAL, JSON.stringify(wlb));
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.51] Backfilled week 5/25 CALLS + HRS into WLB store (5 techs).');
+        // Re-render leaderboard so the new pills appear without a manual refresh.
+        try { if (typeof renderWeeklyLeaderboard === 'function') renderWeeklyLeaderboard(); } catch(e) {}
+      } catch(e) { console.warn('_wlbBackfillWeek20260525CallsHrs failed', e); }
     })();
 
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
@@ -12278,6 +12339,30 @@ document.addEventListener('visibilitychange', function() {
                   '<span class="wlb-pt-val">' + grPts + ' pts</span>' +
                 '</span>'
               );
+              // v219.51: CALLS + HRS display-only pills (NOT scored, no points value).
+              // Sourced from weekly accumulation in ipApplyDailyAdd. Rendered last so they
+              // visually separate from scoring pills above. Hidden if both are zero so
+              // historical rows without the new data don\u0027t show empty pills.
+              var wCalls = (typeof e.weekCalls   === 'number') ? e.weekCalls   : 0;
+              var wHrs   = (typeof e.weekSoldHrs === 'number') ? e.weekSoldHrs : 0;
+              if (wCalls > 0) {
+                var callsRaw = wCalls + (wCalls === 1 ? ' call' : ' calls');
+                pills.push(
+                  '<span class="wlb-pt-pill stat" title="Total calls run this week (display-only \u2014 not part of point system).">' +
+                    '<span class="wlb-pt-label">CALLS</span>' +
+                    '<span class="wlb-pt-raw">' + callsRaw + '</span>' +
+                  '</span>'
+                );
+              }
+              if (wHrs > 0) {
+                var hrsStr = (Math.round(wHrs * 10) / 10).toFixed(1);
+                pills.push(
+                  '<span class="wlb-pt-pill stat" title="Total sold hours this week (display-only \u2014 not part of point system).">' +
+                    '<span class="wlb-pt-label">HRS</span>' +
+                    '<span class="wlb-pt-raw">' + hrsStr + ' hrs</span>' +
+                  '</span>'
+                );
+              }
               pillsHTML = '<div class="wlb-pt-pills">' + pills.join('') + '</div>';
             }
 
