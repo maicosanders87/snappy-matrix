@@ -1,0 +1,83 @@
+{
+  "date": "2026-05-31",
+  "weekStart": "2026-05-25",
+  "slice": "Thu+Fri+Sat combined (5/28 + 5/29 + 5/30) — END-OF-WEEK CLOSEOUT",
+  "version": "v219.55",
+  "source_pdfs": [
+    "IMG_0288.jpeg — Nexstar dashboard This Week cumulative 5/25-5/31",
+    "IMG_0289.jpeg — Memberships tab cumulative 5/25-5/31",
+    "TGL-sales-and-commission-report_Dated-05_25_26-05_31_26.pdf",
+    "Generated-Installs_Dated-05_25_26-05_31_26.pdf"
+  ],
+  "note": "Thu-Sat 3-day delta computed as week-cumulative dashboard minus Tue 5/26 (v219.46) + Wed 5/27 (v219.49) daily that were already seeded.",
+  "team_totals_week_5_25_to_5_31": {
+    "service_rev": 13512.00,
+    "service_conv_pct": 59,
+    "avg_sale": 530,
+    "mem_opps": 15,
+    "mem_sold": 8,
+    "mem_attach_pct": 53,
+    "spps_sold": 8,
+    "leads_set": 11,
+    "sold_hours": 58.05,
+    "installs_self_sold": 3,
+    "install_rev_self_sold": 30485.42,
+    "installs_adam_side_excluded": 2,
+    "install_rev_adam_side_excluded": 38683.26
+  },
+  "thu_sat_3day_delta_applied": {
+    "Dewone": { "rev": 2933.00, "memSold": 3, "memOpps": 5, "leads": 5, "installs": 0, "installRev": 0,        "spps": 3, "soldHrs": 11.75 },
+    "Dee":    { "rev": 2277.00, "memSold": 0, "memOpps": 0, "leads": 2, "installs": 0, "installRev": 0,        "spps": 0, "soldHrs":  8.00 },
+    "Benji":  { "rev": 1577.00, "memSold": 2, "memOpps": 5, "leads": 0, "installs": 0, "installRev": 0,        "spps": 0, "soldHrs":  5.65 },
+    "Chris":  { "rev":  357.00, "memSold": 1, "memOpps": 1, "leads": 1, "installs": 2, "installRev": 16287.79, "spps": 0, "soldHrs":  3.40 },
+    "Daniel": { "rev":  906.00, "memSold": 1, "memOpps": 1, "leads": 1, "installs": 1, "installRev": 14197.63, "spps": 1, "soldHrs":  4.00 }
+  },
+  "installs_detail": [
+    {
+      "job": "92756481",
+      "customer": "Kim Mcgowan",
+      "date": "2026-05-28",
+      "soldBy": "Chris Monahan",
+      "leadGeneratedBy": "Chris Monahan",
+      "jobsTotal": 8796.88,
+      "attribution": "Self-sold tech install — full credit to Chris on leaderboard. No sales-pay credit."
+    },
+    {
+      "job": "92789686",
+      "customer": "Doug Gullino",
+      "date": "2026-05-29",
+      "soldBy": "Chris Monahan",
+      "leadGeneratedBy": "Chris Monahan",
+      "jobsTotal": 7490.91,
+      "attribution": "Self-sold tech install — full credit to Chris on leaderboard. No sales-pay credit."
+    },
+    {
+      "job": "92706168",
+      "customer": "Alicia Peters",
+      "date": "2026-05-28",
+      "soldBy": "Daniel Gazaway",
+      "leadGeneratedBy": "Daniel Gazaway",
+      "jobsTotal": 14197.63,
+      "attribution": "Self-sold tech install — full-cycle win. Full credit to Daniel on leaderboard."
+    }
+  ],
+  "installs_adam_side_excluded_detail": [
+    {
+      "job": "92521448",
+      "customer": "Susan & Robert Wilson",
+      "date": "2026-05-27",
+      "soldBy": "Adam Bunyard",
+      "jobsTotal": 10814.28,
+      "reason": "Marketed Lead — sales-team credit only. Already excluded from Wed 5/27 seed."
+    },
+    {
+      "job": "92707326",
+      "customer": "Daniel Pustotnik",
+      "date": "2026-05-29",
+      "soldBy": "(blank — Adam-side per Mark 5/31 confirm)",
+      "jobsTotal": 27868.98,
+      "reason": "Marketed Lead — no Sold By in report. Treat as Adam/sales-side. Excluded from tech matrix."
+    }
+  ],
+  "benji_leads_note": "Tue+Wed prior seeds credited Benji with 4 leads (Tue v219.46: tgls=2, Wed v219.49: tgls=2). TGL report 5/25-5/31 shows only 3 actual Benji-gen leads: Patel 5/26 + Wigley 5/27 + Rever 5/27. Nexstar dashboard cumulative shows 2 (likely uses different lead-counting rule). Per Mark 5/31: LEAVE existing count as-is, will reconcile manually next week."
+}

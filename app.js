@@ -10410,6 +10410,175 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_wlbBackfillWeek20260525WorkHrsCalls failed', e); }
     })();
 
+    // ===== Daily slice: Thu+Fri+Sat 5/28-5/30/26 (week 2026-05-25) — END-OF-WEEK CLOSEOUT =====
+    // v219.55: Mark sent weekly close-out 5/31/26 (Sun morning).
+    // Sources:
+    //   - IMG_0288 (Nexstar dashboard 5/25-5/31 cumulative)
+    //   - IMG_0289 (Memberships tab cumulative)
+    //   - TGL-sales-and-commission-report_Dated-05_25_26-05_31_26.pdf
+    //   - Generated-Installs_Dated-05_25_26-05_31_26.pdf
+    //
+    // Week-cumulative dashboard (5/25-5/31):
+    //   Dewone: $4,275 svc / 64% conv / 3 SPP / 5 TGL / 20.25 sold hrs / 2.56 frt / mem 3/6 (50%)
+    //   Dee:    $3,191 svc / 80% conv / 0 SPP / 2 TGL / 11.00 sold hrs / 2.75 frt / mem 0/0
+    //   Benji:  $2,988 svc / 63% conv / 2 SPP / 2 TGL / 12.35 sold hrs / 2.80 frt / mem 2/5 (40%)
+    //   Chris:  $2,063 svc / 50% conv / 2 SPP / 1 TGL / 6.20  sold hrs / 2.00 frt / mem 2/2 (100%)
+    //   Daniel: $995   svc / 40% conv / 1 SPP / 1 TGL / 8.25  sold hrs / 3.00 frt / mem 1/1 (100%)
+    //   Mark Sanders: $0 (manager, off the board this week)
+    //   Team: $13,512 svc / 59% conv / 8 SPP / 11 TGL / 58.05 sold hrs / 8 mem sold / 15 mem opps (53%)
+    //
+    // Tue 5/26 (v219.46) + Wed 5/27 (v219.49) already seeded. This slice = WEEK − (Tue+Wed):
+    //   Dewone: $2,933 / 3 SPP / 5 leads / 3 mem sold / 5 mem opps / 11.75 sold hrs
+    //   Dee:    $2,277 / 0 SPP / 2 leads / 0 mem sold / 0 mem opps / 8.00 sold hrs
+    //   Benji:  $1,577 / 0 SPP / 0 leads / 2 mem sold / 5 mem opps / 5.65 sold hrs
+    //   Chris:  $357   / 0 SPP / 1 lead  / 1 mem sold / 1 mem opp  / 3.40 sold hrs (+ 2 installs $16,287.79)
+    //   Daniel: $906   / 1 SPP / 1 lead  / 1 mem sold / 1 mem opp  / 4.00 sold hrs (+ 1 install $14,197.63)
+    //
+    // INSTALL ATTRIBUTION (per Mark 5/31 confirm):
+    //   - Chris sold: Kim Mcgowan 5/28 ($8,796.88) + Doug Gullino 5/29 ($7,490.91) = $16,287.79 (lead-gen Chris)
+    //   - Daniel sold: Alicia Peters 5/28 ($14,197.63) (lead-gen Daniel — full-cycle win)
+    //   - Adam-side (excluded from tech matrix): Wilson 5/27 ($10,814.28 — already excluded prior),
+    //     Pustotnik 5/29 ($27,868.98 — no Sold By in report → Adam/sales-side per standard rules)
+    //
+    // BENJI LEADS NOTE: Tue+Wed prior seeds already credited Benji with 4 leads. Dashboard shows
+    // only 2 for the week — but Mark confirmed 5/31 to LEAVE existing count as-is (TGL report is
+    // source of truth: Patel 5/26 + Wigley 5/27 + Rever 5/27 = 3 actual; will reconcile manually).
+    ipApplyDailyAdd({
+      date: '2026-05-30', // 3-day slice gated under the closing-Saturday date
+      weekStart: '2026-05-25',
+      entries: [
+        { short: 'Dewone', rev: 2933.00, memSold: 3, memOpps: 5, leads: 5, installs: 0, installRev: 0        },
+        { short: 'Dee',    rev: 2277.00, memSold: 0, memOpps: 0, leads: 2, installs: 0, installRev: 0        },
+        { short: 'Benji',  rev: 1577.00, memSold: 2, memOpps: 5, leads: 0, installs: 0, installRev: 0        },
+        { short: 'Chris',  rev:  357.00, memSold: 1, memOpps: 1, leads: 1, installs: 2, installRev: 16287.79 },
+        { short: 'Daniel', rev:  906.00, memSold: 1, memOpps: 1, leads: 1, installs: 1, installRev: 14197.63 },
+        { short: 'Nick',   rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0        },
+        { short: 'Jason',  rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0        }
+      ]
+    });
+
+    // v219.55: Cascade Thu-Sat 3-day slice into stData MTD so rookie cards / tier progression /
+    // overview tiles reflect the closed-out week. Memberships handled by ipApplyDailyAdd cascade.
+    function _wlbSeedDay20260530MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260530_v21955';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        // (name, svc, soldHrs, frt, spps, tgls) — 3-day slice (Thu+Fri+Sat combined).
+        var deltas = [
+          // name,   svc,     soldHrs, frt,  spps, tgls
+          ['Dewone', 2933.00,  11.75,  2.20, 3,    5],
+          ['Dee',    2277.00,   8.00,  2.75, 0,    2],
+          ['Benji',  1577.00,   5.65,  2.50, 0,    0],
+          ['Chris',   357.00,   3.40,  1.50, 0,    1],
+          ['Daniel',  906.00,   4.00,  3.00, 1,    1]
+          // Nick + Jason — no calls Thu-Sat, no MTD delta.
+        ];
+        deltas.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.55] Thu-Sat 5/28-5/30 MTD bumped (5 techs, $8,050 svc, 4 SPP, 32.80 sold hrs, 7 mems, 9 leads, 3 self-sold installs $30,485). Pustotnik $27,869 + Wilson $10,814 = Adam-side, not in tech matrix.');
+      } catch(e) { console.warn('_wlbSeedDay20260530MtdIfNeeded failed', e); }
+    }
+    _wlbSeedDay20260530MtdIfNeeded();
+
+    // v219.55: Push Chris's 2 self-sold installs + Daniel's Peters install into snappy_brayden_installs
+    // so they appear on the install ledger / MTD tiles. Lead-gen attribution is the selling tech
+    // (full-cycle win pattern — same as Chris's Mark Wakefield 5/19 install in v219.31).
+    (function _seedInstalls20260528_30IfNeeded(){
+      try {
+        var FLAG = 'snappy_installs_seeded_20260528_30_v21955';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var brRaw = localStorage.getItem('snappy_brayden_installs');
+        var brArr = [];
+        try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+        if (!Array.isArray(brArr)) brArr = [];
+        var newInstalls = [
+          {
+            id: 'install_20260528_mcgowan',
+            date: '2026-05-28',
+            customer: 'Kim Mcgowan',
+            jobNumber: '92756481',
+            invoice: '92756481',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Chris Monahan',
+            leadGeneratedBy: 'Chris',
+            jobsTotal: 8796.88,
+            completionDate: '2026-05-28',
+            attribution: 'Self-sold tech install — full credit to Chris on leaderboard. No sales-pay credit.'
+          },
+          {
+            id: 'install_20260529_gullino',
+            date: '2026-05-29',
+            customer: 'Doug Gullino',
+            jobNumber: '92789686',
+            invoice: '92789686',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Chris Monahan',
+            leadGeneratedBy: 'Chris',
+            jobsTotal: 7490.91,
+            completionDate: '2026-05-29',
+            attribution: 'Self-sold tech install — full credit to Chris on leaderboard. No sales-pay credit.'
+          },
+          {
+            id: 'install_20260528_peters',
+            date: '2026-05-28',
+            customer: 'Alicia Peters',
+            jobNumber: '92706168',
+            invoice: '92706168',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Daniel Gazaway',
+            leadGeneratedBy: 'Daniel',
+            jobsTotal: 14197.63,
+            completionDate: '2026-05-28',
+            attribution: 'Self-sold tech install — full-cycle win. Full credit to Daniel on leaderboard.'
+          }
+        ];
+        newInstalls.forEach(function(ni){
+          var dup = brArr.some(function(x){ return x && (x.jobNumber === ni.jobNumber || x.invoice === ni.invoice); });
+          if (!dup) brArr.push(ni);
+        });
+        localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.55] Added 3 self-sold tech installs to snappy_brayden_installs (Chris 2, Daniel 1, total $30,485.42).');
+      } catch(e) { console.warn('_seedInstalls20260528_30IfNeeded failed', e); }
+    })();
+
+    // v219.55: Bulletin board — Sun 5/31 weekly close-out entry for week 2026-05-25.
+    (function _bbDaily20260531IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_weekclose_20260525_v21955';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var existsBB = bb.matrixUpdates.some(function(u){ return u.id === 'st_weekclose_20260525'; });
+        if (!existsBB) {
+          bb.matrixUpdates.push({
+            id: 'st_weekclose_20260525',
+            date: '2026-05-31',
+            text: 'WEEK CLOSE 5/25-5/31 — $13,512 svc / 59% conv / 8 mems sold (53% attach) / 8 SPPs / 11 TGLs / 58.05 sold hrs / 3 self-sold tech installs ($30,485). Top svc: Dewone $4,275. Top avg ticket: Dee $778 (80% conv). Top conv installs: Chris 2/2 self-sold ($16,288) + Daniel 1 full-cycle win (Peters $14,198). Top mem attach: Chris + Daniel 100%. Cold spots: Mark $0 (off mgr), Dee 0 mems on 80% conv, Daniel 40% conv. Adam/sales-side installs not in tech matrix: Wilson $10,814 (5/27) + Pustotnik $27,869 (5/29).',
+            createdAt: Date.now()
+          });
+          if (typeof bbSave === 'function') bbSave(bb);
+          console.log('[v219.55] Added week-close 5/25 bulletin entry.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbDaily20260531IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
