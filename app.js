@@ -10579,6 +10579,170 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbDaily20260531IfNeeded failed', e); }
     })();
 
+    // ===== Week 2026-06-01: Mon-Thu WTD snapshot (partial week) =====
+    // v219.57: Mark sent WTD report Thu 6/4/26 evening. Per Mark's call, seed as a single
+    // week-to-date snapshot keyed to Thu 6/4 (NOT daily slices) so Fri-Sun can be re-seeded
+    // when the full week closes.
+    // Sources:
+    //   - IMG_0293 (Nexstar dashboard 6/1-6/7 WTD-through-Thu cumulative)
+    //   - IMG_0294 (Memberships tab WTD cumulative)
+    //   - TGL-sales-and-commission-report_Dated-06_01_26-06_07_26.pdf (only 6/1-6/4 closed jobs)
+    //   - Generated-Installs_Dated-06_01_26-06_04_26.pdf
+    //
+    // WTD dashboard (6/1-6/4 Mon-Thu):
+    //   Dewone: $2,420 svc / 100% conv / 1 SPP / 1 TGL / 7.90 sold hrs / 2.50 frt / mem 1/1 (100%)
+    //   Benji:  $2,097 svc / 50%  conv / 0 SPP / 0 TGL / 11.85 sold hrs / 3.00 frt / mem 0/4 (0%)
+    //   Chris:  $1,598 svc / 22%  conv / 1 SPP / 3 TGL / 4.50 sold hrs / 3.00 frt / mem 1/2 (50%)
+    //   Daniel: $1,411 svc / 33%  conv / 4 SPP / 2 TGL / 8.10 sold hrs / 5.50 frt / mem 4/5 (80%)
+    //   Nick:   $782   svc / 33%  conv / 0 SPP / 1 TGL / 8.25 sold hrs / 2.00 frt / mem 0/0
+    //   Dee:    $702   svc / 50%  conv / 0 SPP / 1 TGL / 4.40 sold hrs / 2.00 frt / mem 0/0
+    //   Team: $9,011 svc / 43% conv / 6 SPP / 8 TGL / 45.00 sold hrs / 6 mem sold / 12 mem opps (50%)
+    //
+    // INSTALL ATTRIBUTION (per Mark 6/4 confirm):
+    //   - Dewone self-sold: Kevin Morgan 6/1 ($7,988.29) + Alan Landers 6/2 ($9,482.87)
+    //                       + Robert Lewis 6/4 ($9,363.82) + Sheila Long 6/4 ($16,000.00) = 4 / $42,834.98
+    //   - Daniel self-sold: Sandra Carpenter 6/1 ($8,400.00) = 1 / $8,400.00
+    //   - Chris  self-sold: Margaret Long 6/3 ($11,832.94) = 1 / $11,832.94
+    //   - Adam-side (excluded from tech matrix per Mark): American Auto 6/3 ($8,238.71 — lead Daniel,
+    //     sold Adam per Mark's call). Total tech-credit installs: 6 jobs / $63,067.92.
+    ipApplyDailyAdd({
+      date: '2026-06-04', // WTD snapshot gated under closing-Thu date
+      weekStart: '2026-06-01',
+      entries: [
+        { short: 'Dewone', rev: 2420.00, memSold: 1, memOpps: 1, leads: 1, installs: 4, installRev: 42834.98 },
+        { short: 'Benji',  rev: 2097.00, memSold: 0, memOpps: 4, leads: 0, installs: 0, installRev: 0        },
+        { short: 'Chris',  rev: 1598.00, memSold: 1, memOpps: 2, leads: 3, installs: 1, installRev: 11832.94 },
+        { short: 'Daniel', rev: 1411.00, memSold: 4, memOpps: 5, leads: 2, installs: 1, installRev:  8400.00 },
+        { short: 'Nick',   rev:  782.00, memSold: 0, memOpps: 0, leads: 1, installs: 0, installRev: 0        },
+        { short: 'Dee',    rev:  702.00, memSold: 0, memOpps: 0, leads: 1, installs: 0, installRev: 0        },
+        { short: 'Jason',  rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0        }
+      ]
+    });
+
+    // v219.57: Cascade WTD 6/1-6/4 slice into stData MTD so rookie cards / tier progression /
+    // overview tiles reflect the partial week.
+    function _wlbSeedDay20260604MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260604_v21957';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        // (name, svc, soldHrs, frt, spps, tgls) — WTD 6/1-6/4 Mon-Thu.
+        var deltas = [
+          // name,    svc,    soldHrs, frt,  spps, tgls
+          ['Dewone', 2420.00,  7.90,  2.50, 1,    1],
+          ['Benji',  2097.00, 11.85,  3.00, 0,    0],
+          ['Chris',  1598.00,  4.50,  3.00, 1,    3],
+          ['Daniel', 1411.00,  8.10,  5.50, 4,    2],
+          ['Nick',    782.00,  8.25,  2.00, 0,    1],
+          ['Dee',     702.00,  4.40,  2.00, 0,    1]
+        ];
+        deltas.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.57] WTD 6/1-6/4 MTD bumped (6 techs, $9,011 svc, 6 SPP, 8 TGL, 45.00 sold hrs, 6 mems / 12 opps, 6 self-sold installs $63,068).');
+      } catch(e) { console.warn('_wlbSeedDay20260604MtdIfNeeded failed', e); }
+    }
+    _wlbSeedDay20260604MtdIfNeeded();
+
+    // v219.57: Push 6 tech-credit installs into snappy_brayden_installs (Dewone 4, Daniel 1, Chris 1).
+    // American Auto 6/3 ($8,238.71) NOT included — Adam-side per Mark (lead Daniel, sold Adam).
+    (function _seedInstalls20260601_04IfNeeded(){
+      try {
+        var FLAG = 'snappy_installs_seeded_20260601_04_v21957';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var brRaw = localStorage.getItem('snappy_brayden_installs');
+        var brArr = [];
+        try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+        if (!Array.isArray(brArr)) brArr = [];
+        var newInstalls = [
+          {
+            id: 'install_20260601_morgan', date: '2026-06-01', customer: 'Kevin Morgan',
+            jobNumber: '92839283', invoice: '92839283', businessUnit: 'HVAC Install',
+            soldBy: 'Dewone Martin', leadGeneratedBy: 'Dewone', jobsTotal: 7988.29,
+            completionDate: '2026-06-01',
+            attribution: 'Self-sold tech install — full credit to Dewone on leaderboard.'
+          },
+          {
+            id: 'install_20260602_landers', date: '2026-06-02', customer: 'Alan Landers',
+            jobNumber: '92839408', invoice: '92839408', businessUnit: 'HVAC Install',
+            soldBy: 'Dewone Martin', leadGeneratedBy: 'Dewone', jobsTotal: 9482.87,
+            completionDate: '2026-06-02',
+            attribution: 'Self-sold tech install — full credit to Dewone on leaderboard.'
+          },
+          {
+            id: 'install_20260604_lewis', date: '2026-06-04', customer: 'Robert Lewis',
+            jobNumber: '92839473', invoice: '92839473', businessUnit: 'HVAC Install',
+            soldBy: 'Dewone Martin', leadGeneratedBy: 'Dewone', jobsTotal: 9363.82,
+            completionDate: '2026-06-04',
+            attribution: 'Self-sold tech install — full credit to Dewone on leaderboard.'
+          },
+          {
+            id: 'install_20260604_sheilalong', date: '2026-06-04', customer: 'Sheila Long',
+            jobNumber: '92932915', invoice: '92932915', businessUnit: 'HVAC Install',
+            soldBy: 'Dewone Martin', leadGeneratedBy: 'Dewone', jobsTotal: 16000.00,
+            completionDate: '2026-06-04',
+            attribution: 'Self-sold tech install — full credit to Dewone on leaderboard.'
+          },
+          {
+            id: 'install_20260601_carpenter', date: '2026-06-01', customer: 'Sandra Carpenter',
+            jobNumber: '92838647', invoice: '92838647', businessUnit: 'HVAC Install',
+            soldBy: 'Daniel Gazaway', leadGeneratedBy: 'Daniel', jobsTotal: 8400.00,
+            completionDate: '2026-06-01',
+            attribution: 'Self-sold tech install — full-cycle win. Full credit to Daniel on leaderboard.'
+          },
+          {
+            id: 'install_20260603_margaretlong', date: '2026-06-03', customer: 'Margaret Long',
+            jobNumber: '92878872', invoice: '92878872', businessUnit: 'HVAC Install',
+            soldBy: 'Chris Monahan', leadGeneratedBy: 'Chris', jobsTotal: 11832.94,
+            completionDate: '2026-06-03',
+            attribution: 'Self-sold tech install — full-cycle win. Full credit to Chris on leaderboard.'
+          }
+        ];
+        newInstalls.forEach(function(ni){
+          var dup = brArr.some(function(x){ return x && (x.jobNumber === ni.jobNumber || x.invoice === ni.invoice); });
+          if (!dup) brArr.push(ni);
+        });
+        localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.57] Added 6 self-sold tech installs to snappy_brayden_installs (Dewone 4, Daniel 1, Chris 1; total $63,067.92). American Auto $8,238.71 = Adam-side, excluded.');
+      } catch(e) { console.warn('_seedInstalls20260601_04IfNeeded failed', e); }
+    })();
+
+    // v219.57: Bulletin board — Thu 6/4 WTD update for week 2026-06-01.
+    (function _bbDaily20260604IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_wtd_20260601_v21957';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var existsBB = bb.matrixUpdates.some(function(u){ return u.id === 'st_wtd_20260604'; });
+        if (!existsBB) {
+          bb.matrixUpdates.push({
+            id: 'st_wtd_20260604',
+            date: '2026-06-04',
+            text: 'WTD 6/1-6/4 (Mon-Thu) — $9,011 svc / 43% conv / 6 mems sold (50% attach) / 6 SPPs / 8 TGLs / 45.00 sold hrs / 6 self-sold tech installs ($63,068). 🔥 Dewone HOT install week: 4 self-sold $42,835 + 100% conv. Daniel best mem week: 4/5 (80%) + 4 SPPs. Chris 1 self-sold ($11,833) + 3 TGLs. Cold: Benji 0/4 mems & 0 TGLs, Chris 22% svc conv (C-loop). Adam-side excluded: American Auto $8,239 (lead Daniel, sold Adam). Fri-Sun pending.',
+            createdAt: Date.now()
+          });
+          if (typeof bbSave === 'function') bbSave(bb);
+          console.log('[v219.57] Added WTD 6/4 bulletin entry.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbDaily20260604IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
