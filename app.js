@@ -10743,6 +10743,83 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbDaily20260604IfNeeded failed', e); }
     })();
 
+    // ===== Google Reviews — Week 6/1-6/7 WTD through Thu 6/4 =====
+    // v219.58: Pulled from public Google Maps profile for Snappy Services Buford on Thu 6/4 evening.
+    // Profile snapshot: 4.9★ / 1,976 total reviews. Roster mentions in reviews posted 6/1-6/4 only
+    // (Brayden/Patrick/Jordan/Josh + reviews without a tech named excluded per Mark's call).
+    //
+    // WTD review counts:
+    //   Benji  3 (Alishia L'Heureux 6/3, Alex Roberts 6/3, Wayne Sims 6/3)
+    //   Daniel 2 (Eduardo Garcia 6/4, Kathryn Kadous 6/1)
+    //   Dewone 1 (Claire Long 6/2)
+    //   Dee    1 (Naveen Thomas 6/2 — "Dee was a delight")
+    //   Nick   1 (Cheryl Rhodes 6/1)
+    //   Chris  0
+    //   Jason  0
+    //
+    // Two writes per tech:
+    //   1) weekReviews override store at weekStart=2026-06-01 (drives GR★ lane / weekly leaderboard)
+    //   2) MTD googleReviews[short].count baseline bump (drives profile pages + rookie cards)
+    (function _seedGoogleReviews20260601_04IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_seeded_20260601_04_v21958';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var weekStart = '2026-06-01';
+        var wtd = [
+          // [short, count, highlight, reviewer + date]
+          ['Benji',  3, '"Benjamin Tinahui is the best. Me and my dad love that guy" \u2014 Alex Roberts (6/3)'],
+          ['Daniel', 2, '"Daniel, HUGE Thank You!! Incredibly knowledgeable, friendly and professional." \u2014 Eduardo Garcia (6/4)'],
+          ['Dewone', 1, '"Dewone was punctual and took care of our system really quickly." \u2014 Claire Long (6/2)'],
+          ['Dee',    1, '"Dee was a delight to interact with. Very knowledgeable, engaging, and professional." \u2014 Naveen Thomas (6/2)'],
+          ['Nick',   1, '"Snappy technician Nick serviced two HVAC systems today. Work was performed efficiently and in a timely manner." \u2014 Cheryl Rhodes (6/1)']
+        ];
+        // 1) Write weekly GR★ lane via override store
+        if (typeof ipServiceTechSetField === 'function') {
+          wtd.forEach(function(r){
+            ipServiceTechSetField(weekStart, r[0], 'weekReviews', r[1]);
+          });
+        }
+        // 2) Bump MTD googleReviews baselines + refresh highlights/notes for this week's coverage
+        if (typeof googleReviews === 'object' && googleReviews) {
+          wtd.forEach(function(r){
+            var short = r[0], cnt = r[1], hl = r[2];
+            if (!googleReviews[short]) {
+              googleReviews[short] = { count: 0, fiveStar: 0, fourStar: 0, threeStar: 0, highlight: '', note: '' };
+            }
+            googleReviews[short].count    = +(googleReviews[short].count    || 0) + cnt;
+            googleReviews[short].fiveStar = +(googleReviews[short].fiveStar || 0) + cnt;
+            googleReviews[short].highlight = hl;
+            googleReviews[short].note = 'v219.58 \u2014 +' + cnt + ' Google review' + (cnt===1?'':'s') + ' WTD 6/1-6/4 (week 2026-06-01). All 5\u2605. Profile sits at 4.9\u2605 / 1,976 total.';
+          });
+        }
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.58] Seeded 8 Google reviews WTD 6/1-6/4 (Benji 3, Daniel 2, Dewone 1, Dee 1, Nick 1). Lane + MTD baselines bumped.');
+      } catch(e) { console.warn('_seedGoogleReviews20260601_04IfNeeded failed', e); }
+    })();
+
+    // v219.58: Bulletin board — Google reviews update Thu 6/4.
+    (function _bbGr20260604IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_gr_20260604_v21958';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var existsBB = bb.matrixUpdates.some(function(u){ return u.id === 'gr_wtd_20260604'; });
+        if (!existsBB) {
+          bb.matrixUpdates.push({
+            id: 'gr_wtd_20260604',
+            date: '2026-06-04',
+            text: 'GOOGLE REVIEWS WTD 6/1-6/4 \u2014 8 new 5\u2605 reviews mentioning roster techs. Benji 3 (hot streak), Daniel 2, Dewone 1, Dee 1, Nick 1. Chris + Jason 0 (coaching cue: deliberate ask after every service touch). Profile: 4.9\u2605 / 1,976 total reviews.',
+            createdAt: Date.now()
+          });
+          if (typeof bbSave === 'function') bbSave(bb);
+          console.log('[v219.58] Added GR bulletin entry.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbGr20260604IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
