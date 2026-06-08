@@ -10893,6 +10893,166 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbGrWeekClose20260601IfNeeded failed', e); }
     })();
 
+    // ================================================================
+    // v219.60 — WEEK 6/1-6/7 FULL CLOSE-OUT (Fri-Sun delta)
+    // ================================================================
+    // Source: Mark re-attached 6/8 PM — Nexstar dashboard (IMG_0296/0297),
+    // TGL-sales-and-commission-report 6/01-6/07, and Generated-Installs 6/01-6/07.
+    //
+    // v219.57 already seeded Mon-Thu (6/1-6/4) WTD. This block adds the
+    // Fri-Sun (6/5-6/7) delta to bring the leaderboard to the full-week close.
+    //
+    // FULL WEEK (Nexstar) vs WTD-Thu already in matrix:
+    //   Tech    | Wk svc  | Thu svc | Fri-Sun Δ | Wk SPP | Wk TGL | Wk SoldHrs | Δ SoldHrs
+    //   Dewone  | 3,733   | 2,420   | +1,313     | 1      | 2      | 14.50      | +6.60
+    //   Chris   | 2,357   | 1,598   | +759       | 1      | 3      | 7.85       | +3.35
+    //   Benji   | 2,097   | 2,097   | +0         | 0      | 0      | 15.85      | +4.00
+    //   Daniel  | 2,026   | 1,411   | +615       | 4      | 3      | 11.00      | +2.90
+    //   Nick    | 782     | 782     | +0         | 0      | 1      | 8.25       | +0.00
+    //   Dee     | 742     | 702     | +40        | 0      | 1      | 7.50       | +3.10
+    //
+    // MEMBERSHIPS (full week = WTD-Thu, no changes Fri-Sun):
+    //   Dewone 1/1, Chris 1/2, Benji 0/4, Daniel 4/5 — already in v219.57.
+    //
+    // INSTALLS (full week, Fri-Sun additions):
+    //   - Brayden sold: Mark Cronin 6/5 ($14,777.81) — Adam-side, EXCLUDED from
+    //     tech leaderboard but logged in snappy_brayden_installs for completeness.
+    //   - No new tech-credit installs Fri-Sun. v219.57's 6 self-sold installs
+    //     ($63,067.92) remain the full-week tech total.
+    ipApplyDailyAdd({
+      date: '2026-06-07', // Fri-Sun delta gated under closing-Sun date
+      weekStart: '2026-06-01',
+      entries: [
+        { short: 'Dewone', rev: 1313.00, memSold: 0, memOpps: 0, leads: 1, installs: 0, installRev: 0 },
+        { short: 'Chris',  rev:  759.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Benji',  rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Daniel', rev:  615.00, memSold: 0, memOpps: 0, leads: 1, installs: 0, installRev: 0 },
+        { short: 'Nick',   rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Dee',    rev:   40.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Jason',  rev:    0.00, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 }
+      ]
+    });
+
+    // v219.60: Cascade Fri-Sun delta into stData MTD so rookie cards / tier progression /
+    // overview tiles reflect the full-week close.
+    function _wlbSeedDay20260607MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260607_v21960';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        // (name, svc, soldHrs, frt, spps, tgls) — Fri-Sun 6/5-6/7 delta only.
+        // Wk FRT − Thu FRT = delta. Dewone 2.14−2.50=−0.36 (FRT can drop wk-avg; cap at 0).
+        var deltas = [
+          // name,    svc,     soldHrs, frt,   spps, tgls
+          ['Dewone', 1313.00,  6.60,    0.00,  0,    1],
+          ['Chris',   759.00,  3.35,    0.00,  0,    0],
+          ['Benji',     0.00,  4.00,    0.00,  0,    0],
+          ['Daniel',  615.00,  2.90,    0.00,  0,    1],
+          ['Nick',      0.00,  0.00,    0.00,  0,    0],
+          ['Dee',      40.00,  3.10,    1.00,  0,    0]
+        ];
+        deltas.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.60] Fri-Sun 6/5-6/7 MTD delta bumped. Full-week 6/1-6/7 totals: $11,737 svc / 6 SPP / 10 TGL / 54.95 sold hrs / 6 mems / 12 opps / 6 self-sold tech installs $63,068. Adam-side excluded: Mark Cronin $14,778 + American Auto $8,239.');
+      } catch(e) { console.warn('_wlbSeedDay20260607MtdIfNeeded failed', e); }
+    }
+    _wlbSeedDay20260607MtdIfNeeded();
+
+    // v219.60: Log the Brayden-sold Mark Cronin install for completeness, marked Adam-side.
+    (function _seedInstalls20260605_braydenIfNeeded(){
+      try {
+        var FLAG = 'snappy_installs_seeded_20260605_brayden_v21960';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var brRaw = localStorage.getItem('snappy_brayden_installs');
+        var brArr = [];
+        try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+        if (!Array.isArray(brArr)) brArr = [];
+        var ni = {
+          id: 'install_20260605_cronin', date: '2026-06-05', customer: 'Mark Cronin',
+          jobNumber: '93001445', invoice: '93001445', businessUnit: 'HVAC Install',
+          soldBy: 'Brayden Bond', leadGeneratedBy: 'Terrell Upshur / Thomas Gilbert',
+          jobsTotal: 14777.81, completionDate: '2026-06-05',
+          attribution: 'Adam-side install (Brayden sold, marketing-generated lead). Logged for full-week visibility — EXCLUDED from tech matrix per the Adam-side rule.',
+          adamSide: true
+        };
+        var dup = brArr.some(function(x){ return x && (x.jobNumber === ni.jobNumber || x.invoice === ni.invoice); });
+        if (!dup) {
+          brArr.push(ni);
+          localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+          console.log('[v219.60] Logged Adam-side install: Mark Cronin $14,777.81 (Brayden sold 6/5). Excluded from tech matrix.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_seedInstalls20260605_braydenIfNeeded failed', e); }
+    })();
+
+    // v219.60: Bulletin board — Week 6/1-6/7 full close-out summary.
+    (function _bbWeekClose20260601IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_weekclose_20260601_v21960';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'wk_close_20260601',
+            date: '2026-06-08',
+            text: 'WEEK 6/1-6/7 CLOSE-OUT — $11,737 svc rev / 6 SPP / 10 TGL / 6 of 12 mems (50%) / 54.95 sold hrs / 6 self-sold tech installs $63,068. Adam-side excluded: Mark Cronin $14,778 (Brayden 6/5) + American Auto $8,239 (Adam 6/3) = 2 jobs / $23,016. Plus 9 roster Google reviews (all 5★, profile 4.9★ / 1,985).'
+          },
+          {
+            id: 'wk_close_dewone_20260601',
+            date: '2026-06-08',
+            text: 'DEWONE — HOT WEEK: $3,733 svc / 100% conv / 1 SPP / 2 TGL / 4 self-sold installs $42,835 / 2 Google reviews (Claire 6/2, Adriana 6/6). Team-leading svc rev + install volume.'
+          },
+          {
+            id: 'wk_close_daniel_20260601',
+            date: '2026-06-08',
+            text: 'DANIEL — MEMBERSHIP KING: 4 SPP + 4 of 5 mems sold (80% attach — best in team). $2,026 svc / 3 TGL / 1 self-sold install $8,400. Killing the conversion lane.'
+          },
+          {
+            id: 'wk_close_benji_20260601',
+            date: '2026-06-08',
+            text: 'BENJI — MIXED WEEK: 3 Google reviews (top review earner: Alishia, Alex, Wayne, all 6/3) but 0 of 4 mems + 0 TGL + 0 SPP. $2,097 svc / 15.85 sold hrs. Customers love him but he is not converting. Coach the membership pitch + lead-flag muscle.'
+          },
+          {
+            id: 'wk_close_chris_20260601',
+            date: '2026-06-08',
+            text: 'CHRIS — C-LOOP CONTINUES: 36% svc conv / 1 SPP / 3 TGL / 1 self-sold install $11,833. 0 Google reviews — 4th straight week. Self-sells big but the everyday lane is leaking. Hit the conversion + review ask.'
+          },
+          {
+            id: 'wk_close_benji_soldhrs_20260601',
+            date: '2026-06-08',
+            text: 'BENJI FLAG — +4.00 sold hours Fri-Sun with $0 svc rev. Likely warranty / in-progress / unbilled work. Confirm coding before next 1:1.'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.60] Added ' + added + ' week-close bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbWeekClose20260601IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
