@@ -12004,15 +12004,130 @@ document.addEventListener('visibilitychange', function() {
       var pinLocked = '';
       try { pinLocked = sessionStorage.getItem('snappy_tech_pin_locked') || ''; } catch(e) {}
       if (pinLocked) activeTech = pinLocked;
+      // v219.61: Session-scoped week override — lets tech/mgr toggle to a prior
+      // week's payout. Empty/missing = use the current week passed in by the tab.
+      var weekToRender = weekEndingSat;
+      try {
+        var wkOv = sessionStorage.getItem('snappy_tech_view_week') || '';
+        if (wkOv && /^\d{4}-\d{2}-\d{2}$/.test(wkOv)) weekToRender = wkOv;
+      } catch(e) {}
       if (!activeTech) {
         html += ipTechViewRenderPicker();
       } else {
-        html += ipTechViewRenderForTech(activeTech, weekEndingSat);
+        html += ipTechViewRenderForTech(activeTech, weekToRender, weekEndingSat);
       }
       html += '</div>';
       return html;
     }
     window.ipRenderTechViewTab = ipRenderTechViewTab;
+
+    // v219.61: Build the rolling list of the last N week-ending-Saturdays, ordered
+    // newest → oldest. `currentWeekEndSat` is the canonical "current week" anchor
+    // from the tab call so the dropdown highlights today's week correctly even when
+    // the user is toggled into a prior week.
+    function ipTechViewListWeeks(currentWeekEndSat, n) {
+      n = n || 8;
+      var out = [];
+      try {
+        var anchor = new Date(currentWeekEndSat + 'T12:00:00');
+        if (isNaN(anchor.getTime())) return out;
+        for (var i = 0; i < n; i++) {
+          var d = new Date(anchor.getTime());
+          d.setDate(d.getDate() - (7 * i));
+          var endIso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+          var startIso = (typeof ipWeekStartMonStr === 'function') ? ipWeekStartMonStr(endIso) : endIso;
+          // Friendly short label, e.g. "6/1 – 6/7"
+          var sParts = startIso.split('-'); var eParts = endIso.split('-');
+          var label = (+sParts[1]) + '/' + (+sParts[2]) + ' – ' + (+eParts[1]) + '/' + (+eParts[2]);
+          out.push({ weekStart: startIso, weekEnd: endIso, label: label });
+        }
+      } catch(e) {}
+      return out;
+    }
+    window.ipTechViewListWeeks = ipTechViewListWeeks;
+
+    // v219.61: Set the active payout week from the picker. Empty string clears the
+    // override and snaps back to the canonical current week.
+    function ipTechViewSetWeek(weekEndSat) {
+      try {
+        if (weekEndSat && /^\d{4}-\d{2}-\d{2}$/.test(weekEndSat)) {
+          sessionStorage.setItem('snappy_tech_view_week', weekEndSat);
+        } else {
+          sessionStorage.removeItem('snappy_tech_view_week');
+        }
+      } catch(e) {}
+      try {
+        if (typeof renderTechViewStandalone === 'function' &&
+            document.getElementById('view-techview') &&
+            document.getElementById('view-techview').classList.contains('active')) {
+          renderTechViewStandalone(); return;
+        }
+      } catch(e) {}
+      try { renderInstallPay(); } catch(e) {}
+    }
+    window.ipTechViewSetWeek = ipTechViewSetWeek;
+
+    // v219.61: Step the active week by ±1 (−1 = older, +1 = newer). Stops at the
+    // current week on the new side and at the 8th week back on the old side.
+    function ipTechViewStepWeek(dir, currentWeekEndSat) {
+      try {
+        var weeks = ipTechViewListWeeks(currentWeekEndSat, 8);
+        if (!weeks.length) return;
+        var activeWeekEnd = currentWeekEndSat;
+        try {
+          var wkOv = sessionStorage.getItem('snappy_tech_view_week') || '';
+          if (wkOv && /^\d{4}-\d{2}-\d{2}$/.test(wkOv)) activeWeekEnd = wkOv;
+        } catch(e) {}
+        var idx = -1;
+        for (var i = 0; i < weeks.length; i++) { if (weeks[i].weekEnd === activeWeekEnd) { idx = i; break; } }
+        if (idx < 0) idx = 0; // unknown -> snap to current
+        // weeks[] is newest → oldest, so dir=-1 (older) means idx+1, dir=+1 (newer) means idx-1
+        var nextIdx = idx + (dir < 0 ? 1 : -1);
+        if (nextIdx < 0 || nextIdx >= weeks.length) return; // at edge
+        ipTechViewSetWeek(weeks[nextIdx].weekEnd);
+      } catch(e) { console.warn('ipTechViewStepWeek failed', e); }
+    }
+    window.ipTechViewStepWeek = ipTechViewStepWeek;
+
+    // v219.61: Render the prev/next arrows + dropdown week selector. Shows the last
+    // 8 weeks. Highlights the current week. Disables arrows at the edges.
+    function ipTechViewRenderWeekPicker(activeWeekEndSat, currentWeekEndSat) {
+      try {
+        var weeks = ipTechViewListWeeks(currentWeekEndSat, 8);
+        if (!weeks.length) return '';
+        var activeIdx = -1;
+        for (var i = 0; i < weeks.length; i++) { if (weeks[i].weekEnd === activeWeekEndSat) { activeIdx = i; break; } }
+        var atNewest = (activeIdx <= 0); // weeks[0] = current
+        var atOldest = (activeIdx === weeks.length - 1);
+        var safeCur = currentWeekEndSat.replace(/'/g, '');
+        var h = '';
+        h += '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;background:#0b1426;border:1px solid #1e3a5f;border-radius:10px;padding:10px 12px;flex-wrap:wrap;">';
+        // Prev (older) arrow
+        h += '<button onclick="ipTechViewStepWeek(-1,\'' + safeCur + '\')" ' +
+             (atOldest ? 'disabled ' : '') +
+             'style="background:' + (atOldest ? '#1e293b' : 'linear-gradient(135deg,#334155,#1e293b)') + ';color:' + (atOldest ? '#475569' : '#e2e8f0') + ';border:1px solid #334155;padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600;cursor:' + (atOldest ? 'not-allowed' : 'pointer') + ';min-width:36px;" title="Previous week">\u25c0</button>';
+        // Dropdown
+        h += '<select onchange="ipTechViewSetWeek(this.value)" style="background:#0F1B2E;color:#f1f5f9;border:1px solid #334155;padding:6px 10px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;min-width:200px;text-align:center;text-align-last:center;">';
+        for (var j = 0; j < weeks.length; j++) {
+          var w = weeks[j];
+          var sel = (w.weekEnd === activeWeekEndSat) ? ' selected' : '';
+          var tag = (j === 0) ? ' (current)' : '';
+          h += '<option value="' + w.weekEnd + '"' + sel + '>Week of ' + w.label + tag + '</option>';
+        }
+        h += '</select>';
+        // Next (newer) arrow
+        h += '<button onclick="ipTechViewStepWeek(1,\'' + safeCur + '\')" ' +
+             (atNewest ? 'disabled ' : '') +
+             'style="background:' + (atNewest ? '#1e293b' : 'linear-gradient(135deg,#334155,#1e293b)') + ';color:' + (atNewest ? '#475569' : '#e2e8f0') + ';border:1px solid #334155;padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600;cursor:' + (atNewest ? 'not-allowed' : 'pointer') + ';min-width:36px;" title="Next week">\u25b6</button>';
+        // Jump-to-current shortcut when historical
+        if (!atNewest) {
+          h += '<button onclick="ipTechViewSetWeek(\'\')" style="background:linear-gradient(135deg,#10B981,#047857);color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;" title="Jump back to current week">\u23ee Current</button>';
+        }
+        h += '</div>';
+        return h;
+      } catch(e) { console.warn('ipTechViewRenderWeekPicker failed', e); return ''; }
+    }
+    window.ipTechViewRenderWeekPicker = ipTechViewRenderWeekPicker;
 
     // v219.05: Picker prompt — open access until PINs are issued. Each tech taps their
     // own button → selection cached for this browser session → only their numbers shown.
@@ -12143,11 +12258,24 @@ document.addEventListener('visibilitychange', function() {
     window._ipTechSubmitPin = _ipTechSubmitPin;
 
     // v219.03: Render personal payout view for a single tech (filtered Service Techs row).
-    function ipTechViewRenderForTech(techShort, weekEndingSat) {
+    function ipTechViewRenderForTech(techShort, weekEndingSat, currentWeekEndSat) {
+      // v219.61: currentWeekEndSat is the canonical "this week" anchor (defaults to
+      // weekEndingSat for legacy callers). weekEndingSat is the week being rendered.
+      if (!currentWeekEndSat) currentWeekEndSat = weekEndingSat;
       var res = ipServiceTechMetrics(weekEndingSat);
       var m = res.metrics[techShort];
       if (!m) {
-        return '<div style="padding:20px;text-align:center;color:#94a3b8;">No payout data for this tech this week.</div>';
+        // v219.61: Still render the week picker so the user can hop to a week that
+        // does have data instead of getting stuck on an empty screen.
+        var emptyHeader = '';
+        emptyHeader += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">';
+        emptyHeader += '<div style="font-size:16px;font-weight:700;">\ud83d\udc64 ' + techShort + ' \u00b7 Week of ' + res.weekStart + ' \u2192 ' + res.weekEnd + '</div>';
+        emptyHeader += '<div style="display:flex;gap:6px;">';
+        emptyHeader += '<button onclick="ipTechViewBack()" style="background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">\u2190 Back to roster</button>';
+        emptyHeader += '</div></div>';
+        emptyHeader += ipTechViewRenderWeekPicker(weekEndingSat, currentWeekEndSat);
+        emptyHeader += '<div style="padding:20px;text-align:center;color:#94a3b8;">No payout data for this tech this week. Try a previous week above.</div>';
+        return emptyHeader;
       }
       var weekMemSold = (m.weekMemSold != null ? Number(m.weekMemSold) : 0) || 0;
       var weekReviews = (m.weekReviews != null ? Number(m.weekReviews) : 0) || 0;
@@ -12170,7 +12298,14 @@ document.addEventListener('visibilitychange', function() {
       var total = revPay + instPay + memPay + leadPay;
       var h = '';
       h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">';
-      h += '<div style="font-size:16px;font-weight:700;">\ud83d\udc64 ' + m.display + ' \u00b7 Week of ' + res.weekStart + ' \u2192 ' + res.weekEnd + '</div>';
+      // v219.61: Header now shows a "(historical)" pill when the user is viewing a
+      // prior week so they don't mistake it for the current week's numbers.
+      var isHistorical = (weekEndingSat !== currentWeekEndSat);
+      h += '<div style="font-size:16px;font-weight:700;">\ud83d\udc64 ' + m.display + ' \u00b7 Week of ' + res.weekStart + ' \u2192 ' + res.weekEnd;
+      if (isHistorical) {
+        h += ' <span style="font-size:10px;color:#fb923c;background:#3a2208;border:1px solid #7c4a0c;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Historical</span>';
+      }
+      h += '</div>';
       // v219.09: Two-button action row \u2014 "Back to roster" returns to picker (keeps session
       //          unlocked so mgr can hop between techs). "Log out" still available as before.
       h += '<div style="display:flex;gap:6px;">';
@@ -12183,6 +12318,8 @@ document.addEventListener('visibilitychange', function() {
       h += '<button onclick="ipTechViewLogout()" style="background:transparent;color:#dc2626;border:1px solid #7c2d2d;padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;">\ud83d\udd12 Log out</button>';
       h += '</div>';
       h += '</div>';
+      // v219.61: Week picker row — prev/next arrows + dropdown, last 8 weeks.
+      h += ipTechViewRenderWeekPicker(weekEndingSat, currentWeekEndSat);
       h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">';
       h += ipTechViewTile('Rev Pay (3%)', '$' + revPay.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}), '#10B981', '$' + Math.round(m.weekRev).toLocaleString() + ' service rev');
       // v219.10: Tile label reflects the tech's rate structure (Chris: tiered).
@@ -12228,6 +12365,8 @@ document.addEventListener('visibilitychange', function() {
     // Re-renders the active container (standalone tab if visible, else Payout sub-tab).
     function ipTechViewLogout() {
       try { sessionStorage.removeItem('snappy_tech_view_active'); } catch(e) {}
+      // v219.61: Clear any historical-week override so the next session starts on current week.
+      try { sessionStorage.removeItem('snappy_tech_view_week'); } catch(e) {}
       // v219.21: Also clear the tech PIN lock so the next session can pick or PIN in fresh.
       try { sessionStorage.removeItem('snappy_tech_pin_locked'); } catch(e) {}
       // v219.22: Clear the persistent lock too (was set on PIN entry).
@@ -12253,6 +12392,8 @@ document.addEventListener('visibilitychange', function() {
     // so manager can quickly hop between techs without re-entering a PIN.
     function ipTechViewBack() {
       try { sessionStorage.removeItem('snappy_tech_view_active'); } catch(e) {}
+      // v219.61: Reset week override too so the next tech starts on current week.
+      try { sessionStorage.removeItem('snappy_tech_view_week'); } catch(e) {}
       try {
         if (typeof renderTechViewStandalone === 'function' &&
             document.getElementById('view-techview') &&
