@@ -10820,6 +10820,79 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbGr20260604IfNeeded failed', e); }
     })();
 
+    // ===== Google Reviews — Week 6/1-6/7 close-out delta (6/5-6/7 Fri-Sat-Sun) =====
+    // v219.59: Pulled Mon 6/8 evening from public Google Maps profile. Captures the days NOT
+    // already credited by v219.58 (which covered 6/1-6/4). Profile now 4.9★ / 1,985 reviews
+    // (+9 over Thursday's 1,976).
+    //
+    // Roster mentions in reviews posted 6/5-6/7:
+    //   Dewone 1 (Adriana Sola Capifali 6/6)
+    //   All other roster techs: 0
+    //
+    // Skipped per Mark's standing rule (consistent with 6/4):
+    //   - Brayden Bond (sales): Bon Kaczkowski 6/5 — NOT credited
+    //   - Other-trade techs (electrical/plumbing): Gerardo (Sara Blackwood 6/6 + marlon max 6/5),
+    //     Brandon (Alexander Robins 6/5), Bob (marlon max 6/5) — NOT credited (HVAC roster only)
+    //   - No tech named: Harvey Burkin 6/6, Neil Esser 6/5
+    (function _seedGoogleReviews20260605_07IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_seeded_20260605_07_v21959';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var weekStart = '2026-06-01';
+        var delta = [
+          ['Dewone', 1, '"Dewone was knowledgeable and friendly. Definitely happy with his service and would recommend to other customers." \u2014 Adriana Sola Capifali (6/6)']
+        ];
+        // 1) Bump weekly GR★ lane: ADD to existing weekReviews from v219.58 (don't overwrite)
+        if (typeof ipServiceTechSetField === 'function' && typeof ipServiceTechOverrides === 'function') {
+          var ov = ipServiceTechOverrides();
+          var week = (ov && ov.weeks && ov.weeks[weekStart]) ? ov.weeks[weekStart] : {};
+          delta.forEach(function(r){
+            var short = r[0], add = r[1];
+            var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : 0;
+            ipServiceTechSetField(weekStart, short, 'weekReviews', cur + add);
+          });
+        }
+        // 2) Bump MTD googleReviews baselines + refresh highlight quote
+        if (typeof googleReviews === 'object' && googleReviews) {
+          delta.forEach(function(r){
+            var short = r[0], cnt = r[1], hl = r[2];
+            if (!googleReviews[short]) {
+              googleReviews[short] = { count: 0, fiveStar: 0, fourStar: 0, threeStar: 0, highlight: '', note: '' };
+            }
+            googleReviews[short].count    = +(googleReviews[short].count    || 0) + cnt;
+            googleReviews[short].fiveStar = +(googleReviews[short].fiveStar || 0) + cnt;
+            googleReviews[short].highlight = hl;
+            googleReviews[short].note = 'v219.59 \u2014 Week 6/1-6/7 close-out: +' + cnt + ' Google review' + (cnt===1?'':'s') + ' 6/5-6/7 on top of v219.58 6/1-6/4 baseline. All 5\u2605. Profile sits at 4.9\u2605 / 1,985 total.';
+          });
+        }
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.59] Seeded 1 Google review delta 6/5-6/7 (Dewone +1). Week 6/1-6/7 GR totals: Benji 3, Daniel 2, Dewone 2, Dee 1, Nick 1, Chris 0, Jason 0 = 9 reviews.');
+      } catch(e) { console.warn('_seedGoogleReviews20260605_07IfNeeded failed', e); }
+    })();
+
+    // v219.59: Bulletin board — Week 6/1-6/7 GR close-out.
+    (function _bbGrWeekClose20260601IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_gr_weekclose_20260601_v21959';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var existsBB = bb.matrixUpdates.some(function(u){ return u.id === 'gr_weekclose_20260601'; });
+        if (!existsBB) {
+          bb.matrixUpdates.push({
+            id: 'gr_weekclose_20260601',
+            date: '2026-06-08',
+            text: 'GOOGLE REVIEWS WEEK 6/1-6/7 CLOSE-OUT \u2014 9 total roster reviews (all 5\u2605): Benji 3, Daniel 2, Dewone 2, Dee 1, Nick 1, Chris 0, Jason 0. 6/5-6/7 added Dewone +1 (Adriana). Other-trade techs (Gerardo, Brandon, Bob) + Brayden not credited per HVAC-roster scope. Profile 4.9\u2605 / 1,985 total (+9 since 6/4).',
+            createdAt: Date.now()
+          });
+          if (typeof bbSave === 'function') bbSave(bb);
+          console.log('[v219.59] Added GR week-close bulletin entry.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbGrWeekClose20260601IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
