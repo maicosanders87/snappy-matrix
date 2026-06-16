@@ -11053,6 +11053,198 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbWeekClose20260601IfNeeded failed', e); }
     })();
 
+    // ================================================================
+    // v219.62 — WEEK 6/8-6/14 FULL CLOSE-OUT (Mark Sanders, 6/16)
+    // ================================================================
+    // Source: Mark uploaded 6/16 — Nexstar Service Techs dashboard (IMG_0303),
+    // Memberships sub-tab (IMG_0304), Generated-Installs 6/08-6/14,
+    // TGL-sales-and-commission-report 6/08-6/14.
+    //
+    // NEXSTAR (full week, 7 roster):
+    //   Tech    | Total Rev | Avg    | Conv  | SPP | TGL | SoldHrs | FRT
+    //   Dewone  | $8,193   | $677   | 92%   | 2   | 3   | 19.85   | 2.58
+    //   Nick    | $4,443   | $726   | 75%   | 1   | 3   | 9.90    | 2.33
+    //   Benji   | $4,008   | $750   | 50%   | 0   | 2   | 16.70   | 3.60
+    //   Dee     | $2,379   | $2,379 | 100%  | 0   | 0   | 5.00    | 1.00
+    //   Jason   | $1,115   | $372   | 60%   | 0   | 1   | 3.40    | 1.67
+    //   Daniel  | $1,056   | $1,056 | 100%  | 0   | 0   | 5.00    | 3.00
+    //   Chris   | (none in svc tab — see memberships: 1/1; install-week only)
+    //   Team    | $21,993  | $714   | 67%   | 4   | 11* | 65.80   | 2.53
+    //   *11 TGL includes 2 Adam-side. Roster TGL = 9: Dewone 3 + Nick 3 + Benji 2 + Jason 1.
+    //
+    // MEMBERSHIPS (Nexstar): Dewone 2/5 · Nick 1/4 · Benji 0/3 · Dee 0/0 ·
+    //                        Jason 0/1 · Daniel 0/0 · Chris 1/1. Team 4/14 (29%).
+    //
+    // INSTALLS (4 jobs / $101,092.11 total):
+    //   - Daniel self-sold:  Eduardo Garcia $45,000.00 (6/10, Daniel lead + sold)  ✅ tech credit
+    //   - Daniel self-sold:  Edward Fulmer  $14,978.69 (6/11, Daniel lead + sold)  ✅ tech credit
+    //   - Adam-side:         Wayne&Rob Carvalho $15,121.89 (6/11, Daniel lead, Sold By BLANK → Adam-side)
+    //   - Adam-side:         David Lucia    $25,991.53 (6/11, Adam lead + Adam sold) → Adam-side
+    //   Tech-credit installs: 2 jobs / $59,978.69 (Daniel)
+    //   Adam-side excluded:   2 jobs / $41,113.42
+    ipApplyDailyAdd({
+      date: '2026-06-13', // Sat-ending close key
+      weekStart: '2026-06-08',
+      entries: [
+        // short, rev, memSold, memOpps, leads (roster TGL), installs (tech-credit), installRev
+        { short: 'Dewone', rev: 8193, memSold: 2, memOpps: 5, leads: 3, installs: 0, installRev: 0 },
+        { short: 'Nick',   rev: 4443, memSold: 1, memOpps: 4, leads: 3, installs: 0, installRev: 0 },
+        { short: 'Benji',  rev: 4008, memSold: 0, memOpps: 3, leads: 2, installs: 0, installRev: 0 },
+        { short: 'Dee',    rev: 2379, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Jason',  rev: 1115, memSold: 0, memOpps: 1, leads: 1, installs: 0, installRev: 0 },
+        { short: 'Daniel', rev: 1056, memSold: 0, memOpps: 0, leads: 0, installs: 2, installRev: 59978.69 },
+        { short: 'Chris',  rev:    0, memSold: 1, memOpps: 1, leads: 0, installs: 0, installRev: 0 }
+      ]
+    });
+
+    // v219.62: Cascade week 6/8-6/14 into stData MTD (June). Adds to whatever
+    // 6/1-6/6 already set so the rookie cards / overview tiles reflect the running
+    // MTD totals for June.
+    function _wlbSeedWeek20260608MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260613_v21962';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        // (name, svc, soldHrs, frt, spps, tgls)
+        var adds = [
+          ['Dewone', 8193,  19.85, 2.58, 2, 3],
+          ['Nick',   4443,   9.90, 2.33, 1, 3],
+          ['Benji',  4008,  16.70, 3.60, 0, 2],
+          ['Dee',    2379,   5.00, 1.00, 0, 0],
+          ['Jason',  1115,   3.40, 1.67, 0, 1],
+          ['Daniel', 1056,   5.00, 3.00, 0, 0],
+          ['Chris',     0,   0.00, 0.00, 0, 0]
+        ];
+        adds.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.62] Week 6/8-6/14 MTD cascade applied. Team totals: $21,993 svc / 4 SPP / 9 roster TGL / 4 of 14 mems (29%) / 65.80 sold hrs / 2 self-sold tech installs $59,979 (Daniel). Adam-side excluded: Carvalho $15,122 + Lucia $25,992 = $41,113.');
+      } catch(e) { console.warn('_wlbSeedWeek20260608MtdIfNeeded failed', e); }
+    }
+    _wlbSeedWeek20260608MtdIfNeeded();
+
+    // v219.62: Log Adam-side installs (Carvalho + Lucia) for completeness.
+    (function _seedInstalls20260611_adamSideIfNeeded(){
+      try {
+        var FLAG = 'snappy_installs_seeded_20260611_adamside_v21962';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var brRaw = localStorage.getItem('snappy_brayden_installs');
+        var brArr = [];
+        try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+        if (!Array.isArray(brArr)) brArr = [];
+        var newOnes = [
+          {
+            id: 'install_20260611_carvalho', date: '2026-06-11', customer: 'Wayne & Rob Carvalho',
+            jobNumber: '93047788', invoice: '93047788', businessUnit: 'HVAC Install',
+            soldBy: '(blank)', leadGeneratedBy: 'Daniel Gazaway',
+            jobsTotal: 15121.89, completionDate: '2026-06-11',
+            attribution: 'Adam-side install (Sold By blank → Adam-side per the blank-sold-by rule). Daniel got the lead but the sale closed Adam-side. EXCLUDED from tech matrix.',
+            adamSide: true
+          },
+          {
+            id: 'install_20260611_lucia', date: '2026-06-11', customer: 'David Lucia',
+            jobNumber: '93051012', invoice: '93051012', businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard', leadGeneratedBy: 'Adam Bunyard',
+            jobsTotal: 25991.53, completionDate: '2026-06-11',
+            attribution: 'Adam-side install (Adam lead + Adam sold). EXCLUDED from tech matrix.',
+            adamSide: true
+          }
+        ];
+        var added = 0;
+        newOnes.forEach(function(ni){
+          var dup = brArr.some(function(x){ return x && (x.jobNumber === ni.jobNumber || x.invoice === ni.invoice); });
+          if (!dup) { brArr.push(ni); added++; }
+        });
+        if (added > 0) {
+          localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+          console.log('[v219.62] Logged ' + added + ' Adam-side installs (Carvalho $15,122 + Lucia $25,992). Excluded from tech matrix.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_seedInstalls20260611_adamSideIfNeeded failed', e); }
+    })();
+
+    // v219.62: Bulletin board — Week 6/8-6/14 close-out summary.
+    (function _bbWeekClose20260608IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_weekclose_20260608_v21962';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'wk_close_20260608',
+            date: '2026-06-16',
+            text: 'WEEK 6/8-6/14 CLOSE-OUT — $21,993 svc rev (↑ 87% WoW vs $11,737) / 4 SPP / 9 roster TGL / 4 of 14 mems (29%) / 65.80 sold hrs / 2 self-sold tech installs $59,979 (Daniel). Adam-side excluded: Carvalho $15,122 + Lucia $25,992 = 2 jobs / $41,113. Team had a monster week.'
+          },
+          {
+            id: 'wk_close_daniel_20260608',
+            date: '2026-06-16',
+            text: 'DANIEL — INSTALL KING: 2 self-sold installs $59,979 ($45,000 Garcia + $14,979 Fulmer, both self-leads). 100% conv on $1,056 svc. Best install week of June so far. Pay this week: $30 rev pay + $1,799 install pay (3%) = $1,829.'
+          },
+          {
+            id: 'wk_close_dewone_20260608',
+            date: '2026-06-16',
+            text: 'DEWONE — SVC LEADER: $8,193 svc rev / 92% conv / 2 SPP / 3 TGL / 19.85 sold hrs / 2 of 5 mems (40%). Highest weekly svc rev of June. Pay: $246 rev pay + $50 mem + $75 lead = $371.'
+          },
+          {
+            id: 'wk_close_nick_20260608',
+            date: '2026-06-16',
+            text: 'NICK — BIG JUMP: $4,443 svc (↑ from $782 prev wk) / 75% conv / 1 SPP / 3 TGL / 1 of 4 mems (25%). Coming back online — keep the lead-flag muscle warm.'
+          },
+          {
+            id: 'wk_close_benji_20260608',
+            date: '2026-06-16',
+            text: 'BENJI — BOUNCE BACK: $4,008 svc (↑ from $2,097) / 50% conv / 2 TGL / 16.70 sold hrs. Still 0 of 3 mems + 0 SPP — conversion lane still leaking. Same coaching focus as last week.'
+          },
+          {
+            id: 'wk_close_chris_20260608',
+            date: '2026-06-16',
+            text: 'CHRIS — OFF NEXSTAR THIS WEEK: 0 svc rev shown but 1/1 mem in memberships tab. Likely install-prep or PTO. Confirm shift coding.'
+          },
+          {
+            id: 'wk_close_jason_20260608',
+            date: '2026-06-16',
+            text: 'JASON — FIRST DATA WEEK: $1,115 svc / 60% conv / 1 TGL / 3.40 sold hrs / 0 of 1 mem. Rookie season is on — watch for the 1:1 cadence.'
+          },
+          {
+            id: 'wk_close_dee_20260608',
+            date: '2026-06-16',
+            text: 'DEE — ONE-AND-DONE: 1 huge ticket $2,379 / 100% conv but only 5 sold hrs all week. Either short week or one-call coverage. Push for more dispatch.'
+          },
+          {
+            id: 'wk_close_adamside_20260608',
+            date: '2026-06-16',
+            text: 'ADAM-SIDE NOTE — Carvalho $15,122 (Daniel lead but Sold By BLANK → Adam-side per rule). Lucia $25,992 (Adam sold + lead). Both excluded from tech matrix. Daniel\u2019s lead on Carvalho still credits him for the TGL.'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.62] Added ' + added + ' week-close bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbWeekClose20260608IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
