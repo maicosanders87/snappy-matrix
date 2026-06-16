@@ -11245,6 +11245,106 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbWeekClose20260608IfNeeded failed', e); }
     })();
 
+    // ================================================================
+    // v219.63 — GOOGLE REVIEWS 6/8-6/14
+    // ================================================================
+    // Source: Google Maps profile for Snappy Services (Buford GA), collected 6/16.
+    // Profile: 4.9★ / 1,997 total (↑ 12 since last week's 1,985).
+    // Filtered to the 7-tech HVAC roster per the 6/4 rule (skip Brayden, Patrick,
+    // Jordan, Gerardo, Brandon, Bob, Ben Johnson, and other-trade techs).
+    //
+    // ROSTER REVIEWS (16 total, all 5★):
+    //   Nick   — 5: Marv Beneteau (6/13), Adam Warner (6/11), Lauren Maddox (6/10),
+    //               Sai Katkoori (~6/9), Sherry Mather (~6/9)
+    //   Dewone — 4: jenni sharp (6/13), Matthew Grace (6/12),
+    //               Thomas Beusse shared w/ Jason (~6/9), Adriana Sola Capifali (~6/9)
+    //   Daniel — 3: carrie mclemore HVAC portion (6/13), Victor Gonzalez (~6/9),
+    //               Eduardo Garcia (~6/9)
+    //   Benji  — 2: Alex Roberts (~6/9), Wayne Sims (~6/9)
+    //   Jason  — 2: Jayne LaFave (6/12), Thomas Beusse shared w/ Dewone (~6/9)
+    //   Chris, Dee — 0
+    //
+    // SKIPPED (non-roster mentions): Alishia L'Heureux (Patrick/Jordan/Ben Johnson),
+    //   Ginny/Sara/marlon max (Gerardo), Alexander Robins (Brandon), Bon Kaczkowski/
+    //   Mark Cronin (Brayden), Harvey/Neil/Donald/Jaimie/Angel/Branden/Micole/Charles
+    //   (no roster tech named).
+    (function _seedGoogleReviews20260608_14IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_seeded_20260608_14_v21963';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var weekStart = '2026-06-08';
+        var wkData = [
+          // [short, count, highlight]
+          ['Nick',   5, '"Nick is very professional. He answered all my questions and did an excellent job with the required repair." — Marv Beneteau (6/13)'],
+          ['Dewone', 4, '"Dewone did a fantastic job - can\'t thank him enough for doing such an amazing job!!! Great company- great service highly recommend!" — jenni sharp (6/13)'],
+          ['Daniel', 3, '"Daniel, HUGE Thank You!! Incredibly knowledgeable, friendly and professional." — Eduardo Garcia (~6/9)'],
+          ['Benji',  2, '"Benjamin Tinahui is the best. Me and my dad love that guy" — Alex Roberts (~6/9)'],
+          ['Jason',  2, '"Jason arrived, assessed the issue within minutes, replaced a broken capacitor, and replaced the air filter — all with a smile." — Jayne LaFave (6/12)']
+        ];
+        // 1) Weekly GR★ lane via override store (drives weekly leaderboard tile)
+        if (typeof ipServiceTechSetField === 'function') {
+          wkData.forEach(function(r){
+            ipServiceTechSetField(weekStart, r[0], 'weekReviews', r[1]);
+          });
+        }
+        // 2) MTD googleReviews baseline bump (drives profile pages + rookie cards)
+        if (typeof googleReviews === 'object' && googleReviews) {
+          wkData.forEach(function(r){
+            var short = r[0], cnt = r[1], hl = r[2];
+            if (!googleReviews[short]) {
+              googleReviews[short] = { count: 0, fiveStar: 0, fourStar: 0, threeStar: 0, highlight: '', note: '' };
+            }
+            googleReviews[short].count    = +(googleReviews[short].count    || 0) + cnt;
+            googleReviews[short].fiveStar = +(googleReviews[short].fiveStar || 0) + cnt;
+            googleReviews[short].highlight = hl;
+            googleReviews[short].note = 'v219.63 — +' + cnt + ' Google review' + (cnt===1?'':'s') + ' week 6/8-6/14. All 5★. Profile 4.9★ / 1,997 total.';
+          });
+        }
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.63] Seeded 16 Google reviews for week 6/8-6/14 (Nick 5, Dewone 4, Daniel 3, Benji 2, Jason 2). All 5★. Profile 4.9★ / 1,997.');
+      } catch(e) { console.warn('_seedGoogleReviews20260608_14IfNeeded failed', e); }
+    })();
+
+    // v219.63: Bulletin entry summarizing the GR week.
+    (function _bbGrWeekClose20260608IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_grweekclose_20260608_v21963';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'gr_wk_close_20260608',
+            date: '2026-06-16',
+            text: 'GOOGLE REVIEWS WEEK 6/8-6/14 — 16 roster reviews, all 5★. Nick 5 (review king) · Dewone 4 · Daniel 3 · Benji 2 · Jason 2 · Chris/Dee 0. Profile 4.9★ / 1,997 (↑ 12 since 6/7).'
+          },
+          {
+            id: 'gr_wk_nick_20260608',
+            date: '2026-06-16',
+            text: 'NICK GR★ — 5 reviews this week (Marv Beneteau, Adam Warner, Lauren Maddox, Sai Katkoori, Sherry Mather). Customers love him. Combined w/ $4,443 svc rev + 75% conv + 3 TGL — monster bounce-back week.'
+          },
+          {
+            id: 'gr_wk_chris_20260608',
+            date: '2026-06-16',
+            text: 'CHRIS — 0 Google reviews 5th straight week (5/11, 5/18, 5/25, 6/1, 6/8). Pair with the 0-svc-rev shift coding question — worth a 1:1 conversation.'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.63] Added ' + added + ' GR bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbGrWeekClose20260608IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
