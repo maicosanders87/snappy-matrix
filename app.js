@@ -11345,6 +11345,218 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbGrWeekClose20260608IfNeeded failed', e); }
     })();
 
+    // ================================================================
+    // v219.64 — WEEK 6/15-6/21 CLOSE-OUT
+    // ================================================================
+    // Source: ServiceTitan Modular Dashboard (Nexstar + Memberships tabs),
+    // TGL-sales-and-commission-report 6/15-6/21, Generated-Installs 6/15-6/21.
+    // Week boundary: Mon 6/15 → Sat 6/20 (Matrix is Mon-Sat / 6-day weeks).
+    // Sat-ending close key: 2026-06-20.
+    //
+    // NEXSTAR SERVICE (7-tech roster): $20,089 (excl. Maico $465, Brayden $0)
+    //   Daniel : $5,743 / 67% / 1 SPP / 0 TGL / 13.00 hrs / 2.50 FRT
+    //   Benji  : $4,446 / 54% / 0 SPP / 4 TGL / 15.70 hrs / 2.29 FRT
+    //   Nick   : $4,009 / 89% / 1 SPP / 0 TGL /  8.55 hrs / 1.88 FRT
+    //   Dewone : $3,402 / 50% / 3 SPP / 2 TGL / 10.00 hrs / 2.67 FRT
+    //   Jason  : $2,369 / 50% / 0 SPP / 1 TGL /  5.60 hrs / 2.67 FRT
+    //   Dee    : $  120 / 50% / 0 SPP / 1 TGL /  6.00 hrs / 1.00 FRT
+    //   Chris  : $    0  — off Nexstar this week (6th straight — same pattern as 6/8)
+    //
+    //   Team totals (incl. Maico $465): $20,554 / 61% / 5 SPP / 8 roster TGL /
+    //                                   59.85 sold hrs / 2.26 FRT.
+    //
+    // MEMBERSHIPS: Dewone 3/5 · Daniel 1/3 · Nick 1/9 · Benji 0/9 · Jason 0/5 ·
+    //              Dee 0/0 · Chris 0/0. Team 5/31 (16%) on the 7-tech roster.
+    //              (Maico 0/2 not counted toward roster mem rate — full board 5/33.)
+    //
+    // INSTALLS (5 jobs / $50,944.39 total):
+    //   - Benji self-sold:   David Rever   $6,990.91  (6/16, Benji lead + sold)  ✅ tech credit
+    //   - Benji self-sold:   Don Long      $16,859.88 (6/20, Benji lead + sold)  ✅ tech credit
+    //   - Adam-side:         Norma Bowels  $11,378.07 (6/19, Dewone lead, Sold By ADAM → Adam-side)
+    //   - Adam-side:         Sarah Exley   $13,505.53 (6/15, blank lead, Sold By Brayden) → Adam-side
+    //   - Adam-side:         Bret Sander   $2,210.00  (6/19, blank lead, Sold By Brayden) → Adam-side
+    //   Tech-credit installs: 2 jobs / $23,850.79 (Benji)
+    //   Adam-side excluded:   3 jobs / $27,093.60
+    //
+    // NOTE: Dewone earned the TGL on Norma Bowels (counted in his 2 TGL above),
+    // but Sold By = Adam → the install pay goes Adam-side. Same pattern as
+    // last week's Carvalho (Daniel lead, Adam sold).
+    ipApplyDailyAdd({
+      date: '2026-06-20', // Sat-ending close key
+      weekStart: '2026-06-15',
+      entries: [
+        // short, rev, memSold, memOpps, leads (roster TGL), installs (tech-credit), installRev
+        { short: 'Daniel', rev: 5743, memSold: 1, memOpps: 3, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Benji',  rev: 4446, memSold: 0, memOpps: 9, leads: 4, installs: 2, installRev: 23850.79 },
+        { short: 'Nick',   rev: 4009, memSold: 1, memOpps: 9, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Dewone', rev: 3402, memSold: 3, memOpps: 5, leads: 2, installs: 0, installRev: 0 },
+        { short: 'Jason',  rev: 2369, memSold: 0, memOpps: 5, leads: 1, installs: 0, installRev: 0 },
+        { short: 'Dee',    rev:  120, memSold: 0, memOpps: 0, leads: 1, installs: 0, installRev: 0 },
+        { short: 'Chris',  rev:    0, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 }
+      ]
+    });
+
+    // v219.64: Cascade week 6/15-6/21 into stData MTD (June). Adds to whatever
+    // 6/1-6/14 already set so the rookie cards / overview tiles reflect the running
+    // MTD totals for June.
+    function _wlbSeedWeek20260615MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260620_v21964';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        // (name, svc, soldHrs, frt, spps, tgls)
+        var adds = [
+          ['Daniel', 5743, 13.00, 2.50, 1, 0],
+          ['Benji',  4446, 15.70, 2.29, 0, 4],
+          ['Nick',   4009,  8.55, 1.88, 1, 0],
+          ['Dewone', 3402, 10.00, 2.67, 3, 2],
+          ['Jason',  2369,  5.60, 2.67, 0, 1],
+          ['Dee',     120,  6.00, 1.00, 0, 1],
+          ['Chris',     0,  0.00, 0.00, 0, 0]
+        ];
+        adds.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.64] Week 6/15-6/21 MTD cascade applied. Team totals: $20,089 roster svc / 5 SPP / 8 roster TGL / 5 of 31 mems (16%) / 58.85 roster sold hrs / 2 self-sold tech installs $23,851 (Benji). Adam-side excluded: Norma Bowels $11,378 + Sarah Exley $13,506 + Bret Sander $2,210 = $27,094.');
+      } catch(e) { console.warn('_wlbSeedWeek20260615MtdIfNeeded failed', e); }
+    }
+    _wlbSeedWeek20260615MtdIfNeeded();
+
+    // v219.64: Log Adam-side installs (Bowels + Exley + Sander) for completeness.
+    (function _seedInstalls20260615_adamSideIfNeeded(){
+      try {
+        var FLAG = 'snappy_installs_seeded_20260615_adamside_v21964';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var brRaw = localStorage.getItem('snappy_brayden_installs');
+        var brArr = [];
+        try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+        if (!Array.isArray(brArr)) brArr = [];
+        var newOnes = [
+          {
+            id: 'install_20260619_bowels', date: '2026-06-19', customer: 'Norma Bowels',
+            jobNumber: '93394818', invoice: '93394818', businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard', leadGeneratedBy: 'Dewone Martin',
+            jobsTotal: 11378.07, completionDate: '2026-06-19',
+            attribution: 'Adam-side install (Dewone lead, Sold By Adam → Adam-side per the Sold By rule). Dewone keeps the TGL credit. EXCLUDED from tech matrix install pay.',
+            adamSide: true
+          },
+          {
+            id: 'install_20260615_exley', date: '2026-06-15', customer: 'Sarah Exley',
+            jobNumber: '93098617', invoice: '93098617', businessUnit: 'HVAC Install',
+            soldBy: 'Brayden Bond', leadGeneratedBy: '(blank)',
+            jobsTotal: 13505.53, completionDate: '2026-06-15',
+            attribution: 'Adam-side install (blank lead + Brayden sold → Adam-side per the blank-lead rule). EXCLUDED from tech matrix.',
+            adamSide: true
+          },
+          {
+            id: 'install_20260619_sander', date: '2026-06-19', customer: 'Bret Sander',
+            jobNumber: '92967915', invoice: '92967915', businessUnit: 'HVAC Install',
+            soldBy: 'Brayden Bond', leadGeneratedBy: '(blank)',
+            jobsTotal: 2210.00, completionDate: '2026-06-19',
+            attribution: 'Adam-side install (blank lead + Brayden sold → Adam-side per the blank-lead rule). EXCLUDED from tech matrix.',
+            adamSide: true
+          }
+        ];
+        var added = 0;
+        newOnes.forEach(function(ni){
+          var dup = brArr.some(function(x){ return x && (x.jobNumber === ni.jobNumber || x.invoice === ni.invoice); });
+          if (!dup) { brArr.push(ni); added++; }
+        });
+        if (added > 0) {
+          localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+          console.log('[v219.64] Logged ' + added + ' Adam-side installs (Bowels $11,378 + Exley $13,506 + Sander $2,210 = $27,094). Excluded from tech matrix.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_seedInstalls20260615_adamSideIfNeeded failed', e); }
+    })();
+
+    // v219.64: Bulletin board — Week 6/15-6/21 close-out summary.
+    (function _bbWeekClose20260615IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_weekclose_20260615_v21964';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'wk_close_20260615',
+            date: '2026-06-23',
+            text: 'WEEK 6/15-6/21 CLOSE-OUT — $20,089 roster svc rev (↓ 9% WoW vs $21,993) / 5 SPP / 8 roster TGL / 5 of 31 mems (16%, roster only) / 58.85 roster sold hrs / 2 self-sold tech installs $23,851 (Benji). Adam-side excluded: Bowels $11,378 + Exley $13,506 + Sander $2,210 = 3 jobs / $27,094. Slight pullback after monster prior week.'
+          },
+          {
+            id: 'wk_close_benji_20260615',
+            date: '2026-06-23',
+            text: 'BENJI — BREAKOUT WEEK: 2 self-sold installs $23,851 (David Rever $6,991 + Don Long $16,860). $4,446 svc / 54% conv / 4 TGL (top of roster) / 15.70 sold hrs. Still 0 of 9 mems (worst conv rate by far) — same membership leak. Pay this week: $133 rev pay + $716 install pay (3%) + $100 lead = $949.'
+          },
+          {
+            id: 'wk_close_daniel_20260615',
+            date: '2026-06-23',
+            text: 'DANIEL — SVC LEADER: $5,743 svc rev (top of board) / 67% conv / 1 SPP / 0 TGL / 13.00 sold hrs / 1 of 3 mems (33%). Big swing from install king last week to svc king this week. Pay: $172 rev pay + $25 mem = $197.'
+          },
+          {
+            id: 'wk_close_nick_20260615',
+            date: '2026-06-23',
+            text: 'NICK — CONVERSION KING: $4,009 svc / 89% conv (best on roster) / 1 SPP / 0 TGL / 1 of 9 mems (11%). Conv rate is elite but the mem opps lane is leaky (1/9). One-on-one focus: turn opps into sits.'
+          },
+          {
+            id: 'wk_close_dewone_20260615',
+            date: '2026-06-23',
+            text: 'DEWONE — MEM KING: 3 of 5 mems (60%, best on roster) + 3 SPP. $3,402 svc / 50% conv / 2 TGL / 10.00 sold hrs. Quality over quantity week. Pay: $102 rev pay + $75 mem + $50 lead = $227. Norma Bowels install went Adam-side but Dewone keeps the TGL.'
+          },
+          {
+            id: 'wk_close_jason_20260615',
+            date: '2026-06-23',
+            text: 'JASON — 2ND WEEK ON BOARD: $2,369 svc / 50% conv / 0 SPP / 1 TGL / 5.60 sold hrs / 0 of 5 mems. More than doubled rookie week ($1,115 → $2,369). Watch the membership lane — 5 opps, 0 sits.'
+          },
+          {
+            id: 'wk_close_dee_20260615',
+            date: '2026-06-23',
+            text: 'DEE — QUIET WEEK: $120 svc / 1 TGL / 6.00 sold hrs / 0 mem opps. Big drop from $2,379 last week. Mostly maintenance or short coverage. Worth a quick dispatch-load check.'
+          },
+          {
+            id: 'wk_close_chris_20260615',
+            date: '2026-06-23',
+            text: 'CHRIS — 6TH STRAIGHT OFF NEXSTAR: 0 svc rev, 0 mems, not on Nexstar dashboard. Chris pulled 1 lead (Jason Jacobs replacement) per the TGL report but no completed-job revenue. Confirm shift coding + status — this needs a 1:1.'
+          },
+          {
+            id: 'wk_close_adamside_20260615',
+            date: '2026-06-23',
+            text: 'ADAM-SIDE NOTE — Bowels $11,378 (Dewone lead, Adam sold). Exley $13,506 + Sander $2,210 (both blank lead, Brayden sold). All 3 excluded from tech matrix per the rules. Dewone\u2019s TGL on Bowels stays credited.'
+          },
+          {
+            id: 'wk_close_maico_20260615',
+            date: '2026-06-23',
+            text: 'MAICO/MARK — $465 service rev / 1.00 sold hr on the Nexstar board this week. Manager call coverage. Not in roster ranking but visible on the dashboard.'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.64] Added ' + added + ' week-close bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbWeekClose20260615IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
