@@ -11557,6 +11557,117 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbWeekClose20260615IfNeeded failed', e); }
     })();
 
+    // ================================================================
+    // v219.65 — GOOGLE REVIEWS 6/15-6/21
+    // ================================================================
+    // Source: Google Maps profile for Snappy Services — Electric, Plumbing,
+    // Heating & Air (Marietta GA), collected 6/23. Reviews sorted by Newest.
+    // Profile: 4.9★ / 2,012 total (↑ 15 since last week's 1,997).
+    // Filtered to the 7-tech HVAC roster per the 6/4 rule (skip Brayden, Josh,
+    // Patrick, Jordan, Gerardo, Brandon, Bob, Ben Johnson, and other-trade techs).
+    //
+    // ROSTER REVIEWS (17 total, all 5★):
+    //   Nick   — 11: Laura Sanders (6/18), Samuel Miller (6/19), Vivian Dsilva (6/19),
+    //                Robert Cahn (6/17), Tom Cangelosi (6/17), karen demski (6/15 EDIT),
+    //                Amanda Camp (6/16), L M (6/16 shared w/ Benji), Dee Battle (6/16),
+    //                Obiora Mbachu (6/16), Marv Beneteau (6/16 EDIT)
+    //   Dewone —  4: Rosemary Delgado (6/20), Santa Jackson (6/16), megan (6/16 EDIT),
+    //                jenni sharp (6/16)
+    //   Daniel —  1: Leigh Watson (6/17 EDIT)
+    //   Benji  —  1: L M (6/16 shared w/ Nick — 'Ben' fixing AC downstairs)
+    //   Chris, Jason, Dee — 0
+    //
+    // SKIPPED (non-roster mentions): David Young (Brayden + Ben/electrical),
+    //   Dillon Grote/Robert Rimel (Brayden), V Brown/Kelly S (Josh), Gisela Roman
+    //   (generic). Also noted but out of window: Vic Rhoden 6/22 (2★ no-show),
+    //   Bryant Andrews/Victor Miller 6/22 (Jason), Kristen Pinilla/Gianina Gilbreath
+    //   6/22 (Nick), Cedric Hatchett 6/22 ('Debone' = Dewone misspelled).
+    (function _seedGoogleReviews20260615_21IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_seeded_20260615_21_v21965';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var weekStart = '2026-06-15';
+        var wkData = [
+          // [short, count, highlight]
+          ['Nick',   11, '"Nick Goehler was very professional, great communicator, and thorough with his process and work. More HVAC technicians should aspire to the level of customer service that he provides." — Obiora Mbachu (6/16)'],
+          ['Dewone',  4, '"Dewone was exceptionally polite and knowledgeable about his job and all tasks rendered today." — Rosemary Delgado (6/20)'],
+          ['Daniel',  1, '"Daniel was the best! Timely and thorough." — Leigh Watson (6/17)'],
+          ['Benji',   1, '"Ben was amazing my ac wasn\'t working downstairs and he solved the issue." — L M (6/16, shared w/ Nick)']
+        ];
+        // 1) Weekly GR★ lane via override store (drives weekly leaderboard tile)
+        if (typeof ipServiceTechSetField === 'function') {
+          wkData.forEach(function(r){
+            ipServiceTechSetField(weekStart, r[0], 'weekReviews', r[1]);
+          });
+        }
+        // 2) MTD googleReviews baseline bump (drives profile pages + rookie cards)
+        if (typeof googleReviews === 'object' && googleReviews) {
+          wkData.forEach(function(r){
+            var short = r[0], cnt = r[1], hl = r[2];
+            if (!googleReviews[short]) {
+              googleReviews[short] = { count: 0, fiveStar: 0, fourStar: 0, threeStar: 0, highlight: '', note: '' };
+            }
+            googleReviews[short].count    = +(googleReviews[short].count    || 0) + cnt;
+            googleReviews[short].fiveStar = +(googleReviews[short].fiveStar || 0) + cnt;
+            googleReviews[short].highlight = hl;
+            googleReviews[short].note = 'v219.65 — +' + cnt + ' Google review' + (cnt===1?'':'s') + ' week 6/15-6/21. All 5★. Profile 4.9★ / 2,012 total.';
+          });
+        }
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.65] Seeded 17 Google reviews for week 6/15-6/21 (Nick 11, Dewone 4, Daniel 1, Benji 1). All 5★. Profile 4.9★ / 2,012 (↑ 15 WoW).');
+      } catch(e) { console.warn('_seedGoogleReviews20260615_21IfNeeded failed', e); }
+    })();
+
+    // v219.65: Bulletin entry summarizing the GR week.
+    (function _bbGrWeekClose20260615IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_grweekclose_20260615_v21965';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'gr_wk_close_20260615',
+            date: '2026-06-23',
+            text: 'GOOGLE REVIEWS WEEK 6/15-6/21 — 17 roster reviews, all 5★. Nick 11 (back-to-back review king) · Dewone 4 · Daniel 1 · Benji 1 · Chris/Jason/Dee 0. Profile 4.9★ / 2,012 (↑ 15 since 6/16).'
+          },
+          {
+            id: 'gr_wk_nick_20260615',
+            date: '2026-06-23',
+            text: 'NICK GR★ — 11 reviews this week (Laura Sanders, Samuel Miller, Vivian Dsilva, Robert Cahn, Tom Cangelosi, karen demski, Amanda Camp, L M, Dee Battle, Obiora Mbachu, Marv Beneteau). Two weeks in a row at the top of the GR board (5 → 11). Customers are LOVING him — Obiora literally said other HVAC techs should aspire to his customer service level.'
+          },
+          {
+            id: 'gr_wk_dewone_20260615',
+            date: '2026-06-23',
+            text: 'DEWONE GR★ — 4 reviews (Rosemary Delgado, Santa Jackson, megan, jenni sharp). Steady week-over-week (4 → 4). Pair with 60% mem rate + 3 SPP — quality lane is firing on all cylinders.'
+          },
+          {
+            id: 'gr_wk_chris_20260615',
+            date: '2026-06-23',
+            text: 'CHRIS — 0 Google reviews 6th straight week (5/11, 5/18, 5/25, 6/1, 6/8, 6/15). Combined with 6 straight weeks off Nexstar svc board. This is now a clear pattern — status conversation overdue.'
+          },
+          {
+            id: 'gr_wk_jason_20260615',
+            date: '2026-06-23',
+            text: 'JASON — 0 in-window GR but 2 reviews dropped 6/22 (Bryant Andrews + Victor Miller, both 5★). Those credit to NEXT week (6/22-6/28). Momentum is real.'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.65] Added ' + added + ' GR bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbGrWeekClose20260615IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
