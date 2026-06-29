@@ -9299,16 +9299,34 @@ document.addEventListener('visibilitychange', function() {
       var existing = existingId ? data.jobs.find(function(j){ return j.id === existingId; }) : null;
       var initDate = (existing && existing.date) || dateStr || new Date().toISOString().slice(0,10);
       var installers = Object.keys(data.rates);
-      // v218.8: pre-select installer when launched from per-installer section
-      var preInst = (existing && existing.installer) || prefilledInstaller || '';
+      // v218.8: pre-select installer when launched from per-installer section.
+      // v219.67: also honor the bulk-grid pill filter as a fallback pre-select,
+      // so when the user opens Add Install while a pill is active the modal
+      // arrives with that installer already chosen.
+      var bulkPill = '';
+      try { bulkPill = localStorage.getItem('snappy_ip_bulk_installer_v1') || ''; } catch(e) {}
+      var preInst = (existing && existing.installer) || prefilledInstaller || bulkPill || '';
       var instOpts = installers.map(function(n){ var s = (n === preInst) ? ' selected' : ''; return '<option value="'+n+'"'+s+'>'+n+'</option>'; }).join('');
-      // v218.15: multi-installer checkbox UI (when editing an existing entry, only the assigned installer is checked
-      // and the multi-add option is hidden so we don't accidentally fan out edits.)
-      var instCheckboxes = installers.map(function(n){
-        var checked = (n === preInst) ? ' checked' : '';
-        var safe = n.replace(/"/g,'&quot;');
-        return '<label style="display:flex;align-items:center;gap:8px;background:#16243d;border:1px solid #1e3a5f;border-radius:6px;padding:8px 10px;cursor:pointer;font-size:13px;color:#f1f5f9;"><input type="checkbox" class="ip_installer_chk" data-installer="'+safe+'" value="'+safe+'"'+checked+' onchange="ipUpdateLivePreview()" style="accent-color:#10B981;"> '+safe+'</label>';
-      }).join('');
+      // v219.67: Single-select pill row (matches the Bulk Grid pill UX).
+      // Replaces the v218.15 multi-checkbox UI. One install = one installer.
+      // (Edit mode keeps the dropdown so editing an existing job is unchanged.)
+      var instPillsHtml = '';
+      try {
+        var pinned = ['Thomas Gilbert', 'Terrell Upshur'];
+        var seen = {};
+        var ordered = [];
+        pinned.forEach(function(p){ if (installers.indexOf(p) !== -1) { ordered.push(p); seen[p] = true; } });
+        installers.forEach(function(n){ if (!seen[n]) { ordered.push(n); seen[n] = true; } });
+        var pillBaseI = 'border:1px solid #1e3a5f;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;color:#cbd5e1;background:transparent;';
+        var pillOnI   = 'background:linear-gradient(135deg,#10B981,#059669);color:#fff;border-color:#10B981;';
+        instPillsHtml = ordered.map(function(n){
+          var safe = n.replace(/"/g,'&quot;');
+          var safeJs = n.replace(/'/g,"\\'");
+          var on = (n === preInst);
+          var style = pillBaseI + (on ? pillOnI : '');
+          return '<button type="button" class="ip_installer_pill" data-installer="'+safe+'" data-on="'+(on?'1':'0')+'" onclick="ipModalSetInstaller(\''+safeJs+'\')" style="'+style+'">'+n+'</button>';
+        }).join('');
+      } catch(e) { console.warn('install pills render failed', e); }
       var jobTypeOpts = ['<option value="">— Select job type —</option>'].concat(INSTALL_PAY_JOB_TYPES.map(function(t){ var s = (existing && existing.jobType === t) ? ' selected' : ''; return '<option value="'+t+'"'+s+'>'+t+'</option>'; })).join('');
       // v218.83: Lead By / Sold By options.
       // Lead By = service techs only (they generate leads on calls).
@@ -9331,12 +9349,13 @@ document.addEventListener('visibilitychange', function() {
           '<div style="display:grid;grid-template-columns:1fr;gap:10px;">' +
             '<label style="font-size:11px;color:#94a3b8;">Date<input id="ip_date" type="date" value="'+initDate+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
           '</div>' +
-          // v218.15: Multi-installer picker. Check both Thomas + Terrell to log the same job for both with their own rate cards.
+          // v219.67: Single-select pill row. (v218.15 multi-checkbox UI replaced.)
+          // Edit mode keeps the dropdown so existing rows behave the same.
           '<div style="margin-top:10px;">' +
-            '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Installer'+(existing?'':' <span style="color:#64748b;">\u00b7 check multiple to log the same job for both</span>')+'</div>' +
+            '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Installer'+(existing?'':' <span style="color:#64748b;">\u00b7 tap a pill to assign</span>')+'</div>' +
             (existing
               ? '<select id="ip_installer" style="width:100%;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;">'+instOpts+'</select>'
-              : '<div id="ip_installer_group" style="display:flex;flex-wrap:wrap;gap:8px;">'+instCheckboxes+'</div>'
+              : '<div id="ip_installer_group" style="display:flex;flex-wrap:wrap;gap:8px;"><input type="hidden" id="ip_installer_pill_value" value="'+preInst.replace(/"/g,'&quot;')+'">'+instPillsHtml+'</div>'
             ) +
           '</div>' +
           '<div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:10px;">' +
@@ -9378,15 +9397,41 @@ document.addEventListener('visibilitychange', function() {
       ipUpdateLivePreview();
     }
 
-    // v218.15: Read selected installers from either the multi-checkbox UI (new entry) or the single dropdown (edit).
+    // v219.67: Single-installer read. Falls back to legacy multi-checkbox if
+    // an older modal is still on screen (defensive). Reads from:
+    //   1) edit-mode dropdown (#ip_installer)
+    //   2) new-entry hidden pill value (#ip_installer_pill_value)
+    //   3) legacy multi-checkbox (.ip_installer_chk) for backwards compat
     function ipGetSelectedInstallers() {
       var sel = document.getElementById('ip_installer');
       if (sel && sel.value) return [sel.value];
+      var hidden = document.getElementById('ip_installer_pill_value');
+      if (hidden && hidden.value) return [hidden.value];
       var boxes = document.querySelectorAll('.ip_installer_chk');
       var out = [];
       boxes.forEach(function(b){ if (b.checked) out.push(b.dataset.installer || b.value); });
       return out;
     }
+
+    // v219.67: Pill-click handler for the Add Install modal. Sets the hidden
+    // value, repaints the pill row so only the chosen pill is highlighted,
+    // then refreshes the live pricing preview.
+    function ipModalSetInstaller(name) {
+      try {
+        var hidden = document.getElementById('ip_installer_pill_value');
+        if (hidden) hidden.value = name || '';
+        var pills = document.querySelectorAll('.ip_installer_pill');
+        var pillBaseI = 'border:1px solid #1e3a5f;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;color:#cbd5e1;background:transparent;';
+        var pillOnI   = 'background:linear-gradient(135deg,#10B981,#059669);color:#fff;border-color:#10B981;';
+        pills.forEach(function(p){
+          var on = (p.getAttribute('data-installer') === name);
+          p.setAttribute('data-on', on ? '1' : '0');
+          p.setAttribute('style', pillBaseI + (on ? pillOnI : ''));
+        });
+        if (typeof ipUpdateLivePreview === 'function') ipUpdateLivePreview();
+      } catch(e) { console.warn('ipModalSetInstaller failed', e); }
+    }
+    window.ipModalSetInstaller = ipModalSetInstaller;
     function ipUpdateLivePreview() {
       var data = ipLoadData();
       var prev = document.getElementById('ip_livePreview');
