@@ -9341,21 +9341,12 @@ document.addEventListener('visibilitychange', function() {
         var ordered = INSTALL_PAY_ROSTER.slice(); // 2 installers + 7 svc techs
         var pillBaseI = 'border:1px solid #1e3a5f;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;color:#cbd5e1;background:transparent;';
         var pillOnI   = 'background:linear-gradient(135deg,#10B981,#059669);color:#fff;border-color:#10B981;';
-        var pillInstSty = 'background:rgba(59,130,246,0.10);border-color:#1d4ed8;color:#bfdbfe;'; // dedicated installer hint
-        var pillTechSty = 'background:rgba(148,163,184,0.05);color:#cbd5e1;'; // svc tech hint
-        instPillsHtml = ordered.map(function(n, i){
-          var safe = n.replace(/"/g,'&quot;');
-          var safeJs = n.replace(/'/g,"\\'");
-          var on = (n === preInst);
-          var isInstaller = (INSTALL_PAY_DEDICATED_INSTALLERS.indexOf(n) !== -1);
-          var style = pillBaseI + (on ? pillOnI : (isInstaller ? pillInstSty : pillTechSty));
-          var first = n.split(' ')[0];
-          var label = first + (isInstaller ? ' \u00b7 Installer' : '');
-          return '<button type="button" class="ip_installer_pill" data-installer="'+safe+'" data-on="'+(on?'1':'0')+'" title="'+safe+'" onclick="ipModalSetInstaller(\''+safeJs+'\')" style="'+style+'">'+label+'</button>';
-        }).join('');
-        // Group divider between Installers and Service Techs
-        var dividerHtml = '<div style="width:100%;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">Service techs</div>';
+        var pillInstSty = 'background:rgba(59,130,246,0.10);border-color:#1d4ed8;color:#bfdbfe;';
+        var pillTechSty = 'background:rgba(148,163,184,0.05);color:#cbd5e1;';
         var splitIdx = INSTALL_PAY_DEDICATED_INSTALLERS.length;
+        // v219.69: Multi-select — each pill can be toggled on independently.
+        // Pre-select honors a single preInst value (e.g. from bulk-grid pill
+        // or prefilledInstaller). User can tap additional pills to credit more.
         var firstGroup = ordered.slice(0, splitIdx).map(function(n){
           var safe = n.replace(/"/g,'&quot;');
           var safeJs = n.replace(/'/g,"\\'");
@@ -9370,6 +9361,7 @@ document.addEventListener('visibilitychange', function() {
           var style = pillBaseI + (on ? pillOnI : pillTechSty);
           return '<button type="button" class="ip_installer_pill" data-installer="'+safe+'" data-on="'+(on?'1':'0')+'" title="'+safe+'" onclick="ipModalSetInstaller(\''+safeJs+'\')" style="'+style+'">'+n.split(' ')[0]+'</button>';
         }).join('');
+        var dividerHtml = '<div style="width:100%;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">Service techs</div>';
         instPillsHtml = '<div style="width:100%;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Dedicated installers</div>' + firstGroup + dividerHtml + secondGroup;
       } catch(e) { console.warn('install pills render failed', e); }
       var jobTypeOpts = ['<option value="">— Select job type —</option>'].concat(INSTALL_PAY_JOB_TYPES.map(function(t){ var s = (existing && existing.jobType === t) ? ' selected' : ''; return '<option value="'+t+'"'+s+'>'+t+'</option>'; })).join('');
@@ -9397,7 +9389,7 @@ document.addEventListener('visibilitychange', function() {
           // v219.67: Single-select pill row. (v218.15 multi-checkbox UI replaced.)
           // Edit mode keeps the dropdown so existing rows behave the same.
           '<div style="margin-top:10px;">' +
-            '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Installer'+(existing?'':' <span style="color:#64748b;">\u00b7 tap a pill to assign</span>')+'</div>' +
+            '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Installer'+(existing?'':' <span style="color:#64748b;">\u00b7 tap to toggle \u00b7 pick one or more (one entry per person)</span>')+'</div>' +
             (existing
               ? '<select id="ip_installer" style="width:100%;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;">'+instOpts+'</select>'
               : '<div id="ip_installer_group" style="display:flex;flex-wrap:wrap;gap:8px;"><input type="hidden" id="ip_installer_pill_value" value="'+preInst.replace(/"/g,'&quot;')+'">'+instPillsHtml+'</div>'
@@ -9442,14 +9434,23 @@ document.addEventListener('visibilitychange', function() {
       ipUpdateLivePreview();
     }
 
-    // v219.67: Single-installer read. Falls back to legacy multi-checkbox if
-    // an older modal is still on screen (defensive). Reads from:
-    //   1) edit-mode dropdown (#ip_installer)
-    //   2) new-entry hidden pill value (#ip_installer_pill_value)
+    // v219.69: Multi-select read. Reads from:
+    //   1) edit-mode dropdown (#ip_installer) — single value
+    //   2) new-entry pill row (.ip_installer_pill data-on='1') — multi value
     //   3) legacy multi-checkbox (.ip_installer_chk) for backwards compat
     function ipGetSelectedInstallers() {
       var sel = document.getElementById('ip_installer');
       if (sel && sel.value) return [sel.value];
+      var pills = document.querySelectorAll('.ip_installer_pill');
+      var picked = [];
+      pills.forEach(function(p){
+        if (p.getAttribute('data-on') === '1') {
+          var n = p.getAttribute('data-installer');
+          if (n && picked.indexOf(n) === -1) picked.push(n);
+        }
+      });
+      if (picked.length) return picked;
+      // Fallback: hidden input (v219.67 single-select holdover)
       var hidden = document.getElementById('ip_installer_pill_value');
       if (hidden && hidden.value) return [hidden.value];
       var boxes = document.querySelectorAll('.ip_installer_chk');
@@ -9458,21 +9459,32 @@ document.addEventListener('visibilitychange', function() {
       return out;
     }
 
-    // v219.67: Pill-click handler for the Add Install modal. Sets the hidden
-    // value, repaints the pill row so only the chosen pill is highlighted,
-    // then refreshes the live pricing preview.
+    // v219.69: Pill-click handler for the Add Install modal. Toggles the
+    // tapped pill on/off so the user can credit multiple people on one entry.
+    // Saving generates one job per selected person (existing v218.15 behavior).
     function ipModalSetInstaller(name) {
       try {
-        var hidden = document.getElementById('ip_installer_pill_value');
-        if (hidden) hidden.value = name || '';
         var pills = document.querySelectorAll('.ip_installer_pill');
         var pillBaseI = 'border:1px solid #1e3a5f;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;color:#cbd5e1;background:transparent;';
         var pillOnI   = 'background:linear-gradient(135deg,#10B981,#059669);color:#fff;border-color:#10B981;';
+        var pillInstSty = 'background:rgba(59,130,246,0.10);border-color:#1d4ed8;color:#bfdbfe;';
+        var pillTechSty = 'background:rgba(148,163,184,0.05);color:#cbd5e1;';
+        var dedicated = (typeof INSTALL_PAY_DEDICATED_INSTALLERS !== 'undefined') ? INSTALL_PAY_DEDICATED_INSTALLERS : [];
         pills.forEach(function(p){
-          var on = (p.getAttribute('data-installer') === name);
-          p.setAttribute('data-on', on ? '1' : '0');
-          p.setAttribute('style', pillBaseI + (on ? pillOnI : ''));
+          var pn = p.getAttribute('data-installer');
+          if (pn === name) {
+            var wasOn = (p.getAttribute('data-on') === '1');
+            var nowOn = !wasOn;
+            p.setAttribute('data-on', nowOn ? '1' : '0');
+            var isInstaller = (dedicated.indexOf(pn) !== -1);
+            p.setAttribute('style', pillBaseI + (nowOn ? pillOnI : (isInstaller ? pillInstSty : pillTechSty)));
+          }
         });
+        // Keep legacy hidden input in sync with first selected for any older
+        // code paths that still read it.
+        var picked = ipGetSelectedInstallers();
+        var hidden = document.getElementById('ip_installer_pill_value');
+        if (hidden) hidden.value = picked[0] || '';
         if (typeof ipUpdateLivePreview === 'function') ipUpdateLivePreview();
       } catch(e) { console.warn('ipModalSetInstaller failed', e); }
     }
