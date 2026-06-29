@@ -7943,6 +7943,25 @@ document.addEventListener('visibilitychange', function() {
     };
     const INSTALL_PAY_JOB_TYPES = ['Full Install (1.5–3.5 Ton)','Full Install (4–5 Ton)','Cooling Only','Furnace Only','Zone System Only'];
 
+    // v219.68: Install pay roster = 2 dedicated installers + 7 svc techs.
+    // The Add Install modal and Bulk Grid pill row both render from this list
+    // so the user can credit any of these 9 people directly.
+    const INSTALL_PAY_DEDICATED_INSTALLERS = ['Thomas Gilbert', 'Terrell Upshur'];
+    const INSTALL_PAY_SVC_TECHS = ['Chris Monahan','Dewone Martin','Ben Tinahui','Daniel Gazaway','Dee Williams','Nick Goehler','Jason Avaloy'];
+    const INSTALL_PAY_ROSTER = INSTALL_PAY_DEDICATED_INSTALLERS.concat(INSTALL_PAY_SVC_TECHS);
+
+    // v219.68: Map an installer/tech name to the rate-card bucket key.
+    // All 7 svc techs share the 'Dee / Daniel / Other SVC Tech' card.
+    // Thomas and Terrell each have their own card.
+    function ipRateCardKey(name) {
+      if (!name) return name;
+      if (name === 'Thomas Gilbert') return 'Thomas Gilbert';
+      if (name === 'Terrell Upshur') return 'Terrell Upshur';
+      if (INSTALL_PAY_SVC_TECHS.indexOf(name) !== -1) return 'Dee / Daniel / Other SVC Tech';
+      return name;
+    }
+    window.ipRateCardKey = ipRateCardKey;
+
     function ipLoadData() {
       try {
         var raw = localStorage.getItem(INSTALL_PAY_DATA_KEY);
@@ -8249,7 +8268,10 @@ document.addEventListener('visibilitychange', function() {
 
     // Compute per-job total based on job type + add-ons
     function ipComputeJobTotal(job, rates) {
-      var card = (rates && rates[job.installer]) || {};
+      // v219.68: Resolve rate card via ipRateCardKey first (so the 7 svc techs
+      // share the SVC tech rate card), then fall back to exact-name lookup.
+      var key = (typeof ipRateCardKey === 'function') ? ipRateCardKey(job.installer) : job.installer;
+      var card = (rates && (rates[key] || rates[job.installer])) || {};
       var base = job.jobType ? (card[job.jobType] || 0) : 0;
       var fluPipe = job.fluPipe ? (card['Flu Pipe Modifications'] || 0) : 0;
       var plenums = (Number(job.plenums) || 0) * (card['Per Plenum'] || 0);
@@ -8629,25 +8651,26 @@ document.addEventListener('visibilitychange', function() {
       var IP_BULK_FILTER_KEY = 'snappy_ip_bulk_installer_v1';
       var bulkFilter = '';
       try { bulkFilter = localStorage.getItem(IP_BULK_FILTER_KEY) || ''; } catch(e) {}
-      // Build pill list: pinned (Thomas + Terrell), then any other installer with rate config
-      // or with jobs this week.
-      var pinnedPills = ['Thomas Gilbert', 'Terrell Upshur'];
+      // v219.68: Bulk grid pill row = 2 dedicated installers + 7 svc techs (9).
+      // Plus any extra names that appear in jobs this week or in rates (legacy).
+      var pinnedPills = INSTALL_PAY_DEDICATED_INSTALLERS.slice();
+      var techPills   = INSTALL_PAY_SVC_TECHS.slice();
       var otherPills = [];
       try {
-        var rateInstallers = Object.keys(data.rates || {});
         var weekInstallers = {};
         weekJobs.forEach(function(j){ if (j && j.installer) weekInstallers[j.installer] = true; });
         var seen = {};
-        pinnedPills.forEach(function(p){ seen[p] = true; });
-        rateInstallers.concat(Object.keys(weekInstallers)).forEach(function(n){
+        pinnedPills.concat(techPills).forEach(function(p){ seen[p] = true; });
+        Object.keys(weekInstallers).forEach(function(n){
           if (!n) return;
           if (seen[n]) return;
+          if (n === 'Dee / Daniel / Other SVC Tech') return; // rate bucket, not a person
           seen[n] = true;
           otherPills.push(n);
         });
       } catch(e) { /* fall through */ }
-      // If saved filter is not in the current installer list, fall back to All
-      var allPills = pinnedPills.concat(otherPills);
+      // If saved filter is not in the current list, fall back to All
+      var allPills = pinnedPills.concat(techPills, otherPills);
       if (bulkFilter && allPills.indexOf(bulkFilter) === -1) bulkFilter = '';
       html += '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;padding:8px 10px;background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;">';
       html += '<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-right:4px;">Show</div>';
@@ -9298,34 +9321,56 @@ document.addEventListener('visibilitychange', function() {
       var data = ipLoadData();
       var existing = existingId ? data.jobs.find(function(j){ return j.id === existingId; }) : null;
       var initDate = (existing && existing.date) || dateStr || new Date().toISOString().slice(0,10);
-      var installers = Object.keys(data.rates);
+      // v219.68: Modal roster = 2 dedicated installers + 7 svc techs (9 pills).
+      // Edit-mode dropdown still uses Object.keys(data.rates) so legacy entries
+      // with names not in the roster (e.g. custom rate cards) remain editable.
+      var rateInstallers = Object.keys(data.rates);
+      var installers = INSTALL_PAY_ROSTER.slice();
+      rateInstallers.forEach(function(n){ if (installers.indexOf(n) === -1 && n !== 'Dee / Daniel / Other SVC Tech') installers.push(n); });
       // v218.8: pre-select installer when launched from per-installer section.
-      // v219.67: also honor the bulk-grid pill filter as a fallback pre-select,
-      // so when the user opens Add Install while a pill is active the modal
-      // arrives with that installer already chosen.
+      // v219.67: also honor the bulk-grid pill filter as a fallback pre-select.
       var bulkPill = '';
       try { bulkPill = localStorage.getItem('snappy_ip_bulk_installer_v1') || ''; } catch(e) {}
       var preInst = (existing && existing.installer) || prefilledInstaller || bulkPill || '';
       var instOpts = installers.map(function(n){ var s = (n === preInst) ? ' selected' : ''; return '<option value="'+n+'"'+s+'>'+n+'</option>'; }).join('');
-      // v219.67: Single-select pill row (matches the Bulk Grid pill UX).
-      // Replaces the v218.15 multi-checkbox UI. One install = one installer.
+      // v219.68: 9-pill picker. Dedicated installers pinned first (Thomas,
+      // Terrell), then the 7 service techs. One install = one credited person.
       // (Edit mode keeps the dropdown so editing an existing job is unchanged.)
       var instPillsHtml = '';
       try {
-        var pinned = ['Thomas Gilbert', 'Terrell Upshur'];
-        var seen = {};
-        var ordered = [];
-        pinned.forEach(function(p){ if (installers.indexOf(p) !== -1) { ordered.push(p); seen[p] = true; } });
-        installers.forEach(function(n){ if (!seen[n]) { ordered.push(n); seen[n] = true; } });
+        var ordered = INSTALL_PAY_ROSTER.slice(); // 2 installers + 7 svc techs
         var pillBaseI = 'border:1px solid #1e3a5f;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;color:#cbd5e1;background:transparent;';
         var pillOnI   = 'background:linear-gradient(135deg,#10B981,#059669);color:#fff;border-color:#10B981;';
-        instPillsHtml = ordered.map(function(n){
+        var pillInstSty = 'background:rgba(59,130,246,0.10);border-color:#1d4ed8;color:#bfdbfe;'; // dedicated installer hint
+        var pillTechSty = 'background:rgba(148,163,184,0.05);color:#cbd5e1;'; // svc tech hint
+        instPillsHtml = ordered.map(function(n, i){
           var safe = n.replace(/"/g,'&quot;');
           var safeJs = n.replace(/'/g,"\\'");
           var on = (n === preInst);
-          var style = pillBaseI + (on ? pillOnI : '');
-          return '<button type="button" class="ip_installer_pill" data-installer="'+safe+'" data-on="'+(on?'1':'0')+'" onclick="ipModalSetInstaller(\''+safeJs+'\')" style="'+style+'">'+n+'</button>';
+          var isInstaller = (INSTALL_PAY_DEDICATED_INSTALLERS.indexOf(n) !== -1);
+          var style = pillBaseI + (on ? pillOnI : (isInstaller ? pillInstSty : pillTechSty));
+          var first = n.split(' ')[0];
+          var label = first + (isInstaller ? ' \u00b7 Installer' : '');
+          return '<button type="button" class="ip_installer_pill" data-installer="'+safe+'" data-on="'+(on?'1':'0')+'" title="'+safe+'" onclick="ipModalSetInstaller(\''+safeJs+'\')" style="'+style+'">'+label+'</button>';
         }).join('');
+        // Group divider between Installers and Service Techs
+        var dividerHtml = '<div style="width:100%;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">Service techs</div>';
+        var splitIdx = INSTALL_PAY_DEDICATED_INSTALLERS.length;
+        var firstGroup = ordered.slice(0, splitIdx).map(function(n){
+          var safe = n.replace(/"/g,'&quot;');
+          var safeJs = n.replace(/'/g,"\\'");
+          var on = (n === preInst);
+          var style = pillBaseI + (on ? pillOnI : pillInstSty);
+          return '<button type="button" class="ip_installer_pill" data-installer="'+safe+'" data-on="'+(on?'1':'0')+'" title="'+safe+'" onclick="ipModalSetInstaller(\''+safeJs+'\')" style="'+style+'">'+n.split(' ')[0]+' \u00b7 Installer</button>';
+        }).join('');
+        var secondGroup = ordered.slice(splitIdx).map(function(n){
+          var safe = n.replace(/"/g,'&quot;');
+          var safeJs = n.replace(/'/g,"\\'");
+          var on = (n === preInst);
+          var style = pillBaseI + (on ? pillOnI : pillTechSty);
+          return '<button type="button" class="ip_installer_pill" data-installer="'+safe+'" data-on="'+(on?'1':'0')+'" title="'+safe+'" onclick="ipModalSetInstaller(\''+safeJs+'\')" style="'+style+'">'+n.split(' ')[0]+'</button>';
+        }).join('');
+        instPillsHtml = '<div style="width:100%;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Dedicated installers</div>' + firstGroup + dividerHtml + secondGroup;
       } catch(e) { console.warn('install pills render failed', e); }
       var jobTypeOpts = ['<option value="">— Select job type —</option>'].concat(INSTALL_PAY_JOB_TYPES.map(function(t){ var s = (existing && existing.jobType === t) ? ' selected' : ''; return '<option value="'+t+'"'+s+'>'+t+'</option>'; })).join('');
       // v218.83: Lead By / Sold By options.
