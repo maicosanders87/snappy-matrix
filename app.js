@@ -8615,18 +8615,78 @@ document.addEventListener('visibilitychange', function() {
       html += '</div>';
 
       // v218.5: Bulk fillable grid (Mon–Sat spreadsheet-style entry)
+      // v219.66: Added per-installer pill selector. "All" = legacy mixed bulk
+      // grid; selecting a specific installer filters the grid to that tech only,
+      // locks the Installer column (so new rows auto-fill), and shows a per-tech
+      // job/total tile. Selection persists in localStorage.
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;margin-top:14px;">';
       html += '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
       html += '<div style="font-size:14px;font-weight:700;">\u2728 Bulk Grid \u00b7 Quick entry</div>';
       html += '<div style="font-size:11px;color:#64748b;">Type rows directly. Auto-saves on blur.</div>';
       html += '</div>';
+
+      // v219.66: Installer pill selector.
+      var IP_BULK_FILTER_KEY = 'snappy_ip_bulk_installer_v1';
+      var bulkFilter = '';
+      try { bulkFilter = localStorage.getItem(IP_BULK_FILTER_KEY) || ''; } catch(e) {}
+      // Build pill list: pinned (Thomas + Terrell), then any other installer with rate config
+      // or with jobs this week.
+      var pinnedPills = ['Thomas Gilbert', 'Terrell Upshur'];
+      var otherPills = [];
+      try {
+        var rateInstallers = Object.keys(data.rates || {});
+        var weekInstallers = {};
+        weekJobs.forEach(function(j){ if (j && j.installer) weekInstallers[j.installer] = true; });
+        var seen = {};
+        pinnedPills.forEach(function(p){ seen[p] = true; });
+        rateInstallers.concat(Object.keys(weekInstallers)).forEach(function(n){
+          if (!n) return;
+          if (seen[n]) return;
+          seen[n] = true;
+          otherPills.push(n);
+        });
+      } catch(e) { /* fall through */ }
+      // If saved filter is not in the current installer list, fall back to All
+      var allPills = pinnedPills.concat(otherPills);
+      if (bulkFilter && allPills.indexOf(bulkFilter) === -1) bulkFilter = '';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;padding:8px 10px;background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;">';
+      html += '<div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-right:4px;">Show</div>';
+      var pillBase = 'border:1px solid #1e3a5f;border-radius:999px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;';
+      var pillOn   = 'background:linear-gradient(135deg,#10B981,#059669);color:#fff;border-color:#10B981;';
+      var pillOff  = 'background:transparent;color:#cbd5e1;';
+      var allOn = (bulkFilter === '');
+      html += '<button onclick="ipBulkSetInstaller(\'\')" style="'+pillBase+(allOn?pillOn:pillOff)+'" title="Show all installers (mixed grid)">All</button>';
+      allPills.forEach(function(name){
+        var first = name.split(' ')[0];
+        var jc = 0; var jt = 0;
+        weekJobs.forEach(function(j){ if (j.installer === name) { jc++; jt += ipComputeJobTotal(j, data.rates).total; } });
+        var on = (bulkFilter === name);
+        var label = first + (jc>0 ? '  \u00b7  ' + jc : '');
+        var safe = name.replace(/'/g,"\\'");
+        html += '<button onclick="ipBulkSetInstaller(\''+safe+'\')" title="'+name+(jc>0?'  \u00b7  '+jc+' job'+(jc===1?'':'s')+'  \u00b7  $'+jt.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'  \u00b7  no jobs this week')+'" style="'+pillBase+(on?pillOn:pillOff)+'">'+label+'</button>';
+      });
+      html += '</div>';
+
+      // v219.66: Filter weekJobs if a single installer is selected.
+      var bulkJobs = bulkFilter ? weekJobs.filter(function(j){ return j.installer === bulkFilter; }) : weekJobs;
+      // Per-installer mini-stat strip when filtered
+      if (bulkFilter) {
+        var biTotal = bulkJobs.reduce(function(s,j){ return s + ipComputeJobTotal(j, data.rates).total; }, 0);
+        html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;padding:8px 12px;background:#082235;border:1px dashed #10B981;border-radius:8px;color:#a7f3d0;font-size:12px;">';
+        html += '<span style="font-weight:700;color:#10B981;">\ud83d\udd0d Showing only ' + bulkFilter + '</span>';
+        html += '<span>' + bulkJobs.length + ' job' + (bulkJobs.length===1?'':'s') + '</span>';
+        html += '<span style="font-variant-numeric:tabular-nums;">Total $' + biTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</span>';
+        html += '<span style="margin-left:auto;font-size:10px;color:#64748b;">New rows will auto-fill installer = ' + bulkFilter + '</span>';
+        html += '</div>';
+      }
+
       html += '<div style="overflow-x:auto;">';
-      html += '<table id="ipBulkGrid" style="width:100%;min-width:1100px;border-collapse:collapse;font-size:12px;">';
+      html += '<table id="ipBulkGrid" style="width:100%;min-width:' + (bulkFilter?'960px':'1100px') + ';border-collapse:collapse;font-size:12px;">';
       html += '<thead><tr style="color:#64748b;text-transform:uppercase;font-size:10px;letter-spacing:0.4px;background:#0b1426;">';
       html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Date</th>';
       html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Customer</th>';
       html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Job #</th>';
-      html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Installer</th>';
+      if (!bulkFilter) html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Installer</th>';
       html += '<th style="text-align:left;padding:6px;border:1px solid #1e3a5f;">Job Type</th>';
       html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Plen</th>';
       html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Duct</th>';
@@ -8636,20 +8696,22 @@ document.addEventListener('visibilitychange', function() {
       html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;color:#10B981;">Total</th>';
       html += '<th style="padding:6px;border:1px solid #1e3a5f;"></th>';
       html += '</tr></thead><tbody>';
-      // Render existing weekJobs as editable rows
-      var sortedWeekJobs = weekJobs.slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+      // Render existing weekJobs as editable rows (filtered if a pill is active)
+      var sortedWeekJobs = bulkJobs.slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
       sortedWeekJobs.forEach(function(j){
         var c = ipComputeJobTotal(j, data.rates);
-        html += ipBulkRowHtml(j, c, data);
+        // v219.66: when a pill is active, reuse the existing installer-locked
+        // row helper so the installer column collapses and new rows auto-fill.
+        html += bulkFilter ? ipInstallerRowHtml(j, c, data, bulkFilter) : ipBulkRowHtml(j, c, data);
       });
-      // Always show 3 blank rows for quick entry
+      // Always show 3 blank rows for quick entry (locked to the filter if active)
       for (var br = 0; br < 3; br++) {
-        html += ipBulkRowHtml(null, null, data, weekStart);
+        html += bulkFilter ? ipInstallerRowHtml(null, null, data, bulkFilter, weekStart) : ipBulkRowHtml(null, null, data, weekStart);
       }
       html += '</tbody></table>';
       html += '</div>'; // overflow-x
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px;">';
-      html += '<div style="font-size:11px;color:#64748b;">Tip: leave a row blank to skip it. Tab to next field.</div>';
+      html += '<div style="font-size:11px;color:#64748b;">Tip: leave a row blank to skip it. Tab to next field.' + (bulkFilter ? ' \u00b7 Click "All" pill to clear the installer filter.' : '') + '</div>';
       html += '<button onclick="ipBulkAddBlankRow()" style="background:transparent;color:#10B981;border:1px dashed #065f46;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">+ More blank rows</button>';
       html += '</div>';
       html += '</div>';
@@ -8989,12 +9051,32 @@ document.addEventListener('visibilitychange', function() {
       var data = ipLoadData();
       var todayIso = new Date().toISOString().slice(0,10);
       var weekStart = ipWeekStartMon(ipWeekEndingSat(todayIso));
-      var tr = document.createElement('tr');
-      tr.outerHTML = ipBulkRowHtml(null, null, data, weekStart);
-      tbody.insertAdjacentHTML('beforeend', ipBulkRowHtml(null, null, data, weekStart));
+      // v219.66: if a pill filter is active, append a locked row for that installer.
+      var bulkFilter = '';
+      try { bulkFilter = localStorage.getItem('snappy_ip_bulk_installer_v1') || ''; } catch(e) {}
+      var rowHtml = bulkFilter
+        ? ipInstallerRowHtml(null, null, data, bulkFilter, weekStart)
+        : ipBulkRowHtml(null, null, data, weekStart);
+      tbody.insertAdjacentHTML('beforeend', rowHtml);
     }
     window.ipBulkSaveRow = ipBulkSaveRow;
     window.ipBulkAddBlankRow = ipBulkAddBlankRow;
+
+    // v219.66: Switch the bulk-grid installer pill filter.
+    // Empty string = All (legacy mixed grid). Persists to localStorage and
+    // re-renders the Payout tab so the grid filters + locks accordingly.
+    function ipBulkSetInstaller(name) {
+      try {
+        var key = 'snappy_ip_bulk_installer_v1';
+        if (!name) {
+          localStorage.removeItem(key);
+        } else {
+          localStorage.setItem(key, name);
+        }
+        if (typeof renderInstallPay === 'function') renderInstallPay();
+      } catch(e) { console.warn('ipBulkSetInstaller failed', e); }
+    }
+    window.ipBulkSetInstaller = ipBulkSetInstaller;
 
     // ---- v218.8: Installer-locked row (used by per-installer sections) ----
     // Same as ipBulkRowHtml but the installer column is rendered as fixed text
