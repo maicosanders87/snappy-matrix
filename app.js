@@ -7913,6 +7913,7 @@ document.addEventListener('visibilitychange', function() {
         'Cooling Only': 300,
         'Furnace Only': 250,
         'Zone System Only': 0, // v219.40: no base — pay = Zone Motors × Per Zone Motor + add-ons
+        'Duct Work Only': 0,   // v219.70: no base — pay = Duct Runs × Per Duct Run + plenums
         'Flu Pipe Modifications': 100,
         'Per Plenum': 60,
         'Per Duct Run': 50,
@@ -7924,6 +7925,7 @@ document.addEventListener('visibilitychange', function() {
         'Cooling Only': 400,
         'Furnace Only': 300,
         'Zone System Only': 0, // v219.40: no base — pay = Zone Motors × Per Zone Motor + add-ons
+        'Duct Work Only': 0,   // v219.70: no base — pay = Duct Runs × Per Duct Run + plenums
         'Flu Pipe Modifications': 100,
         'Per Plenum': 60,
         'Per Duct Run': 50,
@@ -7935,13 +7937,16 @@ document.addEventListener('visibilitychange', function() {
         'Cooling Only': 300,
         'Furnace Only': 250,
         'Zone System Only': 0, // v219.40: no base — pay = Zone Motors × Per Zone Motor + add-ons
+        'Duct Work Only': 0,   // v219.70: no base — pay = Duct Runs × Per Duct Run + plenums
         'Flu Pipe Modifications': 100,
         'Per Plenum': 60,
         'Per Duct Run': 50,
         'Per Zone Motor': 30
       }
     };
-    const INSTALL_PAY_JOB_TYPES = ['Full Install (1.5–3.5 Ton)','Full Install (4–5 Ton)','Cooling Only','Furnace Only','Zone System Only'];
+    // v219.70: Added 'Duct Work Only' job type. Like Zone System Only it has
+    // no base SPIFF — pay comes entirely from per-duct-run + per-plenum add-ons.
+    const INSTALL_PAY_JOB_TYPES = ['Full Install (1.5–3.5 Ton)','Full Install (4–5 Ton)','Cooling Only','Furnace Only','Zone System Only','Duct Work Only'];
 
     // v219.68: Install pay roster = 2 dedicated installers + 7 svc techs.
     // The Add Install modal and Bulk Grid pill row both render from this list
@@ -7970,11 +7975,15 @@ document.addEventListener('visibilitychange', function() {
         if (!d.rates) d.rates = JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES));
         if (!d.jobs) d.jobs = [];
         // v219.40: Seed 'Zone System Only' (base 0) on any existing rate card that pre-dates it
+        // v219.70: Same for 'Duct Work Only' — base 0, pay from per-duct-run + plenums.
         try {
           Object.keys(d.rates).forEach(function(name){
             var card = d.rates[name];
             if (card && typeof card === 'object' && !('Zone System Only' in card)) {
               card['Zone System Only'] = 0;
+            }
+            if (card && typeof card === 'object' && !('Duct Work Only' in card)) {
+              card['Duct Work Only'] = 0;
             }
           });
         } catch(e) {}
