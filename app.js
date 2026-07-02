@@ -12150,6 +12150,45 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbGrWeekClose20260622IfNeeded failed', e); }
     })();
 
+    // ================================================================
+    // v219.73 — HOTFIX: weekReviews weekly-store write for 6/22-6/28
+    // ================================================================
+    // v219.72 seeded the MTD googleReviews[short].count baselines but did
+    // NOT write the per-week ipServiceTechOverrides weekReviews field for
+    // weekStart 2026-06-22. The weekly leaderboard (GR★ lane) reads that
+    // per-week store — so counts weren\u2019t appearing this week.
+    // New flag so this runs even on devices that already applied v219.72.
+    (function _seedGoogleReviewsWeekly20260622IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_weekly_seeded_20260622_v21973';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof ipServiceTechSetField !== 'function' || typeof ipServiceTechOverrides !== 'function') return;
+        var weekStart = '2026-06-22';
+        var delta = [ ['Jason', 2], ['Nick', 2], ['Dewone', 1] ];
+        var ov = ipServiceTechOverrides();
+        var week = (ov && ov.weeks && ov.weeks[weekStart]) ? ov.weeks[weekStart] : {};
+        delta.forEach(function(r){
+          var short = r[0], add = r[1];
+          // Set (not add) — this is the authoritative count for the week close.
+          // If a prior partial write exists, overwrite to the correct total.
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : 0;
+          var target = add; // authoritative
+          if (cur !== target) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', target);
+          }
+        });
+        // Zero out the other 4 techs so a stale value doesn\u2019t linger.
+        ['Chris','Benji','Daniel','Dee'].forEach(function(short){
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : null;
+          if (cur !== 0 && cur !== null) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', 0);
+          }
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.73] Wrote weekly weekReviews for week 2026-06-22: Jason 2, Nick 2, Dewone 1. Leaderboard GR\u2605 lane now populated.');
+      } catch(e) { console.warn('_seedGoogleReviewsWeekly20260622IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
