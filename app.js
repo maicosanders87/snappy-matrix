@@ -11861,6 +11861,196 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbGrWeekClose20260615IfNeeded failed', e); }
     })();
 
+    // ================================================================
+    // v219.71 — WEEK 6/22-6/28 CLOSE-OUT
+    // ================================================================
+    // Source: ServiceTitan Modular Dashboard (Nexstar sub-tab + Memberships
+    // sub-tab, IMG_0313/0314/0315 dated 2026-06-22 → 2026-06-28) + Generated
+    // Installs PDF + TGL sales-and-commission PDF, all collected 7/2/26.
+    //
+    // ROSTER SVC REV: $9,783 (7-tech total). WoW ↓ 51% vs prior week $20,089.
+    // NOTE: Chris Monahan is BACK on the dashboard after 6 weeks off — jumped
+    //       straight to TOP earner at $4,246 / 70% conv.
+    //
+    // MEMBERSHIPS: 3 sold / 22 opps (14%). Chris 2/10, Daniel 1/5. Rest 0.
+    // TGL: 10 total (Benji 7, Dewone 1, Daniel 1, Jason 1).
+    //
+    // INSTALLS (5 jobs / $51,531.42 total):
+    //   - Benji self-sold:   Brett Nocerini  $11,334.99 (6/23, Benji lead + sold)  ✅ tech credit
+    //   - Benji self-sold:   Alan Diaz       $3,900.82  (6/25, Benji lead + sold)  ✅ tech credit
+    //   - Benji self-sold:   Kelly Patak     $9,113.20  (6/26, Benji lead + sold)  ✅ tech credit
+    //   - Adam-side:         Jim Downey      $12,000.00 (6/24, blank lead, Sold By Benji) → Adam-side
+    //   - Adam-side:         Mallory Mathison $15,182.41 (6/26, blank lead, Sold By Daniel) → Adam-side
+    //   Tech-credit installs: 3 jobs / $24,349.01 (all Benji)
+    //   Adam-side excluded:   2 jobs / $27,182.41 (Downey + Mathison)
+    //
+    // NOTE on Downey: prior week's Downey opportunity 93534310 came from Benji
+    // as a TGL, but the Sold By came in blank in the report — flagged Adam-side
+    // per the blank-lead rule. Benji still gets the TGL credit (part of his 7).
+    // Same pattern as Bowels last week and Carvalho the week before.
+    ipApplyDailyAdd({
+      date: '2026-06-27', // Sat-ending close key
+      weekStart: '2026-06-22',
+      entries: [
+        // short, rev, memSold, memOpps, leads (roster TGL), installs (tech-credit), installRev
+        { short: 'Chris',  rev: 4246, memSold: 2, memOpps: 10, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Jason',  rev: 2211, memSold: 0, memOpps: 1,  leads: 1, installs: 0, installRev: 0 },
+        { short: 'Daniel', rev: 1342, memSold: 1, memOpps: 5,  leads: 1, installs: 0, installRev: 0 },
+        { short: 'Benji',  rev: 1296, memSold: 0, memOpps: 4,  leads: 7, installs: 3, installRev: 24349.01 },
+        { short: 'Nick',   rev:  530, memSold: 0, memOpps: 1,  leads: 0, installs: 0, installRev: 0 },
+        { short: 'Dewone', rev:  158, memSold: 0, memOpps: 1,  leads: 1, installs: 0, installRev: 0 },
+        { short: 'Dee',    rev:    0, memSold: 0, memOpps: 0,  leads: 0, installs: 0, installRev: 0 }
+      ]
+    });
+
+    // v219.71: Cascade week 6/22-6/28 into stData MTD (June). Adds to whatever
+    // 6/1-6/21 already set so the rookie cards / overview tiles reflect the
+    // running MTD totals for June.
+    function _wlbSeedWeek20260622MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260627_v21971';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        // (name, svc, soldHrs, frt, spps, tgls)
+        var adds = [
+          ['Chris',  4246,  6.06, 1.99, 2, 0],
+          ['Jason',  2211, 11.10, 2.33, 0, 1],
+          ['Daniel', 1342,  7.40, 2.50, 1, 1],
+          ['Benji',  1296,  9.10, 3.33, 0, 7],
+          ['Nick',    530, 11.90, 1.00, 0, 0],
+          ['Dewone',  158, 11.25, 2.00, 0, 1],
+          ['Dee',       0,  3.50, 1.00, 0, 0]
+        ];
+        adds.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.71] Week 6/22-6/28 MTD cascade applied. Team totals: $9,783 roster svc / 3 SPP / 10 roster TGL / 3 of 22 mems (14%) / 60.31 roster sold hrs / 3 self-sold tech installs $24,349 (Benji). Adam-side excluded: Downey $12,000 + Mathison $15,182 = $27,182. Chris back on the board at #1 svc.');
+      } catch(e) { console.warn('_wlbSeedWeek20260622MtdIfNeeded failed', e); }
+    }
+    _wlbSeedWeek20260622MtdIfNeeded();
+
+    // v219.71: Log Adam-side installs (Downey + Mathison) for completeness.
+    (function _seedInstalls20260622_adamSideIfNeeded(){
+      try {
+        var FLAG = 'snappy_installs_seeded_20260622_adamside_v21971';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var brRaw = localStorage.getItem('snappy_brayden_installs');
+        var brArr = [];
+        try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+        if (!Array.isArray(brArr)) brArr = [];
+        var newOnes = [
+          {
+            id: 'install_20260624_downey', date: '2026-06-24', customer: 'Jim Downey',
+            jobNumber: '93570289', invoice: '93570289', businessUnit: 'HVAC Install',
+            soldBy: 'Ben Tinahui', leadGeneratedBy: '(blank)',
+            jobsTotal: 12000.00, completionDate: '2026-06-24',
+            attribution: 'Adam-side install (blank Lead Generated By + Sold By Benji → Adam-side per the blank-lead rule). Benji keeps the TGL credit on the opportunity. EXCLUDED from tech matrix install pay.',
+            adamSide: true
+          },
+          {
+            id: 'install_20260626_mathison', date: '2026-06-26', customer: 'Mallory Mathison Inc',
+            jobNumber: '93436657', invoice: '93436657', businessUnit: 'HVAC Install',
+            soldBy: 'Daniel Gazaway', leadGeneratedBy: '(blank)',
+            jobsTotal: 15182.41, completionDate: '2026-06-26',
+            attribution: 'Adam-side install (blank Lead Generated By + Sold By Daniel → Adam-side per the blank-lead rule). EXCLUDED from tech matrix install pay.',
+            adamSide: true
+          }
+        ];
+        var added = 0;
+        newOnes.forEach(function(ni){
+          var dup = brArr.some(function(x){ return x && (x.jobNumber === ni.jobNumber || x.invoice === ni.invoice); });
+          if (!dup) { brArr.push(ni); added++; }
+        });
+        if (added > 0) {
+          localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+          console.log('[v219.71] Logged ' + added + ' Adam-side installs (Downey $12,000 + Mathison $15,182 = $27,182). Excluded from tech matrix.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_seedInstalls20260622_adamSideIfNeeded failed', e); }
+    })();
+
+    // v219.71: Bulletin board — Week 6/22-6/28 close-out summary.
+    (function _bbWeekClose20260622IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_weekclose_20260622_v21971';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'wk_close_20260622',
+            date: '2026-06-30',
+            text: 'WEEK 6/22-6/28 CLOSE-OUT — $9,783 roster svc rev (\u2193 51% WoW vs $20,089) / 3 SPP / 10 roster TGL / 3 of 22 mems (14%) / 60.31 roster sold hrs / 3 self-sold tech installs $24,349 (all Benji). Adam-side excluded: Downey $12,000 + Mathison $15,182 = 2 jobs / $27,182. Big service pullback but Benji stacked 3 installs and Chris is back on the board at #1.'
+          },
+          {
+            id: 'wk_close_chris_20260622',
+            date: '2026-06-30',
+            text: 'CHRIS \u2014 BACK ON THE BOARD: $4,246 svc rev (TOP earner, breaking 6 straight weeks of $0) / 70% conv / 2 SPP / 6.06 sold hrs / 2 of 10 mems (20%). Full return to production. Pay this week: $127 rev pay + $50 mem = $177. This is the turnaround \u2014 lock it in with a 1:1.'
+          },
+          {
+            id: 'wk_close_benji_20260622',
+            date: '2026-06-30',
+            text: 'BENJI \u2014 INSTALL MACHINE: 3 self-sold installs $24,349 (Nocerini $11,335 + Diaz $3,901 + Patak $9,113). 7 TGL (top of roster). $1,296 svc / 33% conv / 9.10 sold hrs / 0.26 sold-hr efficiency. Two straight monster install weeks. Pay: $39 rev pay + $730 install pay (3%) + $175 lead = $944.'
+          },
+          {
+            id: 'wk_close_jason_20260622',
+            date: '2026-06-30',
+            text: 'JASON \u2014 3RD WEEK CLIMB: $2,211 svc rev (#2 on roster) / 60% conv / $711 avg ticket (highest of the week) / 1 TGL / 11.10 sold hrs. Zero mem opps though (1 opp, 0 sits). Steady progression \u2014 hold him to the mem-lane focus.'
+          },
+          {
+            id: 'wk_close_daniel_20260622',
+            date: '2026-06-30',
+            text: 'DANIEL \u2014 QUIET WEEK: $1,342 svc / 50% conv / 1 SPP / 1 TGL / 7.40 sold hrs / 1 of 5 mems (20%). Big drop from last week\u2019s $5,743 top-of-board finish. Mathison install came in but went Adam-side (blank lead). Pay: $40 rev pay + $25 mem + $25 lead = $90.'
+          },
+          {
+            id: 'wk_close_nick_20260622',
+            date: '2026-06-30',
+            text: 'NICK \u2014 SOFT WEEK: $530 svc / 60% conv / 0 SPP / 0 TGL / 11.90 sold hrs (most hours logged of anyone this week) / 0 of 1 mem. Hours were there but the ticket didn\u2019t follow. Watch dispatch load and job type mix.'
+          },
+          {
+            id: 'wk_close_dewone_20260622',
+            date: '2026-06-30',
+            text: 'DEWONE \u2014 BOTTOM WEEK: $158 svc / 100% conv (only 1 sit) / 0 SPP / 1 TGL / 11.25 sold hrs / 0 of 1 mem. Steep fall from last week\u2019s $3,402 + 3 SPP + 3 mems. Only 1 completed ticket. Something happened this week \u2014 check the schedule.'
+          },
+          {
+            id: 'wk_close_dee_20260622',
+            date: '2026-06-30',
+            text: 'DEE \u2014 SHORT WEEK: $0 svc / 33% conv (part-week coverage) / 3.5 sold hrs / 0 mem opps / 1 flat rate task. Similar to last week ($120 / 6.00 hrs). Confirm shift coding + availability.'
+          },
+          {
+            id: 'wk_close_adamside_20260622',
+            date: '2026-06-30',
+            text: 'ADAM-SIDE NOTE \u2014 Downey $12,000 (blank lead, Benji sold). Mathison $15,182 (blank lead, Daniel sold). Both excluded from tech matrix install pay per the blank-lead rule. Benji keeps the TGL on the Downey opportunity.'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.71] Added ' + added + ' week-close bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbWeekClose20260622IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
