@@ -12051,6 +12051,105 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_bbWeekClose20260622IfNeeded failed', e); }
     })();
 
+    // ================================================================
+    // v219.72 — GOOGLE REVIEWS 6/22-6/28
+    // ================================================================
+    // Source: Reviews first captured as "out-of-range" entries in the
+    // 6/15-6/21 GR collection (2026-06-23), all confirmed dated 6/22.
+    // Verified again 7/2/26 via subagent. GMB API returned empty locations,
+    // so no additional 6/23-6/28 reviews could be recovered from Google.
+    // Filtered to the 7-tech HVAC roster per the 6/4 rule.
+    //
+    // Creditable (5, all 5★, all dated 6/22):
+    //   Jason  — Bryant Andrews SR., Victor Miller
+    //   Nick   — Kristen Pinilla, Gianina Gilbreath
+    //   Dewone — Cedric Hatchett ("Debone" misspelling — credited per precedent)
+    // Skipped: Vic Rhoden 2★ (no roster tech named).
+    //
+    // Profile: 4.9★ baseline 2,012 (from 6/23 snapshot). Current live count
+    // couldn't be confirmed — leaving profile totals unchanged until next
+    // authenticated collection.
+    (function _seedGoogleReviews20260622_28IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_seeded_20260622_28_v21972';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof googleReviews === 'undefined' || !googleReviews) return;
+        var counts = {
+          Jason:  { cnt: 2, hl: 'Bryant Andrews SR. + Victor Miller — both 5★ same-day-service raves. Victor edited his review to 5★ after callback resolution.' },
+          Nick:   { cnt: 2, hl: 'Kristen Pinilla + Gianina Gilbreath — both 5★. Same-day AC fix + a due-diligence inspection for a home purchase. Second week of steady GR flow (11 last week, 2 this week).' },
+          Dewone: { cnt: 1, hl: 'Cedric Hatchett 5★ — misspelled "Debone" but clearly Dewone. "Great professional and informative. Great service." Credited per precedent.' }
+        };
+        Object.keys(counts).forEach(function(short){
+          var cnt = counts[short].cnt;
+          var hl = counts[short].hl;
+          if (!googleReviews[short]) {
+            googleReviews[short] = { count: 0, fiveStar: 0, fourStar: 0, threeStar: 0, highlight: '', note: '' };
+          }
+          googleReviews[short].count    = +(googleReviews[short].count    || 0) + cnt;
+          googleReviews[short].fiveStar = +(googleReviews[short].fiveStar || 0) + cnt;
+          googleReviews[short].highlight = hl;
+          googleReviews[short].note = 'v219.72 — +' + cnt + ' Google review' + (cnt===1?'':'s') + ' week 6/22-6/28. All 5★.';
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.72] Seeded 5 Google reviews for week 6/22-6/28 (Jason 2, Nick 2, Dewone 1). All 5★. Profile totals unchanged — GMB API returned empty this week.');
+      } catch(e) { console.warn('_seedGoogleReviews20260622_28IfNeeded failed', e); }
+    })();
+
+    // v219.72: Bulletin entries summarizing the GR week.
+    (function _bbGrWeekClose20260622IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_grweekclose_20260622_v21972';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'gr_wk_close_20260622',
+            date: '2026-06-30',
+            text: 'GOOGLE REVIEWS WEEK 6/22-6/28 — 5 roster reviews, all 5★, all dated 6/22. Jason 2 · Nick 2 · Dewone 1 · Chris/Benji/Daniel/Dee 0. Big drop from last week\u2019s 17 (17 → 5), but the GMB API returned empty on 7/2 pull — real count for 6/23-6/28 unrecoverable this cycle. Skipped: Vic Rhoden 2★ no-show (no roster tech named). Profile 4.9★ (total count pending next auth pull).'
+          },
+          {
+            id: 'gr_wk_jason_20260622',
+            date: '2026-06-30',
+            text: 'JASON GR★ — FIRST GR CREDITS: 2 reviews (Bryant Andrews SR., Victor Miller — both 5★). Victor edited to 5★ after Jason completed same-morning AC repair. That\u2019s the momentum — 3rd week climbing on service ($1,115 → $2,369 → $2,211) and now GR is flowing.'
+          },
+          {
+            id: 'gr_wk_nick_20260622',
+            date: '2026-06-30',
+            text: 'NICK GR★ — STEADY: 2 reviews (Kristen Pinilla same-day AC fix, Gianina Gilbreath due-diligence HVAC inspection). Cooling off after last week\u2019s 11-review explosion but still on the board. Customer service reputation is now a proven pattern.'
+          },
+          {
+            id: 'gr_wk_dewone_20260622',
+            date: '2026-06-30',
+            text: 'DEWONE GR★ — 1 review (Cedric Hatchett 5★, "Debone" misspelling — credited per precedent). Down from 4 last week. Ties out with his soft service week (only 1 completed ticket, $158 rev).'
+          },
+          {
+            id: 'gr_wk_chris_20260622',
+            date: '2026-06-30',
+            text: 'CHRIS — 0 GR again (7th straight week), but +$4,246 svc back on the board this week. Service-side pattern is broken; GR pattern is not. Ask for the reviews on every completed job.'
+          },
+          {
+            id: 'gr_wk_data_gap_20260622',
+            date: '2026-06-30',
+            text: 'DATA GAP — GMB API returned empty locations on 7/2 pull, so 6/23-6/28 reviews (if any) couldn\u2019t be verified. Real week count may be higher than 5. Reconnect / re-auth the Google Business Profile connector before next Tuesday\u2019s close.'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.72] Added ' + added + ' GR bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbGrWeekClose20260622IfNeeded failed', e); }
+    })();
+
     // v219.34: One-shot migration to fix the v219.32 leaderboard state.
     // v219.32 seeded Daniel with installs:0 / installRev:0 on 5/20. v219.33 changed
     // the source to installs:1 / installRev:11991.42 but the daily gate key
