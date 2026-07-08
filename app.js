@@ -12246,6 +12246,89 @@ document.addEventListener('visibilitychange', function() {
     })();
 
     // ================================================================
+    // v219.75 — Google Reviews close-out for week 6/29-7/5
+    // ================================================================
+    // Source: Google Maps reviews panel for Snappy Services, sorted Newest,
+    // collected 7/8/26. Roster credit rule (6/4): skip non-tech mentions; only
+    // credit reviews mentioning one of the 7 HVAC roster techs by name.
+    //
+    // In-window tech-crediting reviews (24 total in window, 20 credit roster):
+    //   Nick:   8 (Amana Le Blanc, Kyle Dix, Cristina P, mary jane, Angela Bakke,
+    //              Brian Kilzer, Billy Yeager, charles hitchcock)
+    //   Dewone: 6 (T L, Joyce Williams, Kimberly Grant, Stephanie George,
+    //              Jodie Eliott, Brian Snow)
+    //   Benji:  3 (Kyle Dix, Cristina P, Daniel Crowder)
+    //   Daniel: 2 (David Corts, Bryan Arm)
+    //   Dee:    1 (Kyle Dix)
+    //   Chris:  0
+    //   Jason:  0
+    // Non-crediting (Patrick/Josh/Brayden-only, no roster tech mentioned): 3
+    // Excluded (outside 6/29-7/5 window): Kelly Taylor 7/8, Kelley Frazier 7/8,
+    //   4x '2 weeks ago' ~6/24, Obiora Mbachu 6/28 (per Mon-start convention).
+    (function _seedGoogleReviewsWeekly20260629IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_weekly_seeded_20260629_v21975';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof ipServiceTechSetField !== 'function' || typeof ipServiceTechOverrides !== 'function') return;
+        var weekStart = '2026-06-29';
+        var delta = [
+          ['Nick', 8],
+          ['Dewone', 6],
+          ['Benji', 3],
+          ['Daniel', 2],
+          ['Dee', 1]
+        ];
+        var ov = ipServiceTechOverrides();
+        var week = (ov && ov.weeks && ov.weeks[weekStart]) ? ov.weeks[weekStart] : {};
+        delta.forEach(function(r){
+          var short = r[0], target = r[1];
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : 0;
+          if (cur !== target) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', target);
+          }
+        });
+        // Zero out Chris + Jason for this week so a stale value doesn\u2019t linger.
+        ['Chris','Jason'].forEach(function(short){
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : null;
+          if (cur !== 0 && cur !== null) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', 0);
+          }
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.75] Wrote weekly weekReviews for week 2026-06-29: Nick 8, Dewone 6, Benji 3, Daniel 2, Dee 1. Chris + Jason 0. Total roster GR: 20.');
+      } catch(e) { console.warn('_seedGoogleReviewsWeekly20260629IfNeeded failed', e); }
+    })();
+
+    // v219.75: MTD Google Reviews baseline bump for July.
+    // The googleReviews[short].count MTD accumulator drives profile pages and
+    // rookie cards. New month starts here — add this week\u2019s totals.
+    (function _seedGoogleReviewsMtd20260629IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_mtd_seeded_20260629_v21975';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var raw = localStorage.getItem('snappy_google_reviews');
+        var gr = {};
+        try { gr = raw ? JSON.parse(raw) : {}; } catch(e) { gr = {}; }
+        if (!gr || typeof gr !== 'object') gr = {};
+        var adds = [
+          ['Nick', 8],
+          ['Dewone', 6],
+          ['Benji', 3],
+          ['Daniel', 2],
+          ['Dee', 1]
+        ];
+        adds.forEach(function(r){
+          var short = r[0], add = r[1];
+          if (!gr[short]) gr[short] = { count: 0 };
+          gr[short].count = +(gr[short].count || 0) + add;
+        });
+        localStorage.setItem('snappy_google_reviews', JSON.stringify(gr));
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.75] MTD googleReviews[short].count bumped: Nick +8, Dewone +6, Benji +3, Daniel +2, Dee +1. Total roster GR for week: 20.');
+      } catch(e) { console.warn('_seedGoogleReviewsMtd20260629IfNeeded failed', e); }
+    })();
+
+    // ================================================================
     // v219.72 — GOOGLE REVIEWS 6/22-6/28
     // ================================================================
     // Source: Reviews first captured as "out-of-range" entries in the
