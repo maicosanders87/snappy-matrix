@@ -12329,6 +12329,301 @@ document.addEventListener('visibilitychange', function() {
     })();
 
     // ================================================================
+    // v219.76 — WEEK 7/6-7/12 CLOSE-OUT
+    // ================================================================
+    // Source: ServiceTitan Modular Dashboard (Nexstar sub-tab + Memberships
+    // sub-tab, IMG_0330/0331/0332 dated 2026-07-06 → 2026-07-12) + Generated
+    // Installs PDF + TGL sales-and-commission PDF, all collected 7/14/26.
+    //
+    // ROSTER SVC REV: $18,801 (7-tech total). WoW ↓ 17% vs prior week $22,659.
+    // Softer service week but installs went the other way: 4 self-sold this
+    // week (Dee 2, Jason 1, Chris 1) = ALL-TIME HIGH self-sold count. Dee
+    // finally an install king with 2 self-sold ($62,439) headed by the Chris
+    // Small $46,190 monster. Nick posts 100% conv on a $2,311 avg ticket
+    // (one huge single sit). Dewone tops GR★ mentions (7).
+    //
+    // MEMBERSHIPS: 6 sold / 33 opps (18%). Dewone 2/8, Jason 2/7, Daniel 2/4,
+    // Chris 0/7, Ben 0/3, Dee 0/3, Nick 0/1. Two ops beyond roster on the
+    // dashboard total.
+    //
+    // TGL (roster, per Nexstar dashboard "# Tech Generated Leads"):
+    //   12 total — Ben 3, Chris 3, Dee 2, Dewone 2, Jason 1, Nick 1, Daniel 0.
+    //
+    // INSTALLS (8 jobs / $129,056.38 total):
+    //   ✅ Tech credit (4 jobs / $79,872.19):
+    //      - Dee:    Chris Small          $46,189.91 (Dee lead + sold)
+    //      - Dee:    Kenneth Cochran      $16,248.87 (Dee lead + sold)
+    //      - Jason:  Sharon Jackson       $10,493.14 (Jason lead + sold)
+    //      - Chris:  Elizabeth Rainey      $6,940.37 (Chris lead + sold)
+    //   ❌ Adam-side excluded (4 jobs / $49,184.09):
+    //      - Randy Chapman              $11,090.00 (Dee lead + Adam sold)
+    //      - Barry Hice                 $13,500.00 (blank lead + Adam sold)
+    //      - Jeff Lewis                 $16,764.51 (Chris lead + Adam sold)
+    //      - Patricia Hajduk-Tondon      $7,829.58 (Nick/Dee lead + Adam sold)
+    //
+    // Attribution notes: Chapman + Lewis + Hajduk-Tondon = roster lead-gen
+    // with Adam-side install pay. Precedent: leads keep the TGL credit on
+    // the opportunity even when Adam sells the install.
+    ipApplyDailyAdd({
+      date: '2026-07-11', // Sat-ending close key (Mon-start week 7/6-7/12)
+      weekStart: '2026-07-06',
+      entries: [
+        // short, rev, memSold, memOpps, leads (roster TGL per dashboard), installs (tech-credit), installRev
+        { short: 'Nick',   rev: 4623, memSold: 0, memOpps: 1, leads: 1, installs: 0, installRev: 0 },
+        { short: 'Dewone', rev: 4569, memSold: 2, memOpps: 8, leads: 2, installs: 0, installRev: 0 },
+        { short: 'Jason',  rev: 3515, memSold: 2, memOpps: 7, leads: 1, installs: 1, installRev: 10493.14 },
+        { short: 'Chris',  rev: 2137, memSold: 0, memOpps: 7, leads: 3, installs: 1, installRev: 6940.37 },
+        { short: 'Benji',  rev: 2131, memSold: 0, memOpps: 3, leads: 3, installs: 0, installRev: 0 },
+        { short: 'Daniel', rev:  946, memSold: 2, memOpps: 4, leads: 0, installs: 0, installRev: 0 },
+        { short: 'Dee',    rev:  880, memSold: 0, memOpps: 3, leads: 2, installs: 2, installRev: 62438.78 }
+      ]
+    });
+
+    // v219.76: Cascade week 7/6-7/12 into stData MTD (July continues).
+    // Same shape as v219.74: (name, svc, soldHrs, frt-per-call, spps, tgls).
+    function _wlbSeedWeek20260706MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260711_v21976';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        var adds = [
+          ['Nick',   4623,  7.50, 5.00, 0, 1],
+          ['Dewone', 4569, 15.10, 2.36, 2, 2],
+          ['Jason',  3515,  8.60, 2.00, 2, 1],
+          ['Chris',  2137, 11.60, 3.85, 0, 3],
+          ['Benji',  2131,  8.25, 4.00, 0, 3],
+          ['Daniel',  946,  7.45, 3.50, 2, 0],
+          ['Dee',     880,  3.00, 1.00, 0, 2]
+        ];
+        adds.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.76] Week 7/6-7/12 MTD cascade applied. Team totals: $18,801 roster svc (down 17% WoW) / 6 SPP / 12 roster TGL / 6 of 33 mems (18%) / 61.5 roster sold hrs / 4 self-sold tech installs $79,872 (Dee 2, Jason 1, Chris 1) — all-time high self-sold count. Adam-side excluded: Chapman $11,090 + Hice $13,500 + Lewis $16,765 + Hajduk-T $7,830 = 4 jobs / $49,184. Dee install king. Nick 100% conv magnet.');
+      } catch(e) { console.warn('_wlbSeedWeek20260706MtdIfNeeded failed', e); }
+    }
+    _wlbSeedWeek20260706MtdIfNeeded();
+
+    // v219.76: Log Adam-side installs (Chapman + Hice + Lewis + Hajduk-Tondon).
+    (function _seedInstalls20260706_adamSideIfNeeded(){
+      try {
+        var FLAG = 'snappy_installs_seeded_20260706_adamside_v21976';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var brRaw = localStorage.getItem('snappy_brayden_installs');
+        var brArr = [];
+        try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+        if (!Array.isArray(brArr)) brArr = [];
+        var newOnes = [
+          {
+            id: 'install_20260706_chapman', date: '2026-07-06', customer: 'Randy Chapman',
+            jobNumber: '94059000', invoice: '94059000', businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard', leadGeneratedBy: 'Dee Williams',
+            jobsTotal: 11090.00, completionDate: '2026-07-06',
+            attribution: 'Adam-side install (Dee lead-generated, Adam sold → Adam-side per the roster/Adam split). Dee keeps the TGL credit on the opportunity. EXCLUDED from tech matrix install pay.',
+            adamSide: true
+          },
+          {
+            id: 'install_20260708_hice', date: '2026-07-08', customer: 'Barry Hice',
+            jobNumber: '94100000', invoice: '94100000', businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard', leadGeneratedBy: '(blank)',
+            jobsTotal: 13500.00, completionDate: '2026-07-08',
+            attribution: 'Adam-side install (blank Lead Generated By + Adam sold → Adam-side per the blank-lead rule). No roster tech credit. EXCLUDED from tech matrix install pay.',
+            adamSide: true
+          },
+          {
+            id: 'install_20260710_lewis', date: '2026-07-10', customer: 'Jeff Lewis',
+            jobNumber: '94180000', invoice: '94180000', businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard', leadGeneratedBy: 'Chris Monahan',
+            jobsTotal: 16764.51, completionDate: '2026-07-10',
+            attribution: 'Adam-side install (Chris lead-generated, Adam sold → Adam-side per the roster/Adam split). Chris keeps the TGL credit on the opportunity. EXCLUDED from tech matrix install pay.',
+            adamSide: true
+          },
+          {
+            id: 'install_20260711_hajduktondon', date: '2026-07-11', customer: 'Patricia Hajduk-Tondon',
+            jobNumber: '94220000', invoice: '94220000', businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard', leadGeneratedBy: 'Nick Goehler / Dee Williams',
+            jobsTotal: 7829.58, completionDate: '2026-07-11',
+            attribution: 'Adam-side install (Nick + Dee co-lead, Adam sold → Adam-side). Nick/Dee share the TGL credit on the opportunity. EXCLUDED from tech matrix install pay.',
+            adamSide: true
+          }
+        ];
+        var added = 0;
+        newOnes.forEach(function(ni){
+          var dup = brArr.some(function(x){ return x && (x.jobNumber === ni.jobNumber || x.invoice === ni.invoice || x.id === ni.id); });
+          if (!dup) { brArr.push(ni); added++; }
+        });
+        if (added > 0) {
+          localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+          console.log('[v219.76] Logged ' + added + ' Adam-side installs (Chapman $11,090 + Hice $13,500 + Lewis $16,765 + Hajduk-T $7,830 = $49,184). Excluded from tech matrix.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_seedInstalls20260706_adamSideIfNeeded failed', e); }
+    })();
+
+    // v219.76: Bulletin board — Week 7/6-7/12 close-out summary.
+    (function _bbWeekClose20260706IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_weekclose_20260706_v21976';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'wk_close_20260706',
+            date: '2026-07-14',
+            text: 'WEEK 7/6-7/12 CLOSE-OUT — $18,801 roster svc rev (\u2193 17% WoW vs $22,659) / 6 SPP / 12 roster TGL / 6 of 33 mems (18%) / 61.5 roster sold hrs / 4 self-sold tech installs $79,872 (Dee 2, Jason 1, Chris 1) — all-time high self-sold count. Adam-side excluded: Chapman $11,090 + Hice $13,500 + Lewis $16,765 + Hajduk-T $7,830 = 4 jobs / $49,184. Softer service week, install-heavy story. Dee finally the install king. Nick 100% conv magnet. Dewone tops GR\u2605 (7 mentions).'
+          },
+          {
+            id: 'wk_close_dee_20260706',
+            date: '2026-07-14',
+            text: 'DEE \u2014 INSTALL KING: $63,319 total ($880 svc + $62,439 install rev). 2 self-sold installs \u2014 Chris Small $46,189.91 + Kenneth Cochran $16,248.87. 20% conv on 5 svc opps but the install lane made the week. Also lead-gen on Randy Chapman Adam-side ($11,090). Third install-week in a row after his dry stretch broke. Pay: $26 rev + $1,873 install pay (3%) + $50 lead = $1,949.'
+          },
+          {
+            id: 'wk_close_jason_20260706',
+            date: '2026-07-14',
+            text: 'JASON \u2014 BACK-TO-BACK INSTALLS: $14,008 total ($3,515 svc + $10,493 install rev). 2nd self-sold install in 2 weeks (Sharon Jackson $10,493.14). 50% conv, $530 avg, 2 SPP, 1 TGL, 2 of 7 mems (29%). Real trend forming \u2014 keep the ride-alongs going. Pay: $105 rev + $315 install pay + $50 mem + $25 lead = $495.'
+          },
+          {
+            id: 'wk_close_chris_20260706',
+            date: '2026-07-14',
+            text: 'CHRIS \u2014 SELF-SOLD + LEAD-GEN DOUBLE: $9,077 total ($2,137 svc + $6,940 install rev). 1 self-sold Elizabeth Rainey $6,940.37. ALSO lead-gen on Jeff Lewis Adam-side ($16,765). 20% conv is the coaching concern \u2014 3 TGL fine but sit-conversion leaking. 0 of 7 mems. Pay: $64 rev + $208 install pay + $25 lead = $297.'
+          },
+          {
+            id: 'wk_close_nick_20260706',
+            date: '2026-07-14',
+            text: 'NICK \u2014 100% CONV SNIPER: $4,623 svc / 100% conv / $2,311 avg ticket (biggest single sit on roster this week) / 0 SPP / 1 TGL / 7.5 sold hrs / 0 of 1 mems / 6 GR\u2605 mentions. ALSO co-lead-gen on Patricia Hajduk-Tondon Adam-side ($7,830). When Nick sits a call he closes it every time. Pay: $139 rev + $25 lead (shared) = $164.'
+          },
+          {
+            id: 'wk_close_dewone_20260706',
+            date: '2026-07-14',
+            text: 'DEWONE \u2014 SVC #1 + GR\u2605 MAGNET: $4,569 svc (top of non-installers) / 73% conv / $391 avg / 2 SPP / 2 TGL / 15.10 sold hrs (highest logged) / 2 of 8 mems (25%) / 7 GR\u2605 mentions (roster leader). Named by 7 different customers this week. Pay: $137 rev + $50 mem = $187.'
+          },
+          {
+            id: 'wk_close_benji_20260706',
+            date: '2026-07-14',
+            text: 'BENJI \u2014 THIN SVC WEEK: $2,131 svc / 29% conv / $556 avg / 0 SPP / 3 TGL / 8.25 sold hrs / 0 of 3 mems / 2 shared GR\u2605 mentions (Kyle Dix + Cristina P). No install this week after last week\u2019s Pearson. Push conv \u2014 3 TGL but sit lane light. Pay: $64 rev + $75 leads = $139.'
+          },
+          {
+            id: 'wk_close_daniel_20260706',
+            date: '2026-07-14',
+            text: 'DANIEL \u2014 MEM LANE HEATING UP: $946 svc / 50% conv / $337 avg / 2 SPP / 0 TGL / 7.45 sold hrs / 2 of 4 mems (50% \u2014 team leader by rate) / 1 GR\u2605 (David Corts, name-called with full name). Small svc week but the membership discipline is on. Pay: $28 rev + $50 mem = $78.'
+          },
+          {
+            id: 'wk_close_adamside_20260706',
+            date: '2026-07-14',
+            text: 'ADAM-SIDE NOTE \u2014 4 installs / $49,184 excluded from tech matrix install pay. Chapman $11,090 (Dee lead), Hice $13,500 (blank lead), Lewis $16,765 (Chris lead), Hajduk-Tondon $7,830 (Nick/Dee co-lead). Lead-gen techs keep the TGL credit on the opportunity per precedent \u2014 no install pay.'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.76] Added ' + added + ' week-close bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbWeekClose20260706IfNeeded failed', e); }
+    })();
+
+    // ================================================================
+    // v219.77 — Google Reviews close-out for week 7/6-7/12
+    // ================================================================
+    // Source: Google Maps reviews panel for Snappy Services, sorted Newest,
+    // collected 7/14/26. Roster credit rule (6/4): skip non-tech mentions;
+    // only credit reviews mentioning one of the 7 HVAC roster techs by name.
+    //
+    // In-window tech-crediting reviews (17 mentions across 15 customer
+    // reviews; some reviews name multiple techs):
+    //   Dewone: 7 (Tamera Barnes, richard hunter, Karen Triplett,
+    //              Barbara Ann Pfleger, Kelly Taylor, Kelley Frazier, T L)
+    //   Nick:   6 (Lee Pearce, Mary Kate Kruhm, Amana Le Blanc, Kyle Dix,
+    //              Cristina P, mary jane)
+    //   Benji:  2 (Kyle Dix, Cristina P — shared mentions)
+    //   Daniel: 1 (David Corts — name-called)
+    //   Dee:    1 (Kyle Dix — shared mention)
+    //   Chris:  0
+    //   Jason:  0
+    // Non-crediting (Brayden/Patrick/plumbing/no-name): 3
+    // Excluded (outside 7/6-7/12 window): Angela Bakke + others at "2 weeks
+    //   ago" per Mon-start convention.
+    (function _seedGoogleReviewsWeekly20260706IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_weekly_seeded_20260706_v21977';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof ipServiceTechSetField !== 'function' || typeof ipServiceTechOverrides !== 'function') return;
+        var weekStart = '2026-07-06';
+        var delta = [
+          ['Dewone', 7],
+          ['Nick',   6],
+          ['Benji',  2],
+          ['Daniel', 1],
+          ['Dee',    1]
+        ];
+        var ov = ipServiceTechOverrides();
+        var week = (ov && ov.weeks && ov.weeks[weekStart]) ? ov.weeks[weekStart] : {};
+        delta.forEach(function(r){
+          var short = r[0], target = r[1];
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : 0;
+          if (cur !== target) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', target);
+          }
+        });
+        ['Chris','Jason'].forEach(function(short){
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : null;
+          if (cur !== 0 && cur !== null) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', 0);
+          }
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.77] Wrote weekly weekReviews for week 2026-07-06: Dewone 7, Nick 6, Benji 2, Daniel 1, Dee 1. Chris + Jason 0. Total roster GR: 17.');
+      } catch(e) { console.warn('_seedGoogleReviewsWeekly20260706IfNeeded failed', e); }
+    })();
+
+    // v219.77: MTD Google Reviews bump for July (week 2 of the month).
+    (function _seedGoogleReviewsMtd20260706IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_mtd_seeded_20260706_v21977';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var raw = localStorage.getItem('snappy_google_reviews');
+        var gr = {};
+        try { gr = raw ? JSON.parse(raw) : {}; } catch(e) { gr = {}; }
+        if (!gr || typeof gr !== 'object') gr = {};
+        var adds = [
+          ['Dewone', 7],
+          ['Nick',   6],
+          ['Benji',  2],
+          ['Daniel', 1],
+          ['Dee',    1]
+        ];
+        adds.forEach(function(r){
+          var short = r[0], add = r[1];
+          if (!gr[short]) gr[short] = { count: 0 };
+          gr[short].count = +(gr[short].count || 0) + add;
+        });
+        localStorage.setItem('snappy_google_reviews', JSON.stringify(gr));
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.77] MTD googleReviews[short].count bumped: Dewone +7, Nick +6, Benji +2, Daniel +1, Dee +1. Total roster GR for week: 17.');
+      } catch(e) { console.warn('_seedGoogleReviewsMtd20260706IfNeeded failed', e); }
+    })();
+
+
+    // ================================================================
     // v219.72 — GOOGLE REVIEWS 6/22-6/28
     // ================================================================
     // Source: Reviews first captured as "out-of-range" entries in the
