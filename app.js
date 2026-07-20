@@ -12624,6 +12624,272 @@ document.addEventListener('visibilitychange', function() {
 
 
     // ================================================================
+    // v219.78 — WEEK 7/13-7/19 CLOSE-OUT
+    // ================================================================
+    // Source: ServiceTitan Modular Dashboard (Nexstar tab IMG_0334/0335 +
+    // Memberships tab IMG_0336, dated 7/13/26 → 7/19/26) + Generated
+    // Installs PDF + TGL sales-and-commission PDF, all collected 7/20/26.
+    //
+    // ROSTER SVC REV: $12,055 (7-tech total). WoW ↓ 36% vs prior week
+    // $18,801. Softest svc week of the quarter. But install lane held up:
+    // 2 self-sold ($30,938) all from NICK — his first back-to-back install
+    // week and both jobs $12K+. Plus 1 Adam-side ($15,045 Macsotai) with
+    // Ben Johnson (electrician) assist — no roster tech credit there.
+    //
+    // MEMBERSHIPS: 11 sold / 28 opps (39%) — HIGHEST mem% of the year to
+    // date. Chris posts a PERFECT 5/5 (100%) week — team leader by rate
+    // AND count. Dewone 2/4 (50%), Jason 2/6 (33%), Nick 1/4 (25%),
+    // Daniel 1/7 (14%). Ben 0/2, Dee 0/0.
+    //
+    // TGL (roster, per Nexstar dashboard "# Tech Generated Leads"):
+    //   12 total — Dewone 4, Nick 2, Chris 2, Ben 2, Jason 1, Daniel 1, Dee 0.
+    //
+    // INSTALLS (3 jobs / $45,983.23 total):
+    //   ✅ Tech credit (2 jobs / $30,938.23) — ALL NICK:
+    //      - Nick:  Andy Lindsey       $12,540.02 (Nick lead + sold)
+    //      - Nick:  Steven Burdette    $18,398.21 (Nick lead + sold)
+    //   ❌ Adam-side excluded (1 job / $15,045.00):
+    //      - Lajos & Sonia Macsotai   $15,045.00 (blank lead + Ben Johnson
+    //                                             assist + Adam sold)
+    //
+    // KEY STORY: Nick posts back-to-back self-sold installs after already
+    // posting a $2,311-avg 100% conv week prior. He's on a real install
+    // heater now — 3 installs in 2 weeks ($30,938 both weeks self-sold).
+    // Chris flips from 0-of-7 to 5-of-5 (perfect mem week). Dewone 4 TGL
+    // (roster leader) even on a light svc week. Softest service week of
+    // the quarter but Nick + Chris carry the leaderboard.
+    ipApplyDailyAdd({
+      date: '2026-07-18', // Sat-ending close key (Mon-start week 7/13-7/19)
+      weekStart: '2026-07-13',
+      entries: [
+        // short, rev, memSold, memOpps, leads (roster TGL per dashboard), installs (tech-credit), installRev
+        { short: 'Nick',   rev: 3113, memSold: 1, memOpps: 4, leads: 2, installs: 2, installRev: 30938.23 },
+        { short: 'Chris',  rev: 2131, memSold: 5, memOpps: 5, leads: 2, installs: 0, installRev: 0 },
+        { short: 'Benji',  rev: 1985, memSold: 0, memOpps: 2, leads: 2, installs: 0, installRev: 0 },
+        { short: 'Jason',  rev: 1824, memSold: 2, memOpps: 6, leads: 1, installs: 0, installRev: 0 },
+        { short: 'Daniel', rev: 1319, memSold: 1, memOpps: 7, leads: 1, installs: 0, installRev: 0 },
+        { short: 'Dewone', rev: 1184, memSold: 2, memOpps: 4, leads: 4, installs: 0, installRev: 0 },
+        { short: 'Dee',    rev:  499, memSold: 0, memOpps: 0, leads: 0, installs: 0, installRev: 0 }
+      ]
+    });
+
+    // v219.78: Cascade week 7/13-7/19 into stData MTD (July continues).
+    function _wlbSeedWeek20260713MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260718_v21978';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        var adds = [
+          ['Nick',   3113,  9.65, 2.20, 1, 2],
+          ['Chris',  2131, 10.50, 1.20, 5, 2],
+          ['Benji',  1985, 14.15, 1.67, 0, 2],
+          ['Jason',  1824,  8.85, 1.80, 2, 1],
+          ['Daniel', 1319, 13.25, 2.00, 1, 1],
+          ['Dewone', 1184, 11.85, 2.00, 2, 4],
+          ['Dee',     499,  6.60, 1.50, 0, 0]
+        ];
+        adds.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.78] Week 7/13-7/19 MTD cascade applied. Team totals: $12,055 roster svc (down 36% WoW — softest svc week of Q) / 11 SPP / 12 roster TGL (Dewone 4 = leader) / 11 of 28 mems (39% — highest of year) / 74.85 roster sold hrs / 2 self-sold Nick installs $30,938 (back-to-back install week for Nick). Adam-side excluded: Macsotai $15,045 (blank lead + Ben Johnson elec assist). Chris PERFECT 5/5 mem week. Dee thinnest week ($499).');
+      } catch(e) { console.warn('_wlbSeedWeek20260713MtdIfNeeded failed', e); }
+    }
+    _wlbSeedWeek20260713MtdIfNeeded();
+
+    // v219.78: Log Adam-side install (Macsotai).
+    (function _seedInstalls20260713_adamSideIfNeeded(){
+      try {
+        var FLAG = 'snappy_installs_seeded_20260713_adamside_v21978';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var brRaw = localStorage.getItem('snappy_brayden_installs');
+        var brArr = [];
+        try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+        if (!Array.isArray(brArr)) brArr = [];
+        var newOnes = [
+          {
+            id: 'install_20260713_macsotai', date: '2026-07-13', customer: 'Lajos & Sonia Macsotai',
+            jobNumber: '94109304', invoice: '94109304', businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard', leadGeneratedBy: '(blank)', assignedTechnicians: 'Ben Johnson, Adam Bunyard',
+            jobsTotal: 15045.00, completionDate: '2026-07-13',
+            attribution: 'Adam-side install (blank Lead Generated By + Ben Johnson electrician assist + Adam sold → Adam-side per the blank-lead rule; Ben Johnson is not on the HVAC roster). No roster tech credit. EXCLUDED from tech matrix install pay.',
+            adamSide: true
+          }
+        ];
+        var added = 0;
+        newOnes.forEach(function(ni){
+          var dup = brArr.some(function(x){ return x && (x.jobNumber === ni.jobNumber || x.invoice === ni.invoice || x.id === ni.id); });
+          if (!dup) { brArr.push(ni); added++; }
+        });
+        if (added > 0) {
+          localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+          console.log('[v219.78] Logged ' + added + ' Adam-side install (Macsotai $15,045). Excluded from tech matrix.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_seedInstalls20260713_adamSideIfNeeded failed', e); }
+    })();
+
+    // v219.78: Bulletin board — Week 7/13-7/19 close-out summary.
+    (function _bbWeekClose20260713IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_weekclose_20260713_v21978';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'wk_close_20260713',
+            date: '2026-07-20',
+            text: 'WEEK 7/13-7/19 CLOSE-OUT — $12,055 roster svc rev (\u2193 36% WoW vs $18,801 — softest svc week of the quarter) / 11 SPP / 12 roster TGL / 11 of 28 mems (39% \u2014 HIGHEST mem% of the year) / 74.85 roster sold hrs / 2 self-sold Nick installs $30,938 (back-to-back install week for Nick). Adam-side excluded: Macsotai $15,045 (blank lead + Ben Johnson elec assist). Nick + Chris carry the leaderboard: Nick with the install lane, Chris with a perfect 5/5 mem week.'
+          },
+          {
+            id: 'wk_close_nick_20260713',
+            date: '2026-07-20',
+            text: 'NICK \u2014 INSTALL HEATER + 2ND WK CONV KING: $34,051 total ($3,113 svc + $30,938 install rev). 2 SELF-SOLD installs \u2014 Andy Lindsey $12,540.02 + Steven Burdette $18,398.21. Back-to-back install week (0 prior, now 3 self-sold in 2 wks incl. last-wk\u2019s co-lead on Hajduk-T). 83% conv, $605 avg, 1 SPP, 2 TGL, 1 of 4 mems (25%). GR\u2605 tally: 1 new (Caleb Umunna). Pay: $93 rev + $928 install pay (3%) + $50 lead + $25 mem = $1,096.'
+          },
+          {
+            id: 'wk_close_chris_20260713',
+            date: '2026-07-20',
+            text: 'CHRIS \u2014 PERFECT 5/5 MEM WEEK: $2,131 svc / 83% conv / $426 avg / 5 SPP / 2 TGL / 10.5 sold hrs / 5 of 5 mems (100% \u2014 team leader by rate AND count). Massive flip from last week\u2019s 0/7 \u2014 the membership discipline landed. Conv also 83% (way up from last-wk 20%). Pay: $64 rev + $250 mem + $50 leads = $364.'
+          },
+          {
+            id: 'wk_close_benji_20260713',
+            date: '2026-07-20',
+            text: 'BENJI \u2014 HIGHEST SOLD HRS: $1,985 svc / 75% conv / $643 avg / 0 SPP / 2 TGL / 14.15 sold hrs (top of team) / 0 of 2 mems / 1.67 FRT/call / SPP still 0. Grinding on billable hours but SPP + mem lanes empty. GR\u2605 0 this week. Pay: $60 rev + $50 leads = $110.'
+          },
+          {
+            id: 'wk_close_jason_20260713',
+            date: '2026-07-20',
+            text: 'JASON \u2014 STEADY MEM PACE: $1,824 svc / 56% conv / $329 avg / 2 SPP / 1 TGL / 8.85 sold hrs / 2 of 6 mems (33%). No self-sold install (broke the 2-wk streak) but sit lane still active. Pay: $55 rev + $50 mem + $25 lead = $130.'
+          },
+          {
+            id: 'wk_close_daniel_20260713',
+            date: '2026-07-20',
+            text: 'DANIEL \u2014 HIGH OPPS, LIGHT CLOSE: $1,319 svc / 57% conv / $323 avg / 1 SPP / 1 TGL / 13.25 sold hrs / 1 of 7 mems (14% \u2014 mem lane cooled off after last wk\u2019s 50%). 7 opps but only 1 landed. Pay: $40 rev + $25 mem + $25 lead = $90.'
+          },
+          {
+            id: 'wk_close_dewone_20260713',
+            date: '2026-07-20',
+            text: 'DEWONE \u2014 TGL LEADER + GR\u2605 MAGNET (AGAIN): $1,184 svc (lightest svc week for him) / 57% conv / $256 avg / 2 SPP / 4 TGL (roster leader) / 11.85 sold hrs / 2 of 4 mems (50%). GR\u2605 4 new (Lisa Carver, Hannah Bassett, Armond Scott, 18ZWing40) \u2014 named by 4 more customers on top of last-wk\u2019s 7. Ticket size down but the pipeline he\u2019s building is enormous. Pay: $36 rev + $50 mem + $100 leads = $186.'
+          },
+          {
+            id: 'wk_close_dee_20260713',
+            date: '2026-07-20',
+            text: 'DEE \u2014 THINNEST WEEK POST-INSTALL KING: $499 svc / 100% conv (2 svc calls, 2 closed) / $249 avg / 0 SPP / 0 TGL / 6.6 sold hrs / 0 of 0 mems. Zero opps for mem this week. Came down HARD after last week\u2019s $63K install week \u2014 needs another install lead or a bigger dispatch mix to reset. Pay: $15 rev = $15.'
+          },
+          {
+            id: 'wk_close_adamside_20260713',
+            date: '2026-07-20',
+            text: 'ADAM-SIDE NOTE \u2014 1 install / $15,045 excluded from tech matrix install pay. Macsotai $15,045 (blank lead + Ben Johnson electrician assist + Adam sold). Ben Johnson is not on the HVAC roster, so no cross-credit.'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.78] Added ' + added + ' week-close bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbWeekClose20260713IfNeeded failed', e); }
+    })();
+
+    // ================================================================
+    // v219.79 — Google Reviews close-out for week 7/13-7/19
+    // ================================================================
+    // Source: Google Maps reviews panel for Snappy Services, sorted Newest,
+    // collected 7/20/26. Roster credit rule (6/4): skip non-HVAC-roster
+    // mentions (Brayden = elec, Patrick = plumb, Ben Johnson = elec,
+    // Josh Monk = plumb); only credit the 7 HVAC roster techs by name.
+    //
+    // Dedup vs v219.77 (7/6-7/12 collection on 7/14): reviews now dated
+    // "6 days ago" through "a week ago" (Lee Pearce, Mary Kate Kruhm,
+    // Tamera Barnes, richard hunter, Karen Triplett, Barbara Ann Pfleger,
+    // Kelly Taylor, Kelley Frazier) were ALL already credited last week
+    // when they were "3-5 days ago". Excluded from this week's delta.
+    //
+    // In-window NEW tech-crediting reviews (5 total):
+    //   Dewone: 4 (Lisa Carver 7/19, Hannah Bassett 7/18, Armond Scott 7/16,
+    //              18ZWing40 7/16)
+    //   Nick:   1 (Caleb Umunna 7/18 — "did an incredible job (again)")
+    //   Chris:  0
+    //   Benji:  0
+    //   Daniel: 0
+    //   Dee:    0
+    //   Jason:  0
+    // Non-crediting: E C (Ben Johnson elec), Tyra Buadoo (Ben Johnson elec).
+    (function _seedGoogleReviewsWeekly20260713IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_weekly_seeded_20260713_v21979';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof ipServiceTechSetField !== 'function' || typeof ipServiceTechOverrides !== 'function') return;
+        var weekStart = '2026-07-13';
+        var delta = [
+          ['Dewone', 4],
+          ['Nick',   1]
+        ];
+        var ov = ipServiceTechOverrides();
+        var week = (ov && ov.weeks && ov.weeks[weekStart]) ? ov.weeks[weekStart] : {};
+        delta.forEach(function(r){
+          var short = r[0], target = r[1];
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : 0;
+          if (cur !== target) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', target);
+          }
+        });
+        ['Chris','Jason','Benji','Daniel','Dee'].forEach(function(short){
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : null;
+          if (cur !== 0 && cur !== null) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', 0);
+          }
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.79] Wrote weekly weekReviews for week 2026-07-13: Dewone 4, Nick 1. All others 0. Total roster GR: 5.');
+      } catch(e) { console.warn('_seedGoogleReviewsWeekly20260713IfNeeded failed', e); }
+    })();
+
+    // v219.79: MTD Google Reviews bump for July (week 3 of the month).
+    (function _seedGoogleReviewsMtd20260713IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_mtd_seeded_20260713_v21979';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var raw = localStorage.getItem('snappy_google_reviews');
+        var gr = {};
+        try { gr = raw ? JSON.parse(raw) : {}; } catch(e) { gr = {}; }
+        if (!gr || typeof gr !== 'object') gr = {};
+        var adds = [
+          ['Dewone', 4],
+          ['Nick',   1]
+        ];
+        adds.forEach(function(r){
+          var short = r[0], add = r[1];
+          if (!gr[short]) gr[short] = { count: 0 };
+          gr[short].count = +(gr[short].count || 0) + add;
+        });
+        localStorage.setItem('snappy_google_reviews', JSON.stringify(gr));
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.79] MTD googleReviews[short].count bumped: Dewone +4, Nick +1. Total roster GR for week: 5.');
+      } catch(e) { console.warn('_seedGoogleReviewsMtd20260713IfNeeded failed', e); }
+    })();
+
+
+    // ================================================================
     // v219.72 — GOOGLE REVIEWS 6/22-6/28
     // ================================================================
     // Source: Reviews first captured as "out-of-range" entries in the
