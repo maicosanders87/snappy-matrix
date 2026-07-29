@@ -12909,7 +12909,7 @@ document.addEventListener('visibilitychange', function() {
     // (+1 lead + $25 lead pay) but the SALE is Adam-side. David King is
     // that pattern: Jason gets lead credit, install goes Adam-side.
     //
-    // MEMBERSHIPS: 5 sold / 20 opps (25%). Big cool-off from last week's
+    // MEMBERSHIPS: 5 sold / 24 opps (21%). Big cool-off from last week's
     // 39%. Dewone 3/4 (75%) — team leader by rate AND count. Benji 1/4,
     // Jason 1/3 (33%). Chris 0/4, Nick 0/4, Daniel 0/5 — Chris flips
     // from last-wk 5/5 back to 0/4. Dee 0/0 (no mem opps).
@@ -12980,7 +12980,7 @@ document.addEventListener('visibilitychange', function() {
           st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
         });
         localStorage.setItem(FLAG, '1');
-        console.log('[v219.80] Week 7/20-7/26 MTD cascade applied. Team totals: $12,139 roster svc (up 0.7% WoW — flat, still soft) / 5 SPP / 10 roster TGL (Dewone 3 = leader) / 5 of 20 mems (25% — down from last-wk 39%) / 58.4 roster sold hrs / 2 self-sold installs $32,377.28 (Chris $14,377 Kuldip Singh + Dewone $18,000 Kyle Isaacs). Adam-side excluded: Lansky $12,000 (blank lead) + King $12,844.96 (Jason lead → Brayden sold, Jason gets lead credit only). Daniel 78% conv on $3,097 but 0/5 mems. Dee $158 (thinnest week again).');
+        console.log('[v219.80] Week 7/20-7/26 MTD cascade applied. Team totals: $12,139 roster svc (up 0.7% WoW — flat, still soft) / 5 SPP / 10 roster TGL (Dewone 3 = leader) / 5 of 24 mems (21% — down from last-wk 39%) / 58.4 roster sold hrs / 2 self-sold installs $32,377.28 (Chris $14,377 Kuldip Singh + Dewone $18,000 Kyle Isaacs). Adam-side excluded: Lansky $12,000 (blank lead) + King $12,844.96 (Jason lead → Brayden sold, Jason gets lead credit only). Daniel 78% conv on $3,097 but 0/5 mems. Dee $158 (thinnest week again).');
       } catch(e) { console.warn('_wlbSeedWeek20260720MtdIfNeeded failed', e); }
     }
     _wlbSeedWeek20260720MtdIfNeeded();
@@ -13039,7 +13039,7 @@ document.addEventListener('visibilitychange', function() {
           {
             id: 'wk_close_20260720',
             date: '2026-07-27',
-            text: 'WEEK 7/20-7/26 CLOSE-OUT — $12,139 roster svc rev (flat WoW, +0.7% vs $12,055 — still soft) / 5 SPP / 10 roster TGL / 5 of 20 mems (25% \u2014 down from 39% last wk) / 58.4 roster sold hrs / 2 self-sold installs $32,377.28 (Chris $14,377 + Dewone $18,000). Adam-side excluded: Lansky $12,000 (blank lead) + King $12,844.96 (Jason lead \u2192 Brayden sold, Jason gets lead credit only per 7/29 rule).'
+            text: 'WEEK 7/20-7/26 CLOSE-OUT — $12,139 roster svc rev (flat WoW, +0.7% vs $12,055 — still soft) / 5 SPP / 10 roster TGL / 5 of 24 mems (21% \u2014 down from 39% last wk) / 58.4 roster sold hrs / 2 self-sold installs $32,377.28 (Chris $14,377 + Dewone $18,000). Adam-side excluded: Lansky $12,000 (blank lead) + King $12,844.96 (Jason lead \u2192 Brayden sold, Jason gets lead credit only per 7/29 rule).'
           },
           {
             id: 'wk_close_nick_20260720',
