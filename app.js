@@ -7948,20 +7948,38 @@ document.addEventListener('visibilitychange', function() {
     // no base SPIFF — pay comes entirely from per-duct-run + per-plenum add-ons.
     const INSTALL_PAY_JOB_TYPES = ['Full Install (1.5–3.5 Ton)','Full Install (4–5 Ton)','Cooling Only','Furnace Only','Zone System Only','Duct Work Only'];
 
-    // v219.68: Install pay roster = 2 dedicated installers + 7 svc techs.
+    // v219.68: Install pay roster = dedicated installers + svc techs.
     // The Add Install modal and Bulk Grid pill row both render from this list
-    // so the user can credit any of these 9 people directly.
-    const INSTALL_PAY_DEDICATED_INSTALLERS = ['Thomas Gilbert', 'Terrell Upshur'];
-    const INSTALL_PAY_SVC_TECHS = ['Chris Monahan','Dewone Martin','Ben Tinahui','Daniel Gazaway','Dee Williams','Nick Goehler','Jason Avaloy'];
-    const INSTALL_PAY_ROSTER = INSTALL_PAY_DEDICATED_INSTALLERS.concat(INSTALL_PAY_SVC_TECHS);
+    // so the user can credit any of these people directly.
+    // v219.84 (2026-08-10 roster reshuffle):
+    //  - Terrell Upshur removed from dedicated installers (terminated 2026-07-28).
+    //  - Ben Johnson added as supporting installer.
+    //  - Dee Williams moved from svc techs to dedicated installers (role change
+    //    effective week of 2026-08-03). Dee keeps his install pay history and
+    //    still earns $25 lead pay when a lead he generates becomes an install,
+    //    but is no longer scored on the service leaderboard.
+    const INSTALL_PAY_DEDICATED_INSTALLERS = ['Thomas Gilbert', 'Dee Williams', 'Ben Johnson'];
+    // Historical roster still available for install-credit backfill on prior
+    // weeks; retained here for name-normalization in ipRateCardKey.
+    const INSTALL_PAY_LEGACY_INSTALLERS = ['Terrell Upshur'];
+    const INSTALL_PAY_SVC_TECHS = ['Chris Monahan','Dewone Martin','Ben Tinahui','Daniel Gazaway','Nick Goehler','Jason Avaloy'];
+    const INSTALL_PAY_ROSTER = INSTALL_PAY_DEDICATED_INSTALLERS
+      .concat(INSTALL_PAY_LEGACY_INSTALLERS)
+      .concat(INSTALL_PAY_SVC_TECHS);
 
     // v219.68: Map an installer/tech name to the rate-card bucket key.
-    // All 7 svc techs share the 'Dee / Daniel / Other SVC Tech' card.
-    // Thomas and Terrell each have their own card.
+    // All svc techs share the 'Dee / Daniel / Other SVC Tech' card (kept as
+    // 'Daniel / Other SVC Tech' key label internally, but Dee-authored history
+    // is preserved). Thomas and Terrell each have their own card. Dee (now on
+    // install side) and Ben Johnson use the svc-tech-tier rate for backward
+    // compatibility with the existing rate card.
     function ipRateCardKey(name) {
       if (!name) return name;
       if (name === 'Thomas Gilbert') return 'Thomas Gilbert';
       if (name === 'Terrell Upshur') return 'Terrell Upshur';
+      // v219.84: Dee and Ben Johnson (dedicated installers, non-Thomas tier)
+      // stay on the svc-tech rate card until Mark defines new tiers.
+      if (name === 'Dee Williams' || name === 'Ben Johnson') return 'Dee / Daniel / Other SVC Tech';
       if (INSTALL_PAY_SVC_TECHS.indexOf(name) !== -1) return 'Dee / Daniel / Other SVC Tech';
       return name;
     }
@@ -13455,6 +13473,349 @@ document.addEventListener('visibilitychange', function() {
         console.log('[v219.83] MTD googleReviews[short].count bumped: Nick +1. Total roster GR for week: 1.');
       } catch(e) { console.warn('_seedGoogleReviewsMtd20260727IfNeeded failed', e); }
     })();
+
+    // ================================================================
+    // v219.84 — WEEK 8/3-8/9 CLOSE-OUT (ROSTER RESHUFFLE WEEK)
+    // ================================================================
+    // Source: ServiceTitan Modular Dashboard (Nexstar tab IMG_0347 +
+    // Memberships tab IMG_0348, dated 8/3/26 → 8/9/26) + Generated
+    // Installs PDF (8 jobs / $104,388.69) + TGL sales-and-commission
+    // PDF (17 total TGL rows, 11 roster after user corrections),
+    // all collected 8/10/26.
+    //
+    // ROSTER CHANGE — Dee Williams moved from service tech to install
+    // team effective this week. Service roster is now 6 (Chris, Ben
+    // "Benji" Tinahui, Daniel, Dewone, Nick, Jason). Dee is on the
+    // install team with Thomas Gilbert (lead) and Ben Johnson supporting.
+    // Terrell Upshur was terminated 2026-07-28 and is no longer on the
+    // dedicated-installer list either. Dee still earns $25 lead pay when
+    // a lead he generates becomes an install, so his Magen Nessi lead
+    // this week is logged as an Adam-side install with Dee lead credit.
+    //
+    // WoW vs 7/27-8/2 (BREAKOUT week):
+    //   Roster svc: $24,601 → $16,250 (-34%). Note: only 6 techs this
+    //     week vs 7 last week — Dee's $0 svc last week means the drop
+    //     is really -34% on comparable ex-Dee roster ($24,601 → $16,250).
+    //   Self-sold installs: 6 → 4 ($88,032 → $49,318, -44%).
+    //   Total roster gross production: $112,633 → $65,568 (-42%).
+    //   TGL: 14 → 11 (-21%). Mem rate: 24% → 27% (up).
+    //
+    // MEMBERSHIPS: 6 sold / 22 opps (27%). Nick 3/4 (75% — team leader
+    // by rate for the second week in a row on rate), Daniel 2/6 (33%),
+    // Jason 1/2 (50%). Ben 0/5, Dewone 0/4, Chris 0/1 — all three had
+    // opps and closed nothing.
+    //
+    // TGL (11 total roster, per PDF + user Ronnie Pearce override):
+    //   Chris 4 (roster leader — 3 from PDF + Ronnie Pearce override),
+    //   Ben 2, Daniel 2, Dewone 2, Jason 1, Nick 0.
+    // Non-roster TGL: 5 blank + 1 Adam Bunyard + 1 Dee (install team) = 7.
+    //
+    // INSTALLS (8 jobs / $104,388.69 total):
+    //   ✅ Roster self-sold (4 / $49,317.56):
+    //      - Chris: Ronnie Pearce $7,581.56 + Carolyn Rogers $16,891.46 +
+    //               Jerry Eison $14,792.61 = $39,265.63 (3)
+    //      - Ben:   Brett Lynch $10,051.93 (1)
+    //   ❌ Adam-side excluded (4 / $55,071.13):
+    //      - Kym Byrd $18,993.01 (blank lead, blank sold — pure Adam-side)
+    //      - Grier Campbell $0.00 (Adam Bunyard lead, $0 warranty/adj)
+    //      - Magen Nessi $25,578.12 (Dee lead → Dee +$25 lead pay only;
+    //         Dee is install team so no self-sold credit)
+    //      - Jonathon Hummel $10,500.00 (Daniel lead → Brayden sold →
+    //         Daniel +$25 lead pay only per install attribution rule)
+    //
+    // NEW USER RULE APPLIED (Ronnie Pearce, 8/10 clarification):
+    // Ronnie Pearce $7,581.56 install shows Chris Monahan as Sold By in
+    // the install PDF but the TGL report has blank "Lead Generated By"
+    // (Marketed Lead source). Mark's call: Chris gets +1 TGL credit +
+    // $25 lead pay + the install self-sold credit. Extends the same
+    // Sold-By-driven attribution to lead-side attribution when the
+    // connected tech is clearly authoring the sale.
+    //
+    // KEY STORY: Roster reshuffle week. Chris carries the roster with
+    // 4 TGL + 3 self-sold installs ($39,266) — the highest personal
+    // installer week for a roster tech so far. Ben notches his second
+    // Q3 install ($10,052 Brett Lynch). Nick's TGL drought (0 leads,
+    // lowest week on record) is offset by his 75% mem close rate (3/4).
+    // Daniel's coach moment continues: $2,925 svc (up from $324 wk
+    // prior) but 0 TGL and heavy Adam-side reliance (Hummel Brayden-
+    // sold). Dewone: 2 TGL but 0/4 mems and 0 install.
+    ipApplyDailyAdd({
+      date: '2026-08-08', // Sat-ending close key (Mon-start week 8/3-8/9)
+      weekStart: '2026-08-03',
+      entries: [
+        // short, rev, memSold, memOpps, leads (roster TGL per PDF+overrides), installs (self-sold), installRev
+        { short: 'Chris',  rev: 1774, memSold: 0, memOpps: 1, leads: 4, installs: 3, installRev: 39265.63 },
+        { short: 'Benji',  rev: 3137, memSold: 0, memOpps: 5, leads: 2, installs: 1, installRev: 10051.93 },
+        { short: 'Daniel', rev: 2925, memSold: 2, memOpps: 6, leads: 2, installs: 0, installRev:     0.00 },
+        { short: 'Dewone', rev: 3851, memSold: 0, memOpps: 4, leads: 2, installs: 0, installRev:     0.00 },
+        { short: 'Nick',   rev: 1898, memSold: 3, memOpps: 4, leads: 0, installs: 0, installRev:     0.00 },
+        { short: 'Jason',  rev: 2665, memSold: 1, memOpps: 2, leads: 1, installs: 0, installRev:     0.00 }
+        // Dee omitted — moved to install team effective this week. Dee's
+        // Magen Nessi lead is logged on the Adam-side install row below
+        // so accounting still sees $25 lead pay for him.
+      ]
+    });
+
+    // v219.84: Cascade week 8/3-8/9 into stData MTD (August week 2).
+    function _wlbSeedWeek20260803MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260808_v21984';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        var adds = [
+          ['Chris',  1774, 10.00, 2.00, 0, 4],
+          ['Benji',  3137, 12.25, 3.67, 0, 2],
+          ['Daniel', 2925, 12.15, 2.80, 2, 2],
+          ['Dewone', 3851, 14.30, 4.00, 0, 2],
+          ['Nick',   1898,  6.20, 3.50, 3, 0],
+          ['Jason',  2665,  9.65, 1.67, 1, 1]
+        ];
+        adds.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.84] Week 8/3-8/9 MTD cascade applied. ROSTER RESHUFFLE (6 techs, Dee to install team): $16,250 roster svc (-34% WoW) / 6 SPP / 11 roster TGL (Chris 4 leader incl Ronnie Pearce override) / 6 of 22 mems (27%) / 64.55 roster sold hrs / 4 self-sold installs $49,317.56 (Chris 3 $39K + Ben 1 $10K). Adam-side excluded: 4 installs $55,071 (Kym Byrd $18,993 pure Adam / Grier Campbell $0 / Magen Nessi $25,578 Dee lead / Hummel $10,500 Daniel lead → Brayden sold).');
+      } catch(e) { console.warn('_wlbSeedWeek20260803MtdIfNeeded failed', e); }
+    }
+    _wlbSeedWeek20260803MtdIfNeeded();
+
+    // v219.84: Log Adam-side installs from week 8/3-8/9 (attribution notes).
+    (function _seedInstalls20260803_adamSideIfNeeded(){
+      try {
+        var FLAG = 'snappy_installs_seeded_20260803_adamside_v21984';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var brRaw = localStorage.getItem('snappy_brayden_installs');
+        var brArr = [];
+        try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+        if (!Array.isArray(brArr)) brArr = [];
+        var newOnes = [
+          {
+            id: 'install_20260803_kymbyrd', date: '2026-08-04', customer: 'Kym Byrd',
+            jobNumber: '115659825', invoice: '115659825', businessUnit: 'HVAC Install',
+            soldBy: '(blank — Adam-side)', leadGeneratedBy: '(blank — Marketed Lead)',
+            assignedTechnicians: 'Ben Johnson',
+            jobsTotal: 18993.01, completionDate: '2026-08-04',
+            attribution: 'Pure Adam-side install. Marketed Lead source, no Sold By, no Lead Generated By in either report. No roster tech credit.',
+            adamSide: true
+          },
+          {
+            id: 'install_20260803_griercampbell', date: '2026-08-07', customer: 'Grier Campbell',
+            jobNumber: '116314743', invoice: '116314743', businessUnit: 'HVAC Install',
+            soldBy: '(blank — Adam-side)', leadGeneratedBy: 'Adam Bunyard',
+            assignedTechnicians: '',
+            jobsTotal: 0.00, completionDate: '2026-08-07',
+            attribution: '$0 warranty / adjustment install. Adam-side lead, no roster credit.',
+            adamSide: true
+          },
+          {
+            id: 'install_20260803_magennessi', date: '2026-08-07', customer: 'Magen Nessi',
+            jobNumber: '116239446', invoice: '116239446', businessUnit: 'HVAC Install',
+            soldBy: '(blank — Adam-side)', leadGeneratedBy: 'Dee Williams',
+            assignedTechnicians: 'Adam Bunyard, Ben Johnson',
+            jobsTotal: 25578.12, completionDate: '2026-08-07',
+            attribution: 'Adam-side sale with Dee Williams (now install team) as lead. Dee gets +$25 lead pay per user rule 8/10 (install-team members still earn lead pay when they generate a lead that becomes an install). No self-sold credit since Dee is off the service roster.',
+            adamSide: true, leadCredit: 'Dee', deeLeadPay: 25
+          },
+          {
+            id: 'install_20260803_jonathonhummel', date: '2026-08-03', customer: 'Jonathon Hummel',
+            jobNumber: '114719475', invoice: '114719475', businessUnit: 'HVAC Install',
+            soldBy: 'Brayden Bond', leadGeneratedBy: 'Daniel Gazaway',
+            assignedTechnicians: 'Thomas Gilbert, Dee Williams',
+            jobsTotal: 10500.00, completionDate: '2026-08-03',
+            attribution: 'Brayden-sold install. Daniel gets +$25 lead pay per the Brayden lead-pay rule (if Brayden sold it he gets the credit; roster tech gets +$25 lead pay only, no self-sold install credit).',
+            adamSide: true, leadCredit: 'Daniel', danielLeadPay: 25
+          }
+        ];
+        var added = 0;
+        newOnes.forEach(function(ni){
+          var dup = brArr.some(function(x){ return x && (x.jobNumber === ni.jobNumber || x.invoice === ni.invoice || x.id === ni.id); });
+          if (!dup) { brArr.push(ni); added++; }
+        });
+        if (added > 0) {
+          localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+          console.log('[v219.84] Logged ' + added + ' Adam-side installs for week 8/3-8/9. Total: $55,071.13 (Kym Byrd $18,993 + Grier Campbell $0 + Magen Nessi $25,578 Dee-lead + Jonathon Hummel $10,500 Daniel-lead Brayden-sold).');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_seedInstalls20260803_adamSideIfNeeded failed', e); }
+    })();
+
+    // v219.84: Bulletin board — Week 8/3-8/9 close-out summary.
+    (function _bbWeekClose20260803IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_weekclose_20260803_v21984';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'wk_close_20260803',
+            date: '2026-08-10',
+            text: 'WEEK 8/3-8/9 CLOSE-OUT \u2014 ROSTER RESHUFFLE. Dee moved to install team (Thomas lead + Ben Johnson support; Terrell out 7/28). Service roster now 6 techs. $16,250 roster svc (-34% WoW vs $24,601) / 6 SPP / 11 roster TGL (Chris 4 leader) / 6 of 22 mems (27%) / 64.55 roster sold hrs / 4 self-sold installs $49,317.56 (Chris 3 $39K + Ben 1 $10K). Total roster production: $65,567.56. Adam-side excluded: 4 installs $55,071 (incl Dee $25 lead pay on Magen Nessi + Daniel $25 lead pay on Hummel).'
+          },
+          {
+            id: 'wk_close_chris_20260803',
+            date: '2026-08-10',
+            text: 'CHRIS \u2014 INSTALL LANE + TGL LEADER: $1,774 svc / 60% conv / $524 avg / 0 SPP / 4 TGL (roster leader incl Ronnie Pearce Mark override) / 10.00 sold hrs / 0 of 1 mems / THREE self-sold installs: Ronnie Pearce $7,582 + Carolyn Rogers $16,891 + Jerry Eison $14,793 = $39,266. Personal production $41,040 (roster #1). Pay: $53 rev + $100 leads + $1,178 install (3%) = $1,331.'
+          },
+          {
+            id: 'wk_close_benji_20260803',
+            date: '2026-08-10',
+            text: 'BEN \u2014 SECOND Q3 INSTALL: $3,137 svc / 43% conv / $970 avg / 0 SPP / 2 TGL / 12.25 sold hrs / 0 of 5 mems (0% \u2014 second week of 0-close on high opp count) / SELF-SOLD $10,052 install (Brett Lynch). Mem opp discipline still the flag. GR\u2605 +1 (Caroline McCants). Pay: $94 rev + $50 leads + $302 install (3%) = $446.'
+          },
+          {
+            id: 'wk_close_daniel_20260803',
+            date: '2026-08-10',
+            text: 'DANIEL \u2014 BOUNCE-BACK BUT ADAM-SIDE ONLY: $2,925 svc / 42% conv / $507 avg / 2 SPP / 2 TGL / 12.15 sold hrs / 2 of 6 mems (33%). Big recovery from $324 wk prior. His Hummel lead ($10,500) closed via Brayden \u2014 $25 lead pay only. GR\u2605 +2 (Jesse Leopold + Brandy Wilson). Pay: $88 rev + $50 leads + $50 mem + $25 Hummel lead = $213.'
+          },
+          {
+            id: 'wk_close_dewone_20260803',
+            date: '2026-08-10',
+            text: 'DEWONE \u2014 REV SOLID BUT MEM ZERO: $3,851 svc / 50% conv / $418 avg / 0 SPP / 2 TGL (electrical flips) / 14.30 sold hrs / 0 of 4 mems (0% \u2014 4 opps ignored). Coach flag: pattern of high svc + low mem-close after strong prior weeks. GR\u2605 +2 (Jeniece Richards + Siobhan Wright). Pay: $116 rev + $50 leads = $166.'
+          },
+          {
+            id: 'wk_close_nick_20260803',
+            date: '2026-08-10',
+            text: 'NICK \u2014 LEAD DROUGHT + MEM RATE KING: $1,898 svc / 33% conv / $872 avg / 3 SPP / 0 TGL (first week with 0 leads in tracked window) / 6.20 sold hrs / 3 of 4 mems (75% \u2014 team leader by rate). After last week\u2019s monster $48K personal, Nick shifts to mem-lane mode. Fewer hours (6.2), fewer calls. Pay: $57 rev + $75 mem = $132.'
+          },
+          {
+            id: 'wk_close_jason_20260803',
+            date: '2026-08-10',
+            text: 'JASON \u2014 STEADY: $2,665 svc / 60% conv / $429 avg / 1 SPP / 1 TGL / 9.65 sold hrs / 1 of 2 mems (50%). Consistent middle of the pack again. Pay: $80 rev + $25 leads + $25 mem = $130.'
+          },
+          {
+            id: 'wk_close_dee_20260803',
+            date: '2026-08-10',
+            text: 'DEE \u2014 INSTALL TEAM DEBUT: Moved from service tech to install team this week. First install-side rotation with Thomas Gilbert as lead. Still credited $25 lead pay for the Magen Nessi lead ($25,578 install). Not scored on service leaderboard going forward. Pay: $25 Magen Nessi lead + install pay TBD.'
+          },
+          {
+            id: 'wk_close_adamside_20260803',
+            date: '2026-08-10',
+            text: 'ADAM-SIDE NOTE \u2014 4 installs / $55,071.13 excluded from roster tech matrix. Kym Byrd $18,993 pure Adam / Grier Campbell $0 Adam adj / Magen Nessi $25,578 Dee lead ($25 lead pay only, install-team member) / Jonathon Hummel $10,500 Daniel lead \u2192 Brayden sold ($25 lead pay only per Brayden rule).'
+          },
+          {
+            id: 'roster_change_20260803',
+            date: '2026-08-10',
+            text: 'ROSTER CHANGE \u2014 Dee Williams moves from service tech to install team effective the week of 2026-08-03. Install team: Thomas Gilbert (lead) + Dee Williams + Ben Johnson. Terrell Upshur terminated 2026-07-28 (removed from dedicated installers list). Service roster now 6 techs: Chris Monahan, Ben Tinahui, Daniel Gazaway, Dewone Martin, Nick Goehler, Jason Avaloy. Dee still earns $25 lead pay per lead-to-install; no service-lane matrix scoring for Dee going forward.'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.84] Added ' + added + ' week-close bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbWeekClose20260803IfNeeded failed', e); }
+    })();
+
+    // ================================================================
+    // v219.85 — Google Reviews close-out for week 8/3-8/9
+    // ================================================================
+    // Source: Google Maps reviews panel for Snappy Services, sorted
+    // Newest, collected 8/10/26 by subagent google_reviews_8_3_8_9.
+    //
+    // Roster credit rule: only credit the 6 HVAC service-roster techs
+    // by name (Chris, Ben, Daniel, Dewone, Nick, Jason). Skip Brayden
+    // (elec/installer), Patrick (plumb), Ben Johnson (elec), Josh Monk
+    // (plumb). Dee Williams is now on the install team so his mentions
+    // also don't count for service-leaderboard GR credit (but are
+    // logged in bulletin for the install team).
+    //
+    // Dedup vs v219.83 (7/27-8/2): Vickie Brown "install water pumps"
+    // (Nick) was already banked last week. On 8/10 the same review
+    // renders as "a week ago" (=8/3) which now falls inside THIS
+    // week's window, but it's the same review — do NOT double-count.
+    //
+    // In-window NEW roster-crediting reviews (5 total):
+    //   Ben:    1 (Caroline McCants ~8/3 — "Ben was friendly and efficient")
+    //   Daniel: 2 (Jesse Leopold ~8/6 "Daniel is the best" + Brandy Wilson
+    //             ~8/6 "Daniel from Snappy provided outstanding HVAC service")
+    //   Dewone: 2 (Jeniece Richards ~8/6 + Siobhan Wright ~8/4)
+    //   Chris:  0
+    //   Nick:   0 (Vickie Brown already banked v219.83)
+    //   Jason:  0
+    // Non-crediting: Brittaney Andrews (Brayden elec), SMw SMw (Brayden),
+    //                Rhonda Dolan (Brayden), Danielle Keeby (Brayden elec/HVAC),
+    //                Jennifer Fortune (no tech), Emily Williamson (no tech,
+    //                metadata-only), Richard Rhyne (no tech), Grant Chesin.
+    //                (no tech). Total 5 roster GR — best roster review week
+    //                of Q3 so far.
+    (function _seedGoogleReviewsWeekly20260803IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_weekly_seeded_20260803_v21985';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof ipServiceTechSetField !== 'function' || typeof ipServiceTechOverrides !== 'function') return;
+        var weekStart = '2026-08-03';
+        var delta = [
+          ['Benji',  1],
+          ['Daniel', 2],
+          ['Dewone', 2]
+        ];
+        var ov = ipServiceTechOverrides();
+        var week = (ov && ov.weeks && ov.weeks[weekStart]) ? ov.weeks[weekStart] : {};
+        delta.forEach(function(r){
+          var short = r[0], target = r[1];
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : 0;
+          if (cur !== target) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', target);
+          }
+        });
+        // Zero out the rest of the 6-tech service roster.
+        ['Chris','Ben','Benji','Daniel','Dewone','Nick','Jason'].forEach(function(short){
+          if (delta.some(function(r){ return r[0] === short; })) return;
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : null;
+          if (cur !== 0 && cur !== null) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', 0);
+          }
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.85] Wrote weekly weekReviews for week 2026-08-03: Benji 1 (Caroline McCants), Daniel 2 (Jesse Leopold + Brandy Wilson), Dewone 2 (Jeniece Richards + Siobhan Wright). Chris/Nick/Jason 0. Vickie Brown already banked v219.83, deduped. Total roster GR: 5.');
+      } catch(e) { console.warn('_seedGoogleReviewsWeekly20260803IfNeeded failed', e); }
+    })();
+
+    // v219.85: MTD Google Reviews bump for August (week 2 of the month).
+    (function _seedGoogleReviewsMtd20260803IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_mtd_seeded_20260803_v21985';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var raw = localStorage.getItem('snappy_google_reviews');
+        var gr = {};
+        try { gr = raw ? JSON.parse(raw) : {}; } catch(e) { gr = {}; }
+        if (!gr || typeof gr !== 'object') gr = {};
+        var adds = [
+          ['Benji',  1],
+          ['Daniel', 2],
+          ['Dewone', 2]
+        ];
+        adds.forEach(function(r){
+          var short = r[0], add = r[1];
+          if (!gr[short]) gr[short] = { count: 0 };
+          gr[short].count = +(gr[short].count || 0) + add;
+        });
+        localStorage.setItem('snappy_google_reviews', JSON.stringify(gr));
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.85] MTD googleReviews[short].count bumped: Benji +1, Daniel +2, Dewone +2. Total roster GR for week: 5.');
+      } catch(e) { console.warn('_seedGoogleReviewsMtd20260803IfNeeded failed', e); }
+    })();
+
+
 
 
 
