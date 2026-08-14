@@ -5658,12 +5658,19 @@ document.addEventListener('visibilitychange', function() {
         setVal('sa-job', p.jobNumber || '');
         setVal('sa-date', p.date || '');
         setVal('sa-total', p.jobsTotal || '');
-        // Map IP leadGeneratedBy first names to the dropdown's full names
+        // Map IP leadGeneratedBy first names to the dropdown's full names.
+        // v219.86: Removed ambiguous 'Ben' → 'Ben Tinahui' fallback. There are
+        // now two Bens in the roster:
+        //   • Benji = Ben Tinahui (HVAC svc tech, can generate leads)
+        //   • Ben   = Ben Johnson (electrician, does not generate leads)
+        // The canonical short for Ben Tinahui is 'Benji'. If a legacy import
+        // still uses bare 'Ben' as leadGeneratedBy, the value passes through
+        // unchanged and the leadby dropdown falls back to Self / Direct so we
+        // notice the ambiguity instead of silently miscrediting.
         var leadMap = {
           'Dewone': 'Dewone',
           'Chris': 'Chris Monahan',
           'Benji': 'Ben Tinahui',
-          'Ben': 'Ben Tinahui',
           'Daniel': 'Daniel Gazaway',
           'Dee': 'Dee Williams',
           'Nick': 'Nick Goehler',
@@ -7917,7 +7924,8 @@ document.addEventListener('visibilitychange', function() {
         'Flu Pipe Modifications': 100,
         'Per Plenum': 60,
         'Per Duct Run': 50,
-        'Per Zone Motor': 30
+        'Per Zone Motor': 30,
+        'Per Tstat Wire Pulled': 0 // v219.86: only Ben Johnson pulls tstat wire
       },
       'Thomas Gilbert': {
         'Full Install (1.5–3.5 Ton)': 700,
@@ -7929,7 +7937,8 @@ document.addEventListener('visibilitychange', function() {
         'Flu Pipe Modifications': 100,
         'Per Plenum': 60,
         'Per Duct Run': 50,
-        'Per Zone Motor': 30
+        'Per Zone Motor': 30,
+        'Per Tstat Wire Pulled': 0 // v219.86
       },
       'Dee / Daniel / Other SVC Tech': {
         'Full Install (1.5–3.5 Ton)': 500,
@@ -7941,7 +7950,25 @@ document.addEventListener('visibilitychange', function() {
         'Flu Pipe Modifications': 100,
         'Per Plenum': 60,
         'Per Duct Run': 50,
-        'Per Zone Motor': 30
+        'Per Zone Motor': 30,
+        'Per Tstat Wire Pulled': 0 // v219.86
+      },
+      // v219.86 (2026-08-13): Ben Johnson (electrician — NOT the same as 'Benji' Ben
+      // Tinahui, HVAC svc tech). Used from time to time to run new thermostat wire
+      // on HVAC calls. Payout is 5% × $500 = $25 per wire pulled. All install job
+      // types are $0 for Ben — he only earns from the Per Tstat Wire Pulled line.
+      'Ben Johnson': {
+        'Full Install (1.5–3.5 Ton)': 0,
+        'Full Install (4–5 Ton)': 0,
+        'Cooling Only': 0,
+        'Furnace Only': 0,
+        'Zone System Only': 0,
+        'Duct Work Only': 0,
+        'Flu Pipe Modifications': 0,
+        'Per Plenum': 0,
+        'Per Duct Run': 0,
+        'Per Zone Motor': 0,
+        'Per Tstat Wire Pulled': 25 // 5% × $500
       }
     };
     // v219.70: Added 'Duct Work Only' job type. Like Zone System Only it has
@@ -7968,18 +7995,20 @@ document.addEventListener('visibilitychange', function() {
       .concat(INSTALL_PAY_SVC_TECHS);
 
     // v219.68: Map an installer/tech name to the rate-card bucket key.
-    // All svc techs share the 'Dee / Daniel / Other SVC Tech' card (kept as
-    // 'Daniel / Other SVC Tech' key label internally, but Dee-authored history
-    // is preserved). Thomas and Terrell each have their own card. Dee (now on
-    // install side) and Ben Johnson use the svc-tech-tier rate for backward
-    // compatibility with the existing rate card.
+    // All svc techs share the 'Dee / Daniel / Other SVC Tech' card. Thomas and
+    // Terrell each have their own card. Dee (now on install side) inherits the
+    // svc-tech card. Ben Johnson (electrician, v219.86) has HIS OWN card so his
+    // $0-base + $25-per-tstat-wire rule doesn't leak onto other installers.
     function ipRateCardKey(name) {
       if (!name) return name;
       if (name === 'Thomas Gilbert') return 'Thomas Gilbert';
       if (name === 'Terrell Upshur') return 'Terrell Upshur';
-      // v219.84: Dee and Ben Johnson (dedicated installers, non-Thomas tier)
-      // stay on the svc-tech rate card until Mark defines new tiers.
-      if (name === 'Dee Williams' || name === 'Ben Johnson') return 'Dee / Daniel / Other SVC Tech';
+      // v219.86: Ben Johnson is an electrician (NOT Ben Tinahui). He only pulls
+      // tstat wire on HVAC calls — own rate card, $0 base on all job types.
+      if (name === 'Ben Johnson') return 'Ben Johnson';
+      // v219.84: Dee (dedicated installer, non-Thomas tier) stays on the svc-tech
+      // rate card until Mark defines a new install-side tier.
+      if (name === 'Dee Williams') return 'Dee / Daniel / Other SVC Tech';
       if (INSTALL_PAY_SVC_TECHS.indexOf(name) !== -1) return 'Dee / Daniel / Other SVC Tech';
       return name;
     }
@@ -7994,6 +8023,9 @@ document.addEventListener('visibilitychange', function() {
         if (!d.jobs) d.jobs = [];
         // v219.40: Seed 'Zone System Only' (base 0) on any existing rate card that pre-dates it
         // v219.70: Same for 'Duct Work Only' — base 0, pay from per-duct-run + plenums.
+        // v219.86: Same for 'Per Tstat Wire Pulled' — default 0 everywhere except Ben Johnson.
+        //          Also inject the Ben Johnson rate card ($25/wire, $0 base) if it's missing
+        //          from cloud-synced data that predates v219.86.
         try {
           Object.keys(d.rates).forEach(function(name){
             var card = d.rates[name];
@@ -8003,7 +8035,13 @@ document.addEventListener('visibilitychange', function() {
             if (card && typeof card === 'object' && !('Duct Work Only' in card)) {
               card['Duct Work Only'] = 0;
             }
+            if (card && typeof card === 'object' && !('Per Tstat Wire Pulled' in card)) {
+              card['Per Tstat Wire Pulled'] = (name === 'Ben Johnson') ? 25 : 0;
+            }
           });
+          if (!d.rates['Ben Johnson']) {
+            d.rates['Ben Johnson'] = JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES['Ben Johnson']));
+          }
         } catch(e) {}
         return d;
       } catch(e) { return { jobs: [], rates: JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES)) }; }
@@ -8304,6 +8342,14 @@ document.addEventListener('visibilitychange', function() {
       var plenums = (Number(job.plenums) || 0) * (card['Per Plenum'] || 0);
       var ductRuns = (Number(job.ductRuns) || 0) * (card['Per Duct Run'] || 0);
       var zoneMotors = (Number(job.zoneMotors) || 0) * (card['Per Zone Motor'] || 0);
+      // v219.86: Tstat wire pull — boolean checkbox on the Add Install modal.
+      // Currently only Ben Johnson's rate card has a non-zero value ($25/wire).
+      // If Mark ever needs a multi-wire job for Ben, use tstatWires (numeric)
+      // as an override; otherwise the checkbox implies exactly 1 wire pulled.
+      var wireCount = (typeof job.tstatWires === 'number' && job.tstatWires > 0)
+        ? job.tstatWires
+        : (job.tstatWire ? 1 : 0);
+      var tstatWire = wireCount * (card['Per Tstat Wire Pulled'] || 0);
       var basePay = Number(job.basePay) || 0;
       return {
         baseSpiff: base,
@@ -8311,8 +8357,10 @@ document.addEventListener('visibilitychange', function() {
         plenums: plenums,
         ductRuns: ductRuns,
         zoneMotors: zoneMotors,
+        tstatWire: tstatWire,
+        tstatWireCount: wireCount, // v219.86: for PDF/preview labeling
         basePay: basePay,
-        total: base + fluPipe + plenums + ductRuns + zoneMotors + basePay
+        total: base + fluPipe + plenums + ductRuns + zoneMotors + tstatWire + basePay
       };
     }
 
@@ -8547,8 +8595,10 @@ document.addEventListener('visibilitychange', function() {
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Week ending</div><div style="font-size:18px;font-weight:700;margin-top:4px;">'+selectedWeek+'</div></div>';
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Installs</div><div style="font-size:22px;font-weight:700;margin-top:4px;color:#10B981;">'+weekCount+'</div></div>';
       html += '<div style="background:#0F1B2E;border:1px solid #1e3a5f;border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Total pay</div><div style="font-size:22px;font-weight:700;margin-top:4px;color:#10B981;font-variant-numeric:tabular-nums;">$'+weekTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>';
-      // v218.8: Always show Thomas + Terrell tiles (even when 0 jobs); then any other installers with jobs
-      var pinnedInstallers = ['Thomas Gilbert', 'Terrell Upshur'];
+      // v218.8: Always show pinned installer tiles (even when 0 jobs); then any other installers with jobs
+      // v219.84: Terrell Upshur terminated 2026-07-28 — removed from pinned list.
+      // v219.86: Ben Johnson (electrician) pinned so his tstat-wire jobs are always visible.
+      var pinnedInstallers = ['Thomas Gilbert', 'Dee Williams', 'Ben Johnson'];
       pinnedInstallers.forEach(function(inst){
         var t = totalsByInstaller[inst] || { count: 0, total: 0 };
         var bg = t.count > 0 ? '#0F1B2E' : '#0b1426';
@@ -8586,12 +8636,13 @@ document.addEventListener('visibilitychange', function() {
         html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Duct</th>';
         html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Zone</th>';
         html += '<th style="text-align:center;padding:6px;border:1px solid #1e3a5f;">Flu</th>';
+        html += '<th style="text-align:center;padding:6px;border:1px solid #1e3a5f;" title="Ben Johnson pulled new thermostat wire (\u002425)">Wire</th>'; // v219.86
         html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Base $</th>';
         html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;color:#10B981;">Total</th>';
         html += '<th style="padding:6px;border:1px solid #1e3a5f;"></th>';
         html += '</tr></thead><tbody>';
         if (instJobs.length === 0) {
-          html += '<tr><td colspan="11" style="padding:10px;color:#475569;font-style:italic;text-align:center;border:1px solid #1e3a5f;">No installs logged for '+firstName+' this week. Add rows below or click "+ Add for '+firstName+'".</td></tr>';
+          html += '<tr><td colspan="12" style="padding:10px;color:#475569;font-style:italic;text-align:center;border:1px solid #1e3a5f;">No installs logged for '+firstName+' this week. Add rows below or click "+ Add for '+firstName+'".</td></tr>'; // v219.86: 12 cols (added Wire)
         } else {
           instJobs.forEach(function(j){
             var c = ipComputeJobTotal(j, data.rates);
@@ -8635,7 +8686,7 @@ document.addEventListener('visibilitychange', function() {
         } else {
           html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
           html += '<thead><tr style="color:#64748b;text-transform:uppercase;font-size:10px;letter-spacing:0.4px;">';
-          html += '<th style="text-align:left;padding:4px 6px;">Customer</th><th style="text-align:left;padding:4px 6px;">Installer</th><th style="text-align:left;padding:4px 6px;">Job Type</th><th style="text-align:right;padding:4px 6px;">Plen</th><th style="text-align:right;padding:4px 6px;">Duct</th><th style="text-align:right;padding:4px 6px;">Zone</th><th style="text-align:center;padding:4px 6px;">Flu</th><th style="text-align:right;padding:4px 6px;">Base</th><th style="text-align:right;padding:4px 6px;">Total</th><th></th>';
+          html += '<th style="text-align:left;padding:4px 6px;">Customer</th><th style="text-align:left;padding:4px 6px;">Installer</th><th style="text-align:left;padding:4px 6px;">Job Type</th><th style="text-align:right;padding:4px 6px;">Plen</th><th style="text-align:right;padding:4px 6px;">Duct</th><th style="text-align:right;padding:4px 6px;">Zone</th><th style="text-align:center;padding:4px 6px;">Flu</th><th style="text-align:center;padding:4px 6px;">Wire</th><th style="text-align:right;padding:4px 6px;">Base</th><th style="text-align:right;padding:4px 6px;">Total</th><th></th>'; // v219.86 added Wire
           html += '</tr></thead><tbody>';
           dayJobs.forEach(function(j){
             var c = ipComputeJobTotal(j, data.rates);
@@ -8652,6 +8703,7 @@ document.addEventListener('visibilitychange', function() {
             html += '<td style="padding:6px;text-align:right;font-variant-numeric:tabular-nums;">'+(j.ductRuns||0)+'</td>';
             html += '<td style="padding:6px;text-align:right;font-variant-numeric:tabular-nums;">'+(j.zoneMotors||0)+'</td>';
             html += '<td style="padding:6px;text-align:center;">'+(j.fluPipe?'✓':'')+'</td>';
+            html += '<td style="padding:6px;text-align:center;" title="Ben Johnson tstat wire pull">'+(j.tstatWire?'✓':'')+'</td>'; // v219.86
             html += '<td style="padding:6px;text-align:right;font-variant-numeric:tabular-nums;">$'+(c.basePay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>';
             html += '<td style="padding:6px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:#10B981;">$'+c.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>';
             html += '<td style="padding:6px;text-align:right;"><button onclick="ipOpenAddJob(null,\''+j.id+'\')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:11px;">edit</button> <button onclick="ipDeleteJob(\''+j.id+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:11px;">×</button></td>';
@@ -8742,6 +8794,7 @@ document.addEventListener('visibilitychange', function() {
       html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Duct</th>';
       html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Zone</th>';
       html += '<th style="text-align:center;padding:6px;border:1px solid #1e3a5f;">Flu</th>';
+      html += '<th style="text-align:center;padding:6px;border:1px solid #1e3a5f;" title="Ben Johnson pulled new thermostat wire (\u002425)">Wire</th>'; // v219.86
       html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;">Base $</th>';
       html += '<th style="text-align:right;padding:6px;border:1px solid #1e3a5f;color:#10B981;">Total</th>';
       html += '<th style="padding:6px;border:1px solid #1e3a5f;"></th>';
@@ -9015,6 +9068,7 @@ document.addEventListener('visibilitychange', function() {
       var dr = job ? (job.ductRuns||0) : '';
       var zm = job ? (job.zoneMotors||0) : '';
       var fp = job && job.fluPipe;
+      var tw = job && job.tstatWire; // v219.86
       var bp = job ? (job.basePay||'') : '';
       var tot = computed ? ('$' + computed.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})) : '\u2014';
       var input = function(field, val, type, extra) {
@@ -9034,6 +9088,8 @@ document.addEventListener('visibilitychange', function() {
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('ductRuns',dr,'number','text-align:right;')+'</td>';
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('zoneMotors',zm,'number','text-align:right;')+'</td>';
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:center;"><input data-ip-rid="'+rid+'" data-ip-field="fluPipe" type="checkbox" '+(fp?'checked':'')+' onchange="ipBulkSaveRow(\''+rid+'\')"></td>';
+      // v219.86: Tstat Wire column (Ben Johnson earns $25 per checked box; other installers show but pay $0)
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:center;" title="Ben Johnson pulled a new tstat wire (\u002425)"><input data-ip-rid="'+rid+'" data-ip-field="tstatWire" type="checkbox" '+(tw?'checked':'')+' onchange="ipBulkSaveRow(\''+rid+'\')"></td>';
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('basePay',bp,'number','text-align:right;')+'</td>';
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;color:#10B981;font-weight:600;">'+tot+'</td>';
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:center;">';
@@ -9064,6 +9120,7 @@ document.addEventListener('visibilitychange', function() {
         installer: installer, jobType: get('jobType'),
         plenums: parseInt(get('plenums'))||0, ductRuns: parseInt(get('ductRuns'))||0,
         zoneMotors: parseInt(get('zoneMotors'))||0, fluPipe: !!get('fluPipe'),
+        tstatWire: !!get('tstatWire'), // v219.86: Ben Johnson tstat wire pull
         basePay: parseFloat(get('basePay'))||0, notes: ''
       };
     }
@@ -9145,6 +9202,7 @@ document.addEventListener('visibilitychange', function() {
       var dr = job ? (job.ductRuns||0) : '';
       var zm = job ? (job.zoneMotors||0) : '';
       var fp = job && job.fluPipe;
+      var tw = job && job.tstatWire; // v219.86
       var bp = job ? (job.basePay||'') : '';
       var tot = computed ? ('$' + computed.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})) : '\u2014';
       var lockedAttr = ' data-ip-locked-installer="'+lockedInstaller.replace(/"/g,'&quot;')+'"';
@@ -9164,6 +9222,8 @@ document.addEventListener('visibilitychange', function() {
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('ductRuns',dr,'number','text-align:right;')+'</td>';
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('zoneMotors',zm,'number','text-align:right;')+'</td>';
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:center;"><input data-ip-rid="'+rid+'" data-ip-field="fluPipe" type="checkbox" '+(fp?'checked':'')+' onchange="ipBulkSaveRow(\''+rid+'\')"></td>';
+      // v219.86: Tstat Wire column (Ben Johnson earns $25 per checked box; other installers show but pay $0)
+      html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:center;" title="Ben Johnson pulled a new tstat wire (\u002425)"><input data-ip-rid="'+rid+'" data-ip-field="tstatWire" type="checkbox" '+(tw?'checked':'')+' onchange="ipBulkSaveRow(\''+rid+'\')"></td>';
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;">'+input('basePay',bp,'number','text-align:right;')+'</td>';
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:right;color:#10B981;font-weight:600;">'+tot+'</td>';
       html += '<td style="padding:2px;border:1px solid #1e3a5f;text-align:center;">';
@@ -9434,11 +9494,15 @@ document.addEventListener('visibilitychange', function() {
             '<label style="font-size:11px;color:#94a3b8;">Lead By <span style="color:#64748b;">(service tech)</span><select id="ip_leadBy" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;">'+leadByOpts+'</select></label>' +
             '<label style="font-size:11px;color:#94a3b8;">Sold By <span style="color:#64748b;">(sales / tech)</span><select id="ip_soldBy" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;">'+soldByOpts+'</select></label>' +
           '</div>' +
-          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;">' +
+          '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">' +
             '<label style="font-size:11px;color:#94a3b8;">Plenums<input id="ip_plenums" type="number" min="0" step="1" value="'+((existing&&existing.plenums)||0)+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
             '<label style="font-size:11px;color:#94a3b8;">Duct Runs<input id="ip_ductRuns" type="number" min="0" step="1" value="'+((existing&&existing.ductRuns)||0)+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
             '<label style="font-size:11px;color:#94a3b8;">Zone Motors<input id="ip_zoneMotors" type="number" min="0" step="1" value="'+((existing&&existing.zoneMotors)||0)+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
-            '<label style="font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:6px;background:#16243d;border:1px solid #1e3a5f;border-radius:6px;padding:8px;margin-top:14px;cursor:pointer;"><input id="ip_fluPipe" type="checkbox"'+((existing&&existing.fluPipe)?' checked':'')+'> Flu Pipe Mods</label>' +
+          '</div>' +
+          // v219.86: add-on checkboxes row — Flu Pipe Mods (installer) + Tstat Wire (Ben Johnson only earns from this, others show but pay $0)
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">' +
+            '<label style="font-size:12px;color:#cbd5e1;display:flex;align-items:center;gap:8px;background:#16243d;border:1px solid #1e3a5f;border-radius:6px;padding:10px;cursor:pointer;"><input id="ip_fluPipe" type="checkbox"'+((existing&&existing.fluPipe)?' checked':'')+'> Flu Pipe Mods</label>' +
+            '<label style="font-size:12px;color:#cbd5e1;display:flex;align-items:center;gap:8px;background:#16243d;border:1px solid #1e3a5f;border-radius:6px;padding:10px;cursor:pointer;" title="Check if Ben Johnson (electrician) pulled a new thermostat wire on this job — pays $25."><input id="ip_tstatWire" type="checkbox"'+((existing&&existing.tstatWire)?' checked':'')+'> Ben ran new tstat wire <span style="color:#64748b;font-size:11px;">($25 to Ben)</span></label>' +
           '</div>' +
           '<div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:10px;">' +
             '<label style="font-size:11px;color:#94a3b8;">Base Pay ($)<input id="ip_basePay" type="number" min="0" step="0.01" value="'+((existing&&existing.basePay)||0)+'" style="width:100%;margin-top:4px;padding:8px;background:#16243d;color:#f1f5f9;border:1px solid #1e3a5f;border-radius:6px;font-size:13px;"></label>' +
@@ -9453,7 +9517,7 @@ document.addEventListener('visibilitychange', function() {
         '</div>';
       document.body.appendChild(modal);
       // Wire live preview
-      ['ip_installer','ip_jobType','ip_plenums','ip_ductRuns','ip_zoneMotors','ip_fluPipe','ip_basePay'].forEach(function(id){
+      ['ip_installer','ip_jobType','ip_plenums','ip_ductRuns','ip_zoneMotors','ip_fluPipe','ip_tstatWire','ip_basePay'].forEach(function(id){
         var el = document.getElementById(id);
         if (el) el.addEventListener('input', ipUpdateLivePreview);
         if (el) el.addEventListener('change', ipUpdateLivePreview);
@@ -9528,6 +9592,7 @@ document.addEventListener('visibilitychange', function() {
         ductRuns: (document.getElementById('ip_ductRuns')||{}).value,
         zoneMotors: (document.getElementById('ip_zoneMotors')||{}).value,
         fluPipe: !!((document.getElementById('ip_fluPipe')||{}).checked),
+        tstatWire: !!((document.getElementById('ip_tstatWire')||{}).checked), // v219.86: Ben Johnson pull
         basePay: (document.getElementById('ip_basePay')||{}).value
       };
       if (!installers.length || !jobType) {
@@ -9549,6 +9614,8 @@ document.addEventListener('visibilitychange', function() {
         if (c.plenums) rows.push([(commonFields.plenums||0)+' \u00d7 Plenum', c.plenums]);
         if (c.ductRuns) rows.push([(commonFields.ductRuns||0)+' \u00d7 Duct Run', c.ductRuns]);
         if (c.zoneMotors) rows.push([(commonFields.zoneMotors||0)+' \u00d7 Zone Motor', c.zoneMotors]);
+        // v219.86: tstat wire pull (Ben Johnson) — only shows when the rate card assigns > $0
+        if (c.tstatWire) rows.push([(c.tstatWireCount||1)+' \u00d7 Tstat Wire Pull', c.tstatWire]);
         if (c.basePay) rows.push(['Base Pay', c.basePay]);
         rows.forEach(function(r){ html += '<div style="display:flex;justify-content:space-between;font-size:12px;color:#cbd5e1;"><span>'+r[0]+'</span><span style="font-variant-numeric:tabular-nums;">$'+r[1].toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span></div>'; });
         if (installers.length > 1) {
@@ -9570,6 +9637,7 @@ document.addEventListener('visibilitychange', function() {
       var ductRuns = Number((document.getElementById('ip_ductRuns')||{}).value) || 0;
       var zoneMotors = Number((document.getElementById('ip_zoneMotors')||{}).value) || 0;
       var fluPipe = !!((document.getElementById('ip_fluPipe')||{}).checked);
+      var tstatWire = !!((document.getElementById('ip_tstatWire')||{}).checked); // v219.86: Ben Johnson pull
       var basePay = Number((document.getElementById('ip_basePay')||{}).value) || 0;
       var notes = ((document.getElementById('ip_notes')||{}).value||'').trim();
       // v218.83: capture Lead By / Sold By for TGL credit + leaderboard lane.
@@ -9594,6 +9662,7 @@ document.addEventListener('visibilitychange', function() {
           ductRuns: ductRuns,
           zoneMotors: zoneMotors,
           fluPipe: fluPipe,
+          tstatWire: tstatWire, // v219.86
           basePay: basePay,
           notes: notes,
           leadGeneratedBy: leadBy, // v218.83
@@ -9721,10 +9790,12 @@ document.addEventListener('visibilitychange', function() {
         'Cooling Only': 300,
         'Furnace Only': 250,
         'Zone System Only': 0, // v219.40: no base — pay = Zone Motors × Per Zone Motor + add-ons
+        'Duct Work Only': 0,   // v219.70
         'Flu Pipe Modifications': 100,
         'Per Plenum': 60,
         'Per Duct Run': 50,
-        'Per Zone Motor': 30
+        'Per Zone Motor': 30,
+        'Per Tstat Wire Pulled': 0 // v219.86
       };
       ipSaveData(data);
       ipCloseRateEditor();
@@ -9794,6 +9865,14 @@ document.addEventListener('visibilitychange', function() {
           jobsToday.forEach(function(j){
             var c = ipComputeJobTotal(j, data.rates);
             instTotal += c.total;
+            // v219.86: show Tstat Wire as its own column. For Ben Johnson this cell
+            // carries the $25/wire line-item; for everyone else it's just a check.
+            var wireCell = '';
+            if (c.tstatWire > 0) {
+              wireCell = '$'+c.tstatWire.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+            } else if (j.tstatWire) {
+              wireCell = '\u2713';
+            }
             rows += '<tr>'
               + '<td>'+dayNames[idx]+' '+iso+'</td>'
               + '<td>'+escapeHtml(j.customer||'')+(j.jobNumber?'<br/><span style="color:#666;font-size:10px;">#'+escapeHtml(j.jobNumber)+'</span>':'')+'</td>'
@@ -9802,6 +9881,7 @@ document.addEventListener('visibilitychange', function() {
               + '<td style="text-align:right;">'+(j.ductRuns||0)+'</td>'
               + '<td style="text-align:right;">'+(j.zoneMotors||0)+'</td>'
               + '<td style="text-align:center;">'+(j.fluPipe?'✓':'')+'</td>'
+              + '<td style="text-align:right;">'+wireCell+'</td>'
               + '<td style="text-align:right;">$'+(c.basePay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>'
               + '<td style="text-align:right;font-weight:600;">$'+c.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>'
             + '</tr>';
@@ -9809,7 +9889,7 @@ document.addEventListener('visibilitychange', function() {
         });
         weekTotal += instTotal;
         instSections += '<h2 style="margin:18px 0 6px;font-size:13pt;border-bottom:2px solid #000;padding-bottom:3px;">'+escapeHtml(inst)+' — Total: $'+instTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</h2>';
-        instSections += '<table style="width:100%;border-collapse:collapse;font-size:9pt;"><thead><tr style="background:#eee;"><th style="text-align:left;padding:4px;border:1px solid #888;">Date</th><th style="text-align:left;padding:4px;border:1px solid #888;">Customer / Job#</th><th style="text-align:left;padding:4px;border:1px solid #888;">Job Type</th><th style="padding:4px;border:1px solid #888;">Plen</th><th style="padding:4px;border:1px solid #888;">Duct</th><th style="padding:4px;border:1px solid #888;">Zone</th><th style="padding:4px;border:1px solid #888;">Flu</th><th style="padding:4px;border:1px solid #888;">Base Pay</th><th style="padding:4px;border:1px solid #888;">Total</th></tr></thead><tbody>'+rows+'</tbody></table>';
+        instSections += '<table style="width:100%;border-collapse:collapse;font-size:9pt;"><thead><tr style="background:#eee;"><th style="text-align:left;padding:4px;border:1px solid #888;">Date</th><th style="text-align:left;padding:4px;border:1px solid #888;">Customer / Job#</th><th style="text-align:left;padding:4px;border:1px solid #888;">Job Type</th><th style="padding:4px;border:1px solid #888;">Plen</th><th style="padding:4px;border:1px solid #888;">Duct</th><th style="padding:4px;border:1px solid #888;">Zone</th><th style="padding:4px;border:1px solid #888;">Flu</th><th style="padding:4px;border:1px solid #888;">Tstat Wire</th><th style="padding:4px;border:1px solid #888;">Base Pay</th><th style="padding:4px;border:1px solid #888;">Total</th></tr></thead><tbody>'+rows+'</tbody></table>';
       });
 
       function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
