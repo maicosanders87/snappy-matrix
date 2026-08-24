@@ -9880,6 +9880,39 @@ document.addEventListener('visibilitychange', function() {
         byInstaller[j.installer].push(j);
       });
 
+      // v219.89 (2026-08-24): Ben Johnson tstat-wire rollup.
+      // Ben's $25/wire pay lives on the primary installer's job row
+      // (checkbox on Thomas/Dee/etc job). For the PDF payroll sheet we synthesize
+      // a Ben Johnson pay-row per job that has tstatWire=true, carrying that job's
+      // customer + job# + $25 (or $25 * wireCount) so accounting can see exactly
+      // which install each of Ben's wire pulls came from. The primary installer's
+      // row stays intact — their card gives $0 for Per Tstat Wire Pulled so there's
+      // no double count.
+      var benWireJobs = jobs.filter(function(j){
+        return j.installer !== 'Ben Johnson' && (j.tstatWire || (Number(j.tstatWires) || 0) > 0);
+      });
+      if (benWireJobs.length > 0) {
+        if (!byInstaller['Ben Johnson']) byInstaller['Ben Johnson'] = [];
+        var benRate = ((data.rates && (data.rates['Ben Johnson'] || {}))['Per Tstat Wire Pulled']) || 25;
+        benWireJobs.forEach(function(j){
+          var wc = (typeof j.tstatWires === 'number' && j.tstatWires > 0) ? j.tstatWires : (j.tstatWire ? 1 : 0);
+          byInstaller['Ben Johnson'].push({
+            id: '_ben_wire_' + (j.id || (j.date + '_' + (j.jobNumber || j.customer || ''))),
+            date: j.date,
+            customer: j.customer || '',
+            jobNumber: j.jobNumber || '',
+            installer: 'Ben Johnson',
+            jobType: 'Tstat Wire Pull' + (wc > 1 ? ' (\u00d7' + wc + ')' : ''),
+            plenums: 0, ductRuns: 0, zoneMotors: 0,
+            fluPipe: false, tstatWire: true, tstatWires: wc,
+            basePay: 0,
+            _benSynthetic: true,
+            _benSyntheticPay: wc * benRate,
+            _benPrimaryInstaller: j.installer
+          });
+        });
+      }
+
       var weekTotal = 0;
       var instSections = '';
       Object.keys(byInstaller).forEach(function(inst){
@@ -9891,27 +9924,43 @@ document.addEventListener('visibilitychange', function() {
           var jobsToday = instJobs.filter(function(j){ return j.date === iso; });
           if (jobsToday.length === 0) return;
           jobsToday.forEach(function(j){
-            var c = ipComputeJobTotal(j, data.rates);
-            instTotal += c.total;
-            // v219.86: show Tstat Wire as its own column. For Ben Johnson this cell
-            // carries the $25/wire line-item; for everyone else it's just a check.
-            var wireCell = '';
-            if (c.tstatWire > 0) {
-              wireCell = '$'+c.tstatWire.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-            } else if (j.tstatWire) {
-              wireCell = '\u2713';
+            // v219.89: synthetic Ben Johnson wire row bypasses ipComputeJobTotal
+            // and uses the pre-calculated _benSyntheticPay so we don't double-look
+            // up rates or lose the primary-installer breadcrumb.
+            var c, rowTotal, wireCell, jobTypeCell, baseCell;
+            if (j._benSynthetic) {
+              rowTotal = Number(j._benSyntheticPay) || 0;
+              c = { basePay: 0, tstatWire: rowTotal, total: rowTotal };
+              wireCell = '$' + rowTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+              jobTypeCell = escapeHtml(j.jobType || 'Tstat Wire Pull')
+                + '<br/><span style="color:#666;font-size:10px;">for '+escapeHtml(j._benPrimaryInstaller||'')+'</span>';
+              baseCell = '$0.00';
+            } else {
+              c = ipComputeJobTotal(j, data.rates);
+              // v219.86: show Tstat Wire as its own column. For Ben Johnson this cell
+              // carries the $25/wire line-item; for everyone else it's just a check.
+              wireCell = '';
+              if (c.tstatWire > 0) {
+                wireCell = '$'+c.tstatWire.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+              } else if (j.tstatWire) {
+                wireCell = '\u2713';
+              }
+              jobTypeCell = escapeHtml(j.jobType||'');
+              baseCell = '$'+(c.basePay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+              rowTotal = c.total;
             }
+            instTotal += rowTotal;
             rows += '<tr>'
               + '<td>'+dayNames[idx]+' '+iso+'</td>'
               + '<td>'+escapeHtml(j.customer||'')+(j.jobNumber?'<br/><span style="color:#666;font-size:10px;">#'+escapeHtml(j.jobNumber)+'</span>':'')+'</td>'
-              + '<td>'+escapeHtml(j.jobType||'')+'</td>'
+              + '<td>'+jobTypeCell+'</td>'
               + '<td style="text-align:right;">'+(j.plenums||0)+'</td>'
               + '<td style="text-align:right;">'+(j.ductRuns||0)+'</td>'
               + '<td style="text-align:right;">'+(j.zoneMotors||0)+'</td>'
               + '<td style="text-align:center;">'+(j.fluPipe?'✓':'')+'</td>'
               + '<td style="text-align:right;">'+wireCell+'</td>'
-              + '<td style="text-align:right;">$'+(c.basePay).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>'
-              + '<td style="text-align:right;font-weight:600;">$'+c.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>'
+              + '<td style="text-align:right;">'+baseCell+'</td>'
+              + '<td style="text-align:right;font-weight:600;">$'+rowTotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td>'
             + '</tr>';
           });
         });
