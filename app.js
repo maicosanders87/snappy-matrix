@@ -7969,6 +7969,22 @@ document.addEventListener('visibilitychange', function() {
         'Per Duct Run': 0,
         'Per Zone Motor': 0,
         'Per Tstat Wire Pulled': 25 // 5% × $500
+      },
+      // v219.88 (2026-08-24): Contractor bucket — used when a third-party
+      // contractor runs the install. All auto-calc rates are $0 so pay = the
+      // Base Pay $ field entered manually per job (contractor invoices vary).
+      'Contractor': {
+        'Full Install (1.5–3.5 Ton)': 0,
+        'Full Install (4–5 Ton)': 0,
+        'Cooling Only': 0,
+        'Furnace Only': 0,
+        'Zone System Only': 0,
+        'Duct Work Only': 0,
+        'Flu Pipe Modifications': 0,
+        'Per Plenum': 0,
+        'Per Duct Run': 0,
+        'Per Zone Motor': 0,
+        'Per Tstat Wire Pulled': 0
       }
     };
     // v219.70: Added 'Duct Work Only' job type. Like Zone System Only it has
@@ -7985,7 +8001,10 @@ document.addEventListener('visibilitychange', function() {
     //    effective week of 2026-08-03). Dee keeps his install pay history and
     //    still earns $25 lead pay when a lead he generates becomes an install,
     //    but is no longer scored on the service leaderboard.
-    const INSTALL_PAY_DEDICATED_INSTALLERS = ['Thomas Gilbert', 'Dee Williams', 'Ben Johnson'];
+    // v219.88 (2026-08-24): 'Contractor' added as a selectable installer option
+    // for jobs run by third-party contractors. Pay is manual (Base Pay $ only,
+    // no auto-adders). See INSTALL_PAY_DEFAULT_RATES['Contractor'] above.
+    const INSTALL_PAY_DEDICATED_INSTALLERS = ['Thomas Gilbert', 'Dee Williams', 'Ben Johnson', 'Contractor'];
     // Historical roster still available for install-credit backfill on prior
     // weeks; retained here for name-normalization in ipRateCardKey.
     const INSTALL_PAY_LEGACY_INSTALLERS = ['Terrell Upshur'];
@@ -8006,6 +8025,9 @@ document.addEventListener('visibilitychange', function() {
       // v219.86: Ben Johnson is an electrician (NOT Ben Tinahui). He only pulls
       // tstat wire on HVAC calls — own rate card, $0 base on all job types.
       if (name === 'Ben Johnson') return 'Ben Johnson';
+      // v219.88: Contractor uses its own $0-across-the-board rate card so pay
+      // comes purely from the manual Base Pay $ field per job.
+      if (name === 'Contractor') return 'Contractor';
       // v219.84: Dee (dedicated installer, non-Thomas tier) stays on the svc-tech
       // rate card until Mark defines a new install-side tier.
       if (name === 'Dee Williams') return 'Dee / Daniel / Other SVC Tech';
@@ -8041,6 +8063,12 @@ document.addEventListener('visibilitychange', function() {
           });
           if (!d.rates['Ben Johnson']) {
             d.rates['Ben Johnson'] = JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES['Ben Johnson']));
+          }
+          // v219.88 (2026-08-24): Inject Contractor rate card ($0 across the
+          // board; pay comes from manual Base Pay) if it's missing from
+          // cloud-synced data that predates v219.88.
+          if (!d.rates['Contractor']) {
+            d.rates['Contractor'] = JSON.parse(JSON.stringify(INSTALL_PAY_DEFAULT_RATES['Contractor']));
           }
         } catch(e) {}
         return d;
@@ -9057,7 +9085,7 @@ document.addEventListener('visibilitychange', function() {
     function ipBulkRowHtml(job, computed, data, defaultDate) {
       var jobTypes = ['Full Install (1.5\u20133.5 Ton)','Full Install (4\u20135 Ton)','Cooling Only','Furnace Only','Zone System Only']; // v219.40: added Zone System Only
       var installers = Object.keys(data.rates || {});
-      if (!installers.length) installers = ['Terrell Upshur','Thomas Gilbert','Dee','Daniel','Other SVC Tech'];
+      if (!installers.length) installers = ['Terrell Upshur','Thomas Gilbert','Dee','Daniel','Other SVC Tech','Contractor']; // v219.88
       var rid = job ? job.id : ('new_' + Math.random().toString(36).slice(2,8));
       var d = job ? (job.date||'') : (defaultDate||'');
       var cust = job ? (job.customer||'') : '';
@@ -9304,7 +9332,7 @@ document.addEventListener('visibilitychange', function() {
       window._ipImportCache = candidates;
       var data = ipLoadData();
       var installers = Object.keys(data.rates||{});
-      if (!installers.length) installers = ['Terrell Upshur','Thomas Gilbert','Dee','Daniel','Other SVC Tech'];
+      if (!installers.length) installers = ['Terrell Upshur','Thomas Gilbert','Dee','Daniel','Other SVC Tech','Contractor']; // v219.88
       var instOpts = installers.map(function(n){ return '<option value="'+n+'">'+n+'</option>'; }).join('');
       var html = '<div style="background:#0b1426;border:1px solid #1e3a5f;border-radius:8px;padding:12px;">';
       html += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#10B981;">Review & assign installer for each row, then import:</div>';
