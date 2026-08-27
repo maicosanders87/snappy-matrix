@@ -14288,6 +14288,308 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_seedGoogleReviewsMtd20260810IfNeeded failed', e); }
     })();
 
+    // ================================================================
+    // v219.90 (2026-08-26) — WEEK CLOSE-OUT 8/17-8/23 (INSTALL SURGE WEEK)
+    // ================================================================
+    // KEY STORY: Service revenue soft ($10,742 roster, -26% WoW from $14,443)
+    // but INSTALL SURGE: 8 installs / $98,921 total — the biggest install
+    // week of the summer. 3 self-sold by roster ($34,975: Chris Ed Biggs
+    // $7,326 + Daniel Mike Bousman $13,386 + Dewone Mark Ritzer $14,262),
+    // 4 roster-lead flips to Adam/Brayden ($57,548: Benji PB Sheffield $7,218,
+    // Chris Michael Carr $13,929, Nick James Bryant $15,991, Jason Grier
+    // Campbell $20,410 — all Ronnie Pearce precedent: +$25 lead pay + 3%
+    // spiff), 1 pure Adam-side ($6,398 Galina Stoll marketed lead).
+    //
+    // DEWONE #1 TOTAL PRODUCTION $16,217 (svc + install). Daniel #2 $14,278.
+    // Chris #3 $9,683 with 2 installs. Every roster tech gets install pay
+    // this week.
+    //
+    // Ben Johnson tstat wire on 2 installs (Mike Bousman + Mark Ritzer)
+    // — $50 total via v219.89 synthetic pay-row logic (customer + job#
+    // now show on PDF).
+    //
+    // Attribution overrides confirmed by Mark 8/26 + 8/27:
+    //   - Grier Campbell: Jason "Sold By" in Installs PDF but TGL report
+    //     shows Adam Bunyard as tech / no Lead Gen → Mark ruled Jason lead
+    //     → Adam sold (Ronnie Pearce flip).
+    //   - James Bryant: Nick tipped the lead → Adam sold (Ronnie Pearce).
+    //   - Galina Stoll: pure marketed lead → no roster credit.
+    ipApplyDailyAdd({
+      date: '2026-08-22', // Sat-ending close key (Mon-start week 8/17-8/23)
+      weekStart: '2026-08-17',
+      entries: [
+        // short, rev, memSold, memOpps, leads (Nexstar TGL), installs (self-sold), installRev
+        { short: 'Chris',  rev: 2357, memSold: 2, memOpps: 7, leads: 2, installs: 1, installRev:  7326.30 },
+        { short: 'Benji',  rev: 2752, memSold: 0, memOpps: 5, leads: 2, installs: 0, installRev:     0.00 },
+        { short: 'Daniel', rev:  892, memSold: 2, memOpps: 6, leads: 0, installs: 1, installRev: 13386.49 },
+        { short: 'Dewone', rev: 1555, memSold: 2, memOpps: 4, leads: 2, installs: 1, installRev: 14262.19 },
+        { short: 'Nick',   rev: 2019, memSold: 2, memOpps: 4, leads: 1, installs: 0, installRev:     0.00 },
+        { short: 'Jason',  rev: 1167, memSold: 0, memOpps: 3, leads: 0, installs: 0, installRev:     0.00 }
+      ]
+    });
+
+    // v219.90: Cascade week 8/17-8/23 into stData MTD (August week 4).
+    function _wlbSeedWeek20260817MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260822_v21990';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        var adds = [
+          // name,     svc,  soldHrs, frtPerCall, spps, tgls
+          ['Chris',  2357,  2.50, 3.67, 2, 2],
+          ['Benji',  2752,  5.60, 2.40, 0, 2],
+          ['Daniel',  892,  3.50, 8.00, 2, 0],
+          ['Dewone', 1555,  4.90, 2.50, 2, 2],
+          ['Nick',   2019,  3.10, 3.00, 2, 1],
+          ['Jason',  1167,  4.65, 2.00, 0, 0]
+        ];
+        adds.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.90] Week 8/17-8/23 MTD cascade applied. INSTALL SURGE WEEK: $10,742 roster svc (-26% WoW) / 8 SPP / 7 roster TGL / 8 of 29 mems (28%) / 24.25 roster sold hrs / 3 self-sold installs $34,974.98 (Chris Ed Biggs $7,326 + Daniel Mike Bousman $13,386 + Dewone Mark Ritzer $14,262). Adam-side excluded: 5 installs $63,946 (Benji PB Sheffield $7,218 flip + Chris Michael Carr $13,929 flip + Nick James Bryant $15,991 flip + Jason Grier Campbell $20,410 flip + Galina Stoll $6,398 pure Adam).');
+      } catch(e) { console.warn('_wlbSeedWeek20260817MtdIfNeeded failed', e); }
+    }
+    _wlbSeedWeek20260817MtdIfNeeded();
+
+    // v219.90: Log Adam-side installs from week 8/17-8/23 (attribution notes).
+    (function _seedInstalls20260817_adamSideIfNeeded(){
+      try {
+        var FLAG = 'snappy_installs_seeded_20260817_adamside_v21990';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var brRaw = localStorage.getItem('snappy_brayden_installs');
+        var brArr = [];
+        try { brArr = brRaw ? JSON.parse(brRaw) : []; } catch(e) { brArr = []; }
+        if (!Array.isArray(brArr)) brArr = [];
+        var newOnes = [
+          {
+            id: 'install_20260817_jamesbryant', date: '2026-08-19', customer: 'James Bryant',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard', leadGeneratedBy: 'Nick Goehler (per Mark 8/27)',
+            assignedTechnicians: 'Adam Bunyard',
+            jobsTotal: 15991.46, completionDate: '2026-08-19',
+            attribution: 'Ronnie Pearce precedent flip \u2014 Nick tipped the lead (marketed in ServiceTitan), Adam Bunyard sold and installed. Nick gets +$25 lead pay + 3% spiff ($479.74).',
+            adamSide: true, leadCredit: 'Nick', nickLeadPay: 25, nickInstallSpiff: 479.74
+          },
+          {
+            id: 'install_20260817_galinastoll', date: '2026-08-19', customer: 'Galina Stoll',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard', leadGeneratedBy: '(marketed lead)',
+            assignedTechnicians: 'Thomas Gilbert, Dee Williams',
+            jobsTotal: 6397.63, completionDate: '2026-08-19',
+            attribution: 'Pure Adam-side install per Mark 8/27. Marketed lead, Adam sold. Thomas + Dee on install crew. No roster credit.',
+            adamSide: true
+          },
+          {
+            id: 'install_20260817_pbsheffield', date: '2026-08-19', customer: 'Pb Sheffield',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Brayden Bond', leadGeneratedBy: 'Ben Tinahui',
+            assignedTechnicians: 'Daniel Gazaway',
+            jobsTotal: 7217.87, completionDate: '2026-08-19',
+            attribution: 'Brayden-sold flip. Benji tipped lead, Brayden sold, Daniel on install crew. Benji gets +$25 lead pay + 3% spiff ($216.54) per Ronnie Pearce precedent.',
+            adamSide: true, leadCredit: 'Benji', benjiLeadPay: 25, benjiInstallSpiff: 216.54
+          },
+          {
+            id: 'install_20260817_michaelcarr', date: '2026-08-20', customer: 'Michael Carr',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Brayden Bond', leadGeneratedBy: 'Chris Monahan',
+            assignedTechnicians: 'Thomas Gilbert, Dee Williams',
+            jobsTotal: 13929.11, completionDate: '2026-08-20',
+            attribution: 'Brayden-sold flip. Chris tipped lead, Brayden sold. Chris gets +$25 lead pay + 3% spiff ($417.87) per Ronnie Pearce precedent.',
+            adamSide: true, leadCredit: 'Chris', chrisLeadPay: 25, chrisInstallSpiff: 417.87
+          },
+          {
+            id: 'install_20260817_griercampbell', date: '2026-08-21', customer: 'Grier Campbell',
+            businessUnit: 'HVAC Install',
+            soldBy: 'Adam Bunyard (per Mark 8/26)', leadGeneratedBy: 'Jason Avaloy',
+            assignedTechnicians: 'Adam Bunyard',
+            jobsTotal: 20409.92, completionDate: '2026-08-21',
+            attribution: 'Ronnie Pearce precedent flip. Installs PDF listed Jason as Sold By but TGL report showed no Lead Generated By + Adam Bunyard tech. Mark ruled 8/26: Jason lead \u2192 Adam sold. Jason gets +$25 lead pay + 3% spiff ($612.30). Biggest single install of the week.',
+            adamSide: true, leadCredit: 'Jason', jasonLeadPay: 25, jasonInstallSpiff: 612.30
+          }
+        ];
+        var added = 0;
+        newOnes.forEach(function(ni){
+          var dup = brArr.some(function(x){ return x && (x.id === ni.id); });
+          if (!dup) { brArr.push(ni); added++; }
+        });
+        if (added > 0) {
+          localStorage.setItem('snappy_brayden_installs', JSON.stringify(brArr));
+          console.log('[v219.90] Logged ' + added + ' Adam-side installs for week 8/17-8/23. Total: $63,945.99 (4 roster-lead flips + 1 pure Adam).');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_seedInstalls20260817_adamSideIfNeeded failed', e); }
+    })();
+
+    // v219.90: Bulletin board — Week 8/17-8/23 close-out summary.
+    (function _bbWeekClose20260817IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_weekclose_20260817_v21990';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'wk_close_20260817',
+            date: '2026-08-24',
+            text: 'WEEK 8/17-8/23 CLOSE-OUT \u2014 INSTALL SURGE. Roster 6 techs. Service $10,742 (-26% WoW vs $14,443) but INSTALLS EXPLODED: 8 installs / $98,921 total \u2014 biggest week of the summer. 3 self-sold by roster $34,975 (Chris Ed Biggs $7,326 + Daniel Mike Bousman $13,386 + Dewone Mark Ritzer $14,262). 4 roster-lead flips to Adam/Brayden $57,548 (Benji + Chris + Nick + Jason all cash Ronnie Pearce precedent = +$25 lead + 3% spiff). 1 pure Adam-side $6,398 (Galina Stoll marketed). Total roster production $45,717.'
+          },
+          {
+            id: 'wk_close_dewone_20260817',
+            date: '2026-08-24',
+            text: 'DEWONE \u2014 #1 TOTAL PRODUCTION: $1,555 svc / 44% conv / $332 avg / 2 SPP / 2 TGL / 4.90 sold hrs / 2 of 4 mems (50%) / SELF-SOLD $14,262 install (Mark Ritzer, Thomas+Dee install crew + Ben Johnson wire). Personal production $16,217 \u2014 tops the board. Pay: $47 rev + $50 leads + $50 mem + $428 install (3%) = $575.'
+          },
+          {
+            id: 'wk_close_daniel_20260817',
+            date: '2026-08-24',
+            text: 'DANIEL \u2014 #2 TOTAL, INSTALL SELF-SOLD: $892 svc / 10% conv (rough week on service) / $441 avg / 2 SPP / 0 TGL / 3.50 sold hrs / 2 of 6 mems (33%) / SELF-SOLD $13,386 install (Mike Bousman, Thomas+Dee crew + Ben Johnson wire). GR\u2605 +1 (Althea Johnson 4d ago). Personal production $14,278. Pay: $27 rev + $50 mem + $25 GR + $402 install (3%) = $503.'
+          },
+          {
+            id: 'wk_close_chris_20260817',
+            date: '2026-08-24',
+            text: 'CHRIS \u2014 #3 TOTAL, DOUBLE INSTALL: $2,357 svc / 27% conv / $667 avg / 2 SPP / 2 TGL / 2.50 sold hrs (low but 3.67 FRT!) / 2 of 7 mems (29%) / SELF-SOLD $7,326 install (Ed Biggs, Thomas+Dee crew) + FLIP install Michael Carr $13,929 (Brayden sold, +$25 + 3% = $442.87). Personal production $9,683. Pay: $71 rev + $50 leads + $50 mem + $220 install self + $443 install flip = $833. Highest pay on roster.'
+          },
+          {
+            id: 'wk_close_benji_20260817',
+            date: '2026-08-24',
+            text: 'BENJI \u2014 SVC #1 AGAIN + FLIP: $2,752 svc (top of roster) / 38% conv / $501 avg / 0 SPP / 2 TGL / 5.60 sold hrs / 0 of 5 mems (0% \u2014 flag, 5 opps zero closes) / 0 self-sold install but PB Sheffield $7,218 flip (Brayden sold, +$25 lead + 3% = $241.54). GR\u2605 +1 (Sue Jordan 6d ago). Pay: $83 rev + $50 leads + $25 GR + $242 install flip = $399.'
+          },
+          {
+            id: 'wk_close_nick_20260817',
+            date: '2026-08-24',
+            text: 'NICK \u2014 HOURS REBOUND + BIG FLIP: $2,019 svc / 50% conv / $620 avg / 2 SPP / 1 TGL / 3.10 sold hrs (up from 2.40 but still low) / 2 of 4 mems (50%) / 0 self-sold but JAMES BRYANT $15,991 flip (Adam sold, +$25 lead + 3% = $504.74). Best per-hour rate on the board ($651/hr svc). Pay: $61 rev + $25 leads + $50 mem + $505 install flip = $641.'
+          },
+          {
+            id: 'wk_close_jason_20260817',
+            date: '2026-08-24',
+            text: 'JASON \u2014 SVC QUIET, BUT $20K INSTALL FLIP: $1,167 svc / 43% conv / $336 avg / 0 SPP / 0 TGL (from 3 last wk) / 4.65 sold hrs / 0 of 3 mems (0% \u2014 STILL COACH FLAG, second week zero close). BUT: Grier Campbell $20,410 flip (biggest install of the week \u2014 Jason lead, Adam sold, +$25 + 3% = $637.30). Pay: $35 rev + $637 install flip = $672. Install lane saved the week.'
+          },
+          {
+            id: 'wk_close_adamside_20260817',
+            date: '2026-08-24',
+            text: 'ADAM-SIDE NOTE \u2014 5 installs / $63,946 excluded from roster tech matrix. Benji PB Sheffield $7,218 flip / Chris Michael Carr $13,929 flip / Nick James Bryant $15,991 flip / Jason Grier Campbell $20,410 flip / Galina Stoll $6,398 pure Adam (marketed). Every flip cashes Ronnie Pearce: +$25 lead pay + 3% spiff. Ben Johnson wire on Mike Bousman + Mark Ritzer ($25 each on payroll PDF per v219.89 breadcrumb).'
+          },
+          {
+            id: 'wk_close_membership_flag_20260817',
+            date: '2026-08-24',
+            text: 'MEMBERSHIPS \u2014 8 of 29 (28%) week vs 4 of 18 (22%) prior week: volume + close rate BOTH up. Standouts: Chris 2/7 (29%), Nick 2/4 (50%), Dewone 2/4 (50%), Daniel 2/6 (33%). FLAGS: Benji 0/5 (second week high volume zero close), Jason 0/3 (third straight week zero, coach conversation needed).'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.90] Added ' + added + ' week-close bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbWeekClose20260817IfNeeded failed', e); }
+    })();
+
+    // ================================================================
+    // v219.90 — Google Reviews close-out for week 8/17-8/23
+    // ================================================================
+    // Source: Google Maps reviews panel for Snappy Services (2200 Canton
+    // Rd, Marietta HQ listing — serves Buford/Cumming), sorted Newest,
+    // collected 8/26/26 by subagent gr_pull_8_17_8_23. 30 reviews pulled
+    // through "a month ago".
+    //
+    // Roster credit rule (6/4): only credit the 6 HVAC service-roster
+    // techs by name (Chris, Benji, Daniel, Dewone, Nick, Jason).
+    //
+    // Dedup vs v219.87 (8/10-8/16): Venkatesh Kini (Daniel) + Emily
+    // McCutchan (Dewone) ALREADY BANKED v219.87.
+    // Dedup vs v219.85 (8/3-8/9): Jesse Leopold + Brandy Wilson (Daniel),
+    // Jeniece Richards + Siobhan Wright (Dewone), Caroline McCants (Benji)
+    // ALREADY BANKED.
+    //
+    // In-window NEW roster-crediting reviews (2 total):
+    //   Daniel: 1 (Althea Johnson 4d ago \u2014 "Danial was great! He gave
+    //             us great advice even though the work couldn't be
+    //             completed")
+    //   Benji:  1 (Sue Jordan 6d ago \u2014 HVAC service call, per Mark
+    //             8/26 ruling that "Ben arrived as scheduled\u2026 fixed
+    //             it quickly" is Benji not Ben Johnson electrician)
+    //   Chris:  0
+    //   Dewone: 0 (Emily McCutchan already banked v219.87)
+    //   Nick:   0 (Sonda Ford edited old, already flagged v219.87)
+    //   Jason:  0
+    // Non-crediting: Brandon M (EV charger \u2192 Ben Johnson), Gerry
+    //   Hall (ceiling fans \u2192 Ben Johnson), Julie Peel + Brittaney
+    //   Andrews (Brayden electrician), Gabriel Conway + Jennifer Fortune
+    //   + Emily Williamson (no tech named).
+    (function _seedGoogleReviewsWeekly20260817IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_weekly_seeded_20260817_v21990';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof ipServiceTechSetField !== 'function' || typeof ipServiceTechOverrides !== 'function') return;
+        var weekStart = '2026-08-17';
+        var delta = [
+          ['Daniel', 1],
+          ['Benji',  1]
+        ];
+        var ov = ipServiceTechOverrides();
+        var week = (ov && ov.weeks && ov.weeks[weekStart]) ? ov.weeks[weekStart] : {};
+        delta.forEach(function(r){
+          var short = r[0], target = r[1];
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : 0;
+          if (cur !== target) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', target);
+          }
+        });
+        // Zero out the rest of the 6-tech service roster.
+        ['Chris','Ben','Benji','Daniel','Dewone','Nick','Jason'].forEach(function(short){
+          if (delta.some(function(r){ return r[0] === short; })) return;
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : null;
+          if (cur !== 0 && cur !== null) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', 0);
+          }
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.90] Wrote weekly weekReviews for week 2026-08-17: Daniel 1 (Althea Johnson 4d ago), Benji 1 (Sue Jordan 6d ago \u2014 Mark ruled HVAC not electrician). Chris/Dewone/Nick/Jason 0. Venkatesh Kini + Emily McCutchan already banked v219.87. Total roster GR: 2.');
+      } catch(e) { console.warn('_seedGoogleReviewsWeekly20260817IfNeeded failed', e); }
+    })();
+
+    // v219.90: MTD Google Reviews bump for August (week 4 of the month).
+    (function _seedGoogleReviewsMtd20260817IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_mtd_seeded_20260817_v21990';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var raw = localStorage.getItem('snappy_google_reviews');
+        var gr = {};
+        try { gr = raw ? JSON.parse(raw) : {}; } catch(e) { gr = {}; }
+        if (!gr || typeof gr !== 'object') gr = {};
+        var adds = [
+          ['Daniel', 1],
+          ['Benji',  1]
+        ];
+        adds.forEach(function(r){
+          var short = r[0], add = r[1];
+          if (!gr[short]) gr[short] = { count: 0 };
+          gr[short].count = +(gr[short].count || 0) + add;
+        });
+        localStorage.setItem('snappy_google_reviews', JSON.stringify(gr));
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.90] MTD googleReviews[short].count bumped: Daniel +1, Benji +1. Total roster GR for week: 2.');
+      } catch(e) { console.warn('_seedGoogleReviewsMtd20260817IfNeeded failed', e); }
+    })();
+
 
 
 
