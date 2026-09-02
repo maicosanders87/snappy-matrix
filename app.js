@@ -14590,6 +14590,230 @@ document.addEventListener('visibilitychange', function() {
       } catch(e) { console.warn('_seedGoogleReviewsMtd20260817IfNeeded failed', e); }
     })();
 
+    // ================================================================
+    // v219.91 (2026-09-02) — WEEK CLOSE-OUT 8/24-8/30 (CHRIS DOUBLE-INSTALL)
+    // ================================================================
+    // KEY STORY: Service rebounds hard ($19,369 roster, +80% WoW from $10,742).
+    // Nick #1 svc-only $5,980 on 11.5 hrs / 100% conv / 1/1 mem. Ben Tinahui
+    // $5,348 with a $2,629 avg ticket. But Chris tops total production via
+    // 2 self-sold installs: Cherini Ghobrial $12,000.33 (Dee + Nick crew)
+    // + Shawn Mccarrey $22,823.30 (Thomas + Dee + Daniel crew) = $34,823.63.
+    // Chris personal production $36,464.63.
+    //
+    // Roster GR★: 2 net new — Nick (Danya Culler HVAC A/C, Brayden + Nick
+    // named) + Daniel (Kristen Wilkey "Dan" precedent per Althea/Venkatesh
+    // rulings). Sue Jordan + Althea Johnson already banked v219.90 (deduped).
+    //
+    // Tech-lead flips OPEN (no install this week — leads only, TGL count
+    // credit only, no install $): Ben > Robyn Meyer · Nick > Sonda Ford
+    // + Danya Culler · Chris > John Collins (opportunity ✓).
+    ipApplyDailyAdd({
+      date: '2026-08-29', // Sat-ending close key (Mon-start week 8/24-8/30)
+      weekStart: '2026-08-24',
+      entries: [
+        // short, rev, memSold, memOpps, leads (Nexstar TGL), installs (self-sold), installRev
+        { short: 'Chris',  rev: 1641, memSold: 2, memOpps: 4, leads: 1, installs: 2, installRev: 34823.63 },
+        { short: 'Benji',  rev: 5348, memSold: 1, memOpps: 4, leads: 2, installs: 0, installRev:     0.00 },
+        { short: 'Daniel', rev: 3411, memSold: 1, memOpps: 3, leads: 0, installs: 0, installRev:     0.00 },
+        { short: 'Dewone', rev: 1858, memSold: 2, memOpps: 4, leads: 4, installs: 0, installRev:     0.00 },
+        { short: 'Nick',   rev: 5980, memSold: 1, memOpps: 1, leads: 1, installs: 0, installRev:     0.00 },
+        { short: 'Jason',  rev: 1131, memSold: 1, memOpps: 5, leads: 1, installs: 0, installRev:     0.00 }
+      ]
+    });
+
+    // v219.91: Cascade week 8/24-8/30 into stData MTD (August week 5 / month rollover).
+    function _wlbSeedWeek20260824MtdIfNeeded() {
+      try {
+        var FLAG = 'snappy_mtd_seeded_20260829_v21991';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof stData === 'undefined' || !Array.isArray(stData)) return;
+        var adds = [
+          // name,     svc,  soldHrs, frtPerCall, spps, tgls
+          ['Chris',  1641,  3.70, 1.75, 2, 1],
+          ['Benji',  5348,  7.50, 4.00, 1, 2],
+          ['Daniel', 3411,  8.05, 6.50, 1, 0],
+          ['Dewone', 1858,  4.10, 1.80, 2, 4],
+          ['Nick',   5980, 11.50, 3.40, 1, 1],
+          ['Jason',  1131,  2.90, 2.00, 1, 1]
+        ];
+        adds.forEach(function(r){
+          var name = r[0], svc = r[1], soldHrs = r[2], frt = r[3], spps = r[4], tgls = r[5];
+          var st = stData.find(function(s){ return s.name === name; });
+          if (!st) return;
+          st.mtd_service_rev = +(st.mtd_service_rev || 0) + svc;
+          if (!st.mtd_nexstar) st.mtd_nexstar = {};
+          st.mtd_nexstar.total_revenue   = +(st.mtd_nexstar.total_revenue   || 0) + svc;
+          st.mtd_nexstar.spps_sold       = +(st.mtd_nexstar.spps_sold       || 0) + spps;
+          st.mtd_nexstar.tech_gen_leads  = +(st.mtd_nexstar.tech_gen_leads  || 0) + tgls;
+          st.mtd_nexstar.sold_hours      = +(st.mtd_nexstar.sold_hours      || 0) + soldHrs;
+          st.mtd_nexstar.flat_rate_tasks = +(st.mtd_nexstar.flat_rate_tasks || 0) + frt;
+          if (!st.mtd_productivity) st.mtd_productivity = {};
+          st.mtd_productivity.billable_hours = +(st.mtd_productivity.billable_hours || 0) + soldHrs;
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.91] Week 8/24-8/30 MTD cascade applied. CHRIS DOUBLE-INSTALL WEEK: $19,369 roster svc (+80% WoW) / 8 SPP / 9 roster TGL / 8 of 21 mems (38%) / 37.75 roster sold hrs / 2 self-sold installs $34,823.63 (Chris Cherini Ghobrial $12,000.33 + Chris Shawn Mccarrey $22,823.30 — both Chris lead + Chris sold). Adam-side: none this week (0 flips closed as installs).');
+      } catch(e) { console.warn('_wlbSeedWeek20260824MtdIfNeeded failed', e); }
+    }
+    _wlbSeedWeek20260824MtdIfNeeded();
+
+    // v219.91: Bulletin board — Week 8/24-8/30 close-out summary.
+    (function _bbWeekClose20260824IfNeeded(){
+      try {
+        var FLAG = 'snappy_bb_weekclose_20260824_v21991';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var bb = (typeof bbLoad === 'function') ? bbLoad() : null;
+        if (!bb) return;
+        if (!Array.isArray(bb.matrixUpdates)) bb.matrixUpdates = [];
+        var entries = [
+          {
+            id: 'wk_close_20260824',
+            date: '2026-08-31',
+            text: 'WEEK 8/24-8/30 CLOSE-OUT \u2014 CHRIS DOUBLE-INSTALL. Roster 6 techs. Service $19,369 (+80% WoW vs $10,742) \u2014 huge rebound. INSTALLS: 2 self-sold $34,823.63 (both Chris lead + Chris sold: Cherini Ghobrial $12,000.33 with Dee + Nick crew + Shawn Mccarrey $22,823.30 with Thomas + Dee + Daniel crew). Total roster production $54,192.63 (+19% WoW vs $45,717). 8 SPP / 9 TGL / 8 of 21 mems (38%) / 37.75 hrs / 2 GR\u2605.'
+          },
+          {
+            id: 'wk_close_chris_20260824',
+            date: '2026-08-31',
+            text: 'CHRIS \u2014 #1 TOTAL, DOUBLE SELF-SOLD INSTALL: $1,641 svc / 80% conv (top!) / $388 avg / 2 SPP / 1 TGL / 3.70 sold hrs / 2 of 4 mems (50%). SELF-SOLD $34,824 (Cherini Ghobrial $12,000 + Shawn Mccarrey $22,823 \u2014 both Chris lead + Chris sold, cleanest attribution imaginable). Personal production $36,465 \u2014 tops the board by a mile. Pay: $49 rev + $25 leads + $50 mem + $1,045 install (3%) = $1,169. Biggest paycheck of the summer.'
+          },
+          {
+            id: 'wk_close_nick_20260824',
+            date: '2026-08-31',
+            text: 'NICK \u2014 SVC #1 REBOUND, HOURS BACK: $5,980 svc (top of roster, +196% WoW from $2,019) / 100% conv / $1,196 avg / 1 SPP / 1 TGL / 11.50 sold hrs (huge rebound from 3.10 last wk) / 1 of 1 mems (100%). GR\u2605 +1 (Danya Culler HVAC A/C \u2014 Brayden + Nick named). 2 open flips tipped (Sonda Ford + Danya Culler didn\u2019t close as install this week). Pay: $179 rev + $25 leads + $25 mem + $25 GR = $254.'
+          },
+          {
+            id: 'wk_close_benji_20260824',
+            date: '2026-08-31',
+            text: 'BENJI \u2014 $2.6K AVG TICKET: $5,348 svc / 29% conv (rougher on close rate) / $2,629 avg (top of roster) / 1 SPP / 2 TGL / 7.50 sold hrs / 1 of 4 mems (25%). 1 open flip (Robyn Meyer, Brayden sold svc call didn\u2019t close as install this week). Pay: $160 rev + $50 leads + $25 mem = $235.'
+          },
+          {
+            id: 'wk_close_daniel_20260824',
+            date: '2026-08-31',
+            text: 'DANIEL \u2014 STEADY: $3,411 svc / 29% conv / $1,599 avg / 1 SPP / 0 TGL / 8.05 sold hrs / 1 of 3 mems (33%). Install crew for Chris\u2019s Shawn Mccarrey $22,823 (with Thomas + Dee \u2014 install pay only, not self-sold credit). GR\u2605 +1 (Kristen Wilkey "Dan" \u2014 next-day HVAC per Althea/Venkatesh precedent for short-name credit). Pay: $102 rev + $25 mem + $25 GR = $152 + install crew pay via ipRateCard.'
+          },
+          {
+            id: 'wk_close_dewone_20260824',
+            date: '2026-08-31',
+            text: 'DEWONE \u2014 4 TGL LEADER: $1,858 svc / 63% conv / $335 avg / 2 SPP / 4 TGL (top of roster) / 4.10 sold hrs / 2 of 4 mems (50%). Strong lead generation \u2014 4 TGL on 4 hours of truck time. Pay: $56 rev + $100 leads + $50 mem = $206.'
+          },
+          {
+            id: 'wk_close_jason_20260824',
+            date: '2026-08-31',
+            text: 'JASON \u2014 STREAK BROKEN: $1,131 svc / 38% conv / $318 avg / 1 SPP (first in 2 wks) / 1 TGL / 2.90 sold hrs / 1 of 5 mems (20% \u2014 FIRST MEM CLOSE IN 3 WEEKS after 0/6 and 0/3). Coach conversation from last week landed \u2014 not fully recovered but streak is broken. Pay: $34 rev + $25 leads + $25 mem = $84.'
+          },
+          {
+            id: 'wk_close_flips_20260824',
+            date: '2026-08-31',
+            text: 'OPEN FLIPS (no install $ this week \u2014 leads only, TGL credit only): Ben > Robyn Meyer (Brayden sold svc). Nick > Sonda Ford + Danya Culler (Brayden/Adam sold svc). Chris > John Collins (Adam Bunyard svc, opportunity ✓). These are pipeline for the coming weeks. Cherini Ghobrial + Shawn Mccarrey were BOTH Chris lead + Chris sold \u2014 no flip attribution, no Ronnie Pearce, clean single-source install credit.'
+          },
+          {
+            id: 'wk_close_membership_20260824',
+            date: '2026-08-31',
+            text: 'MEMBERSHIPS \u2014 8 of 21 (38%) week vs 8 of 29 (28%) prior week: fewer opps but MUCH better close rate. Standouts: Nick 1/1 (100%), Chris 2/4 (50%), Dewone 2/4 (50%). Improved: Jason 1/5 after two straight zero-close weeks. Ben 1/4 (25%) still light. Dee 0/0 (no service opps this week per Nexstar).'
+          }
+        ];
+        var added = 0;
+        entries.forEach(function(e){
+          if (!bb.matrixUpdates.some(function(u){ return u.id === e.id; })) {
+            bb.matrixUpdates.push({ id: e.id, date: e.date, text: e.text, createdAt: Date.now() });
+            added++;
+          }
+        });
+        if (added > 0 && typeof bbSave === 'function') {
+          bbSave(bb);
+          console.log('[v219.91] Added ' + added + ' week-close bulletin entries.');
+        }
+        localStorage.setItem(FLAG, '1');
+      } catch(e) { console.warn('_bbWeekClose20260824IfNeeded failed', e); }
+    })();
+
+    // ================================================================
+    // v219.91 — Google Reviews close-out for week 8/24-8/30
+    // ================================================================
+    // Source: Google Maps reviews panel for Snappy Services, sorted
+    // Newest, collected 9/2/26 by subagent pull_snappy_google_reviews_8_24_8_30.
+    // 6 in-window reviews (a week ago \u2192 4 days ago), stopped at "2 weeks
+    // ago" per Emily McCutchan already banked v219.87.
+    //
+    // Roster credit rule (6/4): only credit the 6 HVAC service-roster
+    // techs by name (Chris, Benji, Daniel, Dewone, Nick, Jason).
+    //
+    // Dedup vs v219.90 (8/17-8/23): Sue Jordan + Althea Johnson ALREADY
+    // BANKED v219.90 as "a week ago" reviews collected 8/26. On 9/2 they
+    // still render as "a week ago" (\u007e8/26) \u2014 SAME posts, do NOT
+    // double-count.
+    //
+    // In-window NEW roster-crediting reviews (2 total):
+    //   Nick:   1 (Danya Culler 4d ago \u007e8/29 \u2014 "Brayden and Nick were
+    //             excellent!\u2026 got bad news about my old HVAC system")
+    //   Daniel: 1 (Kristen Wilkey Edited 5d ago \u007e8/28 \u2014 "Dan text
+    //             when he was on the way\u2026 great job assessing and fixing
+    //             the problem quickly" per Althea/Venkatesh precedent for
+    //             short-name credit)
+    //   Chris:  0
+    //   Benji:  0 (Sue Jordan already banked v219.90)
+    //   Dewone: 0
+    //   Jason:  0
+    // Non-crediting: BluefishCK (Brayden EV charger \u2192 electrician),
+    //   Sean Angert (Ben Johnson electrical), Sue Jordan + Althea Johnson
+    //   already banked v219.90.
+    (function _seedGoogleReviewsWeekly20260824IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_weekly_seeded_20260824_v21991';
+        if (localStorage.getItem(FLAG) === '1') return;
+        if (typeof ipServiceTechSetField !== 'function' || typeof ipServiceTechOverrides !== 'function') return;
+        var weekStart = '2026-08-24';
+        var delta = [
+          ['Nick',   1],
+          ['Daniel', 1]
+        ];
+        var ov = ipServiceTechOverrides();
+        var week = (ov && ov.weeks && ov.weeks[weekStart]) ? ov.weeks[weekStart] : {};
+        delta.forEach(function(r){
+          var short = r[0], target = r[1];
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : 0;
+          if (cur !== target) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', target);
+          }
+        });
+        // Zero out the rest of the 6-tech service roster.
+        ['Chris','Ben','Benji','Daniel','Dewone','Nick','Jason'].forEach(function(short){
+          if (delta.some(function(r){ return r[0] === short; })) return;
+          var cur = (week[short] && typeof week[short].weekReviews === 'number') ? week[short].weekReviews : null;
+          if (cur !== 0 && cur !== null) {
+            ipServiceTechSetField(weekStart, short, 'weekReviews', 0);
+          }
+        });
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.91] Wrote weekly weekReviews for week 2026-08-24: Nick 1 (Danya Culler 4d ago HVAC), Daniel 1 (Kristen Wilkey "Dan" 5d ago). Chris/Benji/Dewone/Jason 0. Sue Jordan + Althea Johnson already banked v219.90, deduped. Total roster GR: 2.');
+      } catch(e) { console.warn('_seedGoogleReviewsWeekly20260824IfNeeded failed', e); }
+    })();
+
+    // v219.91: MTD Google Reviews bump.
+    (function _seedGoogleReviewsMtd20260824IfNeeded(){
+      try {
+        var FLAG = 'snappy_gr_mtd_seeded_20260824_v21991';
+        if (localStorage.getItem(FLAG) === '1') return;
+        var raw = localStorage.getItem('snappy_google_reviews');
+        var gr = {};
+        try { gr = raw ? JSON.parse(raw) : {}; } catch(e) { gr = {}; }
+        if (!gr || typeof gr !== 'object') gr = {};
+        var adds = [
+          ['Nick',   1],
+          ['Daniel', 1]
+        ];
+        adds.forEach(function(r){
+          var short = r[0], add = r[1];
+          if (!gr[short]) gr[short] = { count: 0 };
+          gr[short].count = +(gr[short].count || 0) + add;
+        });
+        localStorage.setItem('snappy_google_reviews', JSON.stringify(gr));
+        localStorage.setItem(FLAG, '1');
+        console.log('[v219.91] MTD googleReviews[short].count bumped: Nick +1, Daniel +1. Total roster GR for week: 2.');
+      } catch(e) { console.warn('_seedGoogleReviewsMtd20260824IfNeeded failed', e); }
+    })();
+
+
+
 
 
 
